@@ -35,6 +35,8 @@ class Project : public QAbstractItemModel
 	Q_OBJECT
 public:
 
+	static const QString PROJECT_FILE_EXT;
+
 	enum SepcialRoles {
 		ClassRole = Qt::UserRole,
 		IdRole = Qt::UserRole+1
@@ -42,8 +44,8 @@ public:
 
 	explicit Project(QObject* parent);
 
-	virtual bool load(QString const& datasource);
-	virtual bool save(QString const& datasource);
+	virtual bool load(QString const& inFile);
+	virtual bool save(QString const& outFile);
 
 	qint64 createDataBlock(const char* classname);
 	DataBlock* getById(qint64 internalId) const;
@@ -66,9 +68,12 @@ public:
 	bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole);
 	Qt::ItemFlags flags(const QModelIndex &index) const;
 
+	void clear();
+
 Q_SIGNALS:
 
 protected:
+	void clearImpl();
 
 	bool addType(DataBlockFactory* factory);
 	void setDataBlockId(DataBlock* b, qint64 id) const;
@@ -133,7 +138,7 @@ public:
 
 	QVector<qint64> internalUrl() const;
 	QStringList subTypes() const;
-	DataBlock* getById(qint64 internalId);
+	DataBlock* getById(qint64 internalId) const;
 
 	QVector<qint64> listAllSubDataBlocks() const;
 	QVector<qint64> listTypedSubDataBlocks(QString const& type) const;
@@ -158,6 +163,12 @@ protected:
 	void removeRefered(QVector<qint64> const& referedId);
 
 	virtual qint64 nextAvailableId() const;
+
+	QJsonObject toJson() const;
+	void setFromJson(QJsonObject const& obj);
+
+	virtual QJsonObject encodeJson() const = 0;
+	virtual void configureFromJson(QJsonObject const& data) = 0;
 
 	qint64 _internalId;
 

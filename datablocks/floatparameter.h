@@ -3,6 +3,9 @@
 
 #include <QMetaType>
 
+#include <QJsonObject>
+#include <QJsonValue>
+
 typedef float pFloatType;
 
 namespace StereoVisionApp {
@@ -10,6 +13,7 @@ namespace StereoVisionApp {
 class floatParameter
 {
 public:
+
 	floatParameter();
 	floatParameter(pFloatType value, bool isSet=true);
 	floatParameter(pFloatType value, pFloatType stddev);
@@ -57,6 +61,9 @@ public:
 
 	pFloatType & stddev();
 	pFloatType const& stddev() const;
+
+	static QJsonObject toJson(floatParameter const& fP);
+	static floatParameter fromJson(QJsonObject const& obj);
 
 protected:
 

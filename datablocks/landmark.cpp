@@ -124,6 +124,45 @@ void Landmark::clearOptimisedZ() {
 	}
 }
 
+QJsonObject Landmark::encodeJson() const {
+
+	QJsonObject obj;
+
+	obj.insert("x", floatParameter::toJson(xCoord()));
+	obj.insert("y", floatParameter::toJson(yCoord()));
+	obj.insert("z", floatParameter::toJson(yCoord()));
+
+	obj.insert("ox", floatParameter::toJson(optimizedX()));
+	obj.insert("oy", floatParameter::toJson(optimizedY()));
+	obj.insert("oz", floatParameter::toJson(optimizedZ()));
+
+	return obj;
+}
+
+void Landmark::configureFromJson(QJsonObject const& data) {
+
+	if (data.contains("x")) {
+		_x = floatParameter::fromJson(data.value("x").toObject());
+	}
+	if (data.contains("y")) {
+		_y = floatParameter::fromJson(data.value("y").toObject());
+	}
+	if (data.contains("y")) {
+		_z = floatParameter::fromJson(data.value("z").toObject());
+	}
+
+	if (data.contains("ox")) {
+		_o_x = floatParameter::fromJson(data.value("ox").toObject());
+	}
+	if (data.contains("oy")) {
+		_o_y = floatParameter::fromJson(data.value("oy").toObject());
+	}
+	if (data.contains("oy")) {
+		_o_z = floatParameter::fromJson(data.value("oz").toObject());
+	}
+
+}
+
 LandmarkFactory::LandmarkFactory(QObject* parent) : DataBlockFactory(parent)
 {
 

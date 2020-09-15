@@ -65,7 +65,7 @@ public:
 
 	qint64 addImageLandmark(const QPointF &coordinates, bool uncertain = false);
 	qint64 addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain = false);
-	ImageLandmark* getImageLandmark(qint64 id);
+	ImageLandmark* getImageLandmark(qint64 id) const;
 	ImageLandmark* getImageLandmarkByLandmarkId(qint64 id);
 	void clearImageLandmark(qint64 id);
 	qint64 getImageLandMarkAt(QPointF const& coord, float tol = 3);
@@ -96,6 +96,9 @@ Q_SIGNALS:
 
 
 protected:
+
+	QJsonObject encodeJson() const override;
+	void configureFromJson(QJsonObject const& data) override;
 
 	QString _imageFile;
 
@@ -142,6 +145,7 @@ public:
 	void setImageCoordinates(QPointF const& point);
 	QPointF imageCoordinates() const;
 
+
 Q_SIGNALS:
 
 	void attachedLandmarkidChanged(qint64 id);
@@ -153,12 +157,17 @@ Q_SIGNALS:
 
 protected:
 
-	virtual void referedCleared(QVector<qint64> const& referedId);
+	QJsonObject encodeJson() const override;
+	void configureFromJson(QJsonObject const& data) override;
+
+	void referedCleared(QVector<qint64> const& referedId) override;
 
 	qint64 _attachedLandmarkId;
 
 	floatParameter _x;
 	floatParameter _y;
+
+	friend class Image;
 
 };
 

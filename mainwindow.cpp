@@ -8,6 +8,9 @@
 
 #include <QDebug>
 #include <QTabWidget>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QStandardPaths>
 
 namespace StereoVisionApp {
 
@@ -25,6 +28,8 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->editorPanel, &QTabWidget::tabCloseRequested, this, &MainWindow::closeEditor);
 
 	connect(ui->actionnew_Project, &QAction::triggered, this, &MainWindow::newEmptyProject);
+	connect(ui->actionsave_Project, &QAction::triggered, this, &MainWindow::saveProject);
+	connect(ui->actionopen_Project, &QAction::triggered, this, &MainWindow::openProject);
 
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
 }
@@ -34,10 +39,54 @@ MainWindow::~MainWindow()
 	delete ui;
 }
 
-void MainWindow::setImage(Image *im) {
-	return;
-}
 void MainWindow::newEmptyProject() {
+
+	resetProject();
+
+}
+void MainWindow::saveProject() {
+	saveProjectAs();
+}
+
+void MainWindow::saveProjectAs() {
+
+	if (_activeProject == nullptr) {
+		return;
+	}
+
+	QString filter = "Projects files (*." + Project::PROJECT_FILE_EXT + ")";
+	QString folder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+
+	QString fName = QFileDialog::getSaveFileName(this, tr("Save project"), folder, filter);
+
+	if (!fName.isEmpty()) {
+		bool status = _activeProject->save(fName);
+
+		if (!status) {
+			QMessageBox::warning(this, tr("Error while saving project"), tr("Is the location correct and writtable ?"));
+		}
+	}
+
+}
+void MainWindow::openProject() {
+
+	QString filter = "Projects files (*" + Project::PROJECT_FILE_EXT + ")";
+	QString folder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+
+
+	QString fName = QFileDialog::getOpenFileName(this, tr("Save project"), folder, filter);
+
+	if (!fName.isEmpty()) {
+		resetProject();
+		bool status = _activeProject->load(fName);
+
+		if (!status) {
+			QMessageBox::warning(this, tr("Error while opening project"), tr("Is the location correct and readable ?"));
+		}
+	}
+}
+
+void MainWindow::resetProject() {
 
 	if (_activeProject != nullptr) {
 		_activeProject->deleteLater();
@@ -46,6 +95,9 @@ void MainWindow::newEmptyProject() {
 	_activeProject = StereoVisionApp::ProjectFactory::defaultProjectFactory().createProject(this);
 	ui->projectView->setModel(_activeProject);
 
+	for (Editor* e : _openedEditors) {
+		e->setProject(_activeProject);
+	}
 }
 
 Editor* MainWindow::openEditor(QString editorClassName) {

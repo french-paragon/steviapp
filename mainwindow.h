@@ -22,8 +22,10 @@ public:
 	MainWindow(QWidget *parent = nullptr);
 	~MainWindow();
 
-	void setImage(Image* im);
 	void newEmptyProject();
+	void saveProject();
+	void openProject();
+	void saveProjectAs();
 
 	Editor* openEditor(QString editorClassName);
 	bool isEditorAvailable(QString editorClassName) const;
@@ -31,6 +33,8 @@ public:
 	void closeEditor(int index);
 
 private:
+
+	void resetProject();
 
 	void projectContextMenu(QPoint const& pt);
 

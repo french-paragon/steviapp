@@ -55,6 +55,9 @@ Q_SIGNALS:
 
 protected:
 
+	QJsonObject encodeJson() const override;
+	void configureFromJson(QJsonObject const& data) override;
+
 	floatParameter _x;
 	floatParameter _y;
 	floatParameter _z;

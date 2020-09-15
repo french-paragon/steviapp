@@ -2,6 +2,9 @@
 
 #include <cmath>
 
+#include <QJsonObject>
+#include <QJsonValue>
+
 int StereoVisionApp::floatParameter::registrationCode = qRegisterMetaType<StereoVisionApp::floatParameter>();
 
 namespace StereoVisionApp {
@@ -238,6 +241,48 @@ pFloatType& floatParameter::stddev() {
 }
 pFloatType const& floatParameter::stddev() const {
 	return _stddev;
+}
+
+
+QJsonObject floatParameter::toJson(floatParameter const& fP) {
+	QJsonObject obj;
+
+	obj.insert("isSet", static_cast<qreal>(fP.isSet()));
+	obj.insert("val", static_cast<qreal>(fP.value()));
+
+	obj.insert("isUncertain", static_cast<qreal>(fP.isUncertain()));
+	obj.insert("stddev", static_cast<qreal>(fP.stddev()));
+
+	return obj;
+}
+floatParameter floatParameter::fromJson(QJsonObject const& obj) {
+	floatParameter fp;
+
+	if (obj.contains("val")) {
+		QJsonValue v = obj.value("val");
+		fp._value = static_cast<pFloatType>(v.toDouble());
+	}
+
+	if (obj.contains("stddev")) {
+		QJsonValue v = obj.value("stddev");
+		fp._stddev = static_cast<pFloatType>(v.toDouble(1.0));
+	}
+
+	if (obj.contains("isSet")) {
+		QJsonValue v = obj.value("isSet");
+		if (v.toBool()) {
+			fp.setIsSet();
+		}
+	}
+
+	if (obj.contains("isUncertain")) {
+		QJsonValue v = obj.value("isUncertain");
+		if (v.toBool()) {
+			fp.setUncertainty();
+		}
+	}
+
+	return fp;
 }
 
 } // namespace StereoVisionApp

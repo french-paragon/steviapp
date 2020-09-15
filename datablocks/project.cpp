@@ -1,10 +1,19 @@
 #include "project.h"
 
 #include <QAction>
+#include <QUrl>
+#include <QFile>
+
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonValue>
 
 #include <algorithm>
 
 namespace StereoVisionApp {
+
+const QString Project::PROJECT_FILE_EXT = ".steviapproj";
 
 ProjectFactory* ProjectFactory::_defaultProjectFactory = new ProjectFactory();
 
@@ -47,11 +56,96 @@ Project::Project(QObject* parent) : QAbstractItemModel(parent)
 
 }
 
-bool Project::load(QString const&) {
-	return false;
+bool Project::load(QString const& inFile) {
+
+	QString fileName = (inFile.startsWith("file:")) ? QUrl(inFile).toLocalFile() : inFile;
+	QFile opsFile(fileName);
+
+	opsFile.open(QIODevice::ReadOnly);
+	QByteArray data = opsFile.readAll();
+	opsFile.close();
+
+	QJsonParseError errors;
+	QJsonDocument doc = QJsonDocument::fromJson(data, &errors);
+
+	if(errors.error != QJsonParseError::NoError){
+		return false;
+	}
+
+	if (!doc.isObject()) {
+		return false;
+	}
+
+	beginResetModel();
+
+	clearImpl();
+
+	QJsonObject proj = doc.object();
+
+	for (QString itemClass : _dataBlocksFactory.keys()) {
+
+		QJsonArray items = proj.value(itemClass).toArray();
+
+		for (QJsonValue v : items) {
+			DataBlock* block = _dataBlocksFactory[itemClass]->factorizeDataBlock(this);
+			block->setFromJson(v.toObject());
+
+			if (block->internalId() >= 0) {
+				_itemCache.insert(block->internalId(), block);
+				_idsByTypes[itemClass].append(block->internalId());
+			}
+		}
+	}
+
+	endResetModel();
+
+	return true;
 }
-bool Project::save(QString const&) {
-	return false;
+bool Project::save(QString const& outFile) {
+
+	QJsonObject proj;
+
+	for (QString itemClass : _idsByTypes.keys()) {
+
+		QJsonArray items;
+		QVector<qint64> ids = _idsByTypes.value(itemClass);
+
+		for (qint64 id : ids) {
+			DataBlock* block = getById(id);
+			QJsonObject bObj = block->toJson();
+
+			items.push_back(bObj);
+		}
+
+		proj.insert(itemClass, items);
+	}
+
+	QJsonDocument doc;
+
+	doc.setObject(proj);
+	QByteArray datas = doc.toJson();
+
+	QString fileName = (outFile.startsWith("file:")) ? QUrl(outFile).toLocalFile() : outFile;
+
+	if (!fileName.endsWith(PROJECT_FILE_EXT)) {
+		fileName += PROJECT_FILE_EXT;
+	}
+
+	QFile out(fileName);
+
+	if(!out.open(QIODevice::WriteOnly)){
+		return false;
+	}
+
+	qint64 w_stat = out.write(datas);
+	out.close();
+
+	if(w_stat < 0){
+		return false;
+	}
+
+	return true;
+
 }
 
 qint64 Project::createDataBlock(const char* classname) {
@@ -131,11 +225,10 @@ bool Project::clearById(qint64 internalId) {
 
 	beginRemoveRows(parentIndex, ItemRow, ItemRow);
 
-	DataBlock* b = getById(internalId);
-	b->clear();
+	db->clear();
 	_itemCache.remove(internalId);
 	_idsByTypes[blockClass].remove(ItemRow);
-	b->deleteLater();
+	db->deleteLater();
 
 	endRemoveRows();
 
@@ -342,6 +435,31 @@ Qt::ItemFlags Project::flags(const QModelIndex &index) const {
 	return QAbstractItemModel::flags(index);
 }
 
+void Project::clear() {
+	beginResetModel();
+	clearImpl();
+	endResetModel();
+}
+void Project::clearImpl() {
+
+	for (qint64 id : _itemCache.keys()) {
+		DataBlock* db = getById(id);
+		QString blockClass = db->metaObject()->className();
+
+		int ItemRow = _idsByTypes.value(blockClass).indexOf(id);
+
+		if (ItemRow < 0) {
+			continue;
+		}
+
+		db->clear();
+		_itemCache.remove(id);
+		_idsByTypes[blockClass].remove(ItemRow);
+		db->deleteLater();
+	}
+
+}
+
 void Project::setDataBlockId(DataBlock* b, qint64 id) const{
 	if (b->getProject() == this) {
 		b->_internalId = id;
@@ -453,7 +571,7 @@ Project* DataBlock::getProject() const {
 }
 
 bool DataBlock::isInProject() {
-	return getProject() != nullptr and _internalId > 0;
+	return getProject() != nullptr and _internalId >= 0;
 }
 bool DataBlock::isRootItem() {
 	return isInProject() and (qobject_cast<Project*>(parent()) != nullptr);
@@ -492,7 +610,7 @@ QVector<qint64> DataBlock::internalUrl() const {
 QStringList DataBlock::subTypes() const {
 	return _idBySubTypes.keys();
 }
-DataBlock* DataBlock::getById(qint64 internalId) {
+DataBlock* DataBlock::getById(qint64 internalId) const {
 	return _itemCache.value(internalId, nullptr);
 }
 
@@ -521,17 +639,19 @@ void DataBlock::insertSubItem(DataBlock* sub) {
 		return;
 	}
 
-	qint64 id = nextAvailableId();
-	sub->_internalId = id;
+	if (sub->internalId() < 0) {
+		qint64 id = nextAvailableId();
+		sub->_internalId = id;
+	}
 
-	_itemCache.insert(id, sub);
+	_itemCache.insert(sub->internalId(), sub);
 
 	QString className = sub->metaObject()->className();
 
 	if (!_idBySubTypes.contains(className)) {
-		_idBySubTypes.insert(className, {id});
+		_idBySubTypes.insert(className, {sub->internalId()});
 	} else {
-		_idBySubTypes[className].append(id);
+		_idBySubTypes[className].append(sub->internalId());
 	}
 
 }
@@ -665,6 +785,94 @@ qint64 DataBlock::nextAvailableId() const {
 	}
 
 	return id;
+
+}
+
+QJsonArray urlList2Json(QVector<QVector<qint64>> const& urls) {
+
+	QJsonArray arr;
+
+	for (QVector<qint64> const& url : urls) {
+		QString surl = "";
+
+		for (qint64 id : url) {
+			surl += QString(surl.isEmpty() ? "%1" : "/%1").arg(id);
+		}
+
+		arr.push_back(surl);
+	}
+
+	return arr;
+
+}
+
+QVector<QVector<qint64>> json2UrlList(QJsonArray const& arr) {
+
+	QVector<QVector<qint64>> urls;
+
+	for (QJsonValue const& v : arr) {
+		QString u = v.toString();
+
+		QStringList l = u.split("/", QString::SkipEmptyParts);
+
+		QVector<qint64> url;
+		url.reserve(l.count());
+
+		for(QString const& id : l) {
+			url.push_back(QVariant::fromValue(id).toInt());
+		}
+
+		urls.push_back(url);
+	}
+
+	return urls;
+}
+
+QJsonObject DataBlock::toJson() const {
+
+	QJsonObject obj = encodeJson();
+
+	obj.insert("id", internalId());
+	obj.insert("name", objectName());
+
+	QJsonArray referers = urlList2Json(_referers);
+	QJsonArray referered = urlList2Json(_referered);
+
+	obj.insert("referers", referers);
+	obj.insert("referered", referered);
+
+	return obj;
+
+}
+void DataBlock::setFromJson(QJsonObject const& obj) {
+
+	bool signalBlocked = signalsBlocked();
+
+	blockSignals(true);
+
+	if (obj.contains("id")) {
+		_internalId = obj.value("id").toInt(-1);
+	}
+
+	if (obj.contains("name")) {
+		setObjectName(obj.value("name").toString());
+	}
+
+	if (obj.contains("referers")) {
+		QJsonArray rfrs = obj.value("referers").toArray();
+		_referers = json2UrlList(rfrs);
+	}
+
+	if (obj.contains("referered")) {
+		QJsonArray rfrd = obj.value("referered").toArray();
+		_referered = json2UrlList(rfrd);
+	}
+
+	configureFromJson(obj);
+
+	clearIsChanged();
+
+	blockSignals(signalBlocked);
 
 }
 

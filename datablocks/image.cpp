@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QAction>
+#include <QJsonArray>
 
 #include "mainwindow.h"
 #include "datablocks/landmark.h"
@@ -305,22 +306,24 @@ qint64 Image::addImageLandmark(const QPointF &coordinates, qint64 attacheLandmar
 	iml->setX(x);
 	iml->setY(y);
 
-	iml->setAttachedLandmark(attacheLandmarkId);
-
-	iml->stopTrackingChanges(false);
-
 	insertSubItem(iml);
 
 	if (iml->internalId() >= 0) {
+		iml->setAttachedLandmark(attacheLandmarkId);
 		emit pointAdded(iml->internalId());
+
+		iml->stopTrackingChanges(false);
 		return iml->internalId();
+	} else {
+		iml->clear();
+		iml->deleteLater();
 	}
 
 	return -1;
 
 }
 
-ImageLandmark* Image::getImageLandmark(qint64 id) {
+ImageLandmark* Image::getImageLandmark(qint64 id) const {
 	return qobject_cast<ImageLandmark*>(getById(id));
 }
 ImageLandmark* Image::getImageLandmarkByLandmarkId(qint64 id) {
@@ -376,6 +379,101 @@ qint64 Image::getImageLandMarkAt(QPointF const& coord, float tol) {
 	return r;
 }
 
+
+QJsonObject Image::encodeJson() const {
+
+	QJsonObject obj;
+
+	obj.insert("imFile", getImageFile());
+
+	obj.insert("x", floatParameter::toJson(xCoord()));
+	obj.insert("y", floatParameter::toJson(yCoord()));
+	obj.insert("z", floatParameter::toJson(zCoord()));
+
+	obj.insert("rx", floatParameter::toJson(xRot()));
+	obj.insert("ry", floatParameter::toJson(yRot()));
+	obj.insert("rz", floatParameter::toJson(zRot()));
+
+	obj.insert("ox", floatParameter::toJson(optXCoord()));
+	obj.insert("oy", floatParameter::toJson(optYCoord()));
+	obj.insert("oz", floatParameter::toJson(optZCoord()));
+
+	obj.insert("orx", floatParameter::toJson(optXRot()));
+	obj.insert("ory", floatParameter::toJson(optYRot()));
+	obj.insert("orz", floatParameter::toJson(optZRot()));
+
+	QJsonArray arr;
+
+	for(qint64 id : listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
+		arr.push_back(getImageLandmark(id)->toJson());
+	}
+
+	obj.insert("Landmarks", arr);
+
+	return obj;
+
+}
+void Image::configureFromJson(QJsonObject const& data) {
+
+	if (data.contains("imFile")) {
+		_imageFile = data.value("imFile").toString();
+	}
+
+	if (data.contains("x")) {
+		_x = floatParameter::fromJson(data.value("x").toObject());
+	}
+	if (data.contains("y")) {
+		_y = floatParameter::fromJson(data.value("y").toObject());
+	}
+	if (data.contains("y")) {
+		_z = floatParameter::fromJson(data.value("z").toObject());
+	}
+
+	if (data.contains("rx")) {
+		_rx = floatParameter::fromJson(data.value("rx").toObject());
+	}
+	if (data.contains("ry")) {
+		_ry = floatParameter::fromJson(data.value("ry").toObject());
+	}
+	if (data.contains("ry")) {
+		_rz = floatParameter::fromJson(data.value("rz").toObject());
+	}
+
+	if (data.contains("ox")) {
+		_o_x = floatParameter::fromJson(data.value("ox").toObject());
+	}
+	if (data.contains("oy")) {
+		_o_y = floatParameter::fromJson(data.value("oy").toObject());
+	}
+	if (data.contains("oy")) {
+		_o_z = floatParameter::fromJson(data.value("oz").toObject());
+	}
+
+	if (data.contains("orx")) {
+		_o_rx = floatParameter::fromJson(data.value("orx").toObject());
+	}
+	if (data.contains("ory")) {
+		_o_ry = floatParameter::fromJson(data.value("ory").toObject());
+	}
+	if (data.contains("ory")) {
+		_o_rz = floatParameter::fromJson(data.value("orz").toObject());
+	}
+
+	if (data.contains("Landmarks")) {
+		QJsonArray arr = data.value("Landmarks").toArray();
+
+		for (QJsonValue v : arr) {
+			QJsonObject o = v.toObject();
+
+			ImageLandmark* iml = new ImageLandmark(this);
+			iml->setFromJson(o);
+
+			if (iml->internalId() >= 0) {
+				insertSubItem(iml);
+			}
+		}
+	}
+}
 
 ImageLandmark::ImageLandmark(Image* parent) : DataBlock(parent)
 {
@@ -505,6 +603,30 @@ void ImageLandmark::setImageCoordinates(QPointF const& point) {
 
 QPointF ImageLandmark::imageCoordinates() const {
 	return QPointF(_x.value(), _y.value());
+}
+
+QJsonObject ImageLandmark::encodeJson() const {
+	QJsonObject obj;
+
+	obj.insert("attachedLandmarkId", attachedLandmarkid());
+
+	obj.insert("x", floatParameter::toJson(x()));
+	obj.insert("y", floatParameter::toJson(y()));
+
+	return obj;
+}
+void ImageLandmark::configureFromJson(QJsonObject const& data) {
+
+	if (data.contains("x")) {
+		_x = floatParameter::fromJson(data.value("x").toObject());
+	}
+	if (data.contains("y")) {
+		_y = floatParameter::fromJson(data.value("y").toObject());
+	}
+
+	if (data.contains("attachedLandmarkId")) {
+		_attachedLandmarkId = data.value("attachedLandmarkId").toInt(-1);
+	}
 }
 
 void ImageLandmark::referedCleared(QVector<qint64> const& referedId) {
