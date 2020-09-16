@@ -45,7 +45,9 @@ set(PROJ_SRC  main.cpp
     datablocks/landmark.cpp
     datablocks/landmark.h
     datablocks/image.cpp
-    datablocks/image.h)
+    datablocks/image.h
+    datablocks/camera.cpp
+    datablocks/camera.h)
 
 add_executable(steviapp
     ${PROJ_SRC}

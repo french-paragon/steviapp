@@ -202,7 +202,9 @@ void MainWindow::projectContextMenu(QPoint const& pt) {
 		}
 	}
 
-	m.exec(ui->projectView->mapToGlobal(pt));
+	if (acts.count() > 0) {
+		m.exec(ui->projectView->mapToGlobal(pt));
+	}
 
 	for (QAction* a : acts) {
 		a->deleteLater();
