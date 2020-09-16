@@ -17,6 +17,9 @@ class Image : public DataBlock
 public:
 	Image(Project* parent = nullptr);
 
+	qint64 assignedCamera() const;
+	void assignCamera(qint64 camId);
+
 	QString getImageFile() const;
 	void setImageFile(const QString &imageFile);
 
@@ -72,6 +75,8 @@ public:
 
 Q_SIGNALS:
 
+	void assignedCameraChanged(qint64 id);
+
 	void pointAdded(qint64 pt);
 	void pointRemoved(qint64 pt);
 
@@ -99,6 +104,8 @@ protected:
 
 	QJsonObject encodeJson() const override;
 	void configureFromJson(QJsonObject const& data) override;
+
+	qint64 _assignedCamera;
 
 	QString _imageFile;
 
@@ -181,8 +188,9 @@ public:
 	virtual FactorizableFlags factorizable() const;
 	virtual DataBlock* factorizeDataBlock(Project *parent = nullptr) const;
 
-	virtual QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const;
-	virtual QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock *item) const;
+	QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const override;
+	QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock *item) const override;
+	QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const override;
 
 	virtual QString itemClassName() const;
 	static QString imageClassName();

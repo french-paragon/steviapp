@@ -54,6 +54,7 @@ public:
 	virtual bool clearById(qint64 internalId);
 
 	QVector<qint64> getIds() const;
+	QVector<qint64> getIdsByClass(QString const& className) const;
 	int countTypeInstances(QString type) const;
 
 	QModelIndex indexOfClass(QString const& className);
@@ -114,6 +115,7 @@ public:
 
 	virtual QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const;
 	virtual QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* p) const;
+	virtual QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const;
 
 	virtual QString itemClassName() const;
 };
