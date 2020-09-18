@@ -10,6 +10,7 @@ namespace StereoVisionApp {
 
 class DataBlock;
 class DataBlockFactory;
+class ItemDataModel;
 class Project;
 
 class ProjectFactory : public QObject
@@ -145,9 +146,17 @@ public:
 
 	void stopTrackingChanges(bool);
 
+	ItemDataModel * getDataModel();
+	ItemDataModel const* getDataModel() const;
+
 Q_SIGNALS:
 
 	void isChangedStatusChanged(bool status);
+
+	void newSubItem(qint64 id);
+	void subItemAboutToBeRemoved(qint64 id);
+
+	void dataBlockNameChanged(QString const& name);
 
 protected:
 	void isChanged();
@@ -170,6 +179,8 @@ protected:
 	virtual QJsonObject encodeJson() const = 0;
 	virtual void configureFromJson(QJsonObject const& data) = 0;
 
+	virtual void buildDataModel();
+
 	qint64 _internalId;
 
 	QVector<QVector<qint64>> _referers;
@@ -180,6 +191,8 @@ protected:
 
 	bool _hasChanges;
 	bool _blockChanges;
+
+	ItemDataModel* _dataModel;
 
 	friend class Project;
 	friend class DataBlockFactory;

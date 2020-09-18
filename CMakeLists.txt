@@ -42,6 +42,8 @@ set(PROJ_SRC  main.cpp
     datablocks/project.h
     datablocks/floatparameter.cpp
     datablocks/floatparameter.h
+    datablocks/itemdatamodel.cpp
+    datablocks/itemdatamodel.h
     datablocks/landmark.cpp
     datablocks/landmark.h
     datablocks/image.cpp

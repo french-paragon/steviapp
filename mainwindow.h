@@ -37,6 +37,7 @@ private:
 	void resetProject();
 
 	void projectContextMenu(QPoint const& pt);
+	void onProjectSelectionChanged();
 
 	Ui::MainWindow *ui;
 

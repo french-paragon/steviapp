@@ -5,6 +5,7 @@
 #include "gui/editor.h"
 
 #include "datablocks/project.h"
+#include "datablocks/itemdatamodel.h"
 
 #include <QDebug>
 #include <QTabWidget>
@@ -32,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->actionopen_Project, &QAction::triggered, this, &MainWindow::openProject);
 
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
+	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
 }
 
 MainWindow::~MainWindow()
@@ -211,5 +213,30 @@ void MainWindow::projectContextMenu(QPoint const& pt) {
 	}
 }
 
+void MainWindow::onProjectSelectionChanged() {
+
+	QItemSelectionModel* m = ui->projectView->selectionModel();
+	QModelIndexList idxs = m->selectedIndexes();
+
+	if (idxs.size() == 1) {
+
+		QVariant v = idxs[0].data(Project::IdRole);
+
+		if (v.isValid()) {
+			qint64 id = v.toInt();
+
+			DataBlock* b = _activeProject->getById(id);
+
+			if (b != nullptr) {
+				ui->dataBlockView->setModel(b->getDataModel());
+				return;
+			}
+		}
+
+	}
+
+	ui->dataBlockView->setModel(nullptr);
+
+}
 
 } // namespace StereoVisionApp

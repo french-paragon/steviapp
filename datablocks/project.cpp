@@ -11,6 +11,8 @@
 
 #include <algorithm>
 
+#include "./itemdatamodel.h"
+
 namespace StereoVisionApp {
 
 const QString Project::PROJECT_FILE_EXT = ".steviapproj";
@@ -540,7 +542,8 @@ DataBlock::DataBlock(Project *parent) :
 	_hasChanges(false),
 	_blockChanges(false)
 {
-
+	connect(this, &QObject::objectNameChanged, this, &DataBlock::dataBlockNameChanged);
+	buildDataModel();
 }
 
 DataBlock::DataBlock(DataBlock *parent) :
@@ -549,7 +552,8 @@ DataBlock::DataBlock(DataBlock *parent) :
 	_hasChanges(false),
 	_blockChanges(false)
 {
-
+	connect(this, &QObject::objectNameChanged, this, &DataBlock::dataBlockNameChanged);
+	_dataModel = nullptr;
 }
 
 Project* DataBlock::getProject() const {
@@ -693,6 +697,13 @@ void DataBlock::isChanged() {
 			qobject_cast<DataBlock*>(parent())->isChanged();
 		}
 	}
+}
+
+ItemDataModel * DataBlock::getDataModel() {
+	return _dataModel;
+}
+ItemDataModel const* DataBlock::getDataModel() const {
+	return _dataModel;
 }
 
 void DataBlock::clear() {
@@ -873,6 +884,19 @@ void DataBlock::setFromJson(QJsonObject const& obj) {
 	clearIsChanged();
 
 	blockSignals(signalBlocked);
+
+}
+
+void DataBlock::buildDataModel() {
+
+	_dataModel = new ItemDataModel(this);
+
+	ItemDataModel::Category* c = _dataModel->addCategory(tr("Basic properties"));
+
+	c->addCatProperty<QString, DataBlock, true, ItemDataModel::ItemPropertyDescription::PassByRefSignal>(tr("Name"),
+																										 &DataBlock::objectName,
+																										 &DataBlock::setObjectName,
+																										 &DataBlock::dataBlockNameChanged);
 
 }
 
