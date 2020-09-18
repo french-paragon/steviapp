@@ -265,6 +265,9 @@ QVector<qint64> Project::getIds() const {
 
 	return r;
 }
+QVector<qint64> Project::getIdsByClass(QString const& className) const {
+	return _idsByTypes.value(className);
+}
 int Project::countTypeInstances(QString type) const {
 	return _idsByTypes.value(type).size();
 }
@@ -432,6 +435,8 @@ bool Project::setData(const QModelIndex &index, const QVariant &value, int role)
 Qt::ItemFlags Project::flags(const QModelIndex &index) const {
 	if(index != QModelIndex() and index.parent() != QModelIndex() and index.parent().parent() == QModelIndex()) {
 		return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
+	} else if (index != QModelIndex() and index.parent() == QModelIndex()) {
+		return QAbstractItemModel::flags(index) & ~Qt::ItemIsSelectable;
 	}
 
 	return QAbstractItemModel::flags(index);
@@ -512,6 +517,9 @@ QList<QAction*> DataBlockFactory::factorizeClassContextActions(QObject* parent, 
 	return {add};
 }
 QList<QAction*> DataBlockFactory::factorizeItemContextActions(QObject* , DataBlock *) const {
+	return {};
+}
+QList<QAction*> DataBlockFactory::factorizeMultiItemsContextActions(QObject* , Project* , QModelIndexList const&) const {
 	return {};
 }
 

@@ -174,9 +174,36 @@ void MainWindow::projectContextMenu(QPoint const& pt) {
 		return;
 	}
 
-	QList<QAction*> acts;
+	QList<QAction*> acts;;
 
-	if (id.parent() == QModelIndex()) { //Class item.
+	QModelIndexList s = ui->projectView->selectionModel()->selectedRows();
+	bool singleClassMultiSelection = false;
+	QString mSelClass;
+	if (s.count() > 1 and s.contains(id)) {
+		singleClassMultiSelection = true;
+
+		QModelIndex first = s.first();
+
+		mSelClass = _activeProject->data(first, Project::ClassRole).toString();
+
+		for (int i = 1; i < s.count(); i++) {
+			if (_activeProject->data(s[i], Project::ClassRole).toString() != mSelClass) {
+				singleClassMultiSelection = false;
+				break;
+			}
+		}
+	}
+
+	if (singleClassMultiSelection) {
+		DataBlockFactory* f = _activeProject->getFactoryForClass(mSelClass);
+
+		acts = f->factorizeMultiItemsContextActions(ui->projectView, _activeProject, s);
+
+		for (QAction* a : acts) {
+			m.addAction(a);
+		}
+
+	} else if (id.parent() == QModelIndex()) { //Class item.
 		QString dataBlockClass = id.data(Project::ClassRole).toString();
 		DataBlockFactory* f = _activeProject->getFactoryForClass(dataBlockClass);
 

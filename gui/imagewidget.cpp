@@ -33,7 +33,7 @@ int ImageWidget::zoom() const {
 
 void ImageWidget::cachedZoomed() {
 
-	if (_img.isNull()) {
+	if (_img.isNull() or _zoom > 100) {
 		_c_img = QPixmap();
 		return;
 	}
@@ -91,8 +91,8 @@ int ImageWidget::clipZoom(int rawZoom) {
 		zoom_percent = 1;
 	}
 
-	if (zoom_percent > 500) {
-		zoom_percent = 500;
+	if (zoom_percent > 1000) {
+		zoom_percent = 1000;
 	}
 
 	return zoom_percent;
@@ -123,7 +123,7 @@ void ImageWidget::drawPoint(QPainter* painter, QPointF const& imagePoint, bool i
 	QPen line(black);
 	line.setWidth(4);
 
-	painter->setFont(QFont("sans", 6, QFont::Normal));
+	painter->setFont(QFont("sans", 8, QFont::Normal));
 	int hMTw = 50;
 	QRectF maxWidth(0, 0, 2*hMTw, 2*hMTw);
 	QRectF b = painter->boundingRect(maxWidth, Qt::AlignHCenter|Qt::AlignTop, ptName);
@@ -254,7 +254,7 @@ void ImageWidget::setTranslation(const QPoint &translation)
 	QPoint n_t = translation;
 
 	QSize s = rect().size();
-	QSize is = _c_img.size();
+	QSize is = (_c_img.isNull()) ? QSize(_img.width()*_zoom/100, _img.height()*_zoom/100) : _c_img.size();
 
 	int max_w = std::abs(s.width() - is.width())/2;
 	int max_h = std::abs(s.height() - is.height())/2;
@@ -305,12 +305,13 @@ void ImageWidget::paintEvent(QPaintEvent *) {
 	QPainter painter(this);
 
 	QSize s = rect().size();
-	QSize is = _c_img.size();
 	painter.fillRect(0, 0, s.width(), s.height(), QColor(255, 255, 255));
 
-	if (_c_img.isNull()) {
+	if (_img.isNull()) {
 		return;
 	}
+
+	QSize is = (_c_img.isNull()) ? QSize(_img.width()*_zoom/100, _img.height()*_zoom/100) : _c_img.size();
 
 	int pw_x = (is.width() >= s.width()) ? 0 : (s.width() - is.width())/2 + _translation.x();
 	int pw_y = (is.height() >= s.height()) ? 0 : (s.height() - is.height())/2 + _translation.y();
@@ -321,7 +322,9 @@ void ImageWidget::paintEvent(QPaintEvent *) {
 	int pi_w = (is.width() < s.width()) ? is.width() : s.width();
 	int pi_h = (is.height() < s.height()) ? is.height() : s.height();
 
-	painter.drawPixmap(QRect(pw_x, pw_y, pi_w, pi_h), _c_img, QRect(pi_x, pi_y, pi_w, pi_h));
+	QRectF imageCover = (_c_img.isNull()) ? QRectF(pi_x*100./_zoom, pi_y*100./_zoom, pi_w*100./_zoom, pi_h*100./_zoom) : QRectF(pi_x, pi_y, pi_w, pi_h);
+
+	painter.drawPixmap(QRectF(pw_x, pw_y, pi_w, pi_h), (_c_img.isNull()) ? _img : _c_img, imageCover);
 
 	QVector<qint64> pointsids = _currentImageDataBlock->listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName);
 

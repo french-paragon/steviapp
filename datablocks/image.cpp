@@ -7,10 +7,12 @@
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QAction>
+#include <QMenu>
 #include <QJsonArray>
 
 #include "mainwindow.h"
 #include "datablocks/landmark.h"
+#include "datablocks/camera.h"
 #include "gui/imageeditor.h"
 
 namespace StereoVisionApp {
@@ -20,6 +22,22 @@ const QString ImageLandmark::ImageLandmarkClassName = "StereoVisionApp::ImageLan
 Image::Image(Project *parent) : DataBlock(parent)
 {
 
+}
+
+qint64 Image::assignedCamera() const {
+	return _assignedCamera;
+}
+void Image::assignCamera(qint64 camId) {
+
+	if (camId == _assignedCamera) {
+		return;
+	}
+
+	if (_assignedCamera >= 0) removeRefered({_assignedCamera});
+	_assignedCamera = camId;
+	if (_assignedCamera >= 0) addRefered({_assignedCamera});
+	emit assignedCameraChanged(_assignedCamera);
+	return;
 }
 
 QString Image::getImageFile() const
@@ -386,6 +404,8 @@ QJsonObject Image::encodeJson() const {
 
 	obj.insert("imFile", getImageFile());
 
+	obj.insert("assignedCamera", assignedCamera());
+
 	obj.insert("x", floatParameter::toJson(xCoord()));
 	obj.insert("y", floatParameter::toJson(yCoord()));
 	obj.insert("z", floatParameter::toJson(zCoord()));
@@ -417,6 +437,10 @@ void Image::configureFromJson(QJsonObject const& data) {
 
 	if (data.contains("imFile")) {
 		_imageFile = data.value("imFile").toString();
+	}
+
+	if (data.contains("assignedCamera")) {
+		_assignedCamera = data.value("assignedCamera").toInt();
 	}
 
 	if (data.contains("x")) {
@@ -729,6 +753,56 @@ QList<QAction*> ImageFactory::factorizeItemContextActions(QObject* parent, DataB
 		}
 	});
 	lst.append(remove);
+
+	return lst;
+}
+
+QList<QAction*> ImageFactory::factorizeMultiItemsContextActions(QObject* parent, Project *p, const QModelIndexList &projectIndex) const {
+
+	QVector<Image*> ims;
+	ims.reserve(projectIndex.count());
+
+	for (QModelIndex const& id : projectIndex) {
+		Image* im = qobject_cast<Image*>(p->getById(p->data(id, Project::IdRole).toInt()));
+
+		if (im != nullptr) {
+			ims.push_back(im);
+		}
+	}
+
+	QWidget* w = qobject_cast<QWidget*>(parent);
+
+	if (w != nullptr) {
+		w = w->window();
+	}
+
+	QString cn = itemClassName();
+
+	QList<QAction*> lst;
+
+	QAction* assignToCamera = new QAction(tr("Assign to camera"), parent);
+	QMenu* camMenu = new QMenu();
+	connect(assignToCamera, &QObject::destroyed, camMenu, &QObject::deleteLater);
+
+	QVector<qint64> camsIds = p->getIdsByClass(CameraFactory::cameraClassName());
+
+	for(qint64 camId : camsIds) {
+
+		Camera* c = qobject_cast<Camera*>(p->getById(camId));
+
+		if (c != nullptr) {
+			QAction* toCam = new QAction(c->objectName(), assignToCamera);
+			connect(toCam, &QAction::triggered, [camId, ims] () {
+				for (Image* im : ims) {
+					im->assignCamera(camId);
+				}
+			});
+			camMenu->addAction(toCam);
+		}
+	}
+	assignToCamera->setMenu(camMenu);
+
+	lst.append(assignToCamera);
 
 	return lst;
 }
