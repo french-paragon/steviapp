@@ -4,6 +4,8 @@
 #include "./project.h"
 #include "./floatparameter.h"
 
+#include <QSet>
+
 namespace StereoVisionApp {
 
 class Landmark : public DataBlock
@@ -42,6 +44,9 @@ public:
 	floatParameter optimizedZ() const;
 	void setOptimisedZ(const floatParameter &o_x);
 	void clearOptimisedZ();
+
+	int countImagesRefering(QSet<qint64> const& excluded = {}) const;
+	int countImagesRefering(QVector<qint64> const& excluded) const;
 
 Q_SIGNALS:
 

@@ -6,8 +6,9 @@
 
 class VertexCameraPose;
 class VertexCameraParam;
-class VertexCameraRadialDistorsion;
-class VertexCameraTangentialDistorsion;
+class VertexCameraRadialDistortion;
+class VertexCameraTangentialDistortion;
+class VertexCameraSkewDistortion;
 
 namespace g2o {
 	class VertexSBAPointXYZ;
@@ -31,8 +32,9 @@ public:
 	static Eigen::Vector2d project(const VertexCameraPose *pose,
 								   const g2o::VertexSBAPointXYZ *point,
 								   const VertexCameraParam *cam,
-								   const VertexCameraRadialDistorsion *r_dist,
-								   const VertexCameraTangentialDistorsion *t_dist);
+								   const VertexCameraRadialDistortion *r_dist,
+								   const VertexCameraTangentialDistortion *t_dist,
+								   const VertexCameraSkewDistortion *s_dist);
 
 protected:
 

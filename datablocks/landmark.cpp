@@ -1,4 +1,7 @@
 #include "landmark.h"
+#include "image.h"
+
+#include <QSet>
 
 namespace StereoVisionApp {
 
@@ -122,6 +125,36 @@ void Landmark::clearOptimisedZ() {
 		emit optXCoordChanged(_o_z);
 		isChanged();
 	}
+}
+
+int Landmark::countImagesRefering(const QSet<qint64> &excluded) const {
+
+	if (!isInProject()) {
+		return 0;
+	}
+
+	QSet<qint64> referingImgsId;
+	for (QVector<qint64> const& path : _referers) {
+		qint64 id = path.first();
+		Image* im = qobject_cast<Image*>(getProject()->getById(id));
+
+		if (im != nullptr) {
+			referingImgsId.insert(id);
+		}
+	}
+
+	for (qint64 id : excluded) {
+		referingImgsId.remove(id);
+	}
+
+	return referingImgsId.count();
+
+}
+int Landmark::countImagesRefering(QVector<qint64> const& excluded) const {
+
+	QSet<qint64> s(excluded.begin(), excluded.end());
+	return countImagesRefering(s);
+
 }
 
 QJsonObject Landmark::encodeJson() const {

@@ -131,7 +131,7 @@ public:
 	qint64 internalId() const;
 
 	Project* getProject() const;
-	bool isInProject();
+	bool isInProject() const;
 	bool isRootItem();
 	bool isChildItem();
 

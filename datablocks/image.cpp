@@ -9,6 +9,7 @@
 #include <QAction>
 #include <QMenu>
 #include <QJsonArray>
+#include <QSet>
 
 #include "mainwindow.h"
 #include "datablocks/landmark.h"
@@ -395,6 +396,37 @@ qint64 Image::getImageLandMarkAt(QPointF const& coord, float tol) {
 	}
 
 	return r;
+}
+
+
+
+int Image::countPointsRefered(const QSet<qint64> &excluded) const {
+
+	if (!isInProject()) {
+		return 0;
+	}
+
+	QSet<qint64> referedPtId;
+	for (QVector<qint64> const& path : _referered) {
+		qint64 id = path.first();
+		Landmark* lm = qobject_cast<Landmark*>(getProject()->getById(id));
+
+		if (lm != nullptr) {
+			referedPtId.insert(id);
+		}
+	}
+
+	for (qint64 id : excluded) {
+		referedPtId.remove(id);
+	}
+
+	return referedPtId.count();
+}
+int Image::countPointsRefered(QVector<qint64> const& excluded) const {
+
+	QSet<qint64> s(excluded.begin(), excluded.end());
+	return countPointsRefered(s);
+
 }
 
 

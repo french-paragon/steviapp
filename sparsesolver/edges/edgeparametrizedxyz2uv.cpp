@@ -2,8 +2,9 @@
 
 #include "sparsesolver/vertices/vertexcamerapose.h"
 #include "sparsesolver/vertices/vertexcameraparam.h"
-#include "sparsesolver/vertices/vertexcameraradialdistorsion.h"
-#include "sparsesolver/vertices/vertexcameratangentialdistorsion.h"
+#include "sparsesolver/vertices/vertexcameraradialdistortion.h"
+#include "sparsesolver/vertices/vertexcameratangentialdistortion.h"
+#include "sparsesolver/vertices/vertexcameraskewdistortion.h"
 
 #include "g2o/types/sba/types_sba.h"
 #include "g2o/types/slam3d/se3_ops.h"
@@ -46,12 +47,13 @@ void EdgeParametrizedXYZ2UV::computeError () {
 	const VertexCameraPose * pose = static_cast<const VertexCameraPose*>(_vertices[0]);
 	const g2o::VertexSBAPointXYZ* point = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[1]);
 	const VertexCameraParam * cam = static_cast<const VertexCameraParam*>(_vertices[2]);
-	const VertexCameraRadialDistorsion * r_dist = (_vertices.size() > 3) ? static_cast<const VertexCameraRadialDistorsion*>(_vertices[3]) : nullptr;
-	const VertexCameraTangentialDistorsion * t_dist = (_vertices.size() > 4) ?  static_cast<const VertexCameraTangentialDistorsion*>(_vertices[4]) : nullptr;
+	const VertexCameraRadialDistortion * r_dist = (_vertices.size() > 3) ? static_cast<const VertexCameraRadialDistortion*>(_vertices[3]) : nullptr;
+	const VertexCameraTangentialDistortion * t_dist = (_vertices.size() > 4) ?  static_cast<const VertexCameraTangentialDistortion*>(_vertices[4]) : nullptr;
+	const VertexCameraSkewDistortion * s_dist = (_vertices.size() > 5) ? static_cast<const VertexCameraSkewDistortion*>(_vertices[5]) : nullptr;
 
 	Eigen::Vector2d obs = _measurement;
 
-	_error = project(pose, point, cam, r_dist, t_dist) - obs; //DONE, check the signs are correct. it's easier to compute the derivative with this formula.
+	_error = project(pose, point, cam, r_dist, t_dist, s_dist) - obs; //DONE, check the signs are correct. it's easier to compute the derivative with this formula.
 
 
 }
@@ -65,6 +67,7 @@ void EdgeParametrizedXYZ2UV::linearizeOplus () {
 		const VertexCameraParam * cam = static_cast<const VertexCameraParam*>(_vertices[2]);
 		const VertexCameraRadialDistorsion * r_dist = (_vertices.size() > 3) ? static_cast<const VertexCameraRadialDistorsion*>(_vertices[3]) : nullptr;
 		const VertexCameraTangentialDistorsion * t_dist = (_vertices.size() > 4) ?  static_cast<const VertexCameraTangentialDistorsion*>(_vertices[4]) : nullptr;
+		const VertexCameraSkewDistortion * s_dist = (_vertices.size() > 5) ? static_cast<const VertexCameraSkewDistortion*>(_vertices[5]) : nullptr;
 
 		//jacobian with respect the the pose.
 		Eigen::Vector3d tmp = -pose->estimate().t() + point->estimate();
@@ -108,7 +111,7 @@ void EdgeParametrizedXYZ2UV::linearizeOplus () {
 
 		_jacobianOplus[2].block<2, 1>(0, 2) = proj; //df
 
-		//jacobian with respect to the radial distorsion and tangetial distorsion.
+		//jacobian with respect to the radial distorsion, tangetial distortion and skew distortion.
 
 		double r2 = proj(0)*proj(0) + proj(1)*proj(1);
 
@@ -136,6 +139,17 @@ void EdgeParametrizedXYZ2UV::linearizeOplus () {
 			_jacobianOplus[id] *= cam->estimate().f();
 		}
 
+
+		if (s_dist != nullptr) {
+			int id = (r_dist != nullptr) ? 4 : 3;
+			if (t_dist != nullptr) { id++; }
+
+			_jacobianOplus[id] = Eigen::Matrix<double,2,2,Eigen::ColMajor>::Zero();
+
+			_jacobianOplus[id](0, 0) =  proj[0];
+			_jacobianOplus[id](0, 1) = proj[1];
+		}
+
 	#else
 		BaseMultiEdge::linearizeOplus();
 	#endif
@@ -145,8 +159,9 @@ void EdgeParametrizedXYZ2UV::linearizeOplus () {
 Eigen::Vector2d EdgeParametrizedXYZ2UV::project(VertexCameraPose const* pose,
 												g2o::VertexSBAPointXYZ const* point,
 												VertexCameraParam const* cam,
-												VertexCameraRadialDistorsion const* r_dist,
-												VertexCameraTangentialDistorsion const* t_dist) {
+												VertexCameraRadialDistortion const* r_dist,
+												VertexCameraTangentialDistortion const* t_dist,
+												VertexCameraSkewDistortion const* s_dist) {
 
 
 
@@ -173,6 +188,13 @@ Eigen::Vector2d EdgeParametrizedXYZ2UV::project(VertexCameraPose const* pose,
 
 		proj += td;
 
+	}
+
+	if (s_dist != nullptr) {
+		const Eigen::Vector2d & td = s_dist->estimate();
+		Eigen::Vector2d r = cam->estimate().f()*proj + cam->estimate().pp();
+		r[0] += td[0]*proj[0] + td[1]*proj[1];
+		return r;
 	}
 
 	return cam->estimate().f()*proj + cam->estimate().pp();

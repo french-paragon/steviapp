@@ -71,6 +71,8 @@ public:
 	floatParameter B2() const;
 	void setB2(const floatParameter &B2);
 
+	void clearOptimizedParams();
+
 	floatParameter optimizedFLen() const;
 	void setOptimizedFLen(const floatParameter &o_f_pix);
 

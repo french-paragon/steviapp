@@ -4,6 +4,10 @@
 #include "camparam.h"
 #include "g2o/core/base_vertex.h"
 
+#include "./vertexcameraradialdistortion.h"
+#include "./vertexcameratangentialdistortion.h"
+#include "./vertexcameraskewdistortion.h"
+
 /*!
  * \brief The VertexCameraParam class store the focal lenght and principal point of a camera.
  */
@@ -23,5 +27,13 @@ public:
 
 	virtual void oplusImpl(const double* update_);
 };
+
+struct CameraInnerVertexCollection {
+	VertexCameraParam* param;
+	VertexCameraRadialDistortion* radialDist;
+	VertexCameraTangentialDistortion* tangeantialDist;
+	VertexCameraSkewDistortion* skewDist;
+};
+
 
 #endif // VERTEXCAMERAPARAM_H

@@ -262,6 +262,26 @@ void Camera::setB2(const floatParameter &B2)
 	}
 }
 
+void Camera::clearOptimizedParams() {
+	_o_f_pix.clearIsSet();
+	_o_c_x.clearIsSet();
+	_o_c_y.clearIsSet();
+
+	_o_k1.clearIsSet();
+	_o_k2.clearIsSet();
+	_o_k3.clearIsSet();
+
+	_o_k4.clearIsSet();
+	_o_k5.clearIsSet();
+	_o_k6.clearIsSet();
+
+	_o_p1.clearIsSet();
+	_o_p2.clearIsSet();
+
+	_o_B1.clearIsSet();
+	_o_B2.clearIsSet();
+}
+
 floatParameter Camera::optimizedFLen() const
 {
 	return _o_f_pix;

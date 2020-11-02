@@ -5,6 +5,7 @@
 #include "./floatparameter.h"
 
 #include <QPointF>
+#include <QSet>
 
 namespace StereoVisionApp {
 
@@ -72,6 +73,9 @@ public:
 	ImageLandmark* getImageLandmarkByLandmarkId(qint64 id);
 	void clearImageLandmark(qint64 id);
 	qint64 getImageLandMarkAt(QPointF const& coord, float tol = 3);
+
+	int countPointsRefered(QSet<qint64> const& excluded = {}) const;
+	int countPointsRefered(QVector<qint64> const& excluded) const;
 
 Q_SIGNALS:
 

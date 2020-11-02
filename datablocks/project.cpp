@@ -582,7 +582,7 @@ Project* DataBlock::getProject() const {
 
 }
 
-bool DataBlock::isInProject() {
+bool DataBlock::isInProject() const{
 	return getProject() != nullptr and _internalId >= 0;
 }
 bool DataBlock::isRootItem() {

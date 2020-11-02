@@ -30,6 +30,7 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 #configure submodules
 add_subdirectory(modules)
 include_directories(${MODULES_INCLUDE_DIRECTORIES})
+message(${MODULES_LINK_DIRECTORIES})
 link_directories(${MODULES_LINK_DIRECTORIES})
 
 set(PROJ_SRC  main.cpp
@@ -54,33 +55,39 @@ set(PROJ_SRC  main.cpp
     datablocks/image.cpp
     datablocks/image.h
     datablocks/camera.cpp
-	datablocks/camera.h
-	sparsesolver/vertices/camerapose.cpp
-	sparsesolver/vertices/camerapose.h
-	sparsesolver/vertices/vertexcamerapose.cpp
-	sparsesolver/vertices/vertexcamerapose.h
-	sparsesolver/vertices/camparam.cpp
-	sparsesolver/vertices/camparam.h
-	sparsesolver/vertices/vertexcameraparam.cpp
-	sparsesolver/vertices/vertexcameraparam.h
-	sparsesolver/vertices/vertexcameraradialdistorsion.cpp
-	sparsesolver/vertices/vertexcameraradialdistorsion.h
-	sparsesolver/vertices/vertexcameratangentialdistorsion.cpp
-	sparsesolver/vertices/vertexcameratangentialdistorsion.h
-	sparsesolver/edges/edgeparametrizedxyz2uv.cpp
-	sparsesolver/edges/edgeparametrizedxyz2uv.h
-	sparsesolver/edges/edgese3fullprior.cpp
-	sparsesolver/edges/edgese3fullprior.h
-	sparsesolver/edges/edgese3rpyprior.cpp
-	sparsesolver/edges/edgese3rpyprior.h
-	sparsesolver/edges/edgese3xyzprior.cpp
-	sparsesolver/edges/edgese3xyzprior.h
-	sparsesolver/edges/edgexyzprior.cpp
-	sparsesolver/edges/edgexyzprior.h)
+    datablocks/camera.h
+    sparsesolver/sbagraphreductor.cpp
+    sparsesolver/sbagraphreductor.h
+    sparsesolver/graphsbasolver.h
+    sparsesolver/graphsbasolver.cpp
+    sparsesolver/vertices/camerapose.cpp
+    sparsesolver/vertices/camerapose.h
+    sparsesolver/vertices/vertexcamerapose.cpp
+    sparsesolver/vertices/vertexcamerapose.h
+    sparsesolver/vertices/camparam.cpp
+    sparsesolver/vertices/camparam.h
+    sparsesolver/vertices/vertexcameraparam.cpp
+    sparsesolver/vertices/vertexcameraparam.h
+    sparsesolver/vertices/vertexcameraradialdistortion.cpp
+    sparsesolver/vertices/vertexcameraradialdistortion.h
+    sparsesolver/vertices/vertexcameratangentialdistortion.cpp
+    sparsesolver/vertices/vertexcameratangentialdistortion.h
+    sparsesolver/vertices/vertexcameraskewdistortion.cpp
+    sparsesolver/vertices/vertexcameraskewdistortion.h
+    sparsesolver/edges/edgeparametrizedxyz2uv.cpp
+    sparsesolver/edges/edgeparametrizedxyz2uv.h
+    sparsesolver/edges/edgese3fullprior.cpp
+    sparsesolver/edges/edgese3fullprior.h
+    sparsesolver/edges/edgese3rpyprior.cpp
+    sparsesolver/edges/edgese3rpyprior.h
+    sparsesolver/edges/edgese3xyzprior.cpp
+    sparsesolver/edges/edgese3xyzprior.h
+    sparsesolver/edges/edgexyzprior.cpp
+    sparsesolver/edges/edgexyzprior.h)
 
 add_executable(steviapp
     ${PROJ_SRC}
 )
 
 target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(steviapp PRIVATE g2o_core g2o_types_sba)
+target_link_libraries(steviapp PRIVATE core types_sba solver_csparse)

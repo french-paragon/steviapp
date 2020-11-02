@@ -7,13 +7,13 @@
 /*!
  * \brief The VertexCameraRadialDistorsion class represent the radial distorsion coefficients of a lens (R1, R2, R3).
  */
-class VertexCameraRadialDistorsion : public g2o::BaseVertex<3, Eigen::Vector3d>
+class VertexCameraRadialDistortion : public g2o::BaseVertex<3, Eigen::Vector3d>
 {
 public:
 
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-	VertexCameraRadialDistorsion();
+	VertexCameraRadialDistortion();
 
 	virtual bool read(std::istream& is);
 

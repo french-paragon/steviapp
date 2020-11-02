@@ -36,7 +36,6 @@ void EdgeSE3rpyPrior::computeError()
 {
   const VertexXiType* v = static_cast<const VertexXiType*>(_vertices[0]);
   VertexXiType::EstimateType pose = v->estimate();
-  Eigen::Quaterniond q(pose.rotation().inverse() * _measurement);
-  q.normalize();
-  _error = q.coeffs().head<3>(); //approximation for small errors, but in our case it is supposed to work. TODO: transform to rotation axis
+  Eigen::AngleAxisd r(pose.rotation().inverse() * _measurement);
+  _error = r.axis();
 }

@@ -64,7 +64,6 @@ public:
 
 	static QJsonObject toJson(floatParameter const& fP);
 	static floatParameter fromJson(QJsonObject const& obj);
-
 protected:
 
 	bool _isSet;
