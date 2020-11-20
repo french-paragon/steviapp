@@ -56,7 +56,14 @@
     <addaction name="actionsave_Project"/>
     <addaction name="actionopen_Project"/>
    </widget>
+   <widget class="QMenu" name="menudev">
+    <property name="title">
+     <string>dev</string>
+    </property>
+    <addaction name="actionOpenSparseAlignEditor"/>
+   </widget>
    <addaction name="menufile"/>
+   <addaction name="menudev"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="projectDockWidget">
@@ -142,6 +149,11 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionOpenSparseAlignEditor">
+   <property name="text">
+    <string>OpenSparseAlignEditor</string>
    </property>
   </action>
  </widget>

@@ -21,6 +21,8 @@ public:
 
 	Project* createProject(QObject* parent = nullptr) const;
 	bool addType(DataBlockFactory* factory);
+	bool hasType(QString const& blockType) const;
+	QString typeDescr(QString const& blockType) const;
 
 	static ProjectFactory& defaultProjectFactory();
 
@@ -113,10 +115,6 @@ public:
 	virtual FactorizableFlags factorizable() const = 0;
 	virtual DataBlock* factorizeDataBlock(Project *parent = nullptr) const;
 	virtual DataBlock* factorizeDataBlock(DataBlock *parent) const;
-
-	virtual QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const;
-	virtual QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* p) const;
-	virtual QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const;
 
 	virtual QString itemClassName() const;
 };

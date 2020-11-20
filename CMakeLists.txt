@@ -26,6 +26,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
+find_package(exiv2 REQUIRED CONFIG NAMES exiv2)
 
 #configure submodules
 add_subdirectory(modules)
@@ -44,6 +45,17 @@ set(PROJ_SRC  main.cpp
     gui/imageeditor.cpp
     gui/imageeditor.h
     gui/imageeditor.ui
+    gui/sparsealignementviewer.cpp
+    gui/sparsealignementviewer.h
+    gui/sparsealignementeditor.cpp
+    gui/sparsealignementeditor.h
+    gui/sparsealignementeditor.ui
+    gui/lensdistortionviewer.cpp
+    gui/lensdistortionviewer.h
+    gui/lenseditor.cpp
+    gui/lenseditor.h
+    gui/lenseditor.ui
+    gui/gl_shaders.qrc
     datablocks/project.cpp
     datablocks/project.h
     datablocks/floatparameter.cpp
@@ -56,6 +68,16 @@ set(PROJ_SRC  main.cpp
     datablocks/image.h
     datablocks/camera.cpp
     datablocks/camera.h
+    control/actionmanager.cpp
+    control/actionmanager.h
+    control/imagebaseactions.cpp
+    control/imagebaseactions.h
+    control/imagebaseactionmanager.cpp
+    control/imagebaseactionmanager.h
+    control/camerabaseactionmanager.cpp
+    control/camerabaseactionmanager.h
+    control/landmarkbaseactionmanager.cpp
+    control/landmarkbaseactionmanager.h
     sparsesolver/sbagraphreductor.cpp
     sparsesolver/sbagraphreductor.h
     sparsesolver/graphsbasolver.h
@@ -91,3 +113,4 @@ add_executable(steviapp
 
 target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(steviapp PRIVATE core types_sba solver_csparse)
+target_link_libraries(steviapp PRIVATE exiv2)

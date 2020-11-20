@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shaders/sparseViewerPersp.vert</file>
+        <file>shaders/sparseViewerGrid.frag</file>
+        <file>shaders/sparseViewerPerspFloor.vert</file>
+        <file>shaders/lensViewerDistGrid.vert</file>
+        <file>shaders/lensViewerDistGrid.frag</file>
+        <file>shaders/lensViewerLine.vert</file>
+        <file>shaders/lensViewerLine.frag</file>
+        <file>shaders/lensViewerOpticalCenterLine.vert</file>
+    </qresource>
+</RCC>

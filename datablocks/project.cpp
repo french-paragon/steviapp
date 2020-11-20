@@ -47,6 +47,20 @@ bool ProjectFactory::addType(DataBlockFactory* factory) {
 	return true;
 
 }
+bool ProjectFactory::hasType(QString const& blockType) const {
+	return _installedTypes.contains(blockType);
+}
+QString ProjectFactory::typeDescr(QString const& blockType) const {
+
+
+	int id = _installedTypes.indexOf(blockType);
+
+	if (id < 0) {
+		return tr("NoDescr");
+	}
+
+	return _factories[id]->TypeDescrName();
+}
 
 ProjectFactory& ProjectFactory::defaultProjectFactory() {
 	return *_defaultProjectFactory;
@@ -508,19 +522,6 @@ DataBlock* DataBlockFactory::factorizeDataBlock(Project *) const {
 }
 DataBlock* DataBlockFactory::factorizeDataBlock(DataBlock *) const {
 	return nullptr;
-}
-
-QList<QAction*> DataBlockFactory::factorizeClassContextActions(QObject* parent, Project *p) const {
-	QAction* add = new QAction(tr("New %1").arg(TypeDescrName()), parent);
-	QString cName = itemClassName();
-	connect(add, &QAction::triggered, [p, cName] () { p->createDataBlock(cName.toStdString().c_str()); });
-	return {add};
-}
-QList<QAction*> DataBlockFactory::factorizeItemContextActions(QObject* , DataBlock *) const {
-	return {};
-}
-QList<QAction*> DataBlockFactory::factorizeMultiItemsContextActions(QObject* , Project* , QModelIndexList const&) const {
-	return {};
 }
 
 QString DataBlockFactory::itemClassName() const {

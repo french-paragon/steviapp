@@ -3,11 +3,39 @@
 #include <QWidget>
 #include <QAction>
 
+#include "mainwindow.h"
+#include "gui/lenseditor.h"
+
 namespace StereoVisionApp {
 
-Camera::Camera(Project *parent) : DataBlock(parent)
+Camera::Camera(Project *parent) :
+	Camera({800, 800}, parent)
 {
 
+}
+
+Camera::Camera(QSize imSize, Project* parent)  :
+	DataBlock(parent),
+	_imSize(imSize),
+	_pix_ratio(1.0, true),
+	_useRadialDistortionModel(true),
+	_k1(0, false),
+	_k2(0, false),
+	_k3(0, false),
+	_useDenominatorRadialCoeffs(false),
+	_k4(0, false),
+	_k5(0, false),
+	_k6(0, false),
+	_useTangentialDistortionModel(true),
+	_p1(0, false),
+	_p2(0, false),
+	_useSkewDistortionModel(false),
+	_B1(0, false),
+	_B2(0, false)
+{
+	_c_x.value() = _imSize.width()/2;
+	_c_y.value() = _imSize.height()/2;
+	_f_pix.value() = _c_x.value();
 }
 
 floatParameter Camera::fLen() const
@@ -17,7 +45,7 @@ floatParameter Camera::fLen() const
 
 void Camera::setFLen(const floatParameter &f_pix)
 {
-	if (_f_pix.isApproximatlyEqual(f_pix, 1e-4)) {
+	if (!_f_pix.isApproximatlyEqual(f_pix, 1e-4)) {
 		_f_pix = f_pix;
 		emit FLenChanged(_f_pix);
 		isChanged();
@@ -31,7 +59,7 @@ floatParameter Camera::pixelRatio() const
 
 void Camera::setPixelRatio(const floatParameter &pix_ratio)
 {
-	if (_pix_ratio.isApproximatlyEqual(pix_ratio, 1e-4)) {
+	if (!_pix_ratio.isApproximatlyEqual(pix_ratio, 1e-4)) {
 		_pix_ratio = pix_ratio;
 		emit pixelRatioChanged(_pix_ratio);
 		isChanged();
@@ -45,7 +73,7 @@ floatParameter Camera::opticalCenterX() const
 
 void Camera::setOpticalCenterX(const floatParameter &c_x)
 {
-	if (_c_x.isApproximatlyEqual(c_x, 1e-4)) {
+	if (!_c_x.isApproximatlyEqual(c_x, 1e-4)) {
 		_c_x = c_x;
 		emit opticalCenterXChanged(_c_x);
 		isChanged();
@@ -59,7 +87,7 @@ floatParameter Camera::opticalCenterY() const
 
 void Camera::setOpticalCenterY(const floatParameter &c_y)
 {
-	if (_c_y.isApproximatlyEqual(c_y, 1e-4)) {
+	if (!_c_y.isApproximatlyEqual(c_y, 1e-4)) {
 		_c_y = c_y;
 		emit opticalCenterYChanged(_c_y);
 		isChanged();
@@ -87,7 +115,7 @@ floatParameter Camera::k1() const
 
 void Camera::setK1(const floatParameter &k1)
 {
-	if (_k1.isApproximatlyEqual(k1, 1e-8)) {
+	if (!_k1.isApproximatlyEqual(k1, 1e-8)) {
 		_k1 = k1;
 		emit k1Changed(_k1);
 		isChanged();
@@ -101,7 +129,7 @@ floatParameter Camera::k2() const
 
 void Camera::setK2(const floatParameter &k2)
 {
-	if (_k2.isApproximatlyEqual(k2, 1e-8)) {
+	if (!_k2.isApproximatlyEqual(k2, 1e-8)) {
 		_k2 = k2;
 		emit k2Changed(_k2);
 		isChanged();
@@ -115,7 +143,7 @@ floatParameter Camera::k3() const
 
 void Camera::setK3(const floatParameter &k3)
 {
-	if (_k3.isApproximatlyEqual(k3, 1e-8)) {
+	if (!_k3.isApproximatlyEqual(k3, 1e-8)) {
 		_k3 = k3;
 		emit k3Changed(_k3);
 		isChanged();
@@ -143,7 +171,7 @@ floatParameter Camera::k4() const
 
 void Camera::setK4(const floatParameter &k4)
 {
-	if (_k4.isApproximatlyEqual(k4, 1e-8)) {
+	if (!_k4.isApproximatlyEqual(k4, 1e-8)) {
 		_k4 = k4;
 		emit k4Changed(_k4);
 		isChanged();
@@ -157,7 +185,7 @@ floatParameter Camera::k5() const
 
 void Camera::setK5(const floatParameter &k5)
 {
-	if (_k5.isApproximatlyEqual(k5, 1e-8)) {
+	if (!_k5.isApproximatlyEqual(k5, 1e-8)) {
 		_k5 = k5;
 		emit k5Changed(_k5);
 		isChanged();
@@ -171,7 +199,7 @@ floatParameter Camera::k6() const
 
 void Camera::setK6(const floatParameter &k6)
 {
-	if (_k6.isApproximatlyEqual(k6, 1e-8)) {
+	if (!_k6.isApproximatlyEqual(k6, 1e-8)) {
 		_k6 = k6;
 		emit k6Changed(_k6);
 		isChanged();
@@ -199,7 +227,7 @@ floatParameter Camera::p1() const
 
 void Camera::setP1(const floatParameter &p1)
 {
-	if (_p1.isApproximatlyEqual(p1, 1e-8)) {
+	if (!_p1.isApproximatlyEqual(p1, 1e-8)) {
 		_p1 = p1;
 		emit p1Changed(_p1);
 		isChanged();
@@ -213,7 +241,7 @@ floatParameter Camera::p2() const
 
 void Camera::setP2(const floatParameter &p2)
 {
-	if (_p2.isApproximatlyEqual(p2, 1e-8)) {
+	if (!_p2.isApproximatlyEqual(p2, 1e-8)) {
 		_p2 = p2;
 		emit p2Changed(_p2);
 		isChanged();
@@ -241,7 +269,7 @@ floatParameter Camera::B1() const
 
 void Camera::setB1(const floatParameter &B1)
 {
-	if (_B1.isApproximatlyEqual(B1, 1e-6)) {
+	if (!_B1.isApproximatlyEqual(B1, 1e-6)) {
 		_B1 = B1;
 		emit B1Changed(_B1);
 		isChanged();
@@ -255,7 +283,7 @@ floatParameter Camera::B2() const
 
 void Camera::setB2(const floatParameter &B2)
 {
-	if (_B2.isApproximatlyEqual(B2, 1e-6)) {
+	if (!_B2.isApproximatlyEqual(B2, 1e-6)) {
 		_B2 = B2;
 		emit B2Changed(_B2);
 		isChanged();
@@ -289,7 +317,7 @@ floatParameter Camera::optimizedFLen() const
 
 void Camera::setOptimizedFLen(const floatParameter &o_f_pix)
 {
-	if (_o_f_pix.isApproximatlyEqual(o_f_pix, 1e-4)) {
+	if (!_o_f_pix.isApproximatlyEqual(o_f_pix, 1e-4)) {
 		_o_f_pix = o_f_pix;
 		emit optimizedFLenChanged(_o_f_pix);
 		isChanged();
@@ -303,7 +331,7 @@ floatParameter Camera::optimizedPixelRatio() const
 
 void Camera::setOptimizedPixelRatio(const floatParameter &o_pix_ratio)
 {
-	if (_o_pix_ratio.isApproximatlyEqual(o_pix_ratio, 1e-4)) {
+	if (!_o_pix_ratio.isApproximatlyEqual(o_pix_ratio, 1e-4)) {
 		_o_pix_ratio = o_pix_ratio;
 		emit optimizedPixelRatioChanged(_o_pix_ratio);
 		isChanged();
@@ -317,7 +345,7 @@ floatParameter Camera::optimizedOpticalCenterX() const
 
 void Camera::setOptimizedOpticalCenterX(const floatParameter &o_c_x)
 {
-	if (_o_c_x.isApproximatlyEqual(o_c_x, 1e-4)) {
+	if (!_o_c_x.isApproximatlyEqual(o_c_x, 1e-4)) {
 		_o_c_x = o_c_x;
 		emit optimizedOpticalCenterXChanged(_o_c_x);
 		isChanged();
@@ -331,7 +359,7 @@ floatParameter Camera::optimizedOpticalCenterY() const
 
 void Camera::setOptimizedOpticalCenterY(const floatParameter &o_c_y)
 {
-	if (_o_c_y.isApproximatlyEqual(o_c_y, 1e-4)) {
+	if (!_o_c_y.isApproximatlyEqual(o_c_y, 1e-4)) {
 		_o_c_y = o_c_y;
 		emit optimizedOpticalCenterYChanged(_o_c_y);
 		isChanged();
@@ -345,7 +373,7 @@ floatParameter Camera::optimizedK1() const
 
 void Camera::setOptimizedK1(const floatParameter &o_k1)
 {
-	if (_o_k1.isApproximatlyEqual(o_k1, 1e-8)) {
+	if (!_o_k1.isApproximatlyEqual(o_k1, 1e-8)) {
 		_o_k1 = o_k1;
 		emit optimizedK1Changed(_o_k1);
 		isChanged();
@@ -359,7 +387,7 @@ floatParameter Camera::optimizedK2() const
 
 void Camera::setOptimizedK2(const floatParameter &o_k2)
 {
-	if (_o_k2.isApproximatlyEqual(o_k2, 1e-8)) {
+	if (!_o_k2.isApproximatlyEqual(o_k2, 1e-8)) {
 		_o_k2 = o_k2;
 		emit optimizedK2Changed(_o_k2);
 		isChanged();
@@ -373,7 +401,7 @@ floatParameter Camera::optimizedK3() const
 
 void Camera::setOptimizedK3(const floatParameter &o_k3)
 {
-	if (_o_k3.isApproximatlyEqual(o_k3, 1e-8)) {
+	if (!_o_k3.isApproximatlyEqual(o_k3, 1e-8)) {
 		_o_k3 = o_k3;
 		emit optimizedK3Changed(_o_k3);
 		isChanged();
@@ -387,7 +415,7 @@ floatParameter Camera::optimizedK4() const
 
 void Camera::setOptimizedK4(const floatParameter &o_k4)
 {
-	if (_o_k4.isApproximatlyEqual(o_k4, 1e-8)) {
+	if (!_o_k4.isApproximatlyEqual(o_k4, 1e-8)) {
 		_o_k4 = o_k4;
 		emit optimizedK4Changed(_o_k4);
 		isChanged();
@@ -401,7 +429,7 @@ floatParameter Camera::optimizedK5() const
 
 void Camera::setOptimizedK5(const floatParameter &o_k5)
 {
-	if (_o_k5.isApproximatlyEqual(o_k5, 1e-8)) {
+	if (!_o_k5.isApproximatlyEqual(o_k5, 1e-8)) {
 		_o_k5 = o_k5;
 		emit optimizedK5Changed(_o_k5);
 		isChanged();
@@ -415,7 +443,7 @@ floatParameter Camera::optimizedK6() const
 
 void Camera::setOptimizedK6(const floatParameter &o_k6)
 {
-	if (_o_k6.isApproximatlyEqual(o_k6, 1e-8)) {
+	if (!_o_k6.isApproximatlyEqual(o_k6, 1e-8)) {
 		_o_k6 = o_k6;
 		emit optimizedK6Changed(_o_k6);
 		isChanged();
@@ -429,7 +457,7 @@ floatParameter Camera::optimizedP1() const
 
 void Camera::setOptimizedP1(const floatParameter &o_p1)
 {
-	if (_o_p1.isApproximatlyEqual(o_p1, 1e-8)) {
+	if (!_o_p1.isApproximatlyEqual(o_p1, 1e-8)) {
 		_o_p1 = o_p1;
 		emit optimizedP1Changed(_o_p1);
 		isChanged();
@@ -443,7 +471,7 @@ floatParameter Camera::optimizedP2() const
 
 void Camera::setOptimizedP2(const floatParameter &o_p2)
 {
-	if (_o_p2.isApproximatlyEqual(o_p2, 1e-8)) {
+	if (!_o_p2.isApproximatlyEqual(o_p2, 1e-8)) {
 		_o_p2 = o_p2;
 		emit optimizedP2Changed(_o_p2);
 		isChanged();
@@ -457,7 +485,7 @@ floatParameter Camera::optimizedB1() const
 
 void Camera::setOptimizedB1(const floatParameter &o_B1)
 {
-	if (_o_B1.isApproximatlyEqual(o_B1, 1e-6)) {
+	if (!_o_B1.isApproximatlyEqual(o_B1, 1e-6)) {
 		_o_B1 = o_B1;
 		emit optimizedB1Changed(_o_B1);
 		isChanged();
@@ -471,7 +499,7 @@ floatParameter Camera::optimizedB2() const
 
 void Camera::setOptimizedB2(const floatParameter &o_B2)
 {
-	if (_o_B2.isApproximatlyEqual(o_B2, 1e-6)) {
+	if (!_o_B2.isApproximatlyEqual(o_B2, 1e-6)) {
 		_o_B2 = o_B2;
 		emit optimizedB2Changed(_o_B2);
 		isChanged();

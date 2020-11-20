@@ -13,6 +13,7 @@ class Camera : public DataBlock
 	Q_OBJECT
 public:
 	explicit Camera(Project* parent = nullptr);
+	explicit Camera(QSize imSize, Project* parent = nullptr);
 
 	QSize imSize() const;
 	void setImSize(const QSize &imSize);

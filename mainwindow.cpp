@@ -1,8 +1,11 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 
+#include "control/actionmanager.h"
+
 #include "gui/imagewidget.h"
 #include "gui/editor.h"
+#include "gui/sparsealignementeditor.h"
 
 #include "datablocks/project.h"
 #include "datablocks/itemdatamodel.h"
@@ -34,6 +37,9 @@ MainWindow::MainWindow(QWidget *parent)
 
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
+
+	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openEditor(SparseAlignementEditor::SparseAlignementEditorClassName); });
+
 }
 
 MainWindow::~MainWindow()
@@ -195,9 +201,8 @@ void MainWindow::projectContextMenu(QPoint const& pt) {
 	}
 
 	if (singleClassMultiSelection) {
-		DataBlockFactory* f = _activeProject->getFactoryForClass(mSelClass);
 
-		acts = f->factorizeMultiItemsContextActions(ui->projectView, _activeProject, s);
+		acts = ActionManagersLibrary::defaultActionManagersLibrary().factorizeDatablockMultiItemsContextActions(mSelClass, ui->projectView, _activeProject, s);
 
 		for (QAction* a : acts) {
 			m.addAction(a);
@@ -205,16 +210,14 @@ void MainWindow::projectContextMenu(QPoint const& pt) {
 
 	} else if (id.parent() == QModelIndex()) { //Class item.
 		QString dataBlockClass = id.data(Project::ClassRole).toString();
-		DataBlockFactory* f = _activeProject->getFactoryForClass(dataBlockClass);
 
-		acts = f->factorizeClassContextActions(ui->projectView, _activeProject);
+		acts = ActionManagersLibrary::defaultActionManagersLibrary().factorizeDatablockClassContextActions(dataBlockClass, ui->projectView, _activeProject);
 
 		for (QAction* a : acts) {
 			m.addAction(a);
 		}
 	} else if (id.parent().parent() == QModelIndex()) { //Datablock item.
 		QString dataBlockClass = id.data(Project::ClassRole).toString();
-		DataBlockFactory* f = _activeProject->getFactoryForClass(dataBlockClass);
 
 		qint64 item_id = id.data(Project::IdRole).toInt();
 
@@ -224,7 +227,7 @@ void MainWindow::projectContextMenu(QPoint const& pt) {
 			return;
 		}
 
-		acts = f->factorizeItemContextActions(ui->projectView, dataBlock);
+		acts = ActionManagersLibrary::defaultActionManagersLibrary().factorizeDatablockItemContextActions(dataBlockClass, ui->projectView, dataBlock);
 
 		for (QAction* a : acts) {
 			m.addAction(a);

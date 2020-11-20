@@ -192,10 +192,6 @@ public:
 	virtual FactorizableFlags factorizable() const;
 	virtual DataBlock* factorizeDataBlock(Project *parent = nullptr) const;
 
-	QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const override;
-	QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock *item) const override;
-	QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const override;
-
 	virtual QString itemClassName() const;
 	static QString imageClassName();
 };
