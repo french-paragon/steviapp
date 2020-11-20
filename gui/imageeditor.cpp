@@ -2,6 +2,7 @@
 #include "ui_imageeditor.h"
 
 #include <QMenu>
+#include <QInputDialog>
 #include <QAction>
 #include <QDebug>
 
@@ -27,6 +28,9 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	_moveToNextImg->setShortcut(Qt::CTRL + Qt::Key_Tab);
 	_moveToPrevImg->setShortcut(Qt::CTRL + Qt::Key_Shift + Qt::Key_Tab);
 
+	_moveToNextLandmark->setShortcut(Qt::CTRL + Qt::Key_Right);
+	_moveToPrevLandmark->setShortcut(Qt::CTRL + Qt::Key_Left);
+
 	connect(ui->imageDisplay, &ImageWidget::newPointClick, this, &ImageEditor::addPoint);
 	connect(ui->imageDisplay, &ImageWidget::menuPointClick, this, &ImageEditor::openPointMenu);
 	connect(ui->imageDisplay, &ImageWidget::menuNonPointClick, this, &ImageEditor::openNonPointMenu);
@@ -36,8 +40,14 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	connect(_moveToNextImg, &QAction::triggered, this, &ImageEditor::moveToNextImage);
 	connect(_moveToPrevImg, &QAction::triggered, this, &ImageEditor::moveToPreviousImage);
 
+	connect(ui->nextImageButton, &QPushButton::clicked, this, &ImageEditor::moveToNextImage);
+	connect(ui->previousImageButton, &QPushButton::clicked, this, &ImageEditor::moveToPreviousImage);
+
 	connect(_moveToNextLandmark, &QAction::triggered, this, &ImageEditor::moveToNextLandmark);
 	connect(_moveToPrevLandmark, &QAction::triggered, this, &ImageEditor::moveToPreviousLandmark);
+
+	connect(ui->nextLandmarkButton, &QPushButton::clicked, this, &ImageEditor::moveToNextLandmark);
+	connect(ui->previousLandmarkButton, &QPushButton::clicked, this, &ImageEditor::moveToPreviousLandmark);
 
 	addAction(_moveToNextImg);
 	addAction(_moveToPrevImg);
@@ -110,11 +120,31 @@ void ImageEditor::addPoint(QPointF const& imageCoordinates) {
 	QModelIndex rootLm = ui->landmarkComboBox->rootModelIndex();
 	QModelIndex itemIndex = p->index(ui->landmarkComboBox->currentIndex(), 0, rootLm);
 
-	if (itemIndex == QModelIndex()) {
-		return;
-	}
+	qint64 lmId;
 
-	qint64 lmId = p->data(itemIndex, Project::IdRole).toInt();
+	if (itemIndex == QModelIndex()) { //landmark does not exist yet.
+
+		QString newLmName = QInputDialog::getText(this, tr("New landmark"), tr("Name"), QLineEdit::Normal, tr("New landmark"));
+
+		if (newLmName.isEmpty()) {
+			return;
+		}
+
+		lmId = p->createDataBlock(LandmarkFactory::landmarkClassName().toStdString().c_str());
+
+		if (lmId < 0) {
+			return;
+		}
+
+		Landmark* lm = qobject_cast<Landmark*>(p->getById(lmId));
+		lm->setObjectName(newLmName);
+
+		ui->landmarkComboBox->setCurrentIndex(p->countTypeInstances(LandmarkFactory::landmarkClassName()));
+
+	} else {
+
+		lmId = p->data(itemIndex, Project::IdRole).toInt();
+	}
 
 	ImageLandmark* lm = im->getImageLandmarkByLandmarkId(lmId);
 
