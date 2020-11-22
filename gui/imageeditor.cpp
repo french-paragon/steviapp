@@ -4,6 +4,7 @@
 #include <QMenu>
 #include <QInputDialog>
 #include <QAction>
+#include <QSettings>
 #include <QDebug>
 
 #include "datablocks/image.h"
@@ -18,6 +19,17 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	ui(new Ui::ImageEditor)
 {
 	ui->setupUi(this);
+
+	QSettings s;
+
+	QString pixUncertaintyKey = "ImageEditor/initialImageLandmarkUncerainty";
+	qreal pix_uncertainty = s.value(pixUncertaintyKey, QVariant(1)).toReal();
+	ui->imageLandmarkSigmaSpinBox->setValue(pix_uncertainty);
+
+	connect(ui->imageLandmarkSigmaSpinBox, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), [pixUncertaintyKey] (double pix_sigma) {
+		QSettings s;
+		s.setValue(pixUncertaintyKey, pix_sigma);
+	});
 
 	_moveToNextImg = new QAction(tr("Next image"), this);
 	_moveToPrevImg = new QAction(tr("Previous image"), this);
@@ -149,7 +161,8 @@ void ImageEditor::addPoint(QPointF const& imageCoordinates) {
 	ImageLandmark* lm = im->getImageLandmarkByLandmarkId(lmId);
 
 	if (lm == nullptr) {
-		lm = im->getImageLandmark(im->addImageLandmark(imageCoordinates, lmId, false));
+		bool isUncertain = ui->imageLandmarkSigmaSpinBox->value() >= 0.01;
+		lm = im->getImageLandmark(im->addImageLandmark(imageCoordinates, lmId, isUncertain, ui->imageLandmarkSigmaSpinBox->value()));
 	} else {
 		lm->setImageCoordinates(imageCoordinates);
 	}

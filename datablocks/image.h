@@ -67,8 +67,8 @@ public:
 	void setOptZRot(const floatParameter &o_rz);
 	void clearOptZRot();
 
-	qint64 addImageLandmark(const QPointF &coordinates, bool uncertain = false);
-	qint64 addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain = false);
+	qint64 addImageLandmark(const QPointF &coordinates, bool uncertain = false, qreal sigma_pos = 1.0);
+	qint64 addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain = false, qreal sigma_pos = 1.0);
 	ImageLandmark* getImageLandmark(qint64 id) const;
 	ImageLandmark* getImageLandmarkByLandmarkId(qint64 id);
 	void clearImageLandmark(qint64 id);

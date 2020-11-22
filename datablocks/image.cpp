@@ -306,19 +306,19 @@ void Image::clearOptZRot() {
 	}
 }
 
-qint64 Image::addImageLandmark(QPointF const& coordinates, bool uncertain) {
+qint64 Image::addImageLandmark(QPointF const& coordinates, bool uncertain, qreal sigma_pos) {
 
-	return addImageLandmark(coordinates, -1, uncertain);
+	return addImageLandmark(coordinates, -1, uncertain, sigma_pos);
 
 }
-qint64 Image::addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain) {
+qint64 Image::addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain, qreal sigma_pos) {
 
 	ImageLandmark* iml = new ImageLandmark(this);
 
 	iml->stopTrackingChanges(true);
 
-	floatParameter x(coordinates.x(), pFloatType(1.0));
-	floatParameter y(coordinates.y(), pFloatType(1.0));
+	floatParameter x(coordinates.x(), pFloatType(sigma_pos));
+	floatParameter y(coordinates.y(), pFloatType(sigma_pos));
 
 	if (!uncertain) {
 		x.clearUncertainty();
