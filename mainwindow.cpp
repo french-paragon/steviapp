@@ -259,6 +259,7 @@ void MainWindow::onProjectSelectionChanged() {
 
 			if (b != nullptr) {
 				ui->dataBlockView->setModel(b->getDataModel());
+				ui->dataBlockView->expandToDepth(1);
 				return;
 			}
 		}
