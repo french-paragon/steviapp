@@ -80,6 +80,8 @@ DataBlock* ItemDataModel::ItemPropertyDescription::block() const {
 void ItemDataModel::ItemPropertyDescription::valueChanged() {
 	if (_cat != nullptr) {
 		_cat->_model->itemValueChanged(this);
+	} else if (_collectionManager != nullptr) {
+		_collectionManager->_model->itemValueChanged(this);
 	}
 }
 
