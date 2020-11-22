@@ -67,7 +67,9 @@ ProjectFactory& ProjectFactory::defaultProjectFactory() {
 }
 
 
-Project::Project(QObject* parent) : QAbstractItemModel(parent)
+Project::Project(QObject* parent) :
+	QAbstractItemModel(parent),
+	_source("")
 {
 
 }
@@ -91,6 +93,8 @@ bool Project::load(QString const& inFile) {
 	if (!doc.isObject()) {
 		return false;
 	}
+
+	setSource(inFile);
 
 	beginResetModel();
 
@@ -117,6 +121,15 @@ bool Project::load(QString const& inFile) {
 
 	return true;
 }
+
+bool Project::save() {
+	if (source().isEmpty()) {
+		return false;
+	}
+
+	return save(source());
+}
+
 bool Project::save(QString const& outFile) {
 
 	QJsonObject proj;
@@ -459,8 +472,17 @@ Qt::ItemFlags Project::flags(const QModelIndex &index) const {
 void Project::clear() {
 	beginResetModel();
 	clearImpl();
+	_source.clear();
 	endResetModel();
 }
+
+QString Project::source() const {
+	return _source;
+}
+void Project::setSource(QString const& s) {
+	_source = s;
+}
+
 void Project::clearImpl() {
 
 	for (qint64 id : _itemCache.keys()) {

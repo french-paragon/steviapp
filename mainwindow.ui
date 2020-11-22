@@ -45,7 +45,7 @@
      <x>0</x>
      <y>0</y>
      <width>1035</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
@@ -54,6 +54,7 @@
     </property>
     <addaction name="actionnew_Project"/>
     <addaction name="actionsave_Project"/>
+    <addaction name="actionsave_project_as"/>
     <addaction name="actionopen_Project"/>
    </widget>
    <widget class="QMenu" name="menudev">
@@ -154,6 +155,11 @@
   <action name="actionOpenSparseAlignEditor">
    <property name="text">
     <string>OpenSparseAlignEditor</string>
+   </property>
+  </action>
+  <action name="actionsave_project_as">
+   <property name="text">
+    <string>save project as</string>
    </property>
   </action>
  </widget>

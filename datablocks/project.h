@@ -48,6 +48,7 @@ public:
 	explicit Project(QObject* parent);
 
 	virtual bool load(QString const& inFile);
+	virtual bool save();
 	virtual bool save(QString const& outFile);
 
 	qint64 createDataBlock(const char* classname);
@@ -74,6 +75,9 @@ public:
 
 	void clear();
 
+	QString source() const;
+	void setSource(QString const& source);
+
 Q_SIGNALS:
 
 protected:
@@ -91,6 +95,8 @@ protected:
 
 	QVector<QString> _installedTypes;
 	QMap<QString, DataBlockFactory*> _dataBlocksFactory;
+
+	QString _source;
 
 	friend class ProjectFactory;
 

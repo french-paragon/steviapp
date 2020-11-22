@@ -33,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 	connect(ui->actionnew_Project, &QAction::triggered, this, &MainWindow::newEmptyProject);
 	connect(ui->actionsave_Project, &QAction::triggered, this, &MainWindow::saveProject);
+	connect(ui->actionsave_project_as, &QAction::triggered, this, &MainWindow::saveProjectAs);
 	connect(ui->actionopen_Project, &QAction::triggered, this, &MainWindow::openProject);
 
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
@@ -53,7 +54,16 @@ void MainWindow::newEmptyProject() {
 
 }
 void MainWindow::saveProject() {
-	saveProjectAs();
+
+	if (_activeProject->source().isEmpty()) {
+		saveProjectAs();
+	}
+
+	bool status = _activeProject->save();
+
+	if (!status) {
+		QMessageBox::warning(this, tr("Error while saving project"), tr("Is the location correct and writtable ?"));
+	}
 }
 
 void MainWindow::saveProjectAs() {
