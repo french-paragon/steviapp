@@ -14,6 +14,9 @@
 #include "mainwindow.h"
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
+
+#include "./itemdatamodel.h"
+
 #include "gui/imageeditor.h"
 
 namespace StereoVisionApp {
@@ -22,7 +25,7 @@ const QString ImageLandmark::ImageLandmarkClassName = "StereoVisionApp::ImageLan
 
 Image::Image(Project *parent) : DataBlock(parent)
 {
-
+	extendDataModel();
 }
 
 qint64 Image::assignedCamera() const {
@@ -529,6 +532,64 @@ void Image::configureFromJson(QJsonObject const& data) {
 			}
 		}
 	}
+}
+
+void Image::extendDataModel() {
+
+	ItemDataModel::Category* g = _dataModel->addCategory(tr("Geometric properties"));
+
+	//Position
+	g->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X pos"),
+																												 &Image::xCoord,
+																												 &Image::setXCoord,
+																												 &Image::xCoordChanged);
+
+	g->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y pos"),
+																												 &Image::yCoord,
+																												 &Image::setYCoord,
+																												 &Image::yCoordChanged);
+
+	g->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z pos"),
+																												 &Image::zCoord,
+																												 &Image::setZCoord,
+																												 &Image::zCoordChanged);
+
+	//Rotation
+	g->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X Euler"),
+																												 &Image::xRot,
+																												 &Image::setXRot,
+																												 &Image::xRotChanged);
+
+	g->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y Euler"),
+																												 &Image::yRot,
+																												 &Image::setYRot,
+																												 &Image::yRotChanged);
+
+	g->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z Euler"),
+																												 &Image::zRot,
+																												 &Image::setZRot,
+																												 &Image::zRotChanged);
+
+	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Image landmarks"),
+																					  ImageLandmark::ImageLandmarkClassName,
+																					  [] (DataBlock* b) {
+																							ImageLandmark* l = qobject_cast<ImageLandmark*>(b);
+																							if (l != nullptr) {
+																								return l->attachedLandmarkName();
+																							}
+																							return tr("Unvalid image landmark");
+																						});
+
+	im_lm->addCatProperty<floatParameter, ImageLandmark, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X pos"),
+																														  &ImageLandmark::x,
+																														  &ImageLandmark::setX,
+																														  &ImageLandmark::xCoordChanged);
+
+	im_lm->addCatProperty<floatParameter, ImageLandmark, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y pos"),
+																														  &ImageLandmark::y,
+																														  &ImageLandmark::setY,
+																														  &ImageLandmark::yCoordChanged);
+
 }
 
 ImageLandmark::ImageLandmark(Image* parent) : DataBlock(parent)

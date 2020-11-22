@@ -109,6 +109,8 @@ protected:
 	QJsonObject encodeJson() const override;
 	void configureFromJson(QJsonObject const& data) override;
 
+	void extendDataModel();
+
 	qint64 _assignedCamera;
 
 	QString _imageFile;

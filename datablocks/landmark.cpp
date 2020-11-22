@@ -1,13 +1,15 @@
 #include "landmark.h"
 #include "image.h"
 
+#include "./itemdatamodel.h"
+
 #include <QSet>
 
 namespace StereoVisionApp {
 
 Landmark::Landmark(Project *parent) : DataBlock(parent)
 {
-
+	extendDataModel();
 }
 
 floatParameter Landmark::xCoord() const
@@ -193,6 +195,27 @@ void Landmark::configureFromJson(QJsonObject const& data) {
 	if (data.contains("oy")) {
 		_o_z = floatParameter::fromJson(data.value("oz").toObject());
 	}
+
+}
+
+void Landmark::extendDataModel() {
+
+	ItemDataModel::Category* g = _dataModel->addCategory(tr("Geometric properties"));
+
+	g->addCatProperty<floatParameter, Landmark, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X pos"),
+																												 &Landmark::xCoord,
+																												 &Landmark::setXCoord,
+																												 &Landmark::xCoordChanged);
+
+	g->addCatProperty<floatParameter, Landmark, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y pos"),
+																												 &Landmark::yCoord,
+																												 &Landmark::setYCoord,
+																												 &Landmark::yCoordChanged);
+
+	g->addCatProperty<floatParameter, Landmark, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z pos"),
+																												 &Landmark::zCoord,
+																												 &Landmark::setZCoord,
+																												 &Landmark::zCoordChanged);
 
 }
 

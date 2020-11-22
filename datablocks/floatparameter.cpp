@@ -49,7 +49,7 @@ bool floatParameter::operator== (floatParameter const& other) const {
 	return (other._isSet == _isSet) and (other._isUncertain == _isUncertain) and (other._value == _value) and (other._stddev == _stddev);
 }
 bool floatParameter::isApproximatlyEqual (floatParameter const& other, pFloatType tol) const {
-	if (_isSet and other.isSet()) {
+	if (_isSet and other.isSet() and other._isUncertain == _isUncertain) {
 		return std::abs(_value - other.value()) < tol;
 	} else {
 		return false;

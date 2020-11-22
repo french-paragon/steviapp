@@ -244,17 +244,17 @@ ItemDataModel::SubItemCollectionManager::SubItemNode::SubItemNode(SubItemCollect
 
 void ItemDataModel::SubItemCollectionManager::newItem(qint64 id) {
 
-	_model->subItemAboutToBeAdded(this);
-
 	DataBlock* b = _model->_dataBlock;
 
 	DataBlock* s = b->getById(id);
 
 	if (s->metaObject()->className() == _targetClass) {
+
+		_model->subItemAboutToBeAdded(this);
 		insertSubitem(id);
+		_model->subItemAdded(this);
 	}
 
-	_model->subItemAdded(this);
 }
 
 void ItemDataModel::SubItemCollectionManager::itemRemoved(qint64 id) {
@@ -292,6 +292,20 @@ void ItemDataModel::SubItemCollectionManager::itemRemoved(qint64 id) {
 }
 
 void ItemDataModel::SubItemCollectionManager::insertSubitem(qint64 id) {
+
+	DataBlock* main_b = _model->_dataBlock;
+
+	DataBlock* sub_b = main_b->getById(id);
+
+	if (sub_b->metaObject()->className() != _targetClass) {
+		return;
+	}
+
+	_propertiesDescritions.insert(id, {});
+
+	for (ItemPropertyDescriptionFactory* f : _propsDescrFactories) {
+		_propertiesDescritions[id].push_back(f->factorizeDescription(this, sub_b));
+	}
 
 	SubItemNode* n = new SubItemNode(this, id);
 	_subItems.push_back(n);
@@ -482,6 +496,7 @@ QVariant ItemDataModel::data(const QModelIndex &index, int role) const {
 
 	switch (role) {
 	case Qt::DisplayRole:
+	case Qt::EditRole:
 		if (node == nullptr) { // leaf item, this is a property
 			ItemPropertyDescription* descr = propDescrFromIndex(index);
 

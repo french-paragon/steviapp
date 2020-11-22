@@ -176,6 +176,8 @@ protected:
 	QJsonObject encodeJson() const override;
 	void configureFromJson(QJsonObject const& data) override;
 
+	void extendDataModel();
+
 	floatParameter _f_pix;
 
 	floatParameter _pix_ratio;

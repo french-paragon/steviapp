@@ -179,7 +179,7 @@ protected:
 	virtual QJsonObject encodeJson() const = 0;
 	virtual void configureFromJson(QJsonObject const& data) = 0;
 
-	virtual void buildDataModel();
+	void buildDataModel();
 
 	qint64 _internalId;
 

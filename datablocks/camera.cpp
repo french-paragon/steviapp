@@ -6,12 +6,14 @@
 #include "mainwindow.h"
 #include "gui/lenseditor.h"
 
+#include "./itemdatamodel.h"
+
 namespace StereoVisionApp {
 
 Camera::Camera(Project *parent) :
 	Camera({800, 800}, parent)
 {
-
+	extendDataModel();
 }
 
 Camera::Camera(QSize imSize, Project* parent)  :
@@ -716,6 +718,44 @@ void Camera::configureFromJson(QJsonObject const& obj) {
 	if (obj.contains("oB2")) {
 		_o_B2 = floatParameter::fromJson(obj.value("oB2").toObject());
 	}
+
+}
+
+
+void Camera::extendDataModel() {
+
+	ItemDataModel::Category* p = _dataModel->addCategory(tr("Pinhole properties"));
+
+	p->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Focal lenght [px]"),
+																												&Camera::fLen,
+																												&Camera::setFLen,
+																												&Camera::FLenChanged);
+
+	p->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Optical center X"),
+																												&Camera::opticalCenterX,
+																												&Camera::setOpticalCenterX,
+																												&Camera::opticalCenterXChanged);
+
+	p->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Optical center Y"),
+																												&Camera::opticalCenterY,
+																												&Camera::setOpticalCenterY,
+																												&Camera::opticalCenterYChanged);
+
+	ItemDataModel::Category* r = _dataModel->addCategory(tr("Radial distortion properties"));
+
+	r->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("k1", &Camera::k1, &Camera::setK1, &Camera::k1Changed);
+	r->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("k2", &Camera::k2, &Camera::setK2, &Camera::k2Changed);
+	r->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("k3", &Camera::k3, &Camera::setK3, &Camera::k3Changed);
+
+	ItemDataModel::Category* t = _dataModel->addCategory(tr("Tangential distortion properties"));
+
+	t->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("p1", &Camera::p1, &Camera::setP1, &Camera::p1Changed);
+	t->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("p2", &Camera::p2, &Camera::setP2, &Camera::p2Changed);
+
+	ItemDataModel::Category* s = _dataModel->addCategory(tr("Skew distortion properties"));
+
+	s->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("B1", &Camera::B1, &Camera::setB1, &Camera::B1Changed);
+	s->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("B2", &Camera::B2, &Camera::setB2, &Camera::B2Changed);
 
 }
 

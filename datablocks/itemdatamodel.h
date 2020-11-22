@@ -210,7 +210,7 @@ protected:
 			if (block == nullptr) {
 				return QVariant();
 			}
-			return QVariant::fromValue(block->*_getter().value());
+			return QVariant::fromValue((block->*_getter)().value());
 		}
 		bool setData(QVariant const& d) override {
 			if (!d.canConvert(qMetaTypeId<qreal>())) {
@@ -223,9 +223,9 @@ protected:
 			}
 
 			pFloatType v = static_cast<pFloatType>(qvariant_cast<qreal>(d));
-			floatParameter p = block->*_getter();
+			floatParameter p = (block->*_getter)();
 			p.setIsSet(v);
-			block->*_setter(p);
+			(block->*_setter)(p);
 			return true;
 		}
 
@@ -239,10 +239,18 @@ protected:
 		}
 		QVariant sencondValue() const {
 			D* block = castedBlock();
+
 			if (block == nullptr) {
 				return QVariant();
 			}
-			return QVariant::fromValue(block->*_getter().stddev());
+
+			floatParameter fp = (block->*_getter)();
+
+			if (!fp.isUncertain()) {
+				return QVariant(" ");
+			}
+
+			return QVariant::fromValue(fp.stddev());
 		}
 		bool setSecondValue(QVariant const& d) {
 			if (!d.canConvert(qMetaTypeId<qreal>())) {
@@ -255,9 +263,9 @@ protected:
 			}
 
 			pFloatType v = static_cast<pFloatType>(qvariant_cast<qreal>(d));
-			floatParameter p = block->*_getter();
+			floatParameter p = (block->*_getter)();
 			p.setUncertainty(v);
-			block->*_setter(p);
+			(block->*_setter)(p);
 			return true;
 		}
 

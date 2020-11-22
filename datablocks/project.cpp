@@ -667,6 +667,8 @@ void DataBlock::insertSubItem(DataBlock* sub) {
 		_idBySubTypes[className].append(sub->internalId());
 	}
 
+	Q_EMIT newSubItem(sub->_internalId);
+
 }
 void DataBlock::clearSubItem(qint64 id, QString className) {
 
@@ -690,6 +692,7 @@ void DataBlock::clearSubItem(qint64 id, QString className) {
 		cs = _itemCache[id]->metaObject()->className();
 	}
 
+	Q_EMIT subItemAboutToBeRemoved(id);
 	_itemCache.remove(id);
 	_idBySubTypes[cs].removeAll(id);
 
@@ -866,9 +869,9 @@ QJsonObject DataBlock::toJson() const {
 }
 void DataBlock::setFromJson(QJsonObject const& obj) {
 
-	bool signalBlocked = signalsBlocked();
+	bool trackingChanges = _blockChanges;
 
-	blockSignals(true);
+	stopTrackingChanges(true);
 
 	if (obj.contains("id")) {
 		_internalId = obj.value("id").toInt(-1);
@@ -892,7 +895,7 @@ void DataBlock::setFromJson(QJsonObject const& obj) {
 
 	clearIsChanged();
 
-	blockSignals(signalBlocked);
+	stopTrackingChanges(trackingChanges);
 
 }
 

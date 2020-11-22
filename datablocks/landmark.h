@@ -63,6 +63,8 @@ protected:
 	QJsonObject encodeJson() const override;
 	void configureFromJson(QJsonObject const& data) override;
 
+	void extendDataModel();
+
 	floatParameter _x;
 	floatParameter _y;
 	floatParameter _z;
