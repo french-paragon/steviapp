@@ -165,7 +165,7 @@ QJsonObject Landmark::encodeJson() const {
 
 	obj.insert("x", floatParameter::toJson(xCoord()));
 	obj.insert("y", floatParameter::toJson(yCoord()));
-	obj.insert("z", floatParameter::toJson(yCoord()));
+	obj.insert("z", floatParameter::toJson(zCoord()));
 
 	obj.insert("ox", floatParameter::toJson(optimizedX()));
 	obj.insert("oy", floatParameter::toJson(optimizedY()));

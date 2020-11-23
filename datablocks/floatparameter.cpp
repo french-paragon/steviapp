@@ -247,10 +247,10 @@ pFloatType const& floatParameter::stddev() const {
 QJsonObject floatParameter::toJson(floatParameter const& fP) {
 	QJsonObject obj;
 
-	obj.insert("isSet", static_cast<qreal>(fP.isSet()));
+	obj.insert("isSet", static_cast<int>(fP.isSet()));
 	obj.insert("val", static_cast<qreal>(fP.value()));
 
-	obj.insert("isUncertain", static_cast<qreal>(fP.isUncertain()));
+	obj.insert("isUncertain", static_cast<int>(fP.isUncertain()));
 	obj.insert("stddev", static_cast<qreal>(fP.stddev()));
 
 	return obj;
@@ -270,7 +270,7 @@ floatParameter floatParameter::fromJson(QJsonObject const& obj) {
 
 	if (obj.contains("isSet")) {
 		QJsonValue v = obj.value("isSet");
-		if (v.toBool()) {
+		if (v.toBool() or v.toInt() > 0) {
 			fp.setIsSet();
 		}
 	}
