@@ -508,7 +508,7 @@ QVariant ItemDataModel::data(const QModelIndex &index, int role) const {
 				if (index.column() == 0) {
 					return descr->name();
 				} else if (index.column() == 1) {
-					return descr->data();
+					return descr->data(role);
 				} else {
 					if (descr->hasSecondValue()) {
 						return descr->sencondValue();

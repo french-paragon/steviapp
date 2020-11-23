@@ -46,7 +46,7 @@ public:
 
 		virtual PropertyEdtior editor() const = 0;
 
-		virtual QVariant data() const = 0;
+		virtual QVariant data(int role = Qt::DisplayRole) const = 0;
 		virtual bool setData(QVariant const& d) = 0;
 
 		virtual bool hasSecondValue() const;
@@ -126,11 +126,18 @@ protected:
 			return ValueEditor;
 		}
 
-		QVariant data() const override {
+		QVariant data(int role = Qt::DisplayRole) const override {
+
+			if (role != Qt::DisplayRole and role != Qt::EditRole) {
+				return QVariant();
+			}
+
 			D* block = castedBlock();
+
 			if (block == nullptr) {
 				return QVariant();
 			}
+
 			return QVariant::fromValue((block->*_getter)());
 		}
 		bool setData(QVariant const& d) override {
@@ -205,20 +212,44 @@ protected:
 			return ValueEditor;
 		}
 
-		QVariant data() const override {
-			D* block = castedBlock();
-			if (block == nullptr) {
+		QVariant data(int role = Qt::DisplayRole) const override {
+
+			if (role != Qt::DisplayRole and role != Qt::EditRole) {
 				return QVariant();
-			}
-			return QVariant::fromValue((block->*_getter)().value());
-		}
-		bool setData(QVariant const& d) override {
-			if (!d.canConvert(qMetaTypeId<qreal>())) {
-				return false;
 			}
 
 			D* block = castedBlock();
+
 			if (block == nullptr) {
+				return QVariant();
+			}
+
+			floatParameter fp = (block->*_getter)();
+
+			if (!fp.isSet()) {
+				if (role == Qt::EditRole) {
+					return QVariant(fp.value());
+				}
+				return QVariant(" ");
+			}
+
+			return QVariant::fromValue(fp.value());
+		}
+		bool setData(QVariant const& d) override {
+
+			D* block = castedBlock();
+			if (block == nullptr) {
+				return false;
+			}
+
+			if (d.toString().isEmpty()) {
+				floatParameter p = (block->*_getter)();
+				p.clearIsSet();
+				(block->*_setter)(p);
+				return true;
+			}
+
+			if (!d.canConvert(qMetaTypeId<qreal>())) {
 				return false;
 			}
 
