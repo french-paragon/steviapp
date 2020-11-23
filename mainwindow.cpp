@@ -57,6 +57,7 @@ void MainWindow::saveProject() {
 
 	if (_activeProject->source().isEmpty()) {
 		saveProjectAs();
+		return;
 	}
 
 	bool status = _activeProject->save();
@@ -72,7 +73,7 @@ void MainWindow::saveProjectAs() {
 		return;
 	}
 
-	QString filter = "Projects files (*." + Project::PROJECT_FILE_EXT + ")";
+	QString filter = "Projects files (*" + Project::PROJECT_FILE_EXT + ")";
 	QString folder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
 
 	QString fName = QFileDialog::getSaveFileName(this, tr("Save project"), folder, filter);
