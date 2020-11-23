@@ -66,6 +66,11 @@ ProjectFactory& ProjectFactory::defaultProjectFactory() {
 	return *_defaultProjectFactory;
 }
 
+QVector<QString> ProjectFactory::installedTypes() const
+{
+    return _installedTypes;
+}
+
 
 Project::Project(QObject* parent) :
 	QAbstractItemModel(parent),

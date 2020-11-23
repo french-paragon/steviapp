@@ -36,6 +36,7 @@ private:
 
 	void resetProject();
 
+	void configureProjectWindowsMenu();
 	void projectContextMenu(QPoint const& pt);
 	void onProjectSelectionChanged();
 

@@ -45,7 +45,7 @@
      <x>0</x>
      <y>0</y>
      <width>1035</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
@@ -63,7 +63,16 @@
     </property>
     <addaction name="actionOpenSparseAlignEditor"/>
    </widget>
+   <widget class="QMenu" name="menuproject">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="title">
+     <string>project</string>
+    </property>
+   </widget>
    <addaction name="menufile"/>
+   <addaction name="menuproject"/>
    <addaction name="menudev"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>

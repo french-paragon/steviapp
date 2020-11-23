@@ -23,6 +23,7 @@ public:
 	bool addType(DataBlockFactory* factory);
 	bool hasType(QString const& blockType) const;
 	QString typeDescr(QString const& blockType) const;
+	QVector<QString> installedTypes() const;
 
 	static ProjectFactory& defaultProjectFactory();
 

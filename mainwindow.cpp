@@ -113,6 +113,8 @@ void MainWindow::resetProject() {
 	_activeProject = StereoVisionApp::ProjectFactory::defaultProjectFactory().createProject(this);
 	ui->projectView->setModel(_activeProject);
 
+	configureProjectWindowsMenu();
+
 	for (Editor* e : _openedEditors) {
 		e->setProject(_activeProject);
 	}
@@ -176,6 +178,47 @@ void MainWindow::closeEditor(int index) {
 	}
 }
 
+void MainWindow::configureProjectWindowsMenu() {
+
+	ui->menuproject->clear();
+	ui->menuproject->setEnabled(false);
+
+	if (_activeProject == nullptr) {
+		return;
+	}
+
+	QVector<QString> datablocksTypes = StereoVisionApp::ProjectFactory::defaultProjectFactory().installedTypes();
+	QVector<QString> descrs;
+	QVector<int> sortingKey;
+	descrs.reserve(datablocksTypes.size());
+	sortingKey.reserve(datablocksTypes.size());
+
+	int i = 0;
+	for (QString t : datablocksTypes) {
+		descrs.push_back(StereoVisionApp::ProjectFactory::defaultProjectFactory().typeDescr(t));
+		sortingKey.push_back(i++);
+	}
+
+	std::sort(sortingKey.begin(), sortingKey.end(), [descrs] (int f, int s) { return descrs[f] < descrs[s]; });
+
+	for (int index : sortingKey) {
+
+		QMenu* m = ui->menuproject->addMenu(descrs[index]);
+
+		QList<QAction*> acts = ActionManagersLibrary::defaultActionManagersLibrary().factorizeDatablockClassContextActions(datablocksTypes[index], m, _activeProject);
+
+		if (acts.size() > 0) {
+			m->addActions(acts);
+		} else {
+			ui->menuproject->removeAction(m->menuAction());
+			m->deleteLater();
+		}
+	}
+
+	ui->menuproject->setEnabled(true);
+
+}
+
 void MainWindow::projectContextMenu(QPoint const& pt) {
 
 	if (_activeProject == nullptr) {
@@ -190,7 +233,7 @@ void MainWindow::projectContextMenu(QPoint const& pt) {
 		return;
 	}
 
-	QList<QAction*> acts;;
+	QList<QAction*> acts;
 
 	QModelIndexList s = ui->projectView->selectionModel()->selectedRows();
 	bool singleClassMultiSelection = false;

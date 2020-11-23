@@ -29,8 +29,6 @@ int main(int argc, char *argv[])
 	format.setSamples(4);
 	QSurfaceFormat::setDefaultFormat(format);
 
-	StereoVisionApp::MainWindow w;
-
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::LandmarkFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::ImageFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraFactory(&a));
@@ -40,6 +38,8 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::ImageBaseActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::LandmarkBaseActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::CameraBaseActionManager(pF));
+
+	StereoVisionApp::MainWindow w;
 
 	w.installEditor(new StereoVisionApp::ImageEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
