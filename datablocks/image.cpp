@@ -410,9 +410,15 @@ int Image::countPointsRefered(const QSet<qint64> &excluded) const {
 	}
 
 	QSet<qint64> referedPtId;
-	for (QVector<qint64> const& path : _referered) {
-		qint64 id = path.first();
-		Landmark* lm = qobject_cast<Landmark*>(getProject()->getById(id));
+	for (qint64 id : listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
+		ImageLandmark* iml = qobject_cast<ImageLandmark*>(getById(id));
+
+		if (iml == nullptr) {
+			continue;
+		}
+
+		qint64 lm_id = iml->attachedLandmarkid();
+		Landmark* lm = qobject_cast<Landmark*>(getProject()->getById(lm_id));
 
 		if (lm != nullptr) {
 			referedPtId.insert(id);

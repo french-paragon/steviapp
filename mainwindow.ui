@@ -71,8 +71,18 @@
      <string>project</string>
     </property>
    </widget>
+   <widget class="QMenu" name="menusolve">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="title">
+     <string>solve</string>
+    </property>
+    <addaction name="actionsolve_sparse"/>
+   </widget>
    <addaction name="menufile"/>
    <addaction name="menuproject"/>
+   <addaction name="menusolve"/>
    <addaction name="menudev"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -169,6 +179,11 @@
   <action name="actionsave_project_as">
    <property name="text">
     <string>save project as</string>
+   </property>
+  </action>
+  <action name="actionsolve_sparse">
+   <property name="text">
+    <string>solve sparse</string>
    </property>
   </action>
  </widget>

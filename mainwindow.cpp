@@ -2,6 +2,7 @@
 #include "./ui_mainwindow.h"
 
 #include "control/actionmanager.h"
+#include "control/solversactions.h"
 
 #include "gui/imagewidget.h"
 #include "gui/editor.h"
@@ -39,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
 
+	connect(ui->actionsolve_sparse, &QAction::triggered, this, &MainWindow::runSparseOptim);
 	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openEditor(SparseAlignementEditor::SparseAlignementEditorClassName); });
 
 }
@@ -115,6 +117,7 @@ void MainWindow::resetProject() {
 	ui->projectView->setModel(_activeProject);
 
 	configureProjectWindowsMenu();
+	ui->menusolve->setEnabled(true);
 
 	for (Editor* e : _openedEditors) {
 		e->setProject(_activeProject);
@@ -321,6 +324,16 @@ void MainWindow::onProjectSelectionChanged() {
 	}
 
 	ui->dataBlockView->setModel(nullptr);
+
+}
+
+void MainWindow::runSparseOptim() {
+
+	if (_activeProject != nullptr) {
+		solveSparse(_activeProject, this);
+	} else {
+		QMessageBox::warning(this, tr("Impossible to optimize !"), tr("No project set"));
+	}
 
 }
 

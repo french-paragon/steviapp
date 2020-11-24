@@ -2,7 +2,6 @@
 
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/core/optimization_algorithm_levenberg.h"
-#include "g2o/core/block_solver.h"
 #include "g2o/core/solver.h"
 #include "g2o/solvers/dense/linear_solver_dense.h"
 #include "g2o/solvers/csparse/linear_solver_csparse.h"
@@ -26,24 +25,39 @@
 
 #include <Eigen/Geometry>
 
-typedef g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> >::LinearSolverType lSolvType;
-typedef g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> > bSolvType;
-
-typedef g2o::VertexSBAPointXYZ landMarkVertex;
-
 namespace StereoVisionApp {
 
-GraphSBASolver::GraphSBASolver(bool sparse, int nStep) :
+GraphSBASolver::GraphSBASolver(Project *p, bool computeUncertainty, bool sparse, QObject *parent) :
+	SparseSolverBase(p, parent),
 	_sparse(sparse),
-	_n_step(nStep)
+	_compute_marginals(computeUncertainty),
+	_optimizer(nullptr)
 {
 
 }
 
-bool GraphSBASolver::solve(Project* p) const {
+GraphSBASolver::~GraphSBASolver() {
+	cleanup();
+}
 
-	g2o::SparseOptimizer optimizer;
-	optimizer.setVerbose(false);
+int GraphSBASolver::uncertaintySteps() const {
+	return 1;
+}
+
+bool GraphSBASolver::hasUncertaintyStep() const {
+	return _compute_marginals;
+}
+
+bool GraphSBASolver::init() {
+
+	if (_currentProject == nullptr) {
+		return false;
+	}
+
+	bool s = true;
+
+	_optimizer = new g2o::SparseOptimizer();
+	_optimizer->setVerbose(false);
 
 	std::unique_ptr<lSolvType> linearSolver;
 	if (_sparse) {
@@ -54,18 +68,20 @@ bool GraphSBASolver::solve(Project* p) const {
 
 	g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(g2o::make_unique<bSolvType>(std::move(linearSolver)));
 
-	optimizer.setAlgorithm(solver);
+	_optimizer->setAlgorithm(solver);
 
 	SBAGraphReductor selector(3,2,true,true);
 
-	SBAGraphReductor::elementsSet selection = selector(p);
+	SBAGraphReductor::elementsSet selection = selector(_currentProject);
+
+	if (selection.imgs.isEmpty() or selection.pts.isEmpty()) {
+		return false;
+	}
 
 	int vid = 0;
 
-	QMap<qint64, landMarkVertex*> landmarkVertices;
-
 	for (qint64 id : selection.pts) {
-		Landmark* lm = qobject_cast<Landmark*>(p->getById(id));
+		Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
 
 		if (lm != nullptr) {
 
@@ -80,8 +96,8 @@ bool GraphSBASolver::solve(Project* p) const {
 
 			v->setEstimate(d);
 
-			optimizer.addVertex(v);
-			landmarkVertices.insert(id, v);
+			_optimizer->addVertex(v);
+			_landmarkVertices.insert(id, v);
 
 			if (lm->xCoord().isUncertain() and lm->yCoord().isUncertain() and lm->zCoord().isUncertain()) {
 
@@ -103,28 +119,25 @@ bool GraphSBASolver::solve(Project* p) const {
 
 				e->setInformation(info);
 
-				optimizer.addEdge(e);
+				_optimizer->addEdge(e);
 
 			}
 		}
 	}
 
-	QMap<qint64, CameraInnerVertexCollection> camVertices;
-	QMap<qint64, VertexCameraPose*> frameVertices;
-
 	for (qint64 id : selection.imgs) {
-		Image* im = qobject_cast<Image*>(p->getById(id));
+		Image* im = qobject_cast<Image*>(_currentProject->getById(id));
 
 		if (im != nullptr) {
 
 			qint64 cam_id = im->assignedCamera();
-			Camera* c = qobject_cast<Camera*>(p->getById(cam_id));
+			Camera* c = qobject_cast<Camera*>(_currentProject->getById(cam_id));
 
 			if (c == nullptr) {
 				continue;
 			}
 
-			if (!camVertices.contains(cam_id)) {
+			if (!_camVertices.contains(cam_id)) {
 
 				VertexCameraParam* cp_v = new VertexCameraParam();
 				VertexCameraRadialDistortion* rd_v = new VertexCameraRadialDistortion();
@@ -167,12 +180,12 @@ bool GraphSBASolver::solve(Project* p) const {
 				sd_v->setEstimate(ss);
 				sd_v->setFixed(!c->useSkewDistortionModel());
 
-				optimizer.addVertex(cp_v);
-				optimizer.addVertex(rd_v);
-				optimizer.addVertex(td_v);
-				optimizer.addVertex(sd_v);
+				_optimizer->addVertex(cp_v);
+				_optimizer->addVertex(rd_v);
+				_optimizer->addVertex(td_v);
+				_optimizer->addVertex(sd_v);
 
-				camVertices.insert(cam_id, {cp_v, rd_v, td_v, sd_v});
+				_camVertices.insert(cam_id, {cp_v, rd_v, td_v, sd_v});
 
 			}
 
@@ -193,8 +206,8 @@ bool GraphSBASolver::solve(Project* p) const {
 
 			v->setEstimate(p);
 
-			optimizer.addVertex(v);
-			frameVertices.insert(id, v);
+			_optimizer->addVertex(v);
+			_frameVertices.insert(id, v);
 
 			if (im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain() and
 				im->xRot().isUncertain() and im->yRot().isUncertain() and im->zRot().isUncertain()) {
@@ -215,7 +228,7 @@ bool GraphSBASolver::solve(Project* p) const {
 
 				e->setInformation(info);
 
-				optimizer.addEdge(e);
+				_optimizer->addEdge(e);
 
 			} else if (im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain()) {
 
@@ -232,7 +245,7 @@ bool GraphSBASolver::solve(Project* p) const {
 
 				e->setInformation(info);
 
-				optimizer.addEdge(e);
+				_optimizer->addEdge(e);
 
 			} else if (im->xRot().isUncertain() and im->yRot().isUncertain() and im->zRot().isUncertain()) {
 
@@ -249,7 +262,7 @@ bool GraphSBASolver::solve(Project* p) const {
 
 				e->setInformation(info);
 
-				optimizer.addEdge(e);
+				_optimizer->addEdge(e);
 
 			}
 
@@ -257,13 +270,13 @@ bool GraphSBASolver::solve(Project* p) const {
 				ImageLandmark* iml = im->getImageLandmark(lmId);
 
 				if (iml != nullptr) {
-					landMarkVertex* l_v = landmarkVertices.value(iml->attachedLandmarkid(), nullptr);
+					landMarkVertex* l_v = _landmarkVertices.value(iml->attachedLandmarkid(), nullptr);
 
 					if (l_v == nullptr) {
 						continue;
 					}
 
-					const CameraInnerVertexCollection& c_vs = camVertices.value(cam_id);
+					const CameraInnerVertexCollection& c_vs = _camVertices.value(cam_id);
 
 					EdgeParametrizedXYZ2UV* e = new EdgeParametrizedXYZ2UV();
 					e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(v) );
@@ -285,24 +298,71 @@ bool GraphSBASolver::solve(Project* p) const {
 
 					e->setInformation(info);
 
-					optimizer.addEdge(e);
+					_optimizer->addEdge(e);
 				}
 			}
 		}
 	}
 
-	optimizer.initializeOptimization();
+	s = _optimizer->initializeOptimization();
 
-	optimizer.setVerbose(true);
+	_optimizer->setVerbose(true);
 
-	std::cout << std::endl << "Performing full BA:" << std::endl;
-	optimizer.optimize(_n_step);
+	return s;
+}
 
-	for (qint64 id : landmarkVertices.keys()) {
+bool GraphSBASolver::opt_step() {
+	return _optimizer->optimize(1) > 0;
+}
 
-		Landmark* lm = qobject_cast<Landmark*>(p->getById(id));
+bool GraphSBASolver::std_step() {
 
-		landMarkVertex* lmv = landmarkVertices.value(id);
+	if (_currentProject == nullptr or !_compute_marginals) {
+		return false;
+	}
+
+	std::vector<g2o::OptimizableGraph::Vertex*> marginals_computation_vertices;
+
+	marginals_computation_vertices.reserve(_landmarkVertices.size() + _frameVertices.size() + _camVertices.size()*CameraInnerVertexCollection::VerticesPerCam);
+
+	for (landMarkVertex* v : _landmarkVertices) {
+		marginals_computation_vertices.push_back(v);
+	}
+	for (VertexCameraPose* v : _frameVertices) {
+		marginals_computation_vertices.push_back(v);
+	}
+	for (qint64 id : _camVertices.keys()) {
+		CameraInnerVertexCollection const& c = _camVertices[id];
+
+		marginals_computation_vertices.push_back(c.param);
+
+		Camera* cam = qobject_cast<Camera*>(_currentProject->getById(id));
+
+		if (cam->useRadialDistortionModel()) {
+			marginals_computation_vertices.push_back(c.radialDist);
+		}
+		if (cam->useTangentialDistortionModel()) {
+			marginals_computation_vertices.push_back(c.tangeantialDist);
+		}
+		if (cam->useSkewDistortionModel()) {
+			marginals_computation_vertices.push_back(c.skewDist);
+		}
+	}
+
+	return _optimizer->computeMarginals(_spinv, marginals_computation_vertices);
+}
+
+bool GraphSBASolver::writeResults() {
+
+	if (_currentProject == nullptr) {
+		return false;
+	}
+
+	for (qint64 id : _landmarkVertices.keys()) {
+
+		Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
+
+		landMarkVertex* lmv = _landmarkVertices.value(id);
 
 		const landMarkVertex::EstimateType & e = lmv->estimate();
 
@@ -312,11 +372,11 @@ bool GraphSBASolver::solve(Project* p) const {
 
 	}
 
-	for (qint64 id : frameVertices.keys()) {
+	for (qint64 id : _frameVertices.keys()) {
 
-		Image* im = qobject_cast<Image*>(p->getById(id));
+		Image* im = qobject_cast<Image*>(_currentProject->getById(id));
 
-		VertexCameraPose* imv = frameVertices.value(id);
+		VertexCameraPose* imv = _frameVertices.value(id);
 
 		const CameraPose & e = imv->estimate();
 
@@ -333,12 +393,12 @@ bool GraphSBASolver::solve(Project* p) const {
 
 	}
 
-	for (qint64 id : camVertices.keys()) {
+	for (qint64 id : _camVertices.keys()) {
 
-		Camera* cam = qobject_cast<Camera*>(p->getById(id));
+		Camera* cam = qobject_cast<Camera*>(_currentProject->getById(id));
 		cam->clearOptimizedParams();
 
-		const CameraInnerVertexCollection & camv = camVertices[id];
+		const CameraInnerVertexCollection & camv = _camVertices[id];
 
 		CamParam e = camv.param->estimate();
 
@@ -371,6 +431,204 @@ bool GraphSBASolver::solve(Project* p) const {
 	}
 
 	return true;
+
+}
+bool GraphSBASolver::writeUncertainty() {
+
+	if (_currentProject == nullptr or !_compute_marginals) {
+		return false;
+	}
+
+	for (qint64 id : _landmarkVertices.keys()) {
+
+		Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
+
+		landMarkVertex* lmv = _landmarkVertices.value(id);
+
+		Eigen::MatrixXd* pm = _spinv.block(lmv->hessianIndex(), lmv->hessianIndex());
+
+		if (pm == nullptr) {
+			return false;
+		}
+
+		Eigen::MatrixXd const& m = *pm;
+
+		if (m.rows() != 3 or m.cols() != 3) {
+			return false;
+		}
+
+		floatParameter x = lm->optimizedX();
+		floatParameter y = lm->optimizedY();
+		floatParameter z = lm->optimizedZ();
+
+		x.setUncertainty(m(0,0));
+		y.setUncertainty(m(1,1));
+		z.setUncertainty(m(2,2));
+
+		lm->setOptimisedX(x);
+		lm->setOptimisedY(y);
+		lm->setOptimisedZ(z);
+
+	}
+
+	for (qint64 id : _frameVertices.keys()) {
+
+		Image* im = qobject_cast<Image*>(_currentProject->getById(id));
+
+		VertexCameraPose* imv = _frameVertices.value(id);
+
+		Eigen::MatrixXd* pm = _spinv.block(imv->hessianIndex(), imv->hessianIndex());
+
+		if (pm == nullptr) {
+			return false;
+		}
+
+		Eigen::MatrixXd const& m = *pm;
+
+		if (m.rows() != 6 or m.cols() != 6) {
+			return false;
+		}
+
+		floatParameter x = im->optXCoord();
+		floatParameter y = im->optYCoord();
+		floatParameter z = im->optZCoord();
+
+		x.setUncertainty(m(0,0));
+		y.setUncertainty(m(1,1));
+		z.setUncertainty(m(2,2));
+
+		im->setOptXCoord(x);
+		im->setOptYCoord(y);
+		im->setOptZCoord(z);
+
+		floatParameter rx = im->optXRot();
+		floatParameter ry = im->optYRot();
+		floatParameter rz = im->optZRot();
+
+		rx.setUncertainty(m(3,3));
+		ry.setUncertainty(m(4,4));
+		rz.setUncertainty(m(5,5));
+
+		im->setOptXRot(rx);
+		im->setOptYRot(ry);
+		im->setOptZRot(rz);
+
+	}
+
+	for (qint64 id : _camVertices.keys()) {
+
+		Camera* cam = qobject_cast<Camera*>(_currentProject->getById(id));
+		cam->clearOptimizedParams();
+
+		const CameraInnerVertexCollection & camv = _camVertices[id];
+
+
+		Eigen::MatrixXd* pm = _spinv.block(camv.param->hessianIndex(), camv.param->hessianIndex());
+
+		if (pm == nullptr) {
+			return false;
+		}
+
+		Eigen::MatrixXd const& m = *pm;
+
+		if (m.rows() != 3 or m.cols() != 3) {
+			return false;
+		}
+
+		floatParameter f = cam->optimizedFLen();
+		floatParameter ppx = cam->optimizedOpticalCenterX();
+		floatParameter ppy = cam->optimizedOpticalCenterY();
+
+		f.setUncertainty(m(0,0));
+		ppx.setUncertainty(m(1,1));
+		ppy.setUncertainty(m(2,2));
+
+		cam->setOptimizedFLen(f);
+		cam->setOptimizedOpticalCenterX(ppx);
+		cam->setOptimizedOpticalCenterY(ppy);
+
+		if (cam->useRadialDistortionModel()) {
+			pm = _spinv.block(camv.radialDist->hessianIndex(), camv.radialDist->hessianIndex());
+
+			if (pm != nullptr) {
+
+				Eigen::MatrixXd const& km = *pm;
+
+				if (km.rows() == 3 and km.cols() == 3) {
+
+					floatParameter k1 = cam->optimizedK1();
+					floatParameter k2 = cam->optimizedK2();
+					floatParameter k3 = cam->optimizedK3();
+
+					k1.setUncertainty(km(0,0));
+					k2.setUncertainty(km(1,1));
+					k3.setUncertainty(km(2,2));
+
+					cam->setOptimizedK1(k1);
+					cam->setOptimizedK2(k2);
+					cam->setOptimizedK3(k3);
+				}
+			}
+		}
+
+		if (cam->useTangentialDistortionModel()) {
+			pm = _spinv.block(camv.tangeantialDist->hessianIndex(), camv.tangeantialDist->hessianIndex());
+
+			if (pm != nullptr) {
+
+				Eigen::MatrixXd const& tm = *pm;
+
+				if (tm.rows() == 2 and tm.cols() == 2) {
+
+					floatParameter p1 = cam->optimizedP1();
+					floatParameter p2 = cam->optimizedP2();
+
+					p1.setUncertainty(tm(0,0));
+					p2.setUncertainty(tm(1,1));
+
+					cam->setOptimizedP1(p1);
+					cam->setOptimizedP2(p2);
+				}
+			}
+		}
+
+		if (cam->useSkewDistortionModel()) {
+			pm = _spinv.block(camv.skewDist->hessianIndex(), camv.skewDist->hessianIndex());
+
+			if (pm != nullptr) {
+
+				Eigen::MatrixXd const& Bm = *pm;
+
+				if (Bm.rows() == 2 and Bm.cols() == 2) {
+
+					floatParameter B1 = cam->optimizedB1();
+					floatParameter B2 = cam->optimizedB2();
+
+					B1.setUncertainty(Bm(0,0));
+					B2.setUncertainty(Bm(1,1));
+
+					cam->setOptimizedB1(B1);
+					cam->setOptimizedB2(B2);
+				}
+			}
+		}
+
+	}
+
+	return true;
+}
+void GraphSBASolver::cleanup() {
+
+	_landmarkVertices.clear();
+	_camVertices.clear();
+	_frameVertices.clear();
+
+	_spinv.clear(true);
+
+	if (_optimizer != nullptr) {
+		delete _optimizer;
+		_optimizer = nullptr;
+	}
 }
 
 } // namespace StereoVisionApp

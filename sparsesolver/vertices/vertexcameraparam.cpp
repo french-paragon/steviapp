@@ -1,5 +1,7 @@
 #include "vertexcameraparam.h"
 
+const int CameraInnerVertexCollection::VerticesPerCam = 4;
+
 VertexCameraParam::VertexCameraParam()
 {
 

@@ -56,6 +56,12 @@ set(PROJ_SRC  main.cpp
     gui/lenseditor.h
     gui/lenseditor.ui
     gui/gl_shaders.qrc
+    gui/stepprocessmonitorbox.cpp
+    gui/stepprocessmonitorbox.h
+    gui/stepprocessmonitorbox.ui
+    gui/sparsesolverconfigdialog.cpp
+    gui/sparsesolverconfigdialog.h
+    gui/sparsesolverconfigdialog.ui
     datablocks/project.cpp
     datablocks/project.h
     datablocks/floatparameter.cpp
@@ -78,6 +84,12 @@ set(PROJ_SRC  main.cpp
     control/camerabaseactionmanager.h
     control/landmarkbaseactionmanager.cpp
     control/landmarkbaseactionmanager.h
+    control/solversactions.cpp
+    control/solversactions.h
+    processing/steppedprocess.cpp
+    processing/steppedprocess.h
+    sparsesolver/sparsesolverbase.cpp
+    sparsesolver/sparsesolverbase.h
     sparsesolver/sbagraphreductor.cpp
     sparsesolver/sbagraphreductor.h
     sparsesolver/graphsbasolver.h

@@ -13,7 +13,7 @@
 
 EdgeParametrizedXYZ2UV::EdgeParametrizedXYZ2UV()
 {
-	resize(5);
+	resize(6);
 }
 
 bool EdgeParametrizedXYZ2UV::read  (std::istream& is) {
@@ -163,7 +163,7 @@ Eigen::Vector2d EdgeParametrizedXYZ2UV::project(VertexCameraPose const* pose,
 												VertexCameraTangentialDistortion const* t_dist,
 												VertexCameraSkewDistortion const* s_dist) {
 
-
+	//TODO: assume cameras are not well fixed and find a way to init positions properly.
 
 	Eigen::Vector3d Pbar = pose->estimate().r().transpose()*(-pose->estimate().t() + point->estimate()); //position of origin in camera frame. The convention for r use one matrix multiplication more, but would be easier to work with in case we add inertial measurements.
 	if (Pbar[2] > 0.0) {

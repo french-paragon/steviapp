@@ -29,6 +29,7 @@ public:
 };
 
 struct CameraInnerVertexCollection {
+	static const int VerticesPerCam;
 	VertexCameraParam* param;
 	VertexCameraRadialDistortion* radialDist;
 	VertexCameraTangentialDistortion* tangeantialDist;
