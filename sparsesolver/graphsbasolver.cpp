@@ -22,6 +22,7 @@
 #include "edges/edgese3xyzprior.h"
 
 #include "sbagraphreductor.h"
+#include "sbainitializer.h"
 
 #include <Eigen/Geometry>
 
@@ -41,7 +42,7 @@ GraphSBASolver::~GraphSBASolver() {
 }
 
 int GraphSBASolver::uncertaintySteps() const {
-	return 1;
+	return (_compute_marginals) ? 1 : 0;
 }
 
 bool GraphSBASolver::hasUncertaintyStep() const {
@@ -71,12 +72,15 @@ bool GraphSBASolver::init() {
 	_optimizer->setAlgorithm(solver);
 
 	SBAGraphReductor selector(3,2,true,true);
+	RandomPosSBAInitializer initializer;
 
 	SBAGraphReductor::elementsSet selection = selector(_currentProject);
 
 	if (selection.imgs.isEmpty() or selection.pts.isEmpty()) {
 		return false;
 	}
+
+	auto initial_setup = initializer.computeInitialSolution(_currentProject, selection.pts, selection.imgs);
 
 	int vid = 0;
 
@@ -90,9 +94,14 @@ bool GraphSBASolver::init() {
 			v->setMarginalized(true);
 
 			g2o::Vector3 d;
-			d.x() = lm->xCoord().value();
-			d.y() = lm->yCoord().value();
-			d.z() = lm->zCoord().value();
+
+			if (initial_setup.points.contains(lm->internalId())) {
+				d = initial_setup.points[lm->internalId()].cast<double>();
+			} else {
+				d.x() = lm->xCoord().value();
+				d.y() = lm->yCoord().value();
+				d.z() = lm->zCoord().value();
+			}
 
 			v->setEstimate(d);
 
@@ -193,14 +202,19 @@ bool GraphSBASolver::init() {
 			v->setId(vid++);
 
 			Eigen::Matrix3d r;
-			r = Eigen::AngleAxisd(im->xRot().value()/180.*M_PI, Eigen::Vector3d::UnitX())
-				* Eigen::AngleAxisd(im->yRot().value()/180.*M_PI, Eigen::Vector3d::UnitY())
-				* Eigen::AngleAxisd(im->zRot().value()/180.*M_PI, Eigen::Vector3d::UnitZ());
-
 			Eigen::Vector3d t;
-			t.x() = im->xCoord().value();
-			t.y() = im->yCoord().value();
-			t.z() = im->zCoord().value();
+
+			if (initial_setup.cams.contains(im->internalId())) {
+				r = initial_setup.cams[im->internalId()].R.cast<double>();
+				t = initial_setup.cams[im->internalId()].t.cast<double>();
+			} else {
+				r = Eigen::AngleAxisd(im->xRot().value()/180.*M_PI, Eigen::Vector3d::UnitX())
+					* Eigen::AngleAxisd(im->yRot().value()/180.*M_PI, Eigen::Vector3d::UnitY())
+					* Eigen::AngleAxisd(im->zRot().value()/180.*M_PI, Eigen::Vector3d::UnitZ());
+				t.x() = im->xCoord().value();
+				t.y() = im->yCoord().value();
+				t.z() = im->zCoord().value();
+			}
 
 			CameraPose p(r, t);
 
@@ -312,7 +326,8 @@ bool GraphSBASolver::init() {
 }
 
 bool GraphSBASolver::opt_step() {
-	return _optimizer->optimize(1) > 0;
+	int n_steps = _optimizer->optimize(optimizationSteps());
+	return n_steps > 0;
 }
 
 bool GraphSBASolver::std_step() {
@@ -629,6 +644,10 @@ void GraphSBASolver::cleanup() {
 		delete _optimizer;
 		_optimizer = nullptr;
 	}
+}
+
+bool GraphSBASolver::splitOptSteps() const {
+	return false;
 }
 
 } // namespace StereoVisionApp

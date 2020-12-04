@@ -73,6 +73,7 @@ public:
 	ImageLandmark* getImageLandmarkByLandmarkId(qint64 id);
 	void clearImageLandmark(qint64 id);
 	qint64 getImageLandMarkAt(QPointF const& coord, float tol = 3);
+	QVector<qint64> getAttachedLandmarksIds() const;
 
 	int countPointsRefered(QSet<qint64> const& excluded = {}) const;
 	int countPointsRefered(QVector<qint64> const& excluded) const;

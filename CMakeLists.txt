@@ -92,6 +92,8 @@ set(PROJ_SRC  main.cpp
     sparsesolver/sparsesolverbase.h
     sparsesolver/sbagraphreductor.cpp
     sparsesolver/sbagraphreductor.h
+    sparsesolver/sbainitializer.cpp
+    sparsesolver/sbainitializer.h
     sparsesolver/graphsbasolver.h
     sparsesolver/graphsbasolver.cpp
     sparsesolver/vertices/camerapose.cpp

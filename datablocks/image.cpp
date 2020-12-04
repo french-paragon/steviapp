@@ -401,6 +401,36 @@ qint64 Image::getImageLandMarkAt(QPointF const& coord, float tol) {
 	return r;
 }
 
+QVector<qint64> Image::getAttachedLandmarksIds() const {
+
+	if (!isInProject()) {
+		return {};
+	}
+
+	QVector<qint64> imlmids = listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName);
+	QVector<qint64> r;
+	r.reserve(imlmids.size());
+
+	for (qint64 id : imlmids) {
+		ImageLandmark* imlm = getImageLandmark(id);
+
+		if (imlm == nullptr) {
+			continue;
+		}
+
+		qint64 lmid = imlm->attachedLandmarkid();
+
+		Landmark* lm = qobject_cast<Landmark*>(getProject()->getById(lmid));
+
+		if (lm != nullptr) {
+			r.push_back(lmid);
+		}
+	}
+
+	return r;
+
+}
+
 
 
 int Image::countPointsRefered(const QSet<qint64> &excluded) const {

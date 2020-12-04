@@ -13,8 +13,8 @@ SparseSolverBase::SparseSolverBase(Project *p, QObject *parent) :
 
 int SparseSolverBase::numberOfSteps() {
 
-	int n = optimizationSteps() + 1;
-	if (hasUncertaintyStep()) n += uncertaintySteps() + 1;
+	int n = (splitOptSteps() ? optimizationSteps() : 1) + 1;
+	if (hasUncertaintyStep()) n += uncertaintySteps();
 
 	return n;
 
@@ -64,18 +64,22 @@ bool SparseSolverBase::writeUncertainty() {
 	return true;
 }
 
+bool SparseSolverBase::splitOptSteps() const {
+	return true;
+}
+
 bool SparseSolverBase::doNextStep() {
 
 	bool s = false;
 
-	if (currentStep() < optimizationSteps()) {
+	if ((splitOptSteps() and currentStep() < optimizationSteps()) or currentStep() < 1) {
 		s = opt_step();
-	} else if (currentStep() < optimizationSteps() + uncertaintySteps()) {
+	} else if (currentStep() < (splitOptSteps() ? optimizationSteps() : 1) + uncertaintySteps()) {
 		s = std_step();
-	} else if (currentStep() == optimizationSteps() + uncertaintySteps()) {
+	} else if (currentStep() == (splitOptSteps() ? optimizationSteps() : 1) + uncertaintySteps()) {
 		s = writeResults();
 
-		if (s) {
+		if (s and hasUncertaintyStep()) {
 			s = writeUncertainty();
 		}
 	}

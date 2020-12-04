@@ -33,6 +33,8 @@ protected:
 	virtual bool writeResults() = 0;
 	virtual bool writeUncertainty();
 
+	virtual bool splitOptSteps() const;
+
 	Project* _currentProject;
 
 	int _n_step;

@@ -42,6 +42,8 @@ protected:
 	bool writeUncertainty() override;
 	void cleanup() override;
 
+	bool splitOptSteps() const override;
+
 	bool _sparse;
 	bool _compute_marginals;
 
