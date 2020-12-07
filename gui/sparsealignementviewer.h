@@ -1,6 +1,7 @@
 #ifndef STEREOVISIONAPP_SPARSEALIGNEMENTVIEWER_H
 #define STEREOVISIONAPP_SPARSEALIGNEMENTVIEWER_H
 
+#include <QVector>
 #include <QMatrix4x4>
 #include <QOpenGLWidget>
 #include <QOpenGLVertexArrayObject>
@@ -20,7 +21,7 @@ public:
 
 	~SparseAlignementViewer();
 
-	void setProject(Project*);
+	void setProject(Project* p);
 	void clearProject();
 
 	void resetView();
@@ -31,15 +32,23 @@ public:
 	void rotateZenith(float degrees);
 	void rotateAzimuth(float degrees);
 
+	void reloadLandmarks();
+	void clearLandmarks();
+
+	void setCamScale(float camScale);
+
 signals:
 
 protected:
+
+	void loadLandmarkImpl();
 
 	void initializeGL() override;
 	void paintGL() override;
 	void resizeGL(int w, int h) override;
 
 	void generateGrid();
+	void generateCamModel();
 	void setView(int w, int h);
 	void resetView(int w, int h);
 
@@ -50,6 +59,8 @@ protected:
 	void mouseMoveEvent(QMouseEvent *event) override;
 
 private:
+
+	bool _has_been_initialised;
 
 	Qt::MouseButtons _previously_pressed;
 	QPoint _motion_origin_pos;
@@ -66,15 +77,27 @@ private:
 
 	float _landMarkPtRadius;
 
+	float _camScale;
+
 	QMatrix4x4 _projectionView;
 
-	QOpenGLVertexArrayObject _vao;
+	QOpenGLVertexArrayObject _grid_vao;
+	QOpenGLVertexArrayObject _scene_vao;
+	QOpenGLVertexArrayObject _cam_vao;
 
 	QOpenGLBuffer _grid_buffer;
 	QOpenGLBuffer _lm_pos_buffer;
+	QOpenGLBuffer _cam_buffer;
+	QOpenGLBuffer _cam_indices;
 
 	QOpenGLShaderProgram* _gridProgram;
 	QOpenGLShaderProgram* _landMarkPointProgram;
+	QOpenGLShaderProgram* _camProgram;
+
+	Project* _currentProject;
+	QVector<qint64> _loadedLandmarks;
+	std::vector<GLfloat> _llm_pos;
+	bool _hasToReloadLandmarks;
 
 };
 

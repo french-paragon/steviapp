@@ -5,6 +5,7 @@
 
 #include "gui/sparsesolverconfigdialog.h"
 #include "gui/stepprocessmonitorbox.h"
+#include "gui/sparsealignementeditor.h"
 
 #include "sparsesolver/graphsbasolver.h"
 
@@ -50,6 +51,8 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 	QObject::connect(t, &QThread::finished, t, &QObject::deleteLater);
 
 	if (w != nullptr) {
+
+		QObject::connect(solver, &SteppedProcess::finished, w, &MainWindow::openSparseViewer, Qt::QueuedConnection);
 
 		StepProcessMonitorBox* box = new StepProcessMonitorBox(w);
 		box->setWindowFlag(Qt::Dialog);

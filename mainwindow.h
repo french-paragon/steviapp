@@ -32,6 +32,8 @@ public:
 	void installEditor(EditorFactory* factory);
 	void closeEditor(int index);
 
+	void openSparseViewer();
+
 private:
 
 	void resetProject();

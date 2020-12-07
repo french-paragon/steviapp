@@ -76,7 +76,9 @@ Project::Project(QObject* parent) :
 	QAbstractItemModel(parent),
 	_source("")
 {
-
+	connect(this, &Project::dataChanged, this, &Project::projectChanged);
+	connect(this, &Project::rowsAboutToBeInserted, this, &Project::projectChanged);
+	connect(this, &Project::rowsAboutToBeMoved, this, &Project::projectChanged);
 }
 
 bool Project::load(QString const& inFile) {

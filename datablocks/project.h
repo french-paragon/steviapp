@@ -81,6 +81,8 @@ public:
 
 Q_SIGNALS:
 
+	void projectChanged();
+
 protected:
 	void clearImpl();
 

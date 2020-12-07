@@ -17,12 +17,24 @@ SparseAlignementEditor::~SparseAlignementEditor()
 	delete ui;
 }
 
+void SparseAlignementEditor::beforeProjectChange(Project* np) {
+	Editor::beforeProjectChange(np);
+	ui->widget->setProject(np);
+}
+
+void SparseAlignementEditor::reloadLandmarks() {
+	ui->widget->reloadLandmarks();
+}
+void SparseAlignementEditor::clearLandmarks() {
+	ui->widget->clearLandmarks();
+}
+
+
 SparseAlignementEditorFactory::SparseAlignementEditorFactory(QObject* parent) :
 	EditorFactory(parent)
 {
 
 }
-
 QString SparseAlignementEditorFactory::TypeDescrName() const {
 	return tr("Sparse Alignement Viewer");
 }

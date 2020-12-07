@@ -22,6 +22,13 @@ public:
 	explicit SparseAlignementEditor(QWidget *parent = nullptr);
 	~SparseAlignementEditor();
 
+	void reloadLandmarks();
+	void clearLandmarks();
+
+protected:
+
+	void beforeProjectChange(Project* np) override;
+
 private:
 	Ui::SparseAlignementEditor *ui;
 };

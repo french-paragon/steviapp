@@ -182,6 +182,15 @@ void MainWindow::closeEditor(int index) {
 	}
 }
 
+void MainWindow::openSparseViewer() {
+
+	Editor* e = openEditor(SparseAlignementEditor::SparseAlignementEditorClassName);
+	SparseAlignementEditor* sae = qobject_cast<SparseAlignementEditor*>(e);
+	if (sae != nullptr) {
+		sae->reloadLandmarks();
+	}
+}
+
 void MainWindow::configureProjectWindowsMenu() {
 
 	ui->menuproject->clear();
