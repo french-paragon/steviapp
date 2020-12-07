@@ -298,27 +298,30 @@ void SparseAlignementViewer::paintGL() {
 
 					Camera* cam = qobject_cast<Camera*>(_currentProject->getById(im->assignedCamera()));
 
-					QMatrix4x4 camTransform;
-					camTransform.scale(_camScale);
+					QMatrix4x4 camScale;
+					QMatrix4x4 camRotate;
+					QMatrix4x4 camTranslate;
+					camScale.scale(_camScale);
 
 					if (cam != nullptr) {
 						QSize s = cam->imSize();
 						qreal aspect_ratio = s.width()/s.height();
 						if (aspect_ratio > 1) {
-							camTransform.scale(1., 1./aspect_ratio);
+							camScale.scale(1., 1./aspect_ratio);
 						} else {
-							camTransform.scale(aspect_ratio, 1.0);
+							camScale.scale(aspect_ratio, 1.0);
 						}
 					}
 
-					camTransform.rotate(im->optXRot().value(), 1.0, 0.0, 0.0);
-					camTransform.rotate(im->optXRot().value(), 0.0, 1.0, 0.0);
-					camTransform.rotate(im->optXRot().value(), 0.0, 0.0, 1.0);
+					camRotate.rotate(im->optXRot().value(), 1.0, 0.0, 0.0);
+					camRotate.rotate(im->optYRot().value(), 0.0, 1.0, 0.0);
+					camRotate.rotate(im->optZRot().value(), 0.0, 0.0, 1.0);
 
-					camTransform.translate(im->optXCoord().value(),
+					camTranslate.translate(im->optXCoord().value(),
 										   im->optYCoord().value(),
 										   im->optZCoord().value());
 
+					QMatrix4x4 camTransform = camTranslate*camRotate*camScale;
 					_camProgram->setUniformValue("matrixCamToScene", camTransform);
 
 					f->glDrawElements(GL_LINES, 30, GL_UNSIGNED_INT, 0);

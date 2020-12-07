@@ -41,7 +41,8 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
 
 	connect(ui->actionsolve_sparse, &QAction::triggered, this, &MainWindow::runSparseOptim);
-	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openEditor(SparseAlignementEditor::SparseAlignementEditorClassName); });
+	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openSparseViewer(); });
+	connect(ui->actionTestInitialSolutionFinder, &QAction::triggered, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
 
 }
 

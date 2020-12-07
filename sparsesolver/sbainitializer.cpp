@@ -230,7 +230,7 @@ SBAInitializer::InitialSolution FrontCamSBAInitializer::computeInitialSolution(P
 			float cross_img = (selectedPt[1]->x().value() - selectedPt[0]->x().value())*(selectedPt[2]->y().value() - selectedPt[0]->y().value());
 			cross_img -= (selectedPt[2]->x().value() - selectedPt[0]->x().value())*(selectedPt[1]->y().value() - selectedPt[0]->y().value());
 
-			isUp = (cross > 0.) == (cross_img > 0);
+			isUp = (cross > 0.) == (cross_img > 0.);
 
 			Eigen::Vector4f x(0, 0, 0, 0);
 			Eigen::MatrixXf A = Eigen::MatrixXf::Zero(alreadyPresent.size()*2, 4);
@@ -310,7 +310,7 @@ SBAInitializer::InitialSolution FrontCamSBAInitializer::computeInitialSolution(P
 
 			}
 
-			r.cams.insert(currentImg->internalId(), {Eigen::Vector3f(x(2), x(3), isUp ? 1.f - 1/x(0) : 1/x(0) - 2.f),
+			r.cams.insert(currentImg->internalId(), {Eigen::Vector3f(x(2), x(3), isUp ? 0.1f + 1/expf(x(0)) : -0.1f -1/expf(x(0))),
 												   isUp ? R0 : Rx180});
 			processedImgs.insert(currentImg->internalId());
 
@@ -479,17 +479,16 @@ SBAInitializer::InitialSolution RandomPosSBAInitializer::computeInitialSolution(
 	std::default_random_engine engine(rd());
 	std::uniform_real_distribution<float> cDist(-_camStd, _camStd);
 	std::uniform_real_distribution<float> pDist(-_pointStd, _pointStd);
-	std::uniform_real_distribution<float> angleDist(0, 2*M_PI);
+	std::uniform_real_distribution<float> latDist(0, M_PI/2);
+	std::uniform_real_distribution<float> azDist(0, 2*M_PI);
 
 	for (qint64 id : s_pts) {
 		r.points.insert(id, Eigen::Vector3f(pDist(engine), pDist(engine), pDist(engine)));
 	}
 
 	for (qint64 id : s_imgs) {
-		Eigen::Matrix3f rot = Eigen::AngleAxisf(angleDist(engine), Eigen::Vector3f::UnitX()).toRotationMatrix()
-				* Eigen::AngleAxisf(angleDist(engine), Eigen::Vector3f::UnitY()).toRotationMatrix()
-				* Eigen::AngleAxisf(angleDist(engine), Eigen::Vector3f::UnitZ()).toRotationMatrix()
-				* Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitX()).toRotationMatrix();
+		Eigen::Matrix3f rot = Eigen::AngleAxisf(azDist(engine), Eigen::Vector3f::UnitZ()).toRotationMatrix()
+				* Eigen::AngleAxisf(latDist(engine), Eigen::Vector3f::UnitX()).toRotationMatrix();
 
 		Eigen::Vector3f t(cDist(engine), cDist(engine), _camDist + cDist(engine));
 		r.cams.insert(id, {rot*t, rot});

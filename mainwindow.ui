@@ -62,6 +62,7 @@
      <string>dev</string>
     </property>
     <addaction name="actionOpenSparseAlignEditor"/>
+    <addaction name="actionTestInitialSolutionFinder"/>
    </widget>
    <widget class="QMenu" name="menuproject">
     <property name="enabled">
@@ -184,6 +185,11 @@
   <action name="actionsolve_sparse">
    <property name="text">
     <string>solve sparse</string>
+   </property>
+  </action>
+  <action name="actionTestInitialSolutionFinder">
+   <property name="text">
+    <string>TestInitialSolutionFinder</string>
    </property>
   </action>
  </widget>

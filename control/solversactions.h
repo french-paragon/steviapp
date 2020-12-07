@@ -6,6 +6,7 @@ namespace StereoVisionApp {
 class Project;
 class MainWindow;
 
+void initSolution(Project* p, MainWindow* w = nullptr);
 void solveSparse(Project* p, MainWindow* w = nullptr, int nStep = 50);
 
 } //namespace StereoVisionApp

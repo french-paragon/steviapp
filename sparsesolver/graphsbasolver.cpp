@@ -72,7 +72,7 @@ bool GraphSBASolver::init() {
 	_optimizer->setAlgorithm(solver);
 
 	SBAGraphReductor selector(3,2,true,true);
-	RandomPosSBAInitializer initializer;
+	FrontCamSBAInitializer initializer;
 
 	SBAGraphReductor::elementsSet selection = selector(_currentProject);
 

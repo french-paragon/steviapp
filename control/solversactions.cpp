@@ -8,10 +8,92 @@
 #include "gui/sparsealignementeditor.h"
 
 #include "sparsesolver/graphsbasolver.h"
+#include "sparsesolver/sbagraphreductor.h"
+#include "sparsesolver/sbainitializer.h"
+
+#include "datablocks/landmark.h"
+#include "datablocks/image.h"
 
 #include <QThread>
+#include <QMessageBox>
+
+#include <eigen3/Eigen/Geometry>
 
 namespace StereoVisionApp {
+
+void initSolution(Project* p, MainWindow* w) {
+
+	SBAGraphReductor selector(3,2,true,true);
+	FrontCamSBAInitializer initializer;
+
+	SBAGraphReductor::elementsSet selection = selector(p);
+
+	if (selection.imgs.isEmpty() or selection.pts.isEmpty()) {
+		QMessageBox::warning(w, "Initialization impossible", "No point nor image selected");
+		return;
+	}
+
+	auto initial_setup = initializer.computeInitialSolution(p, selection.pts, selection.imgs);
+
+	for (qint64 id : initial_setup.points.keys()) {
+
+		Landmark* lm = qobject_cast<Landmark*>(p->getById(id));
+
+		if (lm != nullptr) {
+
+			floatParameter x = lm->optimizedX();
+			x.setIsSet(initial_setup.points[id].x());
+			lm->setOptimisedX(x);
+
+			floatParameter y = lm->optimizedY();
+			y.setIsSet(initial_setup.points[id].y());
+			lm->setOptimisedY(y);
+
+			floatParameter z = lm->optimizedZ();
+			z.setIsSet(initial_setup.points[id].z());
+			lm->setOptimisedZ(z);
+		}
+
+	}
+
+	for (qint64 id : initial_setup.cams.keys()) {
+
+		Image* im = qobject_cast<Image*>(p->getById(id));
+
+		if (im != nullptr) {
+			floatParameter x = im->optXCoord();
+			x.setIsSet(initial_setup.cams[id].t.x());
+			im->setOptXCoord(x);
+
+			floatParameter y = im->optYCoord();
+			y.setIsSet(initial_setup.cams[id].t.y());
+			im->setOptYCoord(y);
+
+			floatParameter z = im->optZCoord();
+			z.setIsSet(initial_setup.cams[id].t.z());
+			im->setOptZCoord(z);
+
+			Eigen::Vector3f r = initial_setup.cams[id].R.eulerAngles(0,1,2);
+
+			x = im->optXRot();
+			x.setIsSet(r.x()/M_PI*180.);
+			im->setOptXRot(x);
+
+			y = im->optYRot();
+			y.setIsSet(r.y()/M_PI*180.);
+			im->setOptYRot(y);
+
+			z = im->optZRot();
+			z.setIsSet(r.z()/M_PI*180.);
+			im->setOptZRot(z);
+		}
+
+	}
+
+	if (w != nullptr) {
+		w->openSparseViewer();
+	}
+}
 
 void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
