@@ -117,7 +117,7 @@ SBAInitializer::InitialSolution FrontCamSBAInitializer::computeInitialSolution(P
 		}
 
 		float px = (ilm->x().value() - cam_start->opticalCenterX().value())/cam_start->fLen().value();
-		float py = (ilm->y().value() - cam_start->opticalCenterY().value())/cam_start->fLen().value();
+		float py = -(ilm->y().value() - cam_start->opticalCenterY().value())/cam_start->fLen().value();
 		float pz = -1;
 
 		r.points.insert(ilm->attachedLandmarkid(), {px, py, pz});
@@ -227,8 +227,8 @@ SBAInitializer::InitialSolution FrontCamSBAInitializer::computeInitialSolution(P
 			cross -= (r.points[pt3].x() - r.points[pt1].x())*(r.points[pt2].y() - r.points[pt1].y());
 
 
-			float cross_img = (selectedPt[1]->x().value() - selectedPt[0]->x().value())*(selectedPt[2]->y().value() - selectedPt[0]->y().value());
-			cross_img -= (selectedPt[2]->x().value() - selectedPt[0]->x().value())*(selectedPt[1]->y().value() - selectedPt[0]->y().value());
+			float cross_img = (selectedPt[1]->x().value() - selectedPt[0]->x().value())*(selectedPt[0]->y().value() - selectedPt[2]->y().value());
+			cross_img -= (selectedPt[2]->x().value() - selectedPt[0]->x().value())*(selectedPt[0]->y().value() - selectedPt[1]->y().value());
 
 			isUp = (cross > 0.) == (cross_img > 0.);
 
@@ -253,7 +253,7 @@ SBAInitializer::InitialSolution FrontCamSBAInitializer::computeInitialSolution(P
 					}
 
 					float i_h_x = (imlm->x().value() - currentCam->opticalCenterX().value())/currentCam->fLen().value();
-					float i_h_y = (imlm->y().value() - currentCam->opticalCenterY().value() )/currentCam->fLen().value();
+					float i_h_y = -(imlm->y().value() - currentCam->opticalCenterY().value() )/currentCam->fLen().value();
 
 					if (!isUp) {
 						i_h_y = -i_h_y;
@@ -294,7 +294,7 @@ SBAInitializer::InitialSolution FrontCamSBAInitializer::computeInitialSolution(P
 				}
 
 				float i_h_x = (imlm->x().value() - currentCam->opticalCenterX().value())/currentCam->fLen().value();
-				float i_h_y = (imlm->y().value() - currentCam->opticalCenterY().value() )/currentCam->fLen().value();
+				float i_h_y = -(imlm->y().value() - currentCam->opticalCenterY().value() )/currentCam->fLen().value();
 
 				if (!isUp) {
 					i_h_y = -i_h_y;

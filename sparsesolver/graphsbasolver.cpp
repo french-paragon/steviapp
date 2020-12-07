@@ -248,12 +248,12 @@ bool GraphSBASolver::init() {
 				e->setMeasurement(p);
 
 				EdgeSE3FullPrior::InformationType info = EdgeSE3FullPrior::InformationType::Identity();
-				info(0,0) = im->xCoord().stddev()*im->xCoord().stddev();
-				info(1,1) = im->yCoord().stddev()*im->yCoord().stddev();
-				info(2,2) = im->zCoord().stddev()*im->zCoord().stddev();
-				info(3,3) = im->xRot().stddev()*im->xRot().stddev();
-				info(4,4) = im->yRot().stddev()*im->yRot().stddev();
-				info(5,5) = im->zRot().stddev()*im->zRot().stddev();
+				info(0,0) = 1./(im->xCoord().stddev()*im->xCoord().stddev());
+				info(1,1) = 1./(im->yCoord().stddev()*im->yCoord().stddev());
+				info(2,2) = 1./(im->zCoord().stddev()*im->zCoord().stddev());
+				info(3,3) = 1./(im->xRot().stddev()*im->xRot().stddev());
+				info(4,4) = 1./(im->yRot().stddev()*im->yRot().stddev());
+				info(5,5) = 1./(im->zRot().stddev()*im->zRot().stddev());
 
 				e->setInformation(info);
 
@@ -268,9 +268,9 @@ bool GraphSBASolver::init() {
 				e->setMeasurement(t);
 
 				EdgeSE3xyzPrior::InformationType info = EdgeSE3xyzPrior::InformationType::Identity();
-				info(0,0) = im->xCoord().stddev()*im->xCoord().stddev();
-				info(1,1) = im->yCoord().stddev()*im->yCoord().stddev();
-				info(2,2) = im->zCoord().stddev()*im->zCoord().stddev();
+				info(0,0) = 1./(im->xCoord().stddev()*im->xCoord().stddev());
+				info(1,1) = 1./(im->yCoord().stddev()*im->yCoord().stddev());
+				info(2,2) = 1./(im->zCoord().stddev()*im->zCoord().stddev());
 
 				e->setInformation(info);
 
@@ -285,9 +285,9 @@ bool GraphSBASolver::init() {
 				e->setMeasurement(r);
 
 				EdgeSE3rpyPrior::InformationType info = EdgeSE3rpyPrior::InformationType::Identity();
-				info(0,0) = im->xRot().stddev()*im->xRot().stddev();
-				info(1,1) = im->yRot().stddev()*im->yRot().stddev();
-				info(2,2) = im->zRot().stddev()*im->zRot().stddev();
+				info(0,0) = 1./(im->xRot().stddev()*im->xRot().stddev());
+				info(1,1) = 1./(im->yRot().stddev()*im->yRot().stddev());
+				info(2,2) = 1./(im->zRot().stddev()*im->zRot().stddev());
 
 				e->setInformation(info);
 
@@ -317,13 +317,13 @@ bool GraphSBASolver::init() {
 
 					Eigen::Vector2d ptPos;
 					ptPos.x() = iml->x().value();
-					ptPos.y() = iml->y().value();
+					ptPos.y() = c->imSize().height() - iml->y().value();
 
 					e->setMeasurement(ptPos);
 
 					Eigen::Matrix2d info = Eigen::Matrix2d::Identity();
-					info(0,0) = (iml->x().isUncertain()) ? iml->x().stddev()*iml->x().stddev() : 1;
-					info(1,1) = (iml->y().isUncertain()) ? iml->y().stddev()*iml->y().stddev() : 1;
+					info(0,0) = (iml->x().isUncertain()) ? 1./(iml->x().stddev()*iml->x().stddev()) : 1;
+					info(1,1) = (iml->y().isUncertain()) ? 1./(iml->y().stddev()*iml->y().stddev()) : 1;
 
 					e->setInformation(info);
 
@@ -334,6 +334,7 @@ bool GraphSBASolver::init() {
 	}
 
 	s = _optimizer->initializeOptimization();
+	_not_first_step = false;
 
 	_optimizer->setVerbose(true);
 
@@ -341,7 +342,9 @@ bool GraphSBASolver::init() {
 }
 
 bool GraphSBASolver::opt_step() {
+	//int n_steps = _optimizer->optimize(1, _not_first_step);
 	int n_steps = _optimizer->optimize(optimizationSteps());
+	_not_first_step = true;
 	return n_steps > 0;
 }
 
