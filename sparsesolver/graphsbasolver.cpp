@@ -108,7 +108,7 @@ bool GraphSBASolver::init() {
 			_optimizer->addVertex(v);
 			_landmarkVertices.insert(id, v);
 
-			if (lm->xCoord().isUncertain() and lm->yCoord().isUncertain() and lm->zCoord().isUncertain()) {
+			if (lm->xCoord().isSet() and lm->yCoord().isSet() and lm->zCoord().isSet()) {
 
 				EdgeXyzPrior* e = new EdgeXyzPrior();
 
@@ -122,9 +122,24 @@ bool GraphSBASolver::init() {
 				e->setMeasurement(m);
 
 				Eigen::Matrix3d info = Eigen::Matrix3d::Identity();
-				info(0,0) = lm->xCoord().stddev()*lm->xCoord().stddev();
-				info(1,1) = lm->yCoord().stddev()*lm->yCoord().stddev();
-				info(2,2) = lm->zCoord().stddev()*lm->zCoord().stddev();
+
+				if (lm->xCoord().isUncertain()) {
+					info(0,0) = 1./(lm->xCoord().stddev()*lm->xCoord().stddev());
+				} else {
+					info(0,0) = 1e6;
+				}
+
+				if (lm->yCoord().isUncertain()) {
+					info(1,1) = 1./(lm->yCoord().stddev()*lm->yCoord().stddev());
+				} else {
+					info(1,1) = 1e6;
+				}
+
+				if (lm->zCoord().isUncertain()) {
+					info(2,2) = 1./(lm->zCoord().stddev()*lm->zCoord().stddev());
+				} else {
+					info(2,2) = 1e6;
+				}
 
 				e->setInformation(info);
 
