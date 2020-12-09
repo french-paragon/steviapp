@@ -75,9 +75,12 @@ public:
 	Qt::ItemFlags flags(const QModelIndex &index) const;
 
 	void clear();
+	void clearOptimized();
 
 	QString source() const;
 	void setSource(QString const& source);
+
+	bool hasSolution() const;
 
 Q_SIGNALS:
 
@@ -157,6 +160,12 @@ public:
 
 	ItemDataModel * getDataModel();
 	ItemDataModel const* getDataModel() const;
+
+	virtual void clearOptimized();
+	void deepClearOptimized();
+
+	virtual bool hasOptimizedParameters() const;
+	bool hierarchyHasOptimizedParameters() const;
 
 Q_SIGNALS:
 

@@ -159,6 +159,16 @@ int Landmark::countImagesRefering(QVector<qint64> const& excluded) const {
 
 }
 
+void Landmark::clearOptimized() {
+	clearOptimisedX();
+	clearOptimisedY();
+	clearOptimisedZ();
+}
+
+bool Landmark::hasOptimizedParameters() const {
+	return _o_x.isSet() or _o_y.isSet() or _o_z.isSet();
+}
+
 QJsonObject Landmark::encodeJson() const {
 
 	QJsonObject obj;

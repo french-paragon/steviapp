@@ -21,7 +21,38 @@
 
 namespace StereoVisionApp {
 
+bool resetSolution(Project* p, MainWindow* w) {
+
+	if (p == nullptr) {
+		return false;
+	}
+
+	if (!p->hasSolution()) {
+		return true;
+	}
+
+	if (w != nullptr) {
+		QMessageBox::StandardButton b = QMessageBox::question(w,
+															  QObject::tr("Clear solution"),
+															  QObject::tr("The previous solution will be lost, continue ?"),
+															  QMessageBox::Yes|QMessageBox::No,
+															  QMessageBox::No);
+
+		if (b != QMessageBox::Yes) {
+			return false;
+		}
+	}
+
+	p->clearOptimized();
+
+	return true;
+}
+
 void initSolution(Project* p, MainWindow* w) {
+
+	if (!resetSolution(p, w)) {
+		return;
+	}
 
 	SBAGraphReductor selector(3,2,true,true);
 	EightPointsSBAInitializer initializer;

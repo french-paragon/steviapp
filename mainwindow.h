@@ -43,6 +43,7 @@ private:
 	void projectContextMenu(QPoint const& pt);
 	void onProjectSelectionChanged();
 
+	void clearOptimSolution();
 	void runSparseOptim();
 
 	Ui::MainWindow *ui;

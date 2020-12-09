@@ -469,6 +469,21 @@ int Image::countPointsRefered(QVector<qint64> const& excluded) const {
 }
 
 
+void Image::clearOptimized() {
+
+	clearOptXCoord();
+	clearOptYCoord();
+	clearOptZCoord();
+
+	clearOptXRot();
+	clearOptYRot();
+	clearOptZRot();
+}
+
+bool Image::hasOptimizedParameters() const {
+	return _o_x.isSet() or _o_y.isSet() or _o_z.isSet() or _o_rx.isSet() or _o_ry.isSet() or _o_rz.isSet();
+}
+
 QJsonObject Image::encodeJson() const {
 
 	QJsonObject obj;

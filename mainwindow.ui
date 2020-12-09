@@ -45,7 +45,7 @@
      <x>0</x>
      <y>0</y>
      <width>1035</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
@@ -79,6 +79,7 @@
     <property name="title">
      <string>solve</string>
     </property>
+    <addaction name="actionclear_solution"/>
     <addaction name="actionsolve_sparse"/>
    </widget>
    <addaction name="menufile"/>
@@ -190,6 +191,14 @@
   <action name="actionTestInitialSolutionFinder">
    <property name="text">
     <string>TestInitialSolutionFinder</string>
+   </property>
+  </action>
+  <action name="actionclear_solution">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>clear solution</string>
    </property>
   </action>
  </widget>

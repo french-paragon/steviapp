@@ -429,7 +429,7 @@ bool GraphSBASolver::writeResults() {
 	for (qint64 id : _camVertices.keys()) {
 
 		Camera* cam = qobject_cast<Camera*>(_currentProject->getById(id));
-		cam->clearOptimizedParams();
+		cam->clearOptimized();
 
 		const CameraInnerVertexCollection & camv = _camVertices[id];
 
@@ -551,7 +551,7 @@ bool GraphSBASolver::writeUncertainty() {
 	for (qint64 id : _camVertices.keys()) {
 
 		Camera* cam = qobject_cast<Camera*>(_currentProject->getById(id));
-		cam->clearOptimizedParams();
+		cam->clearOptimized();
 
 		const CameraInnerVertexCollection & camv = _camVertices[id];
 

@@ -40,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
 
+	connect(ui->actionclear_solution, &QAction::triggered, this, &MainWindow::clearOptimSolution);
 	connect(ui->actionsolve_sparse, &QAction::triggered, this, &MainWindow::runSparseOptim);
 	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openSparseViewer(); });
 	connect(ui->actionTestInitialSolutionFinder, &QAction::triggered, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
@@ -340,6 +341,16 @@ void MainWindow::onProjectSelectionChanged() {
 
 	ui->dataBlockView->setModel(nullptr);
 
+}
+
+
+void MainWindow::clearOptimSolution() {
+
+	if (_activeProject != nullptr) {
+		resetSolution(_activeProject, this);
+	} else {
+		QMessageBox::warning(this, tr("Impossible to clear solution !"), tr("No project set"));
+	}
 }
 
 void MainWindow::runSparseOptim() {

@@ -78,6 +78,9 @@ public:
 	int countPointsRefered(QSet<qint64> const& excluded = {}) const;
 	int countPointsRefered(QVector<qint64> const& excluded) const;
 
+	void clearOptimized() override;
+	bool hasOptimizedParameters() const override;
+
 Q_SIGNALS:
 
 	void assignedCameraChanged(qint64 id);

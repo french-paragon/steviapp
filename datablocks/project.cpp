@@ -482,12 +482,41 @@ void Project::clear() {
 	_source.clear();
 	endResetModel();
 }
+void Project::clearOptimized() {
+	beginResetModel();
+
+	for (qint64 id : getIds()) {
+		DataBlock* block = getById(id);
+
+		if (block != nullptr) {
+			block->deepClearOptimized();
+		}
+	}
+
+	endResetModel();
+	Q_EMIT projectChanged();
+}
 
 QString Project::source() const {
 	return _source;
 }
 void Project::setSource(QString const& s) {
 	_source = s;
+}
+
+bool Project::hasSolution() const {
+
+	for (qint64 id : getIds()) {
+		DataBlock* block = getById(id);
+
+		if (block != nullptr) {
+			if (block->hierarchyHasOptimizedParameters()) {
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void Project::clearImpl() {
@@ -745,6 +774,45 @@ ItemDataModel * DataBlock::getDataModel() {
 }
 ItemDataModel const* DataBlock::getDataModel() const {
 	return _dataModel;
+}
+
+void DataBlock::clearOptimized() {
+	return;
+}
+void DataBlock::deepClearOptimized() {
+
+	clearOptimized();
+
+	for (qint64 id : listAllSubDataBlocks()) {
+		DataBlock* block = getById(id);
+
+		if (block != nullptr) {
+			block->deepClearOptimized();
+		}
+	}
+}
+
+bool DataBlock::hasOptimizedParameters() const {
+	return false;
+}
+bool DataBlock::hierarchyHasOptimizedParameters() const {
+
+	if (hasOptimizedParameters()) {
+		return true;
+	}
+
+	for (qint64 id : listAllSubDataBlocks()) {
+		DataBlock* block = getById(id);
+
+		if (block != nullptr) {
+			if (block->hierarchyHasOptimizedParameters()) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+
 }
 
 void DataBlock::clear() {

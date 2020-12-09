@@ -48,6 +48,9 @@ public:
 	int countImagesRefering(QSet<qint64> const& excluded = {}) const;
 	int countImagesRefering(QVector<qint64> const& excluded) const;
 
+	void clearOptimized() override;
+	bool hasOptimizedParameters() const override;
+
 Q_SIGNALS:
 
 	void xCoordChanged(floatParameter);
