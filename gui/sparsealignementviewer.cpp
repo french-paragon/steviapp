@@ -305,7 +305,7 @@ void SparseAlignementViewer::paintGL() {
 
 					if (cam != nullptr) {
 						QSize s = cam->imSize();
-						qreal aspect_ratio = s.width()/s.height();
+						qreal aspect_ratio = static_cast<qreal>(s.width())/static_cast<qreal>(s.height());
 						if (aspect_ratio > 1) {
 							camScale.scale(1., 1./aspect_ratio);
 						} else {

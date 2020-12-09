@@ -38,6 +38,8 @@ set(PROJ_SRC  main.cpp
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+    geometry/pointcloudalignment.cpp
+    geometry/pointcloudalignment.h
     gui/imagewidget.cpp
     gui/imagewidget.h
     gui/editor.cpp

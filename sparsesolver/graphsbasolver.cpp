@@ -95,7 +95,7 @@ bool GraphSBASolver::init() {
 
 			g2o::Vector3 d;
 
-			if (initial_setup.points.contains(lm->internalId())) {
+			if (initial_setup.points.count(lm->internalId()) > 0) {
 				d = initial_setup.points[lm->internalId()].cast<double>();
 			} else {
 				d.x() = lm->xCoord().value();
@@ -219,7 +219,7 @@ bool GraphSBASolver::init() {
 			Eigen::Matrix3d r;
 			Eigen::Vector3d t;
 
-			if (initial_setup.cams.contains(im->internalId())) {
+			if (initial_setup.cams.count(im->internalId()) > 0) {
 				r = initial_setup.cams[im->internalId()].R.cast<double>();
 				t = initial_setup.cams[im->internalId()].t.cast<double>();
 			} else {

@@ -3,34 +3,65 @@
 
 #include "datablocks/floatparameter.h"
 
-#include <QMap>
+#include "geometry/pointcloudalignment.h"
 
+#include <map>
 #include <Eigen/Core>
 
 namespace StereoVisionApp {
 
 class Project;
+class Image;
 
 class SBAInitializer
 {
 public:
 
 	typedef Eigen::Vector3f Pt3D;
+	typedef std::map<qint64, Pt3D, std::less<qint64>, Eigen::aligned_allocator<std::pair<const qint64, Pt3D> > > PointMap;
 
-	struct Pt6D {
-		Eigen::Vector3f t;
-		Eigen::Matrix3f R;
-	};
+	typedef AffineTransform Pt6D;
+
+	typedef std::map<qint64, Pt6D, std::less<qint64>, Eigen::aligned_allocator<std::pair<const qint64, Pt6D> > > CamMap;
 
 	struct InitialSolution {
-		QMap<qint64, Pt3D> points;
-		QMap<qint64, Pt6D> cams;
+		PointMap points;
+		CamMap cams;
 	};
 
 	virtual ~SBAInitializer();
 
 	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs) = 0;
 
+};
+
+class EightPointsSBAInitializer : public SBAInitializer
+{
+public:
+
+	enum FrameSelectionBehavior : qint64 {
+		AutoPointNumber = -1,
+		AutoMatrixQuality = -2
+	};
+
+	EightPointsSBAInitializer(qint64 f1 = AutoMatrixQuality, qint64 f2 = AutoMatrixQuality, int triangulation_threshold = -1);
+
+	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs);
+
+private:
+
+	static Eigen::Matrix3f ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection);
+	static Eigen::Vector3f triangulatePoint(Eigen::Vector2f const& pt1,
+											Eigen::Vector2f const& pt2,
+											Eigen::Matrix3f const& R,
+											Eigen::Vector3f const& t);
+	static Eigen::Vector2f getHomogeneousCoordinates(Image* im, Eigen::Vector2f const& pt);
+
+	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p);
+
+	qint64 _f1;
+	qint64 _f2;
+	int _auto_triangulation_threshold;
 };
 
 class FrontCamSBAInitializer : public SBAInitializer

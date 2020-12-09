@@ -45,6 +45,10 @@ int main(int argc, char *argv[])
 	w.installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::LensEditorFactory(&a));
 
+	if (argc > 1) {
+		w.openProject(QString(argv[1]));
+	}
+
 	w.show();
 	return a.exec();
 }

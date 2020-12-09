@@ -24,7 +24,7 @@ namespace StereoVisionApp {
 void initSolution(Project* p, MainWindow* w) {
 
 	SBAGraphReductor selector(3,2,true,true);
-	FrontCamSBAInitializer initializer;
+	EightPointsSBAInitializer initializer;
 
 	SBAGraphReductor::elementsSet selection = selector(p);
 
@@ -35,7 +35,9 @@ void initSolution(Project* p, MainWindow* w) {
 
 	auto initial_setup = initializer.computeInitialSolution(p, selection.pts, selection.imgs);
 
-	for (qint64 id : initial_setup.points.keys()) {
+	for (auto & map_id : initial_setup.points) {
+
+		qint64 const& id = map_id.first;
 
 		Landmark* lm = qobject_cast<Landmark*>(p->getById(id));
 
@@ -56,7 +58,9 @@ void initSolution(Project* p, MainWindow* w) {
 
 	}
 
-	for (qint64 id : initial_setup.cams.keys()) {
+	for (auto & map_id : initial_setup.cams) {
+
+		qint64 const& id = map_id.first;
 
 		Image* im = qobject_cast<Image*>(p->getById(id));
 
