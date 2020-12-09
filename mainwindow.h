@@ -25,6 +25,7 @@ public:
 	void newEmptyProject();
 	void saveProject();
 	void openProject();
+	void openProject(QString const& fname);
 	void saveProjectAs();
 
 	Editor* openEditor(QString editorClassName);

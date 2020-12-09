@@ -35,7 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->actionnew_Project, &QAction::triggered, this, &MainWindow::newEmptyProject);
 	connect(ui->actionsave_Project, &QAction::triggered, this, &MainWindow::saveProject);
 	connect(ui->actionsave_project_as, &QAction::triggered, this, &MainWindow::saveProjectAs);
-	connect(ui->actionopen_Project, &QAction::triggered, this, &MainWindow::openProject);
+	connect(ui->actionopen_Project, &QAction::triggered, this, static_cast<void(MainWindow::*)()>(&MainWindow::openProject));
 
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
@@ -97,6 +97,11 @@ void MainWindow::openProject() {
 
 
 	QString fName = QFileDialog::getOpenFileName(this, tr("Save project"), folder, filter);
+
+	openProject(fName);
+}
+
+void MainWindow::openProject(QString const& fName) {
 
 	if (!fName.isEmpty()) {
 		resetProject();
