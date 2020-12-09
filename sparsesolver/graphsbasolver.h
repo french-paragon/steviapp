@@ -46,6 +46,7 @@ protected:
 
 	bool _sparse;
 	bool _compute_marginals;
+	bool _not_first_step;
 
 	g2o::SparseOptimizer* _optimizer;
 
