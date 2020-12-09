@@ -11,6 +11,7 @@
 #include <QOpenGLFunctions>
 
 #include <QWheelEvent>
+#include <QGuiApplication>
 
 namespace StereoVisionApp {
 
@@ -91,6 +92,15 @@ void SparseAlignementViewer::zoomOut(float steps) {
 		_view_distance = _max_view_distance;
 	}
 	update();
+}
+
+void SparseAlignementViewer::scaleCamerasIn(float steps) {
+	float scale = _camScale*powf(0.9, steps/10.);
+	setCamScale(scale);
+}
+void SparseAlignementViewer::scaleCamerasOut(float steps) {
+	float scale = _camScale/powf(0.9, steps/10.);
+	setCamScale(scale);
 }
 
 void SparseAlignementViewer::rotateZenith(float degrees) {
@@ -595,12 +605,31 @@ void SparseAlignementViewer::wheelEvent(QWheelEvent *e) {
 		return;
 	}
 
+	QGuiApplication* gapp = qGuiApp;
+	Qt::KeyboardModifiers kmods;
+
+	if (gapp != nullptr) {
+		kmods = gapp->keyboardModifiers();
+	}
+
 	if (e->buttons() == Qt::NoButton) {
-		float step = d.y()/50.;
-		if (step < 0) {
-			zoomOut(-step);
+
+		if (kmods & Qt::ControlModifier) {
+
+			float step = d.y()/50.;
+			if (step < 0) {
+				scaleCamerasOut(-step);
+			} else {
+				scaleCamerasIn(step);
+			}
+
 		} else {
-			zoomIn(step);
+			float step = d.y()/50.;
+			if (step < 0) {
+				zoomOut(-step);
+			} else {
+				zoomIn(step);
+			}
 		}
 		e->accept();
 	} else {

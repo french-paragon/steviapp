@@ -29,6 +29,9 @@ public:
 	void zoomIn(float steps = 1);
 	void zoomOut(float steps = 1);
 
+	void scaleCamerasIn(float steps = 1);
+	void scaleCamerasOut(float steps = 1);
+
 	void rotateZenith(float degrees);
 	void rotateAzimuth(float degrees);
 
