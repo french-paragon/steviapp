@@ -12,6 +12,7 @@
 #include <QDebug>
 
 #include <random>
+#include <algorithm>
 
 namespace StereoVisionApp {
 
@@ -48,10 +49,17 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 	float svd_score = std::numeric_limits<float>::infinity();
 	QSet<qint64> s_intersection;
 
+	QVector<qint64> c_img = s_imgs.values().toVector();
+
+	std::random_device rd;
+	std::default_random_engine engine(rd());
+	std::uniform_real_distribution<float> uDist(-1., 1.);
+	std::shuffle(c_img.begin(), c_img.end(), engine);
+
 	if (s_f1 < 0 and s_f2 < 0) {
 		strat = s_f1;
 
-		for(auto it = s_imgs.begin(); it+1 != s_imgs.end(); ++it) {
+		for(auto it = c_img.begin(); it+1 != c_img.end(); ++it) {
 
 			Image* ip = qobject_cast<Image*>(p->getById(*it));
 
@@ -62,7 +70,7 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 			QVector<qint64> lms1 = ip->getAttachedLandmarksIds();
 			QSet<qint64> slms1(lms1.begin(), lms1.end());
 
-			for (auto jt = it+1; jt != s_imgs.end(); ++jt) {
+			for (auto jt = it+1; jt != c_img.end(); ++jt) {
 
 				Image* jp = qobject_cast<Image*>(p->getById(*jt));
 
@@ -91,6 +99,7 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 
 						auto svd = Eapprox.jacobiSvd();
 						float score = std::log(svd.singularValues()[2]/svd.singularValues()[1]) + 6*std::log(svd.singularValues()[0]/svd.singularValues()[1]);
+						score += uDist(engine)*0.1;
 
 						if (score < svd_score) {
 
@@ -547,7 +556,7 @@ AffineTransform EightPointsSBAInitializer::estimateTransform(InitialSolution con
 	}
 
 	IterativeTermination status;
-	AffineTransform s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 250, 1e-5, 2e-1, 1e-1);
+	AffineTransform s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 1500, 1e-4, 2e-1, 1e-1);
 
 	if (status == IterativeTermination::Error) {
 		return t;
