@@ -1,11 +1,5 @@
 #include "camera.h"
 
-#include <QWidget>
-#include <QAction>
-
-#include "mainwindow.h"
-#include "gui/lenseditor.h"
-
 #include "./itemdatamodel.h"
 
 namespace StereoVisionApp {

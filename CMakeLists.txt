@@ -24,58 +24,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #    endif()
 #endif()
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets Core REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Core REQUIRED)
 find_package(exiv2 REQUIRED CONFIG NAMES exiv2)
 
 #configure submodules
 add_subdirectory(modules)
-include_directories(${MODULES_INCLUDE_DIRECTORIES})
+include_directories(${MODULES_INCLUDE_DIRECTORIES} libs)
 message(${MODULES_LINK_DIRECTORIES})
 link_directories(${MODULES_LINK_DIRECTORIES})
+
+add_subdirectory(libs)
 
 set(PROJ_SRC  main.cpp
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
-    geometry/pointcloudalignment.cpp
-    geometry/pointcloudalignment.h
-    gui/imagewidget.cpp
-    gui/imagewidget.h
-    gui/editor.cpp
-    gui/editor.h
-    gui/imageeditor.cpp
-    gui/imageeditor.h
-    gui/imageeditor.ui
-    gui/sparsealignementviewer.cpp
-    gui/sparsealignementviewer.h
-    gui/sparsealignementeditor.cpp
-    gui/sparsealignementeditor.h
-    gui/sparsealignementeditor.ui
-    gui/lensdistortionviewer.cpp
-    gui/lensdistortionviewer.h
-    gui/lenseditor.cpp
-    gui/lenseditor.h
-    gui/lenseditor.ui
-    gui/gl_shaders.qrc
-    gui/stepprocessmonitorbox.cpp
-    gui/stepprocessmonitorbox.h
-    gui/stepprocessmonitorbox.ui
-    gui/sparsesolverconfigdialog.cpp
-    gui/sparsesolverconfigdialog.h
-    gui/sparsesolverconfigdialog.ui
-    datablocks/project.cpp
-    datablocks/project.h
-    datablocks/floatparameter.cpp
-    datablocks/floatparameter.h
-    datablocks/itemdatamodel.cpp
-    datablocks/itemdatamodel.h
-    datablocks/landmark.cpp
-    datablocks/landmark.h
-    datablocks/image.cpp
-    datablocks/image.h
-    datablocks/camera.cpp
-    datablocks/camera.h
     control/actionmanager.cpp
     control/actionmanager.h
     control/imagebaseactions.cpp
@@ -87,46 +51,13 @@ set(PROJ_SRC  main.cpp
     control/landmarkbaseactionmanager.cpp
     control/landmarkbaseactionmanager.h
     control/solversactions.cpp
-    control/solversactions.h
-    processing/steppedprocess.cpp
-    processing/steppedprocess.h
-    sparsesolver/sparsesolverbase.cpp
-    sparsesolver/sparsesolverbase.h
-    sparsesolver/sbagraphreductor.cpp
-    sparsesolver/sbagraphreductor.h
-    sparsesolver/sbainitializer.cpp
-    sparsesolver/sbainitializer.h
-    sparsesolver/graphsbasolver.h
-    sparsesolver/graphsbasolver.cpp
-    sparsesolver/vertices/camerapose.cpp
-    sparsesolver/vertices/camerapose.h
-    sparsesolver/vertices/vertexcamerapose.cpp
-    sparsesolver/vertices/vertexcamerapose.h
-    sparsesolver/vertices/camparam.cpp
-    sparsesolver/vertices/camparam.h
-    sparsesolver/vertices/vertexcameraparam.cpp
-    sparsesolver/vertices/vertexcameraparam.h
-    sparsesolver/vertices/vertexcameraradialdistortion.cpp
-    sparsesolver/vertices/vertexcameraradialdistortion.h
-    sparsesolver/vertices/vertexcameratangentialdistortion.cpp
-    sparsesolver/vertices/vertexcameratangentialdistortion.h
-    sparsesolver/vertices/vertexcameraskewdistortion.cpp
-    sparsesolver/vertices/vertexcameraskewdistortion.h
-    sparsesolver/edges/edgeparametrizedxyz2uv.cpp
-    sparsesolver/edges/edgeparametrizedxyz2uv.h
-    sparsesolver/edges/edgese3fullprior.cpp
-    sparsesolver/edges/edgese3fullprior.h
-    sparsesolver/edges/edgese3rpyprior.cpp
-    sparsesolver/edges/edgese3rpyprior.h
-    sparsesolver/edges/edgese3xyzprior.cpp
-    sparsesolver/edges/edgese3xyzprior.h
-    sparsesolver/edges/edgexyzprior.cpp
-    sparsesolver/edges/edgexyzprior.h)
+    control/solversactions.h)
 
 add_executable(steviapp
     ${PROJ_SRC}
 )
 
 target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(steviapp PRIVATE core types_sba solver_csparse)
 target_link_libraries(steviapp PRIVATE exiv2)
+
+target_link_libraries(steviapp PRIVATE ${DATA_LIB} ${GEOMETRY_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB})

@@ -2,22 +2,15 @@
 
 #include <QFileInfo>
 #include <QUrl>
-#include <QWidget>
-#include <QFileDialog>
 #include <QFileInfo>
 #include <QStandardPaths>
-#include <QAction>
-#include <QMenu>
 #include <QJsonArray>
 #include <QSet>
 
-#include "mainwindow.h"
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
 
 #include "./itemdatamodel.h"
-
-#include "gui/imageeditor.h"
 
 namespace StereoVisionApp {
 

@@ -1,6 +1,5 @@
 #include "project.h"
 
-#include <QAction>
 #include <QUrl>
 #include <QFile>
 

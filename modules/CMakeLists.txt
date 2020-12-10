@@ -16,6 +16,7 @@ endif(WIN32)
 add_subdirectory(g2o)
 
 set(G2O_LIB_DIR ${g2o_LIBRARY_OUTPUT_DIRECTORY})
+set(G2O_LIBS core types_sba solver_csparse PARENT_SCOPE)
 
 find_package(Eigen3 3.3 REQUIRED)
 
