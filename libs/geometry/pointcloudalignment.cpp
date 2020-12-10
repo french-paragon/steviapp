@@ -1,90 +1,13 @@
 #include "pointcloudalignment.h"
 
+#include "rotations.h"
+
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/QR>
 #include <QDebug>
 
 namespace StereoVisionApp {
 
-
-Eigen::Vector3f pathFromDiff(Axis dir) {
-	switch (dir) {
-	case Axis::X:
-		return Eigen::Vector3f(1.,0,0);
-	case Axis::Y:
-		return Eigen::Vector3f(0,1.,0);
-	case Axis::Z:
-		return Eigen::Vector3f(0,0,1.);
-	}
-}
-
-AffineTransform::AffineTransform(Eigen::Matrix3f R, Eigen::Vector3f t) :
-	t(t),
-	R(R)
-{
-
-}
-AffineTransform::AffineTransform() :
-	t(Eigen::Vector3f::Zero()),
-	R(Eigen::Matrix3f::Identity())
-{
-
-}
-
-Eigen::Matrix3f skew(Eigen::Vector3f const& v) {
-	Eigen::Matrix3f r;
-	r << 0, -v.z(), v.y(),
-		 v.z(), 0, -v.x(),
-		 -v.y(), v.x(), 0;
-
-	return r;
-}
-
-Eigen::Matrix3f rodriguezFormula(Eigen::Vector3f const& r)
-{
-	float theta = r.norm();
-	Eigen::Matrix3f m = skew(r);
-
-	Eigen::Matrix3f R;
-
-	if (theta > 1e-6) {
-		R = Eigen::Matrix3f::Identity() + sin(theta)/theta*m + (1 - cos(theta))/(theta*theta)*m*m;
-	} else {
-		R = Eigen::Matrix3f::Identity() + m + 0.5*m*m;
-	}
-
-	return R;
-}
-
-Eigen::Matrix3f diffRodriguezLieAlgebra(Eigen::Vector3f const& r)
-{
-	float theta = r.norm();
-	Eigen::Matrix3f m = skew(r);
-
-	Eigen::Matrix3f dR;
-
-	float a;
-	float b;
-	float c;
-
-	if (theta > 1e-6) {
-		a = sin(theta)/theta;
-		b = (1 - cos(theta))/(theta*theta);
-		c = (1 - a)/(theta*theta);
-	} else {
-		a = 1;
-		b = 1./2.;
-		c = 1./6.;
-	}
-
-	dR = a*Eigen::Matrix3f::Identity() + b*m + c*m*m.transpose();
-
-	return dR;
-
-}
-Eigen::Matrix3f diffRodriguez(Eigen::Vector3f const& r, Axis direction) {
-	return rodriguezFormula(r)*diffRodriguezLieAlgebra(r)*skew(pathFromDiff(direction));
-}
 
 AffineTransform estimateShapePreservingMap(Eigen::VectorXf const& obs,
 										   Eigen::Matrix3Xf const& pts,

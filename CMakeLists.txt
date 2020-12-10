@@ -24,8 +24,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #    endif()
 #endif()
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets Core REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Core REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets Core Test REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Core Test REQUIRED)
 find_package(exiv2 REQUIRED CONFIG NAMES exiv2)
 
 #configure submodules
@@ -61,3 +61,5 @@ target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(steviapp PRIVATE exiv2)
 
 target_link_libraries(steviapp PRIVATE ${DATA_LIB} ${GEOMETRY_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB})
+
+add_subdirectory(tests)

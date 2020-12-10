@@ -1,46 +1,13 @@
 #ifndef POINTCLOUDALIGNMENT_H
 #define POINTCLOUDALIGNMENT_H
 
-#include <eigen3/Eigen/Core>
+#include "geometry/core.h"
 
 #include <vector>
 
 
-namespace StereoVisionApp {
+namespace  StereoVisionApp {
 
-enum class Axis : char {
-	X,
-	Y,
-	Z
-};
-
-
-enum class IterativeTermination : char {
-	Error,
-	Converged,
-	MaxStepReached
-};
-
-Eigen::Vector3f pathFromDiff(Axis dir);
-
-class AffineTransform
-{
-public:
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-	AffineTransform(Eigen::Matrix3f R, Eigen::Vector3f t);
-	AffineTransform();
-
-	Eigen::Vector3f t;
-	Eigen::Matrix3f R;
-};
-
-Eigen::Matrix3f skew(Eigen::Vector3f const& v);
-
-Eigen::Matrix3f rodriguezFormula(Eigen::Vector3f const& r);
-
-Eigen::Matrix3f diffRodriguezLieAlgebra(Eigen::Vector3f const& r);
-Eigen::Matrix3f diffRodriguez(Eigen::Vector3f const& r, Axis direction);
 
 AffineTransform estimateShapePreservingMap(Eigen::VectorXf const& obs,
 										   Eigen::Matrix3Xf const& pts,
