@@ -9,6 +9,7 @@
 
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
+#include "datablocks/dataexception.h"
 
 #include "./itemdatamodel.h"
 
@@ -341,7 +342,7 @@ qint64 Image::addImageLandmark(const QPointF &coordinates, qint64 attacheLandmar
 ImageLandmark* Image::getImageLandmark(qint64 id) const {
 	return qobject_cast<ImageLandmark*>(getById(id));
 }
-ImageLandmark* Image::getImageLandmarkByLandmarkId(qint64 id) {
+ImageLandmark* Image::getImageLandmarkByLandmarkId(qint64 id) const {
 	QVector<qint64> lmIds = listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName);
 
 	for (qint64 im_id : lmIds) {
@@ -424,6 +425,27 @@ QVector<qint64> Image::getAttachedLandmarksIds() const {
 
 }
 
+
+Eigen::Array2Xf Image::getImageLandmarksCoordinates(QVector<qint64> ids) const {
+
+	Eigen::Array2Xf coords;
+	coords.resize(2, ids.size());
+
+	for (int i = 0; i < ids.size(); i++) {
+
+		ImageLandmark* lm = getImageLandmarkByLandmarkId(ids[i]);
+
+		if (lm == nullptr) {
+			throw DataException("Asked for coordinate of an image landmark not in the image !", this);
+		}
+
+		coords(0,i) = lm->x().value();
+		coords(1,i) = lm->y().value();
+	}
+
+	return coords;
+
+}
 
 
 int Image::countPointsRefered(const QSet<qint64> &excluded) const {

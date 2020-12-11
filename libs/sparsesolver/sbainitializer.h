@@ -44,24 +44,26 @@ public:
 		AutoMatrixQuality = -2
 	};
 
-	EightPointsSBAInitializer(qint64 f1 = AutoMatrixQuality, qint64 f2 = AutoMatrixQuality, int triangulation_threshold = -1);
+	EightPointsSBAInitializer(qint64 f1 = AutoMatrixQuality,
+							  qint64 f2 = AutoMatrixQuality,
+							  int triangulation_threshold = -1,
+							  bool preconstrain = false);
 
 	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs);
 
 private:
 
 	static Eigen::Matrix3f ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection);
-	static Eigen::Vector3f triangulatePoint(Eigen::Vector2f const& pt1,
-											Eigen::Vector2f const& pt2,
-											Eigen::Matrix3f const& R,
-											Eigen::Vector3f const& t);
-	static Eigen::Vector2f getHomogeneousCoordinates(Image* im, Eigen::Vector2f const& pt);
+	static float scoreApproximateEssentialMatrix(Eigen::Matrix3f const& Eapprox);
+	static Eigen::Array2Xf getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids);
 
 	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p);
 
 	qint64 _f1;
 	qint64 _f2;
 	int _auto_triangulation_threshold;
+
+	bool _preconstrain;
 };
 
 class FrontCamSBAInitializer : public SBAInitializer

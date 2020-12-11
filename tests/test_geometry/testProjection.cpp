@@ -26,16 +26,16 @@ Eigen::Array3Xf generateRandomPoints(int nPoints, float distance = 3.0, float sp
 
 AffineTransform generateRandomTransform(float distance = 3.0, float dist_variability = 0.5, float rot_perturbation = 0.1) {
 
-	Eigen::Matrix3f R = Eigen::AngleAxisf(0.1, Eigen::Vector3f::UnitZ()).toRotationMatrix() *
+	/*Eigen::Matrix3f R = Eigen::AngleAxisf(0.1, Eigen::Vector3f::UnitZ()).toRotationMatrix() *
 			Eigen::AngleAxisf(0.1, Eigen::Vector3f::UnitY()).toRotationMatrix() *
 			Eigen::AngleAxisf(0.1, Eigen::Vector3f::UnitX()).toRotationMatrix();
 
 	Eigen::Vector3f t;
 	t << 0.2, 0.3, 0.98;
 
-	return AffineTransform(R, t);
+	return AffineTransform(R, t);*/
 
-	/*Eigen::Vector3f randLogRot;
+	Eigen::Vector3f randLogRot;
 	randLogRot.setRandom();
 
 	if (randLogRot.isZero()) {
@@ -62,7 +62,7 @@ AffineTransform generateRandomTransform(float distance = 3.0, float dist_variabi
 
 	t = t - (1+dPerturb)*R*t;
 
-	return AffineTransform(R_perturb*R.transpose(), -R.transpose()*t);*/
+	return AffineTransform(R_perturb*R.transpose(), -R.transpose()*t);
 
 }
 
@@ -163,7 +163,7 @@ void TestReprojectionMethods::testExtractTransform_data() {
 	QTest::addColumn<float>("spread");
 	QTest::addColumn<float>("v_spread");
 
-	QTest::newRow("Near points") << 14 << 1.0f << 2.0f << 0.3f;
+	QTest::newRow("Near points") << 14 << 1.7f << 1.5f << 1.0f;
 	QTest::newRow("Middle points") << 14 << 3.0f << 2.0f << 1.0f;
 	QTest::newRow("Far points") << 14 << 7.0f << 2.0f << 1.0f;
 	QTest::newRow("Flat points") << 14 << 3.0f << 2.0f << 0.05f;

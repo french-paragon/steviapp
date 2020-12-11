@@ -2,6 +2,8 @@ define_stereovisionapp_lib(DATA Data)
 
 set(LIB_SRC floatparameter.cpp
             floatparameter.h
+            dataexception.cpp
+            dataexception.h
             project.cpp
             project.h
             landmark.cpp

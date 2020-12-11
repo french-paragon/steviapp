@@ -10,6 +10,8 @@ set(LIB_SRC core.cpp
             rotations.h
             alignement.cpp
             alignement.h
+            imagecoordinates.cpp
+            imagecoordinates.h
 )
 
 add_library(

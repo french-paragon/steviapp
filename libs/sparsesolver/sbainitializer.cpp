@@ -8,6 +8,11 @@
 #include <eigen3/Eigen/Core>
 #include <Eigen/Geometry>
 
+#include "geometry/imagecoordinates.h"
+#include "geometry/pointcloudalignment.h"
+#include "geometry/alignement.h"
+#include "geometry/geometricexception.h"
+
 #include <QSet>
 #include <QDebug>
 
@@ -21,10 +26,14 @@ SBAInitializer::~SBAInitializer() {
 }
 
 
-EightPointsSBAInitializer::EightPointsSBAInitializer(qint64 f1, qint64 f2, int triangulation_threshold) :
+EightPointsSBAInitializer::EightPointsSBAInitializer(qint64 f1,
+													 qint64 f2,
+													 int triangulation_threshold,
+													 bool preconstrain) :
 	_f1(f1),
 	_f2(f2),
-	_auto_triangulation_threshold(triangulation_threshold)
+	_auto_triangulation_threshold(triangulation_threshold),
+	_preconstrain(preconstrain)
 {
 
 }
@@ -97,8 +106,7 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 
 						Eigen::Matrix3f Eapprox = ApproximateEssentialMatrix(ip, jp, intersection);
 
-						auto svd = Eapprox.jacobiSvd();
-						float score = std::log(svd.singularValues()[2]/svd.singularValues()[1]) + 6*std::log(svd.singularValues()[0]/svd.singularValues()[1]);
+						float score = scoreApproximateEssentialMatrix(Eapprox);
 						score += uDist(engine)*0.1;
 
 						if (score < svd_score) {
@@ -115,6 +123,7 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 			}
 
 		}
+
 	} else if (s_f1 < 0 or s_f2 < 0) {
 
 		if (s_f2 >= 0 and s_f1 < 0) {
@@ -138,10 +147,6 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 
 		for (auto jt = s_imgs.begin(); jt != s_imgs.end(); ++jt) {
 
-			if (*jt == s_f1) {
-				continue;
-			}
-
 			Image* jp = qobject_cast<Image*>(p->getById(*jt));
 
 			if (jp == nullptr) {
@@ -152,6 +157,7 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 			QSet<qint64> slms2(lms2.begin(), lms2.end());
 
 			QSet<qint64> intersection = slms1.intersect(slms2);
+			intersection = intersection.intersect(s_pts);
 
 			if (intersection.size() > n_pt_selected) {
 
@@ -165,8 +171,8 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 
 					Eigen::Matrix3f Eapprox = ApproximateEssentialMatrix(ip, jp, intersection);
 
-					auto svd = Eapprox.jacobiSvd();
-					float score = std::log(svd.singularValues()[2]/svd.singularValues()[1]) + 6*std::log(svd.singularValues()[0]/svd.singularValues()[1]);
+					float score = scoreApproximateEssentialMatrix(Eapprox);
+					score += uDist(engine)*0.1;
 
 					if (score < svd_score) {
 
@@ -203,125 +209,45 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 		QSet<qint64> intersection = slms1.intersect(slms2);
 	}
 
-	Eigen::Matrix3f E = ApproximateEssentialMatrix(f1, f2, s_intersection);
+	QVector<qint64> ids = s_intersection.values().toVector();
 
-	if (E.determinant() < 0) {
-		E = -E;
-	}
+	Eigen::Array2Xf homCoordsIm1 = getHomogeneousImageCoordinates(f1, ids);
+	Eigen::Array2Xf homCoordsIm2 = getHomogeneousImageCoordinates(f2, ids);
 
-	Eigen::JacobiSVD<Eigen::Matrix3f, Eigen::NoQRPreconditioner> svd (E, Eigen::ComputeFullU | Eigen::ComputeFullV);
+	AffineTransform T;
+	Eigen::Array3Xf reproj;
 
-	Eigen::Matrix3f U = svd.matrixU();
-	Eigen::Matrix3f V = svd.matrixV();
+	try {
 
-	Eigen::Matrix3f W = Eigen::Matrix3f::Zero();
-	W(1,0) = -1;
-	W(0,1) = 1;
-	W(2,2) = 1;
+		T = findTransform(homCoordsIm1, homCoordsIm2);
+		reproj = reprojectPoints(T, homCoordsIm1, homCoordsIm2);
 
-	qDebug() << U.determinant();
-	qDebug() << U.determinant();
-	qDebug() << W.determinant();
-
-	Eigen::Matrix3f R1 = U*W*V.transpose();
-	Eigen::Matrix3f R2 = U*W.transpose()*V.transpose();
-
-	//W(2,2) = 0;
-
-	//Eigen::Matrix3f tCross = U*W*U.transpose();
-	Eigen::Vector3f t1 = U.col(2);
-	Eigen::Vector3f t2 = -t1;
-
-	Eigen::Matrix3f R;
-	Eigen::Vector3f t;
-
-	bool ok;
-
-	for (auto const& R_cand : {R1, R2}) {
-
-		for (auto const& t_cand : {t1, t2}) {
-
-			ok = true;
-
-			for (qint64 lm_id : s_intersection) {
-
-				ImageLandmark* imlm1 = f1->getImageLandmarkByLandmarkId(lm_id);
-				ImageLandmark* imlm2 = f2->getImageLandmarkByLandmarkId(lm_id);
-
-				Eigen::Vector3f t_p_c1 = triangulatePoint(getHomogeneousCoordinates(f1, {imlm1->x().value(), imlm1->y().value()}),
-													   getHomogeneousCoordinates(f2, {imlm2->x().value(), imlm2->y().value()}),
-													   R_cand,
-													   t_cand);
-
-				Eigen::Vector3f t_p_c2 = triangulatePoint(getHomogeneousCoordinates(f2, {imlm2->x().value(), imlm2->y().value()}),
-													   getHomogeneousCoordinates(f1, {imlm1->x().value(), imlm1->y().value()}),
-													   R_cand.transpose(),
-													   -R_cand.transpose()*t_cand);
-
-				if (t_p_c1.hasNaN() or t_p_c1.z() < 0) {
-					ok = false;
-					break;
-				}
-
-				if (t_p_c2.hasNaN() or t_p_c2.z() < 0) {
-					ok = false;
-					break;
-				}
-
-			}
-
-			if (ok) {
-				R = R_cand;
-				t = t_cand;
-				break;
-			}
-
-		}
-
-		if (ok) {
-			break;
-		}
-
-	}
-
-	if (!ok) {
-		r.cams.clear();
+	} catch (GeometricException const&) {
 		return r;
 	}
 
 	r.cams.emplace(s_f1, Pt6D(Eigen::Matrix3f::Identity(), Eigen::Vector3f::Zero()));
-	r.cams.emplace(s_f2, Pt6D(R, t));
+	r.cams.emplace(s_f2, Pt6D(T.R.transpose(), -T.R.transpose()*T.t));
 
-	for (qint64 lm_id : s_intersection) {
+	for (int i = 0; i < ids.size(); i++) {
+		qint64 lm_id = ids[i];
+		Eigen::Vector3f t_p = reproj.col(i);
+		r.points.emplace(lm_id, t_p);
+	}
 
-		ImageLandmark* imlm1 = f1->getImageLandmarkByLandmarkId(lm_id);
-		ImageLandmark* imlm2 = f2->getImageLandmarkByLandmarkId(lm_id);
+	if (_preconstrain) {
+		AffineTransform adjust = estimateTransform(r, p);
 
-		Eigen::Vector3f t_p = triangulatePoint(getHomogeneousCoordinates(f1, {imlm1->x().value(), imlm1->y().value()}),
-											   getHomogeneousCoordinates(f2, {imlm2->x().value(), imlm2->y().value()}),
-											   R,
-											   t);
-		if (t_p.hasNaN()) {
-			r.points.clear();
-			r.cams.clear();
-			return r;
+		//apply adjustement transform to all points
+
+		for(auto & map_pt : r.points) {
+			r.points[map_pt.first] = adjust.R*map_pt.second + adjust.t;
 		}
 
-		r.points.emplace(lm_id, -t_p);
-
-	}
-
-	AffineTransform adjust = estimateTransform(r, p);
-
-	//apply adjustement transform to all points
-
-	for(auto & map_pt : r.points) {
-		r.points[map_pt.first] = adjust.R*map_pt.second + adjust.t;
-	}
-
-	for(auto & map_cam : r.cams) {
-		r.cams[map_cam.first].t = adjust.R*map_cam.second.t + adjust.t;
-		r.cams[map_cam.first].R = adjust.R*map_cam.second.R;
+		for(auto & map_cam : r.cams) {
+			r.cams[map_cam.first].t = adjust.R*map_cam.second.t + adjust.t;
+			r.cams[map_cam.first].R = adjust.R*map_cam.second.R;
+		}
 	}
 
 	return r;
@@ -330,83 +256,33 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 
 Eigen::Matrix3f EightPointsSBAInitializer::ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection) {
 
-	Eigen::Matrix<float, 9, Eigen::Dynamic> F;
-	F.resize(9, intersection.size());
+	QVector<qint64> v_ids = intersection.values().toVector();
 
-	int i = 0;
-	for (qint64 lm_id : intersection) {
+	Eigen::Array2Xf coordsIm1 = getHomogeneousImageCoordinates(im1, v_ids);
+	Eigen::Array2Xf coordsIm2 = getHomogeneousImageCoordinates(im2, v_ids);
 
-		ImageLandmark* imlm1 = im1->getImageLandmarkByLandmarkId(lm_id);
-		ImageLandmark* imlm2 = im2->getImageLandmarkByLandmarkId(lm_id);
-
-		auto hpt1 = getHomogeneousCoordinates(im1, {imlm1->x().value(), imlm1->y().value()});
-		auto hpt2 = getHomogeneousCoordinates(im2, {imlm2->x().value(), imlm2->y().value()});
-
-		F(0,i) = hpt2.x()*hpt1.x();
-		F(1,i) = hpt2.x()*hpt1.y();
-		F(2,i) = hpt2.x();
-		F(3,i) = hpt2.y()*hpt1.x();
-		F(4,i) = hpt2.y()*hpt1.y();
-		F(5,i) = hpt2.y();
-		F(6,i) = hpt1.x();
-		F(7,i) = hpt1.y();
-		F(8,i) = 1;
-
-		i++;
-	}
-
-	auto svd = F.jacobiSvd(Eigen::ComputeFullU);
-	auto e = svd.matrixU().col(8);
-	Eigen::Matrix3f E;
-	E << e[0], e[1], e[2],
-		 e[3], e[4], e[5],
-		 e[6], e[7], e[8];
-
-	return E;
+	return estimateEssentialMatrix(coordsIm1, coordsIm2);
 }
 
-Eigen::Vector3f EightPointsSBAInitializer::triangulatePoint(Eigen::Vector2f const& pt1,
-															Eigen::Vector2f const& pt2,
-															Eigen::Matrix3f const& R,
-															Eigen::Vector3f const& t) {
+float EightPointsSBAInitializer::scoreApproximateEssentialMatrix(Eigen::Matrix3f const& Eapprox) {
 
-	Eigen::Vector3f y;
-	y << pt1, 1;
+	auto svd = Eapprox.jacobiSvd();
+	return std::log(svd.singularValues()[2]/svd.singularValues()[1]) + 6*std::log(svd.singularValues()[0]/svd.singularValues()[1]);
+}
 
-	auto tmp1 = R.row(0) - pt2.x()*R.row(2);
-	Eigen::Vector3f vec1;
-	vec1 << tmp1[0], tmp1[1], tmp1[2];
-	float x3_est1 = (pt2.x()*t[2] - t[0])/vec1.dot(y);
+Eigen::Array2Xf EightPointsSBAInitializer::getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids) {
 
-	auto tmp2 = R.row(1) - pt2.y()*R.row(2);
-	Eigen::Vector3f vec2;
-	vec2 << tmp2[0], tmp2[1], tmp2[2];
-	float x3_est2 = (pt2.y()*t[2] - t[1])/vec2.dot(y);
+	Project* p = im->getProject();
+	Camera* cam = qobject_cast<Camera*>(p->getById(im->assignedCamera()));
 
-	float x3_est = (x3_est1 + x3_est2)/2.0;
-
-	return x3_est*y;
+	return Image2HomogeneousCoordinates(im->getImageLandmarksCoordinates(ids),
+										cam->fLen().value(),
+										cam->fLen().value()*cam->pixelRatio().value(),
+										Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
+										ImageAnchors::BottomLeft) ;
 
 }
 
-Eigen::Vector2f EightPointsSBAInitializer::getHomogeneousCoordinates(Image* im, Eigen::Vector2f const& pt) {
-
-	if (!im->isInProject()) {
-		return {NAN, NAN};
-	}
-
-	Camera* cam = qobject_cast<Camera*>(im->getProject()->getById(im->assignedCamera()));
-
-	if (cam == nullptr) {
-		return {NAN, NAN};
-	}
-
-	Eigen::Vector2f p(-pt.x(), pt.y());
-	Eigen::Vector2f pp(-cam->opticalCenterX().value(), cam->opticalCenterY().value());
-
-	return (p - pp)/cam->fLen().value();
-
-}
 
 AffineTransform EightPointsSBAInitializer::estimateTransform(InitialSolution const& solution, Project* p) {
 

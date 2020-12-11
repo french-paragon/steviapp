@@ -7,6 +7,8 @@
 #include <QPointF>
 #include <QSet>
 
+#include <eigen3/Eigen/Core>
+
 namespace StereoVisionApp {
 
 class Landmark;
@@ -70,10 +72,12 @@ public:
 	qint64 addImageLandmark(const QPointF &coordinates, bool uncertain = false, qreal sigma_pos = 1.0);
 	qint64 addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain = false, qreal sigma_pos = 1.0);
 	ImageLandmark* getImageLandmark(qint64 id) const;
-	ImageLandmark* getImageLandmarkByLandmarkId(qint64 id);
+	ImageLandmark* getImageLandmarkByLandmarkId(qint64 id) const;
 	void clearImageLandmark(qint64 id);
 	qint64 getImageLandMarkAt(QPointF const& coord, float tol = 3);
 	QVector<qint64> getAttachedLandmarksIds() const;
+
+	Eigen::Array2Xf getImageLandmarksCoordinates(QVector<qint64> ids) const;
 
 	int countPointsRefered(QSet<qint64> const& excluded = {}) const;
 	int countPointsRefered(QVector<qint64> const& excluded) const;
