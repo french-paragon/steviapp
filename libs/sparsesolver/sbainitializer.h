@@ -47,7 +47,7 @@ public:
 	EightPointsSBAInitializer(qint64 f1 = AutoMatrixQuality,
 							  qint64 f2 = AutoMatrixQuality,
 							  int triangulation_threshold = -1,
-							  bool preconstrain = false);
+							  bool preconstrain = true);
 
 	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs);
 

@@ -1,13 +1,108 @@
 #include "pointcloudalignment.h"
 
-#include "rotations.h"
+#include "geometricexception.h"
 
-#include <eigen3/Eigen/LU>
+#include <eigen3/Eigen/SVD>
 #include <eigen3/Eigen/QR>
 #include <QDebug>
+#include <iostream>
 
 namespace StereoVisionApp {
 
+
+AffineTransform estimateQuasiShapePreservingMap(Eigen::VectorXf const& obs,
+												Eigen::Matrix3Xf const& pts,
+												std::vector<int> const& idxs,
+												std::vector<Axis> const& coordinate,
+												float regularizationWeight) {
+
+	typedef Eigen::Matrix<float, 12, 1, Eigen::ColMajor> ParamVector;
+	typedef Eigen::Matrix<float, 12, 12> ParamMatrix;
+	typedef Eigen::Matrix<float, Eigen::Dynamic, 12, Eigen::RowMajor> MatrixA;
+
+
+	int n_obs = obs.rows();
+
+	ParamVector x = ParamVector::Zero();
+
+	AffineTransform transform;
+
+	MatrixA A;
+	A.setZero(n_obs, 12);
+
+	for (size_t i = 0; i < idxs.size(); i++) {
+		switch (coordinate[i]) {
+		case Axis::X:
+			A.block<1,3>(i,0) = pts.col(idxs[i]).transpose();
+			A(i,9) = 1;
+			break;
+		case Axis::Y:
+			A.block<1,3>(i,3) = pts.col(idxs[i]).transpose();
+			A(i,10) = 1;
+			break;
+		case Axis::Z:
+			A.block<1,3>(i,6) = pts.col(idxs[i]).transpose();
+			A(i,11) = 1;
+			break;
+		}
+	}
+
+	ParamMatrix O = ParamMatrix::Zero();
+
+	O.block<3,3>(0,3).diagonal().setConstant(1);
+	O.block<3,3>(0,6).diagonal().setConstant(1);
+
+	O.block<3,3>(3,0).diagonal().setConstant(1);
+	O.block<3,3>(3,6).diagonal().setConstant(1);
+
+	O.block<3,3>(6,0).diagonal().setConstant(1);
+	O.block<3,3>(6,3).diagonal().setConstant(1);
+
+	ParamMatrix invQxxReg = A.transpose()*A + regularizationWeight*O;
+
+	auto svd = invQxxReg.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV);
+
+	ParamMatrix pseudoInverse = svd.matrixV() * (svd.singularValues().array().abs() > 1e-4).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().transpose();
+
+	x = pseudoInverse*A.transpose()*obs;
+
+	transform.R.row(0) = x.block<3,1>(0,0);
+	transform.R.row(1) = x.block<3,1>(3,0);
+	transform.R.row(2) = x.block<3,1>(6,0);
+	transform.t = x.block<3,1>(9,0);
+
+	return transform;
+
+}
+
+ShapePreservingTransform affine2ShapePreservingMap(AffineTransform const & initial) {
+
+	ShapePreservingTransform T;
+	T.t = initial.t;
+
+	auto svd = initial.R.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV);
+
+	Eigen::Matrix3f U = svd.matrixU();
+	Eigen::Matrix3f V = svd.matrixV();
+
+	float Udet = U.determinant();
+	float Vdet = V.determinant();
+
+	if (Udet*Vdet < 0) {
+		U = -U;
+	}
+
+	T.r = inverseRodriguezFormula(U*V);
+
+	T.s = svd.singularValues().mean();
+
+	if (Udet*Vdet < 0) {
+		T.s = -T.s;
+	}
+
+	return T;
+
+}
 
 AffineTransform estimateShapePreservingMap(Eigen::VectorXf const& obs,
 										   Eigen::Matrix3Xf const& pts,
@@ -18,16 +113,26 @@ AffineTransform estimateShapePreservingMap(Eigen::VectorXf const& obs,
 										   float incrLimit,
 										   float damping,
 										   float dampingScale,
-										   float initial_s,
-										   Eigen::Vector3f const& initial_r,
-										   Eigen::Vector3f const& initial_t) {
+										   float initializerRegularizationWeight) {
 
 	typedef Eigen::Matrix<float, 7, 1, Eigen::ColMajor> ParamVector;
 	typedef Eigen::Matrix<float, 7, 7> MatrixQxx ;
 
-	float s = initial_s;
-	Eigen::Vector3f r = initial_r;
-	Eigen::Vector3f t = initial_t;
+	AffineTransform initial = estimateQuasiShapePreservingMap(obs,
+															  pts,
+															  idxs,
+															  coordinate,
+															  initializerRegularizationWeight);
+
+	ShapePreservingTransform trans = affine2ShapePreservingMap(initial);
+
+	if (trans.s < 0) {
+		throw GeometricException("Unable to estimate rigid transformation starting from mirrored transformation.");
+	}
+
+	float s = std::log(trans.s);
+	Eigen::Vector3f r = trans.r;
+	Eigen::Vector3f t = trans.t;
 
 	AffineTransform transform;
 

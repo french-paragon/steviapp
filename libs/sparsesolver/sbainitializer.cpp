@@ -432,11 +432,12 @@ AffineTransform EightPointsSBAInitializer::estimateTransform(InitialSolution con
 	}
 
 	IterativeTermination status;
-	AffineTransform s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 1500, 1e-4, 2e-1, 1e-1);
+	AffineTransform s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 50, 1e-4, 5e-1, 1e-1);
 
 	if (status == IterativeTermination::Error) {
 		return t;
 	}
+	//AffineTransform s = estimateQuasiShapePreservingMap(obs, pts, idxs, axis, 10);
 
 	return s;
 

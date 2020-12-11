@@ -6,3 +6,7 @@ add_test(TestCore testCore)
 add_executable(testReprojection testProjection.cpp)
 target_link_libraries(testReprojection ${GEOMETRY_LIB} Qt${QT_VERSION_MAJOR}::Test)
 add_test(TestReprojection testReprojection)
+
+add_executable(testRotations testRotations.cpp)
+target_link_libraries(testRotations ${GEOMETRY_LIB} Qt${QT_VERSION_MAJOR}::Test)
+add_test(TestRotations testRotations)
