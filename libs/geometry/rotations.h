@@ -17,6 +17,8 @@ public:
 	Eigen::Matrix3Xf operator*(Eigen::Matrix3Xf const& pts) const;
 	Eigen::Array3Xf operator*(Eigen::Array3Xf const& pts) const;
 
+	AffineTransform toAffineTransform() const;
+
 	Eigen::Vector3f t;
 	Eigen::Vector3f r;
 	float s;

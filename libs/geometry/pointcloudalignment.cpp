@@ -10,11 +10,10 @@
 namespace StereoVisionApp {
 
 
-AffineTransform estimateQuasiShapePreservingMap(Eigen::VectorXf const& obs,
+AffineTransform estimateAffineMap(Eigen::VectorXf const& obs,
 												Eigen::Matrix3Xf const& pts,
 												std::vector<int> const& idxs,
-												std::vector<Axis> const& coordinate,
-												float regularizationWeight) {
+												std::vector<Axis> const& coordinate) {
 
 	typedef Eigen::Matrix<float, 12, 1, Eigen::ColMajor> ParamVector;
 	typedef Eigen::Matrix<float, 12, 12> ParamMatrix;
@@ -24,6 +23,10 @@ AffineTransform estimateQuasiShapePreservingMap(Eigen::VectorXf const& obs,
 	int n_obs = obs.rows();
 
 	ParamVector x = ParamVector::Zero();
+	ParamVector offset = ParamVector::Zero();
+	offset[0] = 1;
+	offset[4] = 1;
+	offset[8] = 1;
 
 	AffineTransform transform;
 
@@ -47,24 +50,135 @@ AffineTransform estimateQuasiShapePreservingMap(Eigen::VectorXf const& obs,
 		}
 	}
 
-	ParamMatrix O = ParamMatrix::Zero();
+	ParamMatrix invQxx = A.transpose()*A;
 
-	O.block<3,3>(0,3).diagonal().setConstant(1);
-	O.block<3,3>(0,6).diagonal().setConstant(1);
-
-	O.block<3,3>(3,0).diagonal().setConstant(1);
-	O.block<3,3>(3,6).diagonal().setConstant(1);
-
-	O.block<3,3>(6,0).diagonal().setConstant(1);
-	O.block<3,3>(6,3).diagonal().setConstant(1);
-
-	ParamMatrix invQxxReg = A.transpose()*A + regularizationWeight*O;
-
-	auto svd = invQxxReg.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV);
+	auto svd = invQxx.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV);
 
 	ParamMatrix pseudoInverse = svd.matrixV() * (svd.singularValues().array().abs() > 1e-4).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().transpose();
 
-	x = pseudoInverse*A.transpose()*obs;
+	x = pseudoInverse*A.transpose()*(obs - A*offset);
+	x += offset;
+
+	transform.R.row(0) = x.block<3,1>(0,0);
+	transform.R.row(1) = x.block<3,1>(3,0);
+	transform.R.row(2) = x.block<3,1>(6,0);
+	transform.t = x.block<3,1>(9,0);
+
+	return transform;
+
+}
+
+AffineTransform estimateQuasiShapePreservingMap(Eigen::VectorXf const& obs,
+												Eigen::Matrix3Xf const& pts,
+												std::vector<int> const& idxs,
+												std::vector<Axis> const& coordinate,
+												float damping,
+												IterativeTermination * status,
+												float incrLimit,
+												int iterationLimit,
+												bool verbose) {
+
+	typedef Eigen::Matrix<float, 12, 1, Eigen::ColMajor> ParamVector;
+	typedef Eigen::Matrix<float, 12, 12> ParamMatrix;
+	typedef Eigen::Matrix<float, Eigen::Dynamic, 12, Eigen::RowMajor> MatrixA;
+
+
+	if (verbose) {
+		std::cout << "Start estimating QuasiShapePreservingMap:" << std::endl;
+	}
+
+	int n_obs = obs.rows();
+	int n_eqs = n_obs + 5;
+
+	Eigen::VectorXf extObs;
+	extObs.resize(n_eqs,1);
+	extObs.block(0,0,n_obs,1) = obs;
+	extObs.block(n_obs,0,5,1).setConstant(0);
+
+	ParamVector x = ParamVector::Zero();
+	ParamVector offset = ParamVector::Zero();
+	offset[0] = 1;
+	offset[4] = 1;
+	offset[8] = 1;
+
+	MatrixA A;
+	A.setZero(n_eqs, 12);
+
+	for (int i = 0; i < n_obs; i++) {
+		switch (coordinate[i]) {
+		case Axis::X:
+			A.block<1,3>(i,0) = pts.col(idxs[i]).transpose();
+			A(i,9) = 1;
+			break;
+		case Axis::Y:
+			A.block<1,3>(i,3) = pts.col(idxs[i]).transpose();
+			A(i,10) = 1;
+			break;
+		case Axis::Z:
+			A.block<1,3>(i,6) = pts.col(idxs[i]).transpose();
+			A(i,11) = 1;
+			break;
+		}
+	}
+
+	IterativeTermination s = IterativeTermination::MaxStepReached;
+
+	for (int i = 0; i < iterationLimit; i++) {
+
+		//<R1, R2> = 0
+		A.block<1,3>(n_obs, 0) = x.block<3,1>(3,0).transpose() + Eigen::Vector3f(0,1,0).transpose();
+		A.block<1,3>(n_obs, 3) = x.block<3,1>(0,0).transpose() + Eigen::Vector3f(1,0,0).transpose();
+
+		//<R1, R3> = 0
+		A.block<1,3>(n_obs+1, 0) = x.block<3,1>(6,0).transpose() + Eigen::Vector3f(0,0,1).transpose();
+		A.block<1,3>(n_obs+1, 6) = x.block<3,1>(0,0).transpose() + Eigen::Vector3f(1,0,0).transpose();
+
+		//<R2, R3> = 0
+		A.block<1,3>(n_obs+2, 3) = x.block<3,1>(6,0).transpose() + Eigen::Vector3f(0,0,1).transpose();
+		A.block<1,3>(n_obs+2, 6) = x.block<3,1>(3,0).transpose() + Eigen::Vector3f(0,1,0).transpose();
+
+		//<R1,R1> - <R2,R2> = 0
+		A.block<1,3>(n_obs+3, 0) = x.block<3,1>(0,0).transpose() + Eigen::Vector3f(1,0,0).transpose();
+		A.block<1,3>(n_obs+3, 3) = -x.block<3,1>(3,0).transpose() - Eigen::Vector3f(0,1,0).transpose();
+
+		//<R1,R1> - <R3,R3> = 0
+		A.block<1,3>(n_obs+4, 0) = x.block<3,1>(0,0).transpose() + Eigen::Vector3f(1,0,0).transpose();
+		A.block<1,3>(n_obs+4, 6) = -x.block<3,1>(6,0).transpose() - Eigen::Vector3f(0,0,1).transpose();
+
+
+		ParamMatrix invQxx = A.transpose()*A;
+
+		auto svd = invQxx.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV);
+
+		ParamMatrix pseudoInverse = svd.matrixV() * (svd.singularValues().array().abs() > 1e-6).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().transpose();
+
+		ParamVector dx = pseudoInverse*A.transpose()*(extObs - A*offset - A*x);
+		x += damping*dx;
+
+		float n = dx.norm()/12.;
+
+		if (verbose) {
+			std::cout << "\t" << "Iteration " << i << ": incr_rms = " << n << std::endl;
+		}
+
+		if (n < incrLimit) {
+			s = IterativeTermination::Converged;
+			break;
+		}
+
+	}
+
+	x += offset;
+
+	if (status != nullptr) {
+		*status = s;
+	}
+
+	if (verbose) {
+		std::cout << ((s == IterativeTermination::Converged) ? "Convverged" : "Terminated before convergence reached") << std::endl << std::endl;
+	}
+
+	AffineTransform transform;
 
 	transform.R.row(0) = x.block<3,1>(0,0);
 	transform.R.row(1) = x.block<3,1>(3,0);
@@ -92,7 +206,7 @@ ShapePreservingTransform affine2ShapePreservingMap(AffineTransform const & initi
 		U = -U;
 	}
 
-	T.r = inverseRodriguezFormula(U*V);
+	T.r = inverseRodriguezFormula(U*V.transpose());
 
 	T.s = svd.singularValues().mean();
 
@@ -112,8 +226,7 @@ AffineTransform estimateShapePreservingMap(Eigen::VectorXf const& obs,
 										   int n_steps,
 										   float incrLimit,
 										   float damping,
-										   float dampingScale,
-										   float initializerRegularizationWeight) {
+										   float dampingScale) {
 
 	typedef Eigen::Matrix<float, 7, 1, Eigen::ColMajor> ParamVector;
 	typedef Eigen::Matrix<float, 7, 7> MatrixQxx ;
@@ -122,7 +235,10 @@ AffineTransform estimateShapePreservingMap(Eigen::VectorXf const& obs,
 															  pts,
 															  idxs,
 															  coordinate,
-															  initializerRegularizationWeight);
+															  2e-1,
+															  nullptr,
+															  1e-6,
+															  500);
 
 	ShapePreservingTransform trans = affine2ShapePreservingMap(initial);
 

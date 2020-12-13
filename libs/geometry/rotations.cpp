@@ -25,6 +25,10 @@ Eigen::Array3Xf ShapePreservingTransform::operator*(Eigen::Array3Xf const& pts) 
 	return applyOnto(pts);
 }
 
+AffineTransform ShapePreservingTransform::toAffineTransform() const {
+	return AffineTransform(s*rodriguezFormula(r), t);
+}
+
 Eigen::Array3Xf ShapePreservingTransform::applyOnto(Eigen::Array3Xf const& pts) const {
 
 	Eigen::Array3Xf transformedPts;

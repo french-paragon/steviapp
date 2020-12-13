@@ -47,7 +47,8 @@ public:
 	EightPointsSBAInitializer(qint64 f1 = AutoMatrixQuality,
 							  qint64 f2 = AutoMatrixQuality,
 							  int triangulation_threshold = -1,
-							  bool preconstrain = true);
+							  bool preconstrain = true,
+							  bool useConstraintsRefinement = false);
 
 	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs);
 
@@ -57,13 +58,14 @@ private:
 	static float scoreApproximateEssentialMatrix(Eigen::Matrix3f const& Eapprox);
 	static Eigen::Array2Xf getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids);
 
-	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p);
+	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
 
 	qint64 _f1;
 	qint64 _f2;
 	int _auto_triangulation_threshold;
 
 	bool _preconstrain;
+	bool _useConstraintsRefinement;
 };
 
 class FrontCamSBAInitializer : public SBAInitializer

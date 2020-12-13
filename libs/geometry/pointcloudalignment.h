@@ -9,11 +9,20 @@
 namespace  StereoVisionApp {
 
 
+AffineTransform estimateAffineMap(Eigen::VectorXf const& obs,
+								  Eigen::Matrix3Xf const& pts,
+								  std::vector<int> const& idxs,
+								  std::vector<Axis> const& coordinate);
+
 AffineTransform estimateQuasiShapePreservingMap(Eigen::VectorXf const& obs,
 												Eigen::Matrix3Xf const& pts,
 												std::vector<int> const& idxs,
 												std::vector<Axis> const& coordinate,
-												float regularizationWeight = 10);
+												float damping = 2e-1,
+												IterativeTermination * status = nullptr,
+												float incrLimit = 1e-4,
+												int iterationLimit = 500,
+												bool verbose = false);
 
 ShapePreservingTransform affine2ShapePreservingMap(AffineTransform const & initial);
 
@@ -25,8 +34,7 @@ AffineTransform estimateShapePreservingMap(Eigen::VectorXf const& obs,
 										   int n_steps = 50,
 										   float incrLimit = 1e-8,
 										   float damping = 5e-1,
-										   float dampingScale = 1e-1,
-										   float initializerRegularizationWeight = 10);
+										   float dampingScale = 1e-1);
 
 }; //namespace StereoVisionApp
 

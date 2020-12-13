@@ -29,11 +29,13 @@ SBAInitializer::~SBAInitializer() {
 EightPointsSBAInitializer::EightPointsSBAInitializer(qint64 f1,
 													 qint64 f2,
 													 int triangulation_threshold,
-													 bool preconstrain) :
+													 bool preconstrain,
+													 bool useConstraintsRefinement) :
 	_f1(f1),
 	_f2(f2),
 	_auto_triangulation_threshold(triangulation_threshold),
-	_preconstrain(preconstrain)
+	_preconstrain(preconstrain),
+	_useConstraintsRefinement(useConstraintsRefinement)
 {
 
 }
@@ -236,7 +238,7 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 	}
 
 	if (_preconstrain) {
-		AffineTransform adjust = estimateTransform(r, p);
+		AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
 
 		//apply adjustement transform to all points
 
@@ -284,7 +286,7 @@ Eigen::Array2Xf EightPointsSBAInitializer::getHomogeneousImageCoordinates(Image*
 }
 
 
-AffineTransform EightPointsSBAInitializer::estimateTransform(InitialSolution const& solution, Project* p) {
+AffineTransform EightPointsSBAInitializer::estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement) {
 
 	AffineTransform t;
 
@@ -432,12 +434,25 @@ AffineTransform EightPointsSBAInitializer::estimateTransform(InitialSolution con
 	}
 
 	IterativeTermination status;
-	AffineTransform s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 50, 1e-4, 5e-1, 1e-1);
+	AffineTransform s;
+
+	if (useConstraintsRefinement) {
+
+		try {
+			s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 50, 1e-4, 5e-1, 1e-1);
+		} catch (GeometricException const& e) {
+			return t;
+		}
+
+	} else {
+		s = estimateQuasiShapePreservingMap(obs, pts, idxs, axis, 2e-1, &status, 1e-6, 500, false);
+		ShapePreservingTransform s_tmps = affine2ShapePreservingMap(s);
+		s = s_tmps.toAffineTransform();
+	}
 
 	if (status == IterativeTermination::Error) {
 		return t;
 	}
-	//AffineTransform s = estimateQuasiShapePreservingMap(obs, pts, idxs, axis, 10);
 
 	return s;
 

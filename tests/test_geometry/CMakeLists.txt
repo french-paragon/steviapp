@@ -10,3 +10,8 @@ add_test(TestReprojection testReprojection)
 add_executable(testRotations testRotations.cpp)
 target_link_libraries(testRotations ${GEOMETRY_LIB} Qt${QT_VERSION_MAJOR}::Test)
 add_test(TestRotations testRotations)
+
+
+add_executable(testPointCloudAlignement testPointCloudAlignement.cpp)
+target_link_libraries(testPointCloudAlignement ${GEOMETRY_LIB} Qt${QT_VERSION_MAJOR}::Test)
+add_test(TestPointCloudAlignement testPointCloudAlignement)
