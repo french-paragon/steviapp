@@ -35,7 +35,38 @@ public:
 
 };
 
-class EightPointsSBAInitializer : public SBAInitializer
+class PhotometricInitializer : public SBAInitializer {
+
+protected:
+	static Eigen::Matrix3f ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection);
+	static Eigen::Array2Xf getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids);
+
+	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
+
+};
+
+class EightPointsSBAMultiviewInitializer : public PhotometricInitializer
+{
+public:
+
+	EightPointsSBAMultiviewInitializer(qint64 f1 = -1,
+									   int triangulation_threshold = -1,
+									   bool preconstrain = true,
+									   bool useConstraintsRefinement = false);
+
+	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs);
+
+private:
+
+	qint64 _f1;
+	int _auto_triangulation_threshold;
+
+	bool _preconstrain;
+	bool _useConstraintsRefinement;
+
+};
+
+class EightPointsSBAInitializer : public PhotometricInitializer
 {
 public:
 
@@ -53,12 +84,7 @@ public:
 	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs);
 
 private:
-
-	static Eigen::Matrix3f ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection);
 	static float scoreApproximateEssentialMatrix(Eigen::Matrix3f const& Eapprox);
-	static Eigen::Array2Xf getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids);
-
-	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
 
 	qint64 _f1;
 	qint64 _f2;

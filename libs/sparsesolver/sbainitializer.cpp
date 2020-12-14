@@ -26,6 +26,248 @@ SBAInitializer::~SBAInitializer() {
 }
 
 
+EightPointsSBAMultiviewInitializer::EightPointsSBAMultiviewInitializer(qint64 f1,
+																	   int triangulation_threshold,
+																	   bool preconstrain,
+																	   bool useConstraintsRefinement) :
+	_f1(f1),
+	_auto_triangulation_threshold(triangulation_threshold),
+	_preconstrain(preconstrain),
+	_useConstraintsRefinement(useConstraintsRefinement)
+{
+
+}
+
+SBAInitializer::InitialSolution EightPointsSBAMultiviewInitializer::computeInitialSolution(Project* p,
+																		   QSet<qint64> const& s_pts,
+																		   QSet<qint64> const& s_imgs) {
+	InitialSolution r;
+	r.cams.clear();
+	r.points.clear();
+
+	QMap<qint64, QVector<qint64>> imagesConnections;
+	QMap<qint64, qint64> imagesConnected;
+	qint64 selectedFrame = _f1;
+
+	if (_f1 < 0) {
+		for (auto it1 = s_imgs.begin(); it1+1 != s_imgs.end(); it1++) {
+
+			Image* img1 = qobject_cast<Image*>(p->getById(*it1));
+
+			if (img1 == nullptr) {
+				continue;
+			}
+
+			QVector<qint64> lms = img1->getAttachedLandmarksIds();
+			QSet<qint64> attachedLandmarks1 = QSet<qint64>(lms.begin(), lms.end());
+
+			for (auto it2 = it1+1; it2 != s_imgs.end(); it2++) {
+
+				Image* img2 = qobject_cast<Image*>(p->getById(*it2));
+
+				if (img2 == nullptr) {
+					continue;
+				}
+
+				lms = img2->getAttachedLandmarksIds();
+				QSet<qint64> attachedLandmarks2 = QSet<qint64>(lms.begin(), lms.end());
+				QSet<qint64> inter = attachedLandmarks1.intersect(attachedLandmarks2).intersect(s_pts);
+
+				if (inter.size() >= 8) {
+					if (!imagesConnected.contains(*it1)) {
+						imagesConnected[*it1] = 0;
+					}
+					if (!imagesConnected.contains(*it2)) {
+						imagesConnected[*it2] = 0;
+					}
+					if (!imagesConnections.contains(*it1)) {
+						imagesConnections[*it1] = QVector<qint64>();
+					}
+					if (!imagesConnections.contains(*it2)) {
+						imagesConnections[*it2] = QVector<qint64>();
+					}
+
+					imagesConnections[*it1].push_back(*it2);
+					imagesConnections[*it2].push_back(*it1);
+
+					imagesConnected[*it1] += 1;
+					imagesConnected[*it2] += 1;
+				}
+			}
+		}
+
+		qint64 nConnections = 0;
+
+		QVector<qint64> keys = s_imgs.values().toVector();
+
+		std::random_device rd;
+		std::default_random_engine re(rd());
+		std::shuffle(keys.begin(), keys.end(), re);
+
+		for (qint64 id : keys) {
+			if (imagesConnected[id] > nConnections) {
+				selectedFrame = id;
+				nConnections = imagesConnected[id];
+			}
+		}
+	} else {
+		imagesConnections[_f1] = QVector<qint64>();
+
+		Image* img1 = qobject_cast<Image*>(p->getById(_f1));
+
+		if (img1 == nullptr) {
+			return r;
+		}
+
+		QVector<qint64> lms = img1->getAttachedLandmarksIds();
+		QSet<qint64> attachedLandmarks1 = QSet<qint64>(lms.begin(), lms.end());
+
+		for (qint64 id2 : s_imgs) {
+
+			if (id2 == _f1) {
+				continue;
+			}
+
+			Image* img2 = qobject_cast<Image*>(p->getById(id2));
+
+			if (img2 == nullptr) {
+				continue;
+			}
+
+			lms = img2->getAttachedLandmarksIds();
+			QSet<qint64> attachedLandmarks2 = QSet<qint64>(lms.begin(), lms.end());
+			QSet<qint64> inter = attachedLandmarks1.intersect(attachedLandmarks2).intersect(s_pts);
+
+			if (inter.size() >= 8) {
+
+				imagesConnections[_f1].push_back(id2);
+			}
+		}
+	}
+
+	Image* f1 = qobject_cast<Image*>(p->getById(selectedFrame));
+	qDebug() << f1->objectName();
+
+	QVector<qint64> tmp = f1->getAttachedLandmarksIds();
+	QSet<qint64> lm_im1 = QSet<qint64>(tmp.begin(), tmp.end());
+	lm_im1.intersect(s_pts);
+
+	QMap<qint64, std::vector<Eigen::Vector3f>> pts;
+
+	QVector<qint64> targets = imagesConnections[selectedFrame];
+	QSet<qint64> toProcess = QSet<qint64>(targets.begin(), targets.end());
+	qDebug() << toProcess.size();
+	QSet<qint64> processedLandmark = QSet<qint64>();
+
+	while (!toProcess.isEmpty()) {
+
+		Image* nextInLine = nullptr;
+		qint64 nConnections = 0;
+		QVector<qint64> tiePoints;
+		QVector<qint64> scaleMeasureCand;
+
+		for (qint64 id : toProcess) {
+			Image* f2 = qobject_cast<Image*>(p->getById(id));
+
+			QVector<qint64> tmp = f2->getAttachedLandmarksIds();
+			QSet<qint64> lm_im2 = QSet<qint64>(tmp.begin(), tmp.end());
+
+			QSet<qint64> inter = lm_im2.intersect(lm_im1);
+
+			if (!processedLandmark.isEmpty()) {
+				inter.intersect(processedLandmark);
+			}
+
+			if (inter.size() > nConnections) {
+				nextInLine = f2;
+				nConnections = inter.size();
+				tiePoints = lm_im2.values().toVector();
+
+				if (!processedLandmark.isEmpty()) {
+					scaleMeasureCand = inter.values().toVector();
+				}
+			}
+		}
+
+		Eigen::Array2Xf coordsIm1 = getHomogeneousImageCoordinates(f1, tiePoints);
+		Eigen::Array2Xf coordsIm2 = getHomogeneousImageCoordinates(nextInLine, tiePoints);
+
+		AffineTransform T;
+		Eigen::Array3Xf proj;
+
+		try {
+
+			T = findTransform(coordsIm1, coordsIm2);
+			proj = reprojectPoints(T, coordsIm1, coordsIm2);
+
+		} catch (GeometricException const&) {
+			toProcess.remove(nextInLine->internalId());
+			continue;
+		}
+
+		float scale = 0.;
+
+		if (!processedLandmark.isEmpty()) {
+
+			if (scaleMeasureCand.isEmpty()) {
+				toProcess.remove(nextInLine->internalId());
+				continue;
+			}
+
+			for (qint64 id : scaleMeasureCand) {
+				int i = tiePoints.indexOf(id);
+				scale += (pts[id].front().array()/proj.col(i).array()).mean();
+			}
+
+			scale /= scaleMeasureCand.size();
+
+		} else {
+			scale = 1.;
+		}
+
+		for (int i = 0; i < tiePoints.size(); i++) {
+			pts[tiePoints[i]].push_back(Eigen::Vector3f(scale*proj.col(i)));
+			processedLandmark.insert(tiePoints[i]);
+		}
+
+		toProcess.remove(nextInLine->internalId());
+	}
+
+	r.cams.emplace(selectedFrame, Pt6D(Eigen::Matrix3f::Identity(), Eigen::Vector3f::Zero()));
+
+	for (qint64 id : pts.keys()) {
+
+		Pt3D pt = Pt3D::Zero();
+
+		for (size_t i = 0; i < pts[id].size(); i++) {
+			pt += pts[id][i];
+		}
+
+		pt /= pts[id].size();
+
+		r.points.emplace(id, pt);
+	}
+
+	if (_preconstrain) {
+		AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
+
+		//apply adjustement transform to all points
+
+		for(auto & map_pt : r.points) {
+			r.points[map_pt.first] = adjust.R*map_pt.second + adjust.t;
+		}
+
+		for(auto & map_cam : r.cams) {
+			r.cams[map_cam.first].t = adjust.R*map_cam.second.t + adjust.t;
+			r.cams[map_cam.first].R = adjust.R*map_cam.second.R;
+		}
+	}
+
+	return r;
+
+}
+
+
 EightPointsSBAInitializer::EightPointsSBAInitializer(qint64 f1,
 													 qint64 f2,
 													 int triangulation_threshold,
@@ -256,7 +498,7 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 }
 
 
-Eigen::Matrix3f EightPointsSBAInitializer::ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection) {
+Eigen::Matrix3f PhotometricInitializer::ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection) {
 
 	QVector<qint64> v_ids = intersection.values().toVector();
 
@@ -272,7 +514,7 @@ float EightPointsSBAInitializer::scoreApproximateEssentialMatrix(Eigen::Matrix3f
 	return std::log(svd.singularValues()[2]/svd.singularValues()[1]) + 6*std::log(svd.singularValues()[0]/svd.singularValues()[1]);
 }
 
-Eigen::Array2Xf EightPointsSBAInitializer::getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids) {
+Eigen::Array2Xf PhotometricInitializer::getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids) {
 
 	Project* p = im->getProject();
 	Camera* cam = qobject_cast<Camera*>(p->getById(im->assignedCamera()));
@@ -286,7 +528,7 @@ Eigen::Array2Xf EightPointsSBAInitializer::getHomogeneousImageCoordinates(Image*
 }
 
 
-AffineTransform EightPointsSBAInitializer::estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement) {
+AffineTransform PhotometricInitializer::estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement) {
 
 	AffineTransform t;
 

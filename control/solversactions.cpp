@@ -55,7 +55,7 @@ void initSolution(Project* p, MainWindow* w) {
 	}
 
 	SBAGraphReductor selector(3,2,true,true);
-	EightPointsSBAInitializer initializer;
+	EightPointsSBAMultiviewInitializer initializer;
 
 	SBAGraphReductor::elementsSet selection = selector(p);
 
