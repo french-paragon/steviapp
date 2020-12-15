@@ -8,6 +8,8 @@
 #include <eigen3/Eigen/Core>
 #include <Eigen/Geometry>
 
+#include <pnp/pnp_ransac.h>
+
 #include "geometry/imagecoordinates.h"
 #include "geometry/pointcloudalignment.h"
 #include "geometry/alignement.h"
@@ -521,7 +523,7 @@ Eigen::Array2Xf PhotometricInitializer::getHomogeneousImageCoordinates(Image* im
 
 	return Image2HomogeneousCoordinates(im->getImageLandmarksCoordinates(ids),
 										cam->fLen().value(),
-										cam->fLen().value()*cam->pixelRatio().value(),
+										cam->fLenY(),
 										Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
 										ImageAnchors::BottomLeft) ;
 
@@ -700,6 +702,62 @@ AffineTransform PhotometricInitializer::estimateTransform(InitialSolution const&
 
 }
 
+
+bool PhotometricInitializer::alignImage(InitialSolution & solution, Project* p, Image* img, QSet<qint64> & pts) {
+
+	Camera* cam = qobject_cast<Camera*>(p->getById(img->assignedCamera()));
+
+	if (cam == nullptr) {
+		return false;
+	}
+
+	QVector<qint64> tmp = img->getAttachedLandmarksIds();
+	QSet<qint64> matchedPts = QSet<qint64>(tmp.begin(), tmp.end());
+	matchedPts.intersect(pts);
+
+	std::vector<cvl::Vector3D> xs;
+	std::vector<cvl::Vector2D> yns;
+
+	xs.reserve(matchedPts.size());
+	yns.reserve(matchedPts.size());
+
+	for (qint64 pt_id : matchedPts) {
+		cvl::Vector3D pt;
+		pt.at<0>() = solution.points[pt_id].x();
+		pt.at<1>() = solution.points[pt_id].y();
+		pt.at<2>() = solution.points[pt_id].z();
+
+		ImageLandmark* lm = img->getImageLandmarkByLandmarkId(pt_id);
+		cvl::Vector2D im_pt;
+
+		Eigen::Vector2f lm_coord = Image2HomogeneousCoordinates(Eigen::Vector2f(lm->x().value(), lm->y().value()),
+																cam->fLen().value(),
+																cam->fLenY(),
+																Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
+																ImageAnchors::TopLeft);
+
+		im_pt.at<0>() = lm_coord.x();
+		im_pt.at<1>() = lm_coord.y();
+
+		xs.push_back(pt);
+		yns.push_back(im_pt);
+	}
+
+	cvl::PoseD pose = cvl::pnp_ransac(xs, yns);
+
+	cvl::Matrix3d R = pose.rotation();
+	cvl::Vector3d t = pose.translation();
+
+	AffineTransform T;
+	T.R << R(0,0), R(0,1), R(0,2),
+			R(1,0), R(1,1), R(1,2),
+			R(2,0), R(2,1), R(2,2);
+	T.t << t.at<0>(), t.at<1>(), t.at<2>();
+
+	solution.cams.emplace(img->internalId(), T);
+	return true;
+
+}
 
 const int FrontCamSBAInitializer::MinimalNObs = 6;
 

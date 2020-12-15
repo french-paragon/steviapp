@@ -1,3 +1,6 @@
 [submodule "modules/g2o"]
 	path = modules/g2o
 	url = https://github.com/RainerKuemmerle/g2o.git
+[submodule "modules/pnp"]
+	path = modules/pnp
+	url = https://github.com/midjji/pnp.git

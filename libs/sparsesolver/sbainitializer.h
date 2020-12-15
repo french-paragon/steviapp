@@ -42,6 +42,7 @@ protected:
 	static Eigen::Array2Xf getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids);
 
 	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
+	static bool alignImage(InitialSolution & solution, Project* p, Image *img, QSet<qint64> &pts);
 
 };
 

@@ -28,6 +28,9 @@ find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets Core Test REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Core Test REQUIRED)
 find_package(exiv2 REQUIRED CONFIG NAMES exiv2)
 
+find_package(Eigen3 3.3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR})
+
 #configure submodules
 add_subdirectory(modules)
 include_directories(${MODULES_INCLUDE_DIRECTORIES} libs)

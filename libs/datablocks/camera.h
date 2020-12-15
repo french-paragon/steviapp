@@ -19,6 +19,7 @@ public:
 	void setImSize(const QSize &imSize);
 
 	floatParameter fLen() const;
+	float fLenY() const;
 	void setFLen(const floatParameter &f_pix);
 
 	floatParameter pixelRatio() const;

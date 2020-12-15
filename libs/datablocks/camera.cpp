@@ -39,6 +39,10 @@ floatParameter Camera::fLen() const
 	return _f_pix;
 }
 
+float Camera::fLenY() const {
+	return fLen().value()*pixelRatio().value();
+}
+
 void Camera::setFLen(const floatParameter &f_pix)
 {
 	if (!_f_pix.isApproximatlyEqual(f_pix, 1e-4)) {
