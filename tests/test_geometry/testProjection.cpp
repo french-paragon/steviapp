@@ -78,6 +78,9 @@ private Q_SLOTS:
 
 	void testExtractTransform_data();
 	void testExtractTransform();
+
+	void testPnP_data();
+	void testPnP();
 };
 
 void TestReprojectionMethods::testBuildEssentialMatrix_data() {
@@ -199,6 +202,57 @@ void TestReprojectionMethods::testExtractTransform() {
 
 		Eigen::Matrix3f Rdelta = cam_delta.R*extractedTransform.R;
 		Eigen::Vector3f tdelta = cam_delta.t/cam_delta.t.norm() + extractedTransform.R.transpose()*extractedTransform.t;
+
+		float missalignement = (Rdelta - Eigen::Matrix3f::Identity()).norm();
+		QVERIFY2(missalignement < 1e-3, qPrintable(QString("Reconstructed rotation not correct (norm (RgtxRrc - I) = %1)").arg(missalignement)));
+
+		missalignement = tdelta.norm();
+		QVERIFY2(missalignement < 1e-3, qPrintable(QString("Reconstructed rotation not correct (norm (tgt + Rrcxtrc) = %1)").arg(missalignement)));
+	}
+}
+
+void TestReprojectionMethods::testPnP_data() {
+
+	QTest::addColumn<int>("nPts");
+	QTest::addColumn<float>("dist");
+	QTest::addColumn<float>("spread");
+	QTest::addColumn<float>("v_spread");
+
+	QTest::newRow("Few points") << 4 << 3.0f << 2.0f << 2.0f;
+	QTest::newRow("Some points") << 8 << 3.0f << 2.0f << 2.0f;
+	QTest::newRow("Many points") << 12 << 3.0f << 2.0f << 2.0f;
+
+}
+void TestReprojectionMethods::testPnP() {
+
+	QFETCH(int, nPts);
+	QFETCH(float, dist);
+	QFETCH(float, spread);
+	QFETCH(float, v_spread);
+
+	if (nPts < 4) {
+		QSKIP("Not enough points to proceed");
+	}
+
+	Eigen::Array3Xf points = generateRandomPoints(nPts, dist, spread, v_spread);
+	AffineTransform cam_delta = generateRandomTransform(dist);
+	AffineTransform inv = AffineTransform(cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
+
+	Eigen::Array3Xf pointsCam2 = inv*points;
+	//std::cout << pointsCam2 << std::endl << std::endl;
+
+	if ((pointsCam2.row(2) > 0).any()) {
+		QSKIP("Misconstructed random setup");
+	} else {
+		Eigen::Array2Xf pt_im = projectPoints(points, inv);
+
+		AffineTransform extractedTransform = pnp(pt_im, points);
+
+		/*pointsCam2 = extractedTransform*points;
+		std::cout << pointsCam2 << std::endl << std::endl;*/
+
+		Eigen::Matrix3f Rdelta = cam_delta.R*extractedTransform.R;
+		Eigen::Vector3f tdelta = cam_delta.t + extractedTransform.R.transpose()*extractedTransform.t;
 
 		float missalignement = (Rdelta - Eigen::Matrix3f::Identity()).norm();
 		QVERIFY2(missalignement < 1e-3, qPrintable(QString("Reconstructed rotation not correct (norm (RgtxRrc - I) = %1)").arg(missalignement)));

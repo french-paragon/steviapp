@@ -38,11 +38,22 @@ public:
 class PhotometricInitializer : public SBAInitializer {
 
 protected:
+
+	static Eigen::Array3Xf getLandmarksWorldCoordinates(const InitialSolution &sol, QVector<qint64> const& idxs);
+
 	static Eigen::Matrix3f ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection);
 	static Eigen::Array2Xf getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids);
 
 	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
+
+	static bool completeSolution(InitialSolution & solution,
+								 Project* p, QSet<qint64>
+								 const& s_pts, QSet<qint64>
+								 const& s_imgs,
+								 int minNTiePoints = 4,
+								 int minViewingImgs = 2);
 	static bool alignImage(InitialSolution & solution, Project* p, Image *img, QSet<qint64> &pts);
+	static bool triangulatePoint(InitialSolution & solution, Project* p, qint64 pt, QVector<qint64> const& imgs);
 
 };
 
@@ -51,7 +62,6 @@ class EightPointsSBAMultiviewInitializer : public PhotometricInitializer
 public:
 
 	EightPointsSBAMultiviewInitializer(qint64 f1 = -1,
-									   int triangulation_threshold = -1,
 									   bool preconstrain = true,
 									   bool useConstraintsRefinement = false);
 
@@ -60,7 +70,6 @@ public:
 private:
 
 	qint64 _f1;
-	int _auto_triangulation_threshold;
 
 	bool _preconstrain;
 	bool _useConstraintsRefinement;
@@ -78,7 +87,6 @@ public:
 
 	EightPointsSBAInitializer(qint64 f1 = AutoMatrixQuality,
 							  qint64 f2 = AutoMatrixQuality,
-							  int triangulation_threshold = -1,
 							  bool preconstrain = true,
 							  bool useConstraintsRefinement = false);
 
@@ -89,7 +97,6 @@ private:
 
 	qint64 _f1;
 	qint64 _f2;
-	int _auto_triangulation_threshold;
 
 	bool _preconstrain;
 	bool _useConstraintsRefinement;

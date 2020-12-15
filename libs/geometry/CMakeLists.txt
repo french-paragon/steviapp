@@ -21,3 +21,4 @@ add_library(
 
 
 target_link_libraries(${GEOMETRY_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+target_link_libraries(${GEOMETRY_LIB} PRIVATE  ${PNP_LIBS})

@@ -159,6 +159,41 @@ int Landmark::countImagesRefering(QVector<qint64> const& excluded) const {
 
 }
 
+int Landmark::countImagesReferingInList(QSet<qint64> const& included) const {
+
+	return getViewingImgInList(included).size();
+}
+int Landmark::countImagesReferingInList(QVector<qint64> const& included) const {
+
+	QSet<qint64> s(included.begin(), included.end());
+	return countImagesReferingInList(s);
+}
+
+QSet<qint64> Landmark::getViewingImgInList(QSet<qint64> const& included) const {
+
+	if (!isInProject()) {
+		return {};
+	}
+
+	QSet<qint64> referingImgsId;
+	for (QVector<qint64> const& path : _referers) {
+		qint64 id = path.first();
+
+		if (!included.contains(id)) {
+			continue;
+		}
+
+		Image* im = qobject_cast<Image*>(getProject()->getById(id));
+
+		if (im != nullptr) {
+			referingImgsId.insert(id);
+		}
+	}
+
+	return referingImgsId;
+
+}
+
 void Landmark::clearOptimized() {
 	clearOptimisedX();
 	clearOptimisedY();

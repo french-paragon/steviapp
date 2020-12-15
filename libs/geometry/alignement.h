@@ -4,6 +4,7 @@
 #include "geometry/core.h"
 
 #include <utility>
+#include <vector>
 
 namespace StereoVisionApp {
 
@@ -34,6 +35,10 @@ AffineTransform selectTransform(AffineTransform const& T1,
 
 AffineTransform findTransform(Eigen::Array2Xf const& pt_cam_1,
 							  Eigen::Array2Xf const& pt_cam_2);
+
+AffineTransform pnp(Eigen::Array2Xf const& pt_cam, Eigen::Array3Xf const& pt_coords);
+AffineTransform pnp(Eigen::Array2Xf const& pt_cam, std::vector<int> const& idxs, Eigen::Array3Xf const& pt_coords);
+
 
 } // namespace StereoVisionApp
 

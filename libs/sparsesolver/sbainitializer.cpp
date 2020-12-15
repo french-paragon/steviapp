@@ -29,11 +29,9 @@ SBAInitializer::~SBAInitializer() {
 
 
 EightPointsSBAMultiviewInitializer::EightPointsSBAMultiviewInitializer(qint64 f1,
-																	   int triangulation_threshold,
 																	   bool preconstrain,
 																	   bool useConstraintsRefinement) :
 	_f1(f1),
-	_auto_triangulation_threshold(triangulation_threshold),
 	_preconstrain(preconstrain),
 	_useConstraintsRefinement(useConstraintsRefinement)
 {
@@ -250,6 +248,8 @@ SBAInitializer::InitialSolution EightPointsSBAMultiviewInitializer::computeIniti
 		r.points.emplace(id, pt);
 	}
 
+	completeSolution(r, p, s_pts, s_imgs);
+
 	if (_preconstrain) {
 		AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
 
@@ -272,12 +272,10 @@ SBAInitializer::InitialSolution EightPointsSBAMultiviewInitializer::computeIniti
 
 EightPointsSBAInitializer::EightPointsSBAInitializer(qint64 f1,
 													 qint64 f2,
-													 int triangulation_threshold,
 													 bool preconstrain,
 													 bool useConstraintsRefinement) :
 	_f1(f1),
 	_f2(f2),
-	_auto_triangulation_threshold(triangulation_threshold),
 	_preconstrain(preconstrain),
 	_useConstraintsRefinement(useConstraintsRefinement)
 {
@@ -481,6 +479,8 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 		r.points.emplace(lm_id, t_p);
 	}
 
+	completeSolution(r, p, s_pts, s_imgs);
+
 	if (_preconstrain) {
 		AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
 
@@ -499,6 +499,19 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 	return r;
 }
 
+Eigen::Array3Xf PhotometricInitializer::getLandmarksWorldCoordinates(InitialSolution const& sol, QVector<qint64> const& idxs) {
+
+	Eigen::Array3Xf pts_world;
+	pts_world.resize(3, idxs.size());
+
+	for (int i = 0; i < idxs.size(); i++) {
+
+		pts_world.col(i) = sol.points.at(idxs[i]).array();
+
+	}
+
+	return pts_world;
+}
 
 Eigen::Matrix3f PhotometricInitializer::ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection) {
 
@@ -703,6 +716,112 @@ AffineTransform PhotometricInitializer::estimateTransform(InitialSolution const&
 }
 
 
+bool PhotometricInitializer::completeSolution(InitialSolution & solution,
+											  Project* p,
+											  QSet<qint64> const& s_pts,
+											  QSet<qint64> const& s_imgs,
+											  int minNTiePoints,
+											  int minViewingImgs) {
+
+	QSet<qint64> pts2add = s_pts;
+	QSet<qint64> ptsAdded;
+	QSet<qint64> img2add = s_imgs;
+	QSet<qint64> imgsAdded;
+
+	for (auto map_it : solution.cams) {
+		img2add.remove(map_it.first);
+		imgsAdded.insert(map_it.first);
+	}
+
+	for (auto map_it : solution.points) {
+		pts2add.remove(map_it.first);
+		ptsAdded.insert(map_it.first);
+	}
+
+	while (!pts2add.empty() and !img2add.empty()) {
+
+		int n_additions = 0;
+
+		Image* imgAdded;
+
+		do {
+			imgAdded = nullptr;
+			int nTiePoints = minNTiePoints-1;
+			QSet<qint64> tiePoints;
+
+			for (qint64 id : img2add) {
+
+				Image* im = qobject_cast<Image*>(p->getById(id));
+
+				if (im == nullptr) {
+					continue;
+				}
+
+				QVector<qint64> tmp = im->getAttachedLandmarksIds();
+				QSet<qint64> lms(tmp.begin(), tmp.end());
+				lms.intersect(ptsAdded);
+
+				if (nTiePoints < lms.size()) {
+					imgAdded = im;
+					nTiePoints = lms.size();
+					tiePoints = lms;
+				}
+
+			}
+
+			if (imgAdded != nullptr) {
+				if (alignImage(solution, p, imgAdded, tiePoints)) {
+					img2add.remove(imgAdded->internalId());
+					imgsAdded.insert(imgAdded->internalId());
+					n_additions++;
+				} else {
+					img2add.remove(imgAdded->internalId());
+				}
+			}
+
+		} while(imgAdded != nullptr);
+
+		Landmark* lmAdded;
+
+		do {
+			lmAdded = nullptr;
+			int nViewingImages = minViewingImgs-1;
+			QSet<qint64> vImgs;
+
+			for (qint64 id : pts2add) {
+
+				Landmark* lm = qobject_cast<Landmark*>(p->getById(id));
+
+				QSet<qint64> vI = lm->getViewingImgInList(imgsAdded);
+
+				if (vI.size() > nViewingImages) {
+					lmAdded = lm;
+					nViewingImages = vI.size();
+					vImgs = vI;
+				}
+			}
+
+			if (lmAdded != nullptr) {
+				if (triangulatePoint(solution, p, lmAdded->internalId(), vImgs.values().toVector())) {
+					pts2add.remove(lmAdded->internalId());
+					ptsAdded.insert(lmAdded->internalId());
+					n_additions++;
+				} else {
+					pts2add.remove(lmAdded->internalId());
+				}
+			}
+
+		} while(lmAdded != nullptr);
+
+		if (n_additions == 0) {
+			return false;
+		}
+	}
+
+	return imgsAdded == s_imgs and ptsAdded == s_pts;
+
+}
+
 bool PhotometricInitializer::alignImage(InitialSolution & solution, Project* p, Image* img, QSet<qint64> & pts) {
 
 	Camera* cam = qobject_cast<Camera*>(p->getById(img->assignedCamera()));
@@ -715,48 +834,81 @@ bool PhotometricInitializer::alignImage(InitialSolution & solution, Project* p, 
 	QSet<qint64> matchedPts = QSet<qint64>(tmp.begin(), tmp.end());
 	matchedPts.intersect(pts);
 
-	std::vector<cvl::Vector3D> xs;
-	std::vector<cvl::Vector2D> yns;
+	tmp = matchedPts.values().toVector();
 
-	xs.reserve(matchedPts.size());
-	yns.reserve(matchedPts.size());
+	Eigen::Array3Xf pts_world = getLandmarksWorldCoordinates(solution, tmp);
+	Eigen::Array2Xf pts_cam = img->getImageLandmarksCoordinates(tmp);
 
-	for (qint64 pt_id : matchedPts) {
-		cvl::Vector3D pt;
-		pt.at<0>() = solution.points[pt_id].x();
-		pt.at<1>() = solution.points[pt_id].y();
-		pt.at<2>() = solution.points[pt_id].z();
+	pts_cam = Image2HomogeneousCoordinates(pts_cam,
+										   cam->fLen().value(),
+										   cam->fLenY(),
+										   Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
+										   ImageAnchors::BottomLeft);
 
-		ImageLandmark* lm = img->getImageLandmarkByLandmarkId(pt_id);
-		cvl::Vector2D im_pt;
-
-		Eigen::Vector2f lm_coord = Image2HomogeneousCoordinates(Eigen::Vector2f(lm->x().value(), lm->y().value()),
-																cam->fLen().value(),
-																cam->fLenY(),
-																Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
-																ImageAnchors::TopLeft);
-
-		im_pt.at<0>() = lm_coord.x();
-		im_pt.at<1>() = lm_coord.y();
-
-		xs.push_back(pt);
-		yns.push_back(im_pt);
-	}
-
-	cvl::PoseD pose = cvl::pnp_ransac(xs, yns);
-
-	cvl::Matrix3d R = pose.rotation();
-	cvl::Vector3d t = pose.translation();
-
-	AffineTransform T;
-	T.R << R(0,0), R(0,1), R(0,2),
-			R(1,0), R(1,1), R(1,2),
-			R(2,0), R(2,1), R(2,2);
-	T.t << t.at<0>(), t.at<1>(), t.at<2>();
+	AffineTransform T = pnp(pts_cam, pts_world);
 
 	solution.cams.emplace(img->internalId(), T);
 	return true;
 
+}
+
+bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Project* p, qint64 pt, QVector<qint64> const& imgs) {
+
+	Eigen::Vector3f coord = Eigen::Vector3f::Zero();
+	int n_obs = 0;
+
+	for(int i = 0; i+2 < imgs.size(); i++) {
+
+		Image* im1 = qobject_cast<Image*>(p->getById(imgs[i]));
+
+		if (im1 == nullptr) {
+			continue;
+		}
+
+		ImageLandmark* im_lm1 = im1->getImageLandmarkByLandmarkId(pt);
+
+		if (im_lm1 == nullptr) {
+			continue;
+		}
+
+		AffineTransform const& world2cam1 = solution.cams.at(imgs[i]);
+		AffineTransform cam12world(world2cam1.R.transpose(),
+								   - world2cam1.R.transpose()*world2cam1.t);
+
+		for (int j = i+1; j < imgs.size(); j++) {
+
+			Image* im2 = qobject_cast<Image*>(p->getById(imgs[j]));
+
+			if (im2 == nullptr) {
+				continue;
+			}
+
+			ImageLandmark* im_lm2 = im1->getImageLandmarkByLandmarkId(pt);
+
+			if (im_lm2 == nullptr) {
+				continue;
+			}
+
+			AffineTransform const& world2cam2 = solution.cams.at(imgs[j]);
+
+			AffineTransform cam12cam2(world2cam2.R*cam12world.R,
+									  world2cam2.t + world2cam2.R*cam12world.t);
+
+			Eigen::Vector3f tmp = reprojectPoints(cam12cam2,
+												  Eigen::Array2f(im_lm1->x().value(), im_lm1->y().value()),
+												  Eigen::Array2f(im_lm2->x().value(), im_lm2->y().value()));
+
+			coord += cam12world*tmp;
+			n_obs++;
+
+		}
+	}
+
+	coord /= n_obs;
+
+	solution.points.emplace(pt, coord);
+
+	return true;
 }
 
 const int FrontCamSBAInitializer::MinimalNObs = 6;

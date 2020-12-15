@@ -48,6 +48,11 @@ public:
 	int countImagesRefering(QSet<qint64> const& excluded = {}) const;
 	int countImagesRefering(QVector<qint64> const& excluded) const;
 
+	int countImagesReferingInList(QSet<qint64> const& included) const;
+	int countImagesReferingInList(QVector<qint64> const& included) const;
+
+	QSet<qint64> getViewingImgInList(QSet<qint64> const& included) const;
+
 	void clearOptimized() override;
 	bool hasOptimizedParameters() const override;
 
