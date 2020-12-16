@@ -24,6 +24,9 @@ set(LIB_SRC imagewidget.cpp
             sparsesolverconfigdialog.cpp
             sparsesolverconfigdialog.h
             sparsesolverconfigdialog.ui
+            solutioninitconfigdialog.cpp
+            solutioninitconfigdialog.h
+            solutioninitconfigdialog.ui
 )
 
 add_library(

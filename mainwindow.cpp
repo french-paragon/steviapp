@@ -43,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->actionclear_solution, &QAction::triggered, this, &MainWindow::clearOptimSolution);
 	connect(ui->actionsolve_sparse, &QAction::triggered, this, &MainWindow::runSparseOptim);
 	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openSparseViewer(); });
-	connect(ui->actionTestInitialSolutionFinder, &QAction::triggered, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
+	connect(ui->actionFindInitialSolution, &QAction::triggered, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
 
 }
 

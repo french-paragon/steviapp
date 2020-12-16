@@ -45,7 +45,7 @@
      <x>0</x>
      <y>0</y>
      <width>1035</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
@@ -57,13 +57,6 @@
     <addaction name="actionsave_project_as"/>
     <addaction name="actionopen_Project"/>
    </widget>
-   <widget class="QMenu" name="menudev">
-    <property name="title">
-     <string>dev</string>
-    </property>
-    <addaction name="actionOpenSparseAlignEditor"/>
-    <addaction name="actionTestInitialSolutionFinder"/>
-   </widget>
    <widget class="QMenu" name="menuproject">
     <property name="enabled">
      <bool>false</bool>
@@ -74,18 +67,18 @@
    </widget>
    <widget class="QMenu" name="menusolve">
     <property name="enabled">
-     <bool>false</bool>
+     <bool>true</bool>
     </property>
     <property name="title">
      <string>solve</string>
     </property>
     <addaction name="actionclear_solution"/>
+    <addaction name="actionFindInitialSolution"/>
     <addaction name="actionsolve_sparse"/>
    </widget>
    <addaction name="menufile"/>
    <addaction name="menuproject"/>
    <addaction name="menusolve"/>
-   <addaction name="menudev"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="projectDockWidget">
@@ -188,9 +181,9 @@
     <string>solve sparse</string>
    </property>
   </action>
-  <action name="actionTestInitialSolutionFinder">
+  <action name="actionFindInitialSolution">
    <property name="text">
-    <string>TestInitialSolutionFinder</string>
+    <string>Init solution</string>
    </property>
   </action>
   <action name="actionclear_solution">

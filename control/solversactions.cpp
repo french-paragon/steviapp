@@ -3,6 +3,7 @@
 #include "datablocks/project.h"
 #include "mainwindow.h"
 
+#include "gui/solutioninitconfigdialog.h"
 #include "gui/sparsesolverconfigdialog.h"
 #include "gui/stepprocessmonitorbox.h"
 #include "gui/sparsealignementeditor.h"
@@ -50,12 +51,31 @@ bool resetSolution(Project* p, MainWindow* w) {
 
 void initSolution(Project* p, MainWindow* w) {
 
+	qint64 initial_frame = -1;
+
+	if (w != nullptr) {
+
+		SolutionInitConfigDialog d(w);
+		d.setModal(true);
+		d.setWindowTitle(QObject::tr("Init solution options"));
+
+		d.setProject(p);
+
+		d.exec();
+
+		if (d.result() == QDialog::Rejected) {
+			return;
+		}
+
+		initial_frame = d.selectedStartingImage();
+	}
+
 	if (!resetSolution(p, w)) {
 		return;
 	}
 
 	SBAGraphReductor selector(3,2,true,true);
-	EightPointsSBAMultiviewInitializer initializer;
+	EightPointsSBAMultiviewInitializer initializer(initial_frame, true, false);
 
 	SBAGraphReductor::elementsSet selection = selector(p);
 
