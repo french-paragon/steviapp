@@ -19,7 +19,7 @@ Eigen::Array3Xf generateRandomPoints(int nPoints, float distance = 3.0, float sp
 	r.topRows(2) *= spread;
 	r.row(2) *= v_spread;
 
-	r.row(2) -= distance;
+	r.row(2) += distance;
 
 	return r;
 }
@@ -47,7 +47,7 @@ AffineTransform generateRandomTransform(float distance = 3.0, float dist_variabi
 
 	Eigen::Vector3f t;
 	t.setZero();
-	t[2] = -distance;
+	t[2] = distance;
 
 	std::random_device rd;
 
@@ -188,7 +188,7 @@ void TestReprojectionMethods::testExtractTransform() {
 
 	Eigen::Array3Xf pointsCam2 = cam_delta*points;
 
-	if ((pointsCam2.row(2) > 0).any()) {
+	if ((pointsCam2.row(2) < 0).any()) {
 		QSKIP("Misconstructed random setup");
 	} else {
 
@@ -218,9 +218,9 @@ void TestReprojectionMethods::testPnP_data() {
 	QTest::addColumn<float>("spread");
 	QTest::addColumn<float>("v_spread");
 
-	QTest::newRow("Few points") << 4 << 3.0f << 2.0f << 2.0f;
-	QTest::newRow("Some points") << 8 << 3.0f << 2.0f << 2.0f;
-	QTest::newRow("Many points") << 12 << 3.0f << 2.0f << 2.0f;
+	QTest::newRow("Few points") << 4 << 3.5f << 2.0f << 2.0f;
+	QTest::newRow("Some points") << 8 << 3.5f << 2.0f << 2.0f;
+	QTest::newRow("Many points") << 12 << 3.5f << 2.0f << 2.0f;
 
 }
 void TestReprojectionMethods::testPnP() {
@@ -241,7 +241,7 @@ void TestReprojectionMethods::testPnP() {
 	Eigen::Array3Xf pointsCam2 = inv*points;
 	//std::cout << pointsCam2 << std::endl << std::endl;
 
-	if ((pointsCam2.row(2) > 0).any()) {
+	if ((pointsCam2.row(2) < 0).any()) {
 		QSKIP("Misconstructed random setup");
 	} else {
 		Eigen::Array2Xf pt_im = projectPoints(points, inv);

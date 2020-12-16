@@ -54,13 +54,13 @@ Eigen::Array3Xf reprojectPoints(Eigen::Matrix3f const& R,
 	reproj.topRows(2) = pt_cam_1;
 	reproj.bottomRows(1).setOnes();
 
-	Eigen::ArrayXf x3_v1 = (pt_cam_2.row(0)*t.z() - t.x()) /
+	Eigen::ArrayXf x3_v1 = (t.x() - pt_cam_2.row(0)*t.z()) /
 			(
 				pt_cam_2.row(0)*(R(2,0)*pt_cam_1.row(0) + R(2,1)*pt_cam_1.row(1) + R(2,2)) -
 				(R(0,0)*pt_cam_1.row(0) + R(0,1)*pt_cam_1.row(1) + R(0,2))
 			);
 
-	Eigen::ArrayXf x3_v2 = (pt_cam_2.row(1)*t.z() - t.y()) /
+	Eigen::ArrayXf x3_v2 = (t.y() - pt_cam_2.row(1)*t.z()) /
 			(
 				pt_cam_2.row(1)*(R(2,0)*pt_cam_1.row(0) + R(2,1)*pt_cam_1.row(1) + R(2,2)) -
 				(R(1,0)*pt_cam_1.row(0) + R(1,1)*pt_cam_1.row(1) + R(1,2))
@@ -72,7 +72,7 @@ Eigen::Array3Xf reprojectPoints(Eigen::Matrix3f const& R,
 	reproj.row(1) *= x3;
 	reproj.row(2) *= x3;
 
-	return -reproj;
+	return reproj;
 
 }
 
@@ -170,10 +170,10 @@ AffineTransform selectTransform(AffineTransform const& T1,
 
 			Eigen::Array3Xf reproj = reprojectPoints(R_cand, t_cand, pt_cam_1, pt_cam_2);
 
-			if ((reproj.bottomRows(1) < 0.).all()) {
+			if ((reproj.bottomRows(1) >= 0.).all()) {
 				reproj = reprojectPoints(R_cand.transpose(), -R_cand.transpose()*t_cand, pt_cam_2, pt_cam_1);
 
-				if ((reproj.bottomRows(1) < 0.).all()) {
+				if ((reproj.bottomRows(1) >= 0.).all()) {
 
 					Rs[count_good].R = R_cand;
 					Rs[count_good].t = t_cand;
@@ -262,7 +262,7 @@ AffineTransform pnp(Eigen::Array2Xf const& pt_cam, std::vector<int> const& idxs,
 		cvl::Vector2D im_pt;
 
 		im_pt.at<0>() = pt_cam.col(i).x();
-		im_pt.at<1>() = -pt_cam.col(i).y();
+		im_pt.at<1>() = pt_cam.col(i).y();
 
 		xs.push_back(pt);
 		yns.push_back(im_pt);
@@ -274,10 +274,10 @@ AffineTransform pnp(Eigen::Array2Xf const& pt_cam, std::vector<int> const& idxs,
 	cvl::Vector3d t = pose.translation();
 
 	AffineTransform T;
-	T.R << -R(0,0), -R(0,1), -R(0,2),
+	T.R << R(0,0), R(0,1), R(0,2),
 			R(1,0), R(1,1), R(1,2),
-			-R(2,0), -R(2,1), -R(2,2);
-	T.t << -t.at<0>(), t.at<1>(), -t.at<2>();
+			R(2,0), R(2,1), R(2,2);
+	T.t << t.at<0>(), t.at<1>(), t.at<2>();
 
 	return T;
 

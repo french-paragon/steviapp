@@ -538,7 +538,7 @@ Eigen::Array2Xf PhotometricInitializer::getHomogeneousImageCoordinates(Image* im
 										cam->fLen().value(),
 										cam->fLenY(),
 										Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
-										ImageAnchors::BottomLeft) ;
+										ImageAnchors::TopLeft) ;
 
 }
 
@@ -843,7 +843,7 @@ bool PhotometricInitializer::alignImage(InitialSolution & solution, Project* p, 
 										   cam->fLen().value(),
 										   cam->fLenY(),
 										   Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
-										   ImageAnchors::BottomLeft);
+										   ImageAnchors::TopLeft);
 
 	AffineTransform T = pnp(pts_cam, pts_world);
 

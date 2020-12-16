@@ -15,15 +15,16 @@ Eigen::Vector2f Image2HomogeneousCoordinates(Eigen::Vector2f const& pt,
 
 	switch (imageOrigin) {
 	case ImageAnchors::TopLeft:
-		r.y() = -r.y();
 		break;
 	case ImageAnchors::TopRight:
-		r.x() = -r.x();
 		r.y() = -r.y();
 		break;
 	case ImageAnchors::BottomLeft:
+		r.x() = -r.x();
+		break;
 	case ImageAnchors::BottomRight:
 		r.x() = -r.x();
+		r.y() = -r.y();
 		break;
 	}
 
@@ -56,15 +57,16 @@ Eigen::Array2Xf Image2HomogeneousCoordinates(Eigen::Array2Xf const& pt,
 
 	switch (imageOrigin) {
 	case ImageAnchors::TopLeft:
-		r.row(1) *= -1;
 		break;
 	case ImageAnchors::TopRight:
-		r.row(0) *= -1;
 		r.row(1) *= -1;
 		break;
 	case ImageAnchors::BottomLeft:
+		r.row(0) *= -1;
+		break;
 	case ImageAnchors::BottomRight:
 		r.row(0) *= -1;
+		r.row(1) *= -1;
 		break;
 	}
 
