@@ -30,6 +30,7 @@ SparseAlignementViewer::SparseAlignementViewer(QWidget *parent) :
 	_min_view_distance = 0.01;
 	_max_view_distance = 100.;
 
+	_sceneScale = 1.0;
 	_camScale = 0.2;
 
 	setFocusPolicy(Qt::StrongFocus);
@@ -101,6 +102,15 @@ void SparseAlignementViewer::scaleCamerasIn(float steps) {
 void SparseAlignementViewer::scaleCamerasOut(float steps) {
 	float scale = _camScale*powf(0.9, steps/10.);
 	setCamScale(scale);
+}
+
+void SparseAlignementViewer::scaleSceneIn(float steps) {
+	float scale = _sceneScale*powf(0.9, steps);
+	setSceneScale(scale);
+}
+void SparseAlignementViewer::scaleSceneOut(float steps) {
+	float scale = _sceneScale/powf(0.9, steps);
+	setSceneScale(scale);
 }
 
 void SparseAlignementViewer::rotateZenith(float degrees) {
@@ -267,6 +277,7 @@ void SparseAlignementViewer::paintGL() {
 			_landMarkPointProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
 
 			_landMarkPointProgram->setUniformValue("matrixViewProjection", _projectionView);
+			_landMarkPointProgram->setUniformValue("sceneScale", _sceneScale);
 
 			f->glDrawArrays(GL_POINTS, 0, _loadedLandmarks.size());
 
@@ -290,6 +301,7 @@ void SparseAlignementViewer::paintGL() {
 		_camProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
 
 		_camProgram->setUniformValue("matrixViewProjection", _projectionView);
+		_camProgram->setUniformValue("sceneScale", _sceneScale);
 
 		QVector<qint64> frames = _currentProject->getIdsByClass(ImageFactory::imageClassName());
 
@@ -614,13 +626,22 @@ void SparseAlignementViewer::wheelEvent(QWheelEvent *e) {
 
 	if (e->buttons() == Qt::NoButton) {
 
-		if (kmods & Qt::ControlModifier) {
+		if (kmods == Qt::ShiftModifier) {
 
 			float step = d.y()/50.;
 			if (step < 0) {
 				scaleCamerasOut(-step);
 			} else {
 				scaleCamerasIn(step);
+			}
+
+		} else if (kmods == Qt::ControlModifier) {
+
+			float step = d.y()/50.;
+			if (step < 0) {
+				scaleSceneOut(-step);
+			} else {
+				scaleSceneIn(step);
 			}
 
 		} else {
@@ -690,6 +711,12 @@ void SparseAlignementViewer::mouseMoveEvent(QMouseEvent *e) {
 		rotateAzimuth(t.x()/3.);
 	}
 
+}
+
+void SparseAlignementViewer::setSceneScale(float sceneScale)
+{
+	_sceneScale = fabs(sceneScale);
+	update();
 }
 
 void SparseAlignementViewer::setCamScale(float camScale)

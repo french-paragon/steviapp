@@ -32,6 +32,9 @@ public:
 	void scaleCamerasIn(float steps = 1);
 	void scaleCamerasOut(float steps = 1);
 
+	void scaleSceneIn(float steps = 1);
+	void scaleSceneOut(float steps = 1);
+
 	void rotateZenith(float degrees);
 	void rotateAzimuth(float degrees);
 
@@ -39,6 +42,7 @@ public:
 	void clearLandmarks();
 
 	void setCamScale(float camScale);
+	void setSceneScale(float sceneScale);
 
 signals:
 
@@ -80,6 +84,7 @@ private:
 
 	float _landMarkPtRadius;
 
+	float _sceneScale;
 	float _camScale;
 
 	QMatrix4x4 _projectionView;
