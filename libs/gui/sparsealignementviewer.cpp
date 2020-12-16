@@ -95,11 +95,11 @@ void SparseAlignementViewer::zoomOut(float steps) {
 }
 
 void SparseAlignementViewer::scaleCamerasIn(float steps) {
-	float scale = _camScale*powf(0.9, steps/10.);
+	float scale = _camScale/powf(0.9, steps/10.);
 	setCamScale(scale);
 }
 void SparseAlignementViewer::scaleCamerasOut(float steps) {
-	float scale = _camScale/powf(0.9, steps/10.);
+	float scale = _camScale*powf(0.9, steps/10.);
 	setCamScale(scale);
 }
 
