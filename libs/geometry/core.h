@@ -8,6 +8,9 @@ namespace StereoVisionApp {
 Eigen::Matrix3f skew(Eigen::Vector3f const& v);
 Eigen::Vector3f unskew(Eigen::Matrix3f const& m);
 
+Eigen::Matrix3d skewD(Eigen::Vector3d const& v);
+Eigen::Vector3d unskewD(Eigen::Matrix3d const& m);
+
 enum class Axis : char {
 	X,
 	Y,

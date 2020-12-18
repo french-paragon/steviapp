@@ -15,6 +15,9 @@ private Q_SLOTS:
 
 	void testInverseRodriguez_data();
 	void testInverseRodriguez();
+
+	void testDiffRodriguez_data();
+	void testDiffRodriguez();
 };
 
 void TestGeometryLibRotation::testRodriguez_data() {
@@ -107,6 +110,57 @@ void TestGeometryLibRotation::testInverseRodriguez() {
 	float mismatch = (vec - recons).norm();
 
 	QVERIFY2(mismatch < 1e-5, qPrintable(QString("Reconstructed rotation axis not correct (norm (rgt - rrc) = %1)").arg(mismatch)));
+
+}
+
+void TestGeometryLibRotation::testDiffRodriguez_data() {
+
+	QTest::addColumn<float>("rx");
+	QTest::addColumn<float>("ry");
+	QTest::addColumn<float>("rz");
+
+	QTest::newRow("Identity") << 0.0f << 0.0f << 0.0f;
+
+	QTest::newRow("x axis one") << 1.0f << 0.0f << 0.0f;
+	QTest::newRow("y axis one") << 0.0f << 1.0f << 0.0f;
+	QTest::newRow("z axis one") << 0.0f << 0.0f << 1.0f;
+
+	QTest::newRow("x axis pi") << static_cast<float>(M_PI) << 0.0f << 0.0f;
+	QTest::newRow("y axis pi") << 0.0f << static_cast<float>(M_PI) << 0.0f;
+	QTest::newRow("z axis pi") << 0.0f << 0.0f << static_cast<float>(M_PI);
+
+}
+void TestGeometryLibRotation::testDiffRodriguez() {
+
+	QFETCH(float, rx);
+	QFETCH(float, ry);
+	QFETCH(float, rz);
+
+	float epsilon = 1e-4;
+
+	Eigen::Vector3f vec(rx, ry, rz);
+	Eigen::Vector3f drx(epsilon, 0, 0);
+	Eigen::Vector3f dry(0, epsilon, 0);
+	Eigen::Vector3f drz(0, 0, epsilon);
+
+	Eigen::Matrix3f S = rodriguezFormula(vec);
+
+	Eigen::Matrix3f dX_numeric = (rodriguezFormula(vec + drx) - S)/epsilon;
+	Eigen::Matrix3f dY_numeric = (rodriguezFormula(vec + dry) - S)/epsilon;
+	Eigen::Matrix3f dZ_numeric = (rodriguezFormula(vec + drz) - S)/epsilon;
+
+	Eigen::Matrix3f dX_analytic = diffRodriguez(vec, Axis::X);
+	Eigen::Matrix3f dY_analytic = diffRodriguez(vec, Axis::Y);
+	Eigen::Matrix3f dZ_analytic = diffRodriguez(vec, Axis::Z);
+
+	float mismatchX = (dX_numeric - dX_analytic).norm();
+	QVERIFY2(mismatchX < 2e1*epsilon, qPrintable(QString("Reconstructed diff rotation axis not correct (norm (dx_ranalitic - dx_rnumeric) = %1)").arg(mismatchX)));
+
+	float mismatchY = (dY_numeric - dY_analytic).norm();
+	QVERIFY2(mismatchY < 2e1*epsilon, qPrintable(QString("Reconstructed diff rotation axis not correct (norm (dy_ranalitic - dy_rnumeric) = %1)").arg(mismatchY)));
+
+	float mismatchZ = (dZ_numeric - dZ_analytic).norm();
+	QVERIFY2(mismatchZ < 2e1*epsilon, qPrintable(QString("Reconstructed diff rotation axis not correct (norm (dz_ranalitic - dz_rnumeric) = %1)").arg(mismatchZ)));
 
 }
 

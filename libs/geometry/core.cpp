@@ -14,6 +14,18 @@ Eigen::Vector3f unskew(Eigen::Matrix3f const& m) {
 	return Eigen::Vector3f(m(2,1), -m(2,0), m(1,0));
 }
 
+Eigen::Matrix3d skewD(Eigen::Vector3d const& v) {
+	Eigen::Matrix3d r;
+	r << 0, -v.z(), v.y(),
+		 v.z(), 0, -v.x(),
+		 -v.y(), v.x(), 0;
+
+	return r;
+}
+Eigen::Vector3d unskewD(Eigen::Matrix3d const& m) {
+	return Eigen::Vector3d(m(2,1), -m(2,0), m(1,0));
+}
+
 Eigen::Vector3f pathFromDiff(Axis dir) {
 	switch (dir) {
 	case Axis::X:

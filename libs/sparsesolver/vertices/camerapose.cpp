@@ -116,8 +116,12 @@ CameraPose::Vector6d CameraPose::log() const {
 
 	if (d>0.99999)
 	{
-
 	  omega=0.5*dR;
+	}
+	else if (dR.norm() < 1e-6) {
+		double theta = acos(d);
+		Eigen::Vector3d d = _r.diagonal();
+		omega = theta*(d - Eigen::Vector3d::Ones()*d.minCoeff())/(1 - d.minCoeff());
 	}
 	else
 	{

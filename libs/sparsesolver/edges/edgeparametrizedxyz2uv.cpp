@@ -97,14 +97,13 @@ void EdgeParametrizedXYZ2UV::linearizeOplus () {
 		//the three others to be the translation.
 		_jacobianOplus[0].block<2, 3>(0, 3) = -Pi*pose->estimate().r().transpose();
 
-		//jacobian with respect the the position.
-
+		//jacobian with respect to the point position.
 		_jacobianOplus[1] = Pi*pose->estimate().r().transpose();
 
 		//jacobian with respect to the camera
 		_jacobianOplus[2] = Eigen::Matrix<double,2,3,Eigen::ColMajor>::Zero();
 
-		_jacobianOplus[2].block<2, 2>(0, 0) = Eigen::Matrix<double,2,2,Eigen::ColMajor>::Identity();
+		_jacobianOplus[2].block<2, 2>(0, 0) = -Eigen::Matrix<double,2,2,Eigen::ColMajor>::Identity();
 
 
 		Eigen::Vector2d proj = cam->estimate().partialProjectZ(Pbar); //formule pix4
@@ -163,10 +162,8 @@ Eigen::Vector2d EdgeParametrizedXYZ2UV::project(VertexCameraPose const* pose,
 												VertexCameraTangentialDistortion const* t_dist,
 												VertexCameraSkewDistortion const* s_dist) {
 
-	//TODO: assume cameras are not well fixed and find a way to init positions properly.
-
-	Eigen::Vector3d Pbar = pose->estimate().r().transpose()*(-pose->estimate().t() + point->estimate()); //position of origin in camera frame. The convention for r use one matrix multiplication more, but would be easier to work with in case we add inertial measurements.
-	if (Pbar[2] > 0.0) {
+	Eigen::Vector3d Pbar = pose->estimate().r().transpose()*(-pose->estimate().t() + point->estimate());
+	if (Pbar[2] < 0.0) {
 		return {NAN, NAN};
 	}
 
@@ -197,6 +194,6 @@ Eigen::Vector2d EdgeParametrizedXYZ2UV::project(VertexCameraPose const* pose,
 		return r;
 	}
 
-	return cam->estimate().f()*proj + cam->estimate().pp();
+	return cam->estimate().f()*proj - cam->estimate().pp();
 
 }

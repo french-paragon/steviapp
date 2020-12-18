@@ -34,6 +34,12 @@ Eigen::Vector3f inverseRodriguezFormula(Eigen::Matrix3f const& R);
 Eigen::Matrix3f diffRodriguezLieAlgebra(Eigen::Vector3f const& r);
 Eigen::Matrix3f diffRodriguez(Eigen::Vector3f const& r, Axis direction);
 
+Eigen::Matrix3d rodriguezFormulaD(Eigen::Vector3d const& r);
+Eigen::Vector3d inverseRodriguezFormulaD(Eigen::Matrix3d const& R);
+
+Eigen::Matrix3d diffRodriguezLieAlgebraD(Eigen::Vector3d const& r);
+Eigen::Matrix3d diffRodriguezD(Eigen::Vector3d const& r, Axis direction);
+
 } //namespace StereoVisionApp
 
 #endif // ROTATIONS_H
