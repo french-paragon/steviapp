@@ -4,6 +4,8 @@
 #include <Eigen/Core>
 #include "g2o/core/base_vertex.h"
 
+namespace StereoVisionApp {
+
 /*!
  * \brief The VertexCameraTangentialDistorsion class represent the two tangential distorsion parameters of a lens (T1 and T2)
  */
@@ -23,5 +25,7 @@ public:
 
 	virtual void oplusImpl(const double* update_);
 };
+
+} // namespace StereoVisionApp
 
 #endif // VERTEXCAMERATANGENTIALDISTORSION_H

@@ -7,6 +7,8 @@
 #include "g2o/core/base_unary_edge.h"
 #include "g2o/types/sba/types_six_dof_expmap.h"
 
+namespace StereoVisionApp {
+
 /*!
  * \brief The EdgeXyzPrior class allow to get an apriori
  */
@@ -22,5 +24,7 @@ public:
 
 	virtual void computeError();
 };
+
+} // namespace StereoVisionApp
 
 #endif // EDGEXYZPRIOR_H

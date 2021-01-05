@@ -4,8 +4,10 @@
 #include "camerapose.h"
 #include "g2o/core/base_vertex.h"
 
+namespace StereoVisionApp {
+
 /*!
- * \brief The VertexCameraPose class represent an element of R^3 x SO(3), meaning the position and orientation of a camera.
+ * \brief The VertexCameraPose class represent an element of R^3 x SO(3), encoding the position and orientation of a camera as .
  */
 class VertexCameraPose : public g2o::BaseVertex<6, CameraPose>
 {
@@ -23,5 +25,7 @@ public:
 
 	virtual void oplusImpl(const double* update_);
 };
+
+} // namespace StereoVisionApp
 
 #endif // VERTEXCAMERAPOSE_H

@@ -6,6 +6,7 @@
 
 #include "sparsesolver/vertices/vertexcamerapose.h"
 
+namespace StereoVisionApp {
 
 /*!
  * \brief The EdgeSE3xyzPrior class represent an a priori measurement of a camera position.
@@ -22,5 +23,7 @@ public:
 
 	virtual void computeError();
 };
+
+} // namespace StereoVisionApp
 
 #endif // EDGESE3XYZPRIOR_H

@@ -26,15 +26,6 @@ Eigen::Array3Xf generateRandomPoints(int nPoints, float distance = 3.0, float sp
 
 AffineTransform generateRandomTransform(float distance = 3.0, float dist_variability = 0.5, float rot_perturbation = 0.1) {
 
-	/*Eigen::Matrix3f R = Eigen::AngleAxisf(0.1, Eigen::Vector3f::UnitZ()).toRotationMatrix() *
-			Eigen::AngleAxisf(0.1, Eigen::Vector3f::UnitY()).toRotationMatrix() *
-			Eigen::AngleAxisf(0.1, Eigen::Vector3f::UnitX()).toRotationMatrix();
-
-	Eigen::Vector3f t;
-	t << 0.2, 0.3, 0.98;
-
-	return AffineTransform(R, t);*/
-
 	Eigen::Vector3f randLogRot;
 	randLogRot.setRandom();
 
@@ -148,7 +139,7 @@ void TestReprojectionMethods::testReprojection() {
 	QFETCH(float, v_spread);
 
 	Eigen::Array3Xf points = generateRandomPoints(nPts, dist, spread, v_spread);
-	AffineTransform cam_delta = generateRandomTransform(dist);
+	AffineTransform cam_delta = generateRandomTransform(dist);  //cam2 2 cam1
 
 	Eigen::Array2Xf pt_im1 = projectPoints(points);
 	Eigen::Array2Xf pt_im2 = projectPoints(points, cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
@@ -184,12 +175,12 @@ void TestReprojectionMethods::testExtractTransform() {
 	}
 
 	Eigen::Array3Xf points = generateRandomPoints(nPts, dist, spread, v_spread);
-	AffineTransform cam_delta = generateRandomTransform(dist);
+	AffineTransform cam_delta = generateRandomTransform(dist); //cam2 2 cam1
 
 	Eigen::Array3Xf pointsCam2 = cam_delta*points;
 
 	if ((pointsCam2.row(2) < 0).any()) {
-		QSKIP("Misconstructed random setup");
+		QSKIP("Misconstructed random setup"); //TODO check the condition is correctly written...
 	} else {
 
 		Eigen::Array2Xf pt_im1 = projectPoints(points);
@@ -198,7 +189,7 @@ void TestReprojectionMethods::testExtractTransform() {
 		Eigen::Matrix3f E = estimateEssentialMatrix(pt_im1, pt_im2);
 
 		std::pair<AffineTransform, AffineTransform> candidates = essentialMatrix2Transforms(E);
-		AffineTransform extractedTransform = selectTransform(candidates.first, candidates.second, pt_im1, pt_im2);
+		AffineTransform extractedTransform = selectTransform(candidates.first, candidates.second, pt_im1, pt_im2); //cam1 2 cam2
 
 		Eigen::Matrix3f Rdelta = cam_delta.R*extractedTransform.R;
 		Eigen::Vector3f tdelta = cam_delta.t/cam_delta.t.norm() + extractedTransform.R.transpose()*extractedTransform.t;
@@ -235,8 +226,8 @@ void TestReprojectionMethods::testPnP() {
 	}
 
 	Eigen::Array3Xf points = generateRandomPoints(nPts, dist, spread, v_spread);
-	AffineTransform cam_delta = generateRandomTransform(dist);
-	AffineTransform inv = AffineTransform(cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
+	AffineTransform cam_delta = generateRandomTransform(dist); //cam 2 world
+	AffineTransform inv = AffineTransform(cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t); //world 2 cam
 
 	Eigen::Array3Xf pointsCam2 = inv*points;
 	//std::cout << pointsCam2 << std::endl << std::endl;
@@ -246,7 +237,7 @@ void TestReprojectionMethods::testPnP() {
 	} else {
 		Eigen::Array2Xf pt_im = projectPoints(points, inv);
 
-		AffineTransform extractedTransform = pnp(pt_im, points);
+		AffineTransform extractedTransform = pnp(pt_im, points); //world 2 cam
 
 		/*pointsCam2 = extractedTransform*points;
 		std::cout << pointsCam2 << std::endl << std::endl;*/

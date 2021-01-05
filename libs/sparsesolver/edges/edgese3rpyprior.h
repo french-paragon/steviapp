@@ -6,6 +6,8 @@
 
 #include "sparsesolver/vertices/vertexcamerapose.h"
 
+namespace StereoVisionApp {
+
 /*!
  * \brief The EdgeSE3rpyPrior class represent an apriori measurement of a camera orientation.
  */
@@ -21,4 +23,7 @@ public:
 
 	virtual void computeError();
 };
+
+} // namespace StereoVisionApp
+
 #endif // EDGESE3RPYPRIOR_H

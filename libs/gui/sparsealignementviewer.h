@@ -65,6 +65,18 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
 
+	struct itemClickInfos {
+		qint64 itemId;
+		float viewDist;
+		float zDist;
+	};
+
+	itemClickInfos nearestLandmark(QPoint const& pt, int minPixDist = 5);
+	itemClickInfos nearestCam(QPoint const& pt, int minPixDist = 5);
+
+	void landmarkClick(int landMarkId);
+	void frameClick(int frameId);
+
 private:
 
 	bool _has_been_initialised;
@@ -87,6 +99,7 @@ private:
 	float _sceneScale;
 	float _camScale;
 
+	QMatrix4x4 _modelView;
 	QMatrix4x4 _projectionView;
 
 	QOpenGLVertexArrayObject _grid_vao;
@@ -104,6 +117,7 @@ private:
 
 	Project* _currentProject;
 	QVector<qint64> _loadedLandmarks;
+	QVector<qint64> _loadedFrames;
 	std::vector<GLfloat> _llm_pos;
 	bool _hasToReloadLandmarks;
 

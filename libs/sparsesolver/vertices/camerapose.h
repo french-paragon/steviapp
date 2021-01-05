@@ -5,14 +5,18 @@
 #include <eigen3/Eigen/src/Geometry/Quaternion.h>
 #include <eigen3/Eigen/src/Geometry/AngleAxis.h>
 
+namespace StereoVisionApp {
+
 /*!
  * \brief The CameraPose class represent the position and orientation of a camera.
  *
  * It is mainly 1 SO(3) term, stored as rotation matrix and a translation term.
+ * The benefit of dissociating both part is to simplify the derivation of
+ * analytic gradients, since the closed form formulas for SO(3) can be used
+ * instead of the expression for SE(3).
  *
- * The rotation is from body to mapping frame.
- *
- * The translation is from mapping frame to body.
+ * When used in our optimisation graph, rotation is assumed to be from
+ * body to mapping, as well as translation.
  */
 class CameraPose
 {
@@ -58,8 +62,9 @@ protected:
 	Eigen::Vector3d _t;
 };
 
+std::istream & operator>> (std::istream & in, StereoVisionApp::CameraPose & cam);
+std::ostream & operator<< (std::ostream & out, StereoVisionApp::CameraPose const& cam);
 
-std::istream & operator>> (std::istream & in, CameraPose & cam);
-std::ostream & operator<< (std::ostream & out, CameraPose const& cam);
+} // namespace StereoVisionApp
 
 #endif // CAMERAPOSE_H

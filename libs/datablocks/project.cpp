@@ -496,6 +496,23 @@ void Project::clearOptimized() {
 	Q_EMIT projectChanged();
 }
 
+void Project::clearOptimizedState() {
+	beginResetModel();
+
+	for (qint64 id : getIds()) {
+		DataBlock* block = getById(id);
+
+		if (block != nullptr) {
+			if (block->optimizationStep() >= DataBlock::Optimised) {
+				block->setOptimizationStep(DataBlock::Initialized);
+			}
+		}
+	}
+
+	endResetModel();
+	Q_EMIT projectChanged();
+}
+
 QString Project::source() const {
 	return _source;
 }
@@ -606,7 +623,8 @@ DataBlock::DataBlock(Project *parent) :
 	QObject(parent),
 	_internalId(-1),
 	_hasChanges(false),
-	_blockChanges(false)
+	_blockChanges(false),
+	_opt_step(Unset)
 {
 	connect(this, &QObject::objectNameChanged, this, &DataBlock::dataBlockNameChanged);
 	buildDataModel();
@@ -616,7 +634,8 @@ DataBlock::DataBlock(DataBlock *parent) :
 	QObject(parent),
 	_internalId(-1),
 	_hasChanges(false),
-	_blockChanges(false)
+	_blockChanges(false),
+	_opt_step(Unset)
 {
 	connect(this, &QObject::objectNameChanged, this, &DataBlock::dataBlockNameChanged);
 	_dataModel = nullptr;
@@ -811,6 +830,18 @@ bool DataBlock::hierarchyHasOptimizedParameters() const {
 	}
 
 	return false;
+
+}
+
+DataBlock::OptimizationStep DataBlock::optimizationStep() const {
+	return _opt_step;
+}
+void DataBlock::setOptimizationStep(OptimizationStep step) {
+
+	if (step != _opt_step) {
+		_opt_step = step;
+		isChanged();
+	}
 
 }
 

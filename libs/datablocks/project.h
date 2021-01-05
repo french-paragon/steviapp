@@ -41,7 +41,7 @@ public:
 
 	static const QString PROJECT_FILE_EXT;
 
-	enum SepcialRoles {
+	enum SpecialRoles {
 		ClassRole = Qt::UserRole,
 		IdRole = Qt::UserRole+1
 	};
@@ -57,6 +57,11 @@ public:
 	DataBlock* getByUrl(QVector<qint64> const& internalUrl) const;
 	DataBlockFactory* getFactoryForClass(QString cName) const;
 	virtual bool clearById(qint64 internalId);
+
+	template<class T>
+	T* getDataBlock(qint64 internalId) const {
+		return qobject_cast<T*>(getById(internalId));
+	}
 
 	QVector<qint64> getIds() const;
 	QVector<qint64> getIdsByClass(QString const& className) const;
@@ -76,6 +81,7 @@ public:
 
 	void clear();
 	void clearOptimized();
+	void clearOptimizedState();
 
 	QString source() const;
 	void setSource(QString const& source);
@@ -135,6 +141,15 @@ class DataBlock : public QObject
 {
 	Q_OBJECT
 public:
+
+	enum OptimizationStep {
+		Unset = 0,
+		Initialized = 1,
+		Optimised = 2
+	};
+
+	Q_ENUM(OptimizationStep)
+
 	explicit DataBlock(Project *parent = nullptr);
 	explicit DataBlock(DataBlock *parent = nullptr);
 
@@ -166,6 +181,9 @@ public:
 
 	virtual bool hasOptimizedParameters() const;
 	bool hierarchyHasOptimizedParameters() const;
+
+	OptimizationStep optimizationStep() const;
+	void setOptimizationStep(OptimizationStep step);
 
 Q_SIGNALS:
 
@@ -209,6 +227,8 @@ protected:
 
 	bool _hasChanges;
 	bool _blockChanges;
+
+	OptimizationStep _opt_step;
 
 	ItemDataModel* _dataModel;
 

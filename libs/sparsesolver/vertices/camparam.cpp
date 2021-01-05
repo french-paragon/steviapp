@@ -1,5 +1,7 @@
 #include "camparam.h"
 
+namespace StereoVisionApp {
+
 CamParam::CamParam(const Eigen::Vector2d &extend,
 				   const Eigen::Vector2d &pp,
 				   const double &f) :
@@ -37,9 +39,6 @@ Eigen::Vector2d CamParam::operator* (Eigen::Vector3d const& point) const{
 
 	return _f/point(2)*point.block<2, 1>(0, 0) + _pp;
 
-}
-Eigen::Vector2d CamParam::partialProjectZ (Eigen::Vector3d const& point) const{
-	return 1/point(2)*point.block<2, 1>(0, 0);
 }
 
 Eigen::Vector2d CamParam::extend() const
@@ -88,6 +87,8 @@ std::istream & operator>> (std::istream & in, CamParam & cam) {
 	cam.setExtend(extend);
 	cam.setPp(pp);
 	cam.setF(f);
+
+	return in;
 }
 
 std::ostream & operator<< (std::ostream & out, CamParam const& cam) {
@@ -98,4 +99,8 @@ std::ostream & operator<< (std::ostream & out, CamParam const& cam) {
 	out << cam.pp()(1) << ' ';
 
 	out << cam.f();
+
+	return out;
 }
+
+} // namespace StereoVisionApp

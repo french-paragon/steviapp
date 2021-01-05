@@ -11,6 +11,11 @@
 
 namespace StereoVisionApp {
 
+/*!
+ * \brief projectPoints project points in homogeneous normalized image coordinates
+ * \param pts the points to project, assumed to be given in the camera frame
+ * \return the projected points coordinates.
+ */
 Eigen::Array2Xf projectPoints(Eigen::Array3Xf const& pts) {
 
 	Eigen::Array2Xf proj;
@@ -22,21 +27,71 @@ Eigen::Array2Xf projectPoints(Eigen::Array3Xf const& pts) {
 	return proj;
 
 }
+/*!
+ * \brief projectPoints project points in homogeneous normalized image coordinates
+ * \param pts the points to project
+ * \param T the transform from the points frame to the camera frame
+ * \return the projected points coordinates.
+ */
 Eigen::Array2Xf projectPoints(Eigen::Array3Xf const& pts, AffineTransform const& T) {
 	Eigen::Array3Xf transformedPts = T*pts;
 	return projectPoints(transformedPts);
 }
+/*!
+ * \brief projectPoints project points in homogeneous normalized image coordinates
+ * \param pts the points to project
+ * \param R the rotation part of the transform from the points frame to the camera frame
+ * \param t the translation part of the transform from the points frame to the camera frame
+ * \return the projected points coordinates.
+ */
 Eigen::Array2Xf projectPoints(Eigen::Array3Xf const& pts, Eigen::Matrix3f const& R, Eigen::Vector3f const& t) {
 	Eigen::Array3Xf transformedPts = AffineTransform(R,t)*pts;
 	return projectPoints(transformedPts);
 }
 
+Eigen::Array2Xd projectPointsD(Eigen::Array3Xd const& pts) {
+
+	Eigen::Array2Xd proj;
+	proj.resize(2, pts.cols());
+
+	proj.row(0) = pts.row(0)/pts.row(2);
+	proj.row(1) = pts.row(1)/pts.row(2);
+
+	return proj;
+}
+
+Eigen::Array2Xd projectPointsD(Eigen::Array3Xd const& pts, Eigen::Matrix3d const& R, Eigen::Vector3d const& t) {
+
+	Eigen::Array3Xd transformedPts = pts;
+
+	for (int i = 0; i < pts.cols(); i++) {
+		transformedPts.col(i) = R*pts.col(i).matrix() + t;
+	}
+
+	return projectPointsD(transformedPts);
+}
+
+/*!
+ * \brief reprojectPoints from the transformation from cam1 to cam2 and a set of points in homogeneous coordinates in both images, find the 3D coordinates of points in cam1 frame.
+ * \param T the transform cam1 to cam2
+ * \param pt_cam_1 points in cam1 homogeneous coordinates
+ * \param pt_cam_2 same points in cam2 homogeneous coordinates
+ * \return the points coordinates in cam1 frame
+ */
 Eigen::Array3Xf reprojectPoints(AffineTransform const& T,
 								Eigen::Array2Xf const& pt_cam_1,
 								Eigen::Array2Xf const& pt_cam_2) {
 	return reprojectPoints(T.R, T.t, pt_cam_1, pt_cam_2);
 }
 
+/*!
+ * \brief reprojectPoints from the transformation from cam1 to cam2 and a set of points in homogeneous coordinates in both images, find the 3D coordinates of points in cam1 frame.
+ * \param R the rotation part of the transform cam1 2 cam2
+ * \param t the translation part of the transform cam1 2 cam2
+ * \param pt_cam_1 points in cam1 homogeneous coordinates
+ * \param pt_cam_2 same points in cam2 homogeneous coordinates
+ * \return the points coordinates in cam1 frame
+ */
 Eigen::Array3Xf reprojectPoints(Eigen::Matrix3f const& R,
 								 Eigen::Vector3f const& t,
 								 Eigen::Array2Xf const& pt_cam_1,
@@ -76,6 +131,12 @@ Eigen::Array3Xf reprojectPoints(Eigen::Matrix3f const& R,
 
 }
 
+/*!
+ * \brief estimateEssentialMatrix estimate the essential matrix between a pair of cameras
+ * \param pt_cam_1 points in cam1 homogeneous coordinates (must be at least 8 points)
+ * \param pt_cam_2 same points in cam2 homogeneous coordinates
+ * \return the essential matrix.
+ */
 Eigen::Matrix3f estimateEssentialMatrix(const Eigen::Array2Xf &pt_cam_1, const Eigen::Array2Xf &pt_cam_2) {
 
 	typedef Eigen::Matrix<float, 9, Eigen::Dynamic> MatrixFtype;
@@ -110,6 +171,11 @@ Eigen::Matrix3f estimateEssentialMatrix(const Eigen::Array2Xf &pt_cam_1, const E
 
 }
 
+/*!
+ * \brief essentialMatrix2Transforms extract a pair of possible transforms from an essential matrix
+ * \param E the essential matrix
+ * \return a pair of possible transforms that can be used in the selectTransform function.
+ */
 std::pair<AffineTransform, AffineTransform> essentialMatrix2Transforms(Eigen::Matrix3f const& E) {
 
 	auto svd = E.jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
@@ -145,7 +211,13 @@ std::pair<AffineTransform, AffineTransform> essentialMatrix2Transforms(Eigen::Ma
 	return {T1, T2};
 }
 
-
+/*!
+ * \brief essentialMatrix2Transform extract the transformation cam1 to cam2 from the estimated essential matrix
+ * \param E the essential matrix
+ * \param pt_cam_1 the points used to estimate E, in cam1 homogeneous coordinates
+ * \param pt_cam_2 the points used to estimate E, in cam2 homogeneous coordinates
+ * \return the transformation cam1 to cam2
+ */
 AffineTransform essentialMatrix2Transform(Eigen::Matrix3f const& E,
 										  Eigen::Array2Xf const& pt_cam_1,
 										  Eigen::Array2Xf const& pt_cam_2) {
@@ -153,6 +225,14 @@ AffineTransform essentialMatrix2Transform(Eigen::Matrix3f const& E,
 	return selectTransform(candidates.first, candidates.second, pt_cam_1, pt_cam_2);
 }
 
+/*!
+ * \brief selectTransform from a pair of possible transforms extracted from the essential matrix, extract the transform which puts all points in front of both cameras
+ * \param T1 a possible transform
+ * \param T2 another possible transform, with different rotation and translation
+ * \param pt_cam_1 the points used to estimate E, in cam1 homogeneous coordinates
+ * \param pt_cam_2 the points used to estimate E, in cam2 homogeneous coordinates
+ * \return The transform which reproject all points in front of both cameras (might be T1, T2 or a mix of both).
+ */
 AffineTransform selectTransform(AffineTransform const& T1,
 								AffineTransform const& T2,
 								const Eigen::Array2Xf &pt_cam_1,
@@ -223,8 +303,12 @@ AffineTransform selectTransform(AffineTransform const& T1,
 	return Rs[0];
 }
 
-
-
+/*!
+ * \brief findTransform jointly build the essential matrix and extract the corresponding transform from it
+ * \param pt_cam_1 points in cam1 homogeneous coordinates (must be at least 8 points)
+ * \param pt_cam_2 same points in cam2 homogeneous coordinates
+ * \return the transform from cam1 to cam2
+ */
 AffineTransform findTransform(Eigen::Array2Xf const& pt_cam_1,
 							  Eigen::Array2Xf const& pt_cam_2) {
 
@@ -232,7 +316,12 @@ AffineTransform findTransform(Eigen::Array2Xf const& pt_cam_1,
 	return essentialMatrix2Transform(E, pt_cam_1, pt_cam_2);
 }
 
-
+/*!
+ * \brief pnp compute the estimated target to cam transform from projected points
+ * \param pt_cam 2D points in homogeneous normalized image coordinates
+ * \param pt_coords matching 3D points in target frame coordinates
+ * \return the affine transform corresponding to the target to cam transform
+ */
 AffineTransform pnp(Eigen::Array2Xf const& pt_cam, Eigen::Array3Xf const& pt_coords) {
 
 	std::vector<int> idxs(pt_cam.cols());
@@ -245,6 +334,13 @@ AffineTransform pnp(Eigen::Array2Xf const& pt_cam, Eigen::Array3Xf const& pt_coo
 
 }
 
+/*!
+ * \brief pnp compute the estimated target to cam transform from projected points
+ * \param pt_cam 2D points in homogeneous normalized image coordinates
+ * \param idxs indices of the points the 2D landmarks correspond to
+ * \param pt_coords the 3D points in target frame coordinates
+ * \return the affine transform corresponding to the target to cam transform
+ */
 AffineTransform pnp(Eigen::Array2Xf const& pt_cam, std::vector<int> const& idxs, Eigen::Array3Xf const& pt_coords) {
 
 	std::vector<cvl::Vector3D> xs;

@@ -4,6 +4,8 @@
 #include <eigen3/Eigen/Core>
 #include <vector>
 
+namespace StereoVisionApp {
+
 /*!
  * \brief The CamParam class is a storage class for the VertexCameraParam (\see VertexCameraParam) class.
  */
@@ -22,7 +24,6 @@ public:
 	CamParam& operator+= (double const* incr);
 
 	Eigen::Vector2d operator* (Eigen::Vector3d const& point) const;
-	Eigen::Vector2d partialProjectZ (Eigen::Vector3d const& point) const;
 
 	Eigen::Vector2d extend() const;
 	void setExtend(const Eigen::Vector2d &extend);
@@ -42,5 +43,7 @@ protected:
 
 std::istream & operator>> (std::istream & in, CamParam & cam);
 std::ostream & operator<< (std::ostream & out, CamParam const& cam);
+
+} // namespace StereoVisionApp
 
 #endif // CAMPARAM_H

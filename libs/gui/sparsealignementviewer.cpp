@@ -5,6 +5,8 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 
+#include "geometry/rotations.h"
+
 #include <cmath>
 
 #include <QOpenGLShaderProgram>
@@ -249,7 +251,7 @@ void SparseAlignementViewer::paintGL() {
 	_gridProgram->enableAttributeArray(vertexLocation);
 	_gridProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 2);
 
-	_gridProgram->setUniformValue("matrixViewProjection", _projectionView);
+	_gridProgram->setUniformValue("matrixViewProjection", _projectionView*_modelView);
 
 	f->glDrawArrays(GL_LINES, 0, 8*(_gridSplits + 1));
 
@@ -276,7 +278,7 @@ void SparseAlignementViewer::paintGL() {
 			_landMarkPointProgram->enableAttributeArray(vertexLocation);
 			_landMarkPointProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
 
-			_landMarkPointProgram->setUniformValue("matrixViewProjection", _projectionView);
+			_landMarkPointProgram->setUniformValue("matrixViewProjection", _projectionView*_modelView);
 			_landMarkPointProgram->setUniformValue("sceneScale", _sceneScale);
 
 			f->glDrawArrays(GL_POINTS, 0, _loadedLandmarks.size());
@@ -300,10 +302,12 @@ void SparseAlignementViewer::paintGL() {
 		_camProgram->enableAttributeArray(vertexLocation);
 		_camProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
 
-		_camProgram->setUniformValue("matrixViewProjection", _projectionView);
+		_camProgram->setUniformValue("matrixViewProjection", _projectionView*_modelView);
 		_camProgram->setUniformValue("sceneScale", _sceneScale);
 
 		QVector<qint64> frames = _currentProject->getIdsByClass(ImageFactory::imageClassName());
+		_loadedFrames.clear();
+		_loadedFrames.reserve(frames.size());
 
 		for (qint64 id : frames) {
 
@@ -317,6 +321,8 @@ void SparseAlignementViewer::paintGL() {
 						im->optXRot().isSet() and
 						im->optYRot().isSet() and
 						im->optZRot().isSet() ) {
+
+					_loadedFrames.push_back(im->internalId());
 
 					Camera* cam = qobject_cast<Camera*>(_currentProject->getById(im->assignedCamera()));
 
@@ -335,9 +341,12 @@ void SparseAlignementViewer::paintGL() {
 						}
 					}
 
-					camRotate.rotate(im->optXRot().value(), 1.0, 0.0, 0.0);
-					camRotate.rotate(im->optYRot().value(), 0.0, 1.0, 0.0);
-					camRotate.rotate(im->optZRot().value(), 0.0, 0.0, 1.0);
+					QVector3D r;
+					r.setX(im->optXRot().value());
+					r.setY(im->optYRot().value());
+					r.setZ(im->optZRot().value());
+
+					camRotate.rotate(r.length()/M_PI*180, r);
 
 					camTranslate.translate(im->optXCoord().value(),
 										   im->optYCoord().value(),
@@ -607,7 +616,8 @@ void SparseAlignementViewer::setView(int w, int h) {
 
 	proj.perspective(70., w/static_cast<float>(h), 0.1f, 1000.0f);
 
-	_projectionView = proj*view*model;
+	_modelView = view*model;
+	_projectionView = proj;
 }
 
 void SparseAlignementViewer::wheelEvent(QWheelEvent *e) {
@@ -683,7 +693,8 @@ void SparseAlignementViewer::mousePressEvent(QMouseEvent *e) {
 
 	_previously_pressed = e->buttons();
 
-	if (_previously_pressed == Qt::MiddleButton) {
+	if (_previously_pressed == Qt::MiddleButton or
+			_previously_pressed == Qt::LeftButton) {
 
 		_motion_origin_pos = e->pos();
 
@@ -694,7 +705,30 @@ void SparseAlignementViewer::mousePressEvent(QMouseEvent *e) {
 
 }
 void SparseAlignementViewer::mouseReleaseEvent(QMouseEvent *e) {
-	e->ignore();
+
+	if (_previously_pressed == Qt::MiddleButton) {
+
+		e->ignore();
+
+	} else if (_previously_pressed == Qt::LeftButton) {
+
+		itemClickInfos camInfo = nearestCam(e->pos());
+		itemClickInfos landmarkInfo = nearestLandmark(e->pos());
+
+		if (camInfo.itemId >= 0 and landmarkInfo.itemId >= 0) {
+			if (camInfo.zDist < landmarkInfo.zDist) {
+				frameClick(camInfo.itemId);
+			} else {
+				landmarkClick(landmarkInfo.itemId);
+			}
+		} else if (camInfo.itemId >= 0) {
+			frameClick(camInfo.itemId);
+		} else if (landmarkInfo.itemId >= 0) {
+			landmarkClick(landmarkInfo.itemId);
+		}
+
+		e->accept();
+	}
 }
 
 void SparseAlignementViewer::mouseMoveEvent(QMouseEvent *e) {
@@ -711,6 +745,125 @@ void SparseAlignementViewer::mouseMoveEvent(QMouseEvent *e) {
 		rotateAzimuth(t.x()/3.);
 	}
 
+}
+
+SparseAlignementViewer::itemClickInfos SparseAlignementViewer::nearestLandmark(QPoint const& pt, int minPixDist) {
+
+	if (_currentProject == nullptr) {
+		return {-1, -1, -1};
+	}
+
+	qint64 id = -1;
+	float dist = minPixDist;
+	float z_dist = std::numeric_limits<float>::infinity();
+
+	QVector2D clickPos(pt.x(), height() - pt.y());
+
+	for (qint64 cand_id : _loadedLandmarks) {
+
+		Landmark* lm = _currentProject->getDataBlock<Landmark>(cand_id);
+
+		if (lm != nullptr) {
+			QVector3D p(lm->optimizedX().value()*_sceneScale,
+						lm->optimizedY().value()*_sceneScale,
+						lm->optimizedZ().value()*_sceneScale);
+
+			QVector3D project = p.project(_modelView, _projectionView, rect());
+
+			if (project.z() > 1) {
+				continue;
+			}
+
+			QVector2D ppos(project.x(), project.y());
+
+			float d = ppos.distanceToPoint(clickPos);
+
+			if (d < 2*minPixDist) {
+				if (project.z() < z_dist) {
+					id = cand_id;
+					dist = d;
+					z_dist = project.z();
+				}
+			}
+		}
+
+	}
+
+	return {id, dist/2, z_dist};
+
+}
+
+SparseAlignementViewer::itemClickInfos SparseAlignementViewer::nearestCam(QPoint const& pt, int minPixDist) {
+
+	if (_currentProject == nullptr) {
+		return {-1, -1, -1};
+	}
+
+	qint64 id = -1;
+	float dist = minPixDist;
+	float z_dist = std::numeric_limits<float>::infinity();
+
+	QVector2D clickPos(pt.x(), height() - pt.y());
+
+	for (qint64 cand_id : _loadedFrames) {
+
+		Image* im = _currentProject->getDataBlock<Image>(cand_id);
+
+		if (im != nullptr) {
+			QVector3D p(im->optXCoord().value()*_sceneScale,
+						im->optYCoord().value()*_sceneScale,
+						im->optZCoord().value()*_sceneScale);
+
+			QVector3D project = p.project(_modelView, _projectionView, rect());
+
+			if (project.z() > 1) {
+				continue;
+			}
+
+			QVector2D ppos(project.x(), project.y());
+
+			float d = ppos.distanceToPoint(clickPos);
+
+			if (d < 2*minPixDist) {
+				if (project.z() < z_dist) {
+					id = cand_id;
+					dist = d;
+					z_dist = project.z();
+				}
+			}
+		}
+
+	}
+
+	return {id, dist/2, z_dist};
+
+}
+
+void SparseAlignementViewer::landmarkClick(int landMarkId) {
+
+	if (_currentProject != nullptr) {
+
+		Landmark* lm = _currentProject->getDataBlock<Landmark>(landMarkId);
+
+		if (lm != nullptr) {
+			qDebug() << "Landmark [" << lm->objectName() << "] clicked !";
+		}
+
+	}
+
+}
+
+void SparseAlignementViewer::frameClick(int frameId) {
+
+	if (_currentProject != nullptr) {
+
+		Image* im = _currentProject->getDataBlock<Image>(frameId);
+
+		if (im != nullptr) {
+			qDebug() << "Frame [" << im->objectName() << "] clicked !";
+		}
+
+	}
 }
 
 void SparseAlignementViewer::setSceneScale(float sceneScale)

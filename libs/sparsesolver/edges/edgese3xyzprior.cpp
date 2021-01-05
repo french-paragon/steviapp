@@ -1,5 +1,7 @@
 #include "edgese3xyzprior.h"
 
+namespace StereoVisionApp {
+
 EdgeSE3xyzPrior::EdgeSE3xyzPrior() : g2o::BaseUnaryEdge<3, Eigen::Vector3d, VertexCameraPose>()
 {
 
@@ -33,3 +35,5 @@ void EdgeSE3xyzPrior::computeError()
   VertexXiType::EstimateType pose = v->estimate();
   _error = pose.translation() - _measurement;
 }
+
+} // namespace StereoVisionApp

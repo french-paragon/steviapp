@@ -18,9 +18,9 @@ typedef g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> > bSolvType;
 
 typedef g2o::VertexSBAPointXYZ landMarkVertex;
 
-class VertexCameraPose;
-
 namespace StereoVisionApp {
+
+class VertexCameraPose;
 
 class Project;
 

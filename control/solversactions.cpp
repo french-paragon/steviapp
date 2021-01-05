@@ -14,6 +14,7 @@
 
 #include "datablocks/landmark.h"
 #include "datablocks/image.h"
+#include "datablocks/camera.h"
 
 #include <QThread>
 #include <QMessageBox>
@@ -77,7 +78,7 @@ void initSolution(Project* p, MainWindow* w) {
 	SBAGraphReductor selector(3,2,true,true);
 	EightPointsSBAMultiviewInitializer initializer(initial_frame, true, false);
 
-	SBAGraphReductor::elementsSet selection = selector(p);
+	SBAGraphReductor::elementsSet selection = selector(p, false);
 
 	if (selection.imgs.isEmpty() or selection.pts.isEmpty()) {
 		QMessageBox::warning(w, "Initialization impossible", "No point nor image selected");
@@ -105,6 +106,8 @@ void initSolution(Project* p, MainWindow* w) {
 			floatParameter z = lm->optimizedZ();
 			z.setIsSet(initial_setup.points[id].z());
 			lm->setOptimisedZ(z);
+
+			lm->setOptimizationStep(DataBlock::Initialized);
 		}
 
 	}
@@ -128,19 +131,22 @@ void initSolution(Project* p, MainWindow* w) {
 			z.setIsSet(initial_setup.cams[id].t.z());
 			im->setOptZCoord(z);
 
-			Eigen::Vector3f r = initial_setup.cams[id].R.eulerAngles(0,1,2);
+			Eigen::Vector3f r = inverseRodriguezFormula(initial_setup.cams[id].R);
 
 			x = im->optXRot();
-			x.setIsSet(r.x()/M_PI*180.);
+			x.setIsSet(r.x());
 			im->setOptXRot(x);
 
 			y = im->optYRot();
-			y.setIsSet(r.y()/M_PI*180.);
+			y.setIsSet(r.y());
 			im->setOptYRot(y);
 
 			z = im->optZRot();
-			z.setIsSet(r.z()/M_PI*180.);
+			z.setIsSet(r.z());
 			im->setOptZRot(z);
+
+			im->setOptimizationStep(DataBlock::Initialized);
+
 		}
 
 	}

@@ -4,6 +4,8 @@
 #include <Eigen/Core>
 #include "g2o/core/base_vertex.h"
 
+namespace StereoVisionApp {
+
 class VertexCameraSkewDistortion : public g2o::BaseVertex<2, Eigen::Vector2d>
 {
 public:
@@ -20,5 +22,7 @@ public:
 
 	virtual void oplusImpl(const double* update_);
 };
+
+} // namespace StereoVisionApp
 
 #endif // VERTEXCAMERASKEWDISTORSTION_H

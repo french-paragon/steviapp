@@ -9,7 +9,12 @@
 #include "g2o/types/sba/types_sba.h"
 #include "g2o/types/slam3d/se3_ops.h"
 
+#include "geometry/alignement.h"
+#include "geometry/lensdistortion.h"
+
 #include <cmath>
+
+namespace StereoVisionApp {
 
 EdgeParametrizedXYZ2UV::EdgeParametrizedXYZ2UV()
 {
@@ -52,8 +57,9 @@ void EdgeParametrizedXYZ2UV::computeError () {
 	const VertexCameraSkewDistortion * s_dist = (_vertices.size() > 5) ? static_cast<const VertexCameraSkewDistortion*>(_vertices[5]) : nullptr;
 
 	Eigen::Vector2d obs = _measurement;
+	Eigen::Vector2d proj = project(pose, point, cam, r_dist, t_dist, s_dist);
 
-	_error = project(pose, point, cam, r_dist, t_dist, s_dist) - obs; //DONE, check the signs are correct. it's easier to compute the derivative with this formula.
+	_error = proj - obs;
 
 
 }
@@ -162,38 +168,32 @@ Eigen::Vector2d EdgeParametrizedXYZ2UV::project(VertexCameraPose const* pose,
 												VertexCameraTangentialDistortion const* t_dist,
 												VertexCameraSkewDistortion const* s_dist) {
 
-	Eigen::Vector3d Pbar = pose->estimate().r().transpose()*(-pose->estimate().t() + point->estimate());
+	Eigen::Vector3d Pbar = pose->estimate().r().transpose()*(point->estimate() - pose->estimate().t());
 	if (Pbar[2] < 0.0) {
 		return {NAN, NAN};
 	}
 
-	Eigen::Vector2d proj = cam->estimate().partialProjectZ(Pbar); //formule pix4
+	Eigen::Vector2d proj = projectPointsD(Pbar);
 
-	double r2 = proj(0)*proj(0) + proj(1)*proj(1);
+	Eigen::Vector2d dRadial = Eigen::Vector2d::Zero();
+	Eigen::Vector2d dTangential = Eigen::Vector2d::Zero();
 
 	if (r_dist != nullptr) {
-		Eigen::Vector3d vr;
-		vr << r2, r2*r2, r2*r2*r2;
-
-		proj += r_dist->estimate().dot(vr)*proj;
+		dRadial = radialDistortionD(proj, r_dist->estimate());
 	}
 
 	if (t_dist != nullptr) {
-		Eigen::Vector2d td;
-		td << t_dist->estimate()(1)*(r2 + 2*proj(0)*proj(0)) + 2*t_dist->estimate()(0)*proj(0)*proj(1),
-				t_dist->estimate()(0)*(r2 + 2*proj(1)*proj(1)) + 2*t_dist->estimate()(1)*proj(0)*proj(1);
-
-		proj += td;
-
+		dTangential = tangentialDistortionD(proj, t_dist->estimate());
 	}
+
+	proj += dRadial + dTangential;
 
 	if (s_dist != nullptr) {
-		const Eigen::Vector2d & td = s_dist->estimate();
-		Eigen::Vector2d r = cam->estimate().f()*proj + cam->estimate().pp();
-		r[0] += td[0]*proj[0] + td[1]*proj[1];
-		return r;
+		return skewDistortionD(proj, s_dist->estimate(), cam->estimate().f(), cam->estimate().pp());
 	}
 
-	return cam->estimate().f()*proj - cam->estimate().pp();
+	return cam->estimate().f()*proj + cam->estimate().pp();
 
 }
+
+} // namespace StereoVisionApp

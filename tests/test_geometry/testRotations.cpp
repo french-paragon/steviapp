@@ -94,6 +94,10 @@ void TestGeometryLibRotation::testInverseRodriguez_data() {
 	QTest::newRow("y axis pi") << 0.0f << static_cast<float>(M_PI) << 0.0f;
 	QTest::newRow("z axis pi") << 0.0f << 0.0f << static_cast<float>(M_PI);
 
+	QTest::newRow("pseudo random 1") << 0.2f << 0.5f << -1.3f;
+	QTest::newRow("pseudo random 2") << 0.8f << 1.1f << 0.3f;
+	QTest::newRow("pseudo random 3") << -0.5f << -0.4f << 1.2f;
+
 }
 void TestGeometryLibRotation::testInverseRodriguez() {
 

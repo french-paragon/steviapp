@@ -1,5 +1,7 @@
 #include "vertexcamerapose.h"
 
+namespace StereoVisionApp {
+
 VertexCameraPose::VertexCameraPose()
 {
 
@@ -23,3 +25,5 @@ void VertexCameraPose::oplusImpl(const double* update_)  {
   Eigen::Map<const CameraPose::Vector6d> update(update_);
   setEstimate(CameraPose::exp(update)*estimate());
 }
+
+} // namespace StereoVisionApp

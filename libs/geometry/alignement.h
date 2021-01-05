@@ -12,6 +12,9 @@ Eigen::Array2Xf projectPoints(Eigen::Array3Xf const& pts);
 Eigen::Array2Xf projectPoints(Eigen::Array3Xf const& pts, AffineTransform const& T);
 Eigen::Array2Xf projectPoints(Eigen::Array3Xf const& pts, Eigen::Matrix3f const& R, Eigen::Vector3f const& t);
 
+Eigen::Array2Xd projectPointsD(Eigen::Array3Xd const& pts);
+Eigen::Array2Xd projectPointsD(Eigen::Array3Xd const& pts, Eigen::Matrix3d const& R, Eigen::Vector3d const& t);
+
 Eigen::Array3Xf reprojectPoints(Eigen::Matrix3f const& R,
 								 Eigen::Vector3f const& t,
 								 Eigen::Array2Xf const& pt_cam_1,

@@ -72,15 +72,12 @@ bool GraphSBASolver::init() {
 	_optimizer->setAlgorithm(solver);
 
 	SBAGraphReductor selector(3,2,true,true);
-	FrontCamSBAInitializer initializer;
 
-	SBAGraphReductor::elementsSet selection = selector(_currentProject);
+	SBAGraphReductor::elementsSet selection = selector(_currentProject, true);
 
 	if (selection.imgs.isEmpty() or selection.pts.isEmpty()) {
 		return false;
 	}
-
-	auto initial_setup = initializer.computeInitialSolution(_currentProject, selection.pts, selection.imgs);
 
 	int vid = 0;
 
@@ -95,13 +92,9 @@ bool GraphSBASolver::init() {
 
 			g2o::Vector3 d;
 
-			if (initial_setup.points.count(lm->internalId()) > 0) {
-				d = initial_setup.points[lm->internalId()].cast<double>();
-			} else {
-				d.x() = lm->xCoord().value();
-				d.y() = lm->yCoord().value();
-				d.z() = lm->zCoord().value();
-			}
+			d.x() = lm->optimizedX().value();
+			d.y() = lm->optimizedY().value();
+			d.z() = lm->optimizedZ().value();
 
 			v->setEstimate(d);
 
@@ -218,18 +211,16 @@ bool GraphSBASolver::init() {
 
 			Eigen::Matrix3d r;
 			Eigen::Vector3d t;
+			Eigen::Vector3d raxis;
 
-			if (initial_setup.cams.count(im->internalId()) > 0) {
-				r = initial_setup.cams[im->internalId()].R.cast<double>();
-				t = initial_setup.cams[im->internalId()].t.cast<double>();
-			} else {
-				r = Eigen::AngleAxisd(im->xRot().value()/180.*M_PI, Eigen::Vector3d::UnitX())
-					* Eigen::AngleAxisd(im->yRot().value()/180.*M_PI, Eigen::Vector3d::UnitY())
-					* Eigen::AngleAxisd(im->zRot().value()/180.*M_PI, Eigen::Vector3d::UnitZ());
-				t.x() = im->xCoord().value();
-				t.y() = im->yCoord().value();
-				t.z() = im->zCoord().value();
-			}
+			raxis.x() = im->optXRot().value();
+			raxis.y() = im->optYRot().value();
+			raxis.z() = im->optZRot().value();
+			r = rodriguezFormulaD(raxis);
+
+			t.x() = im->optXCoord().value();
+			t.y() = im->optYCoord().value();
+			t.z() = im->optZCoord().value();
 
 			CameraPose p(r, t);
 
@@ -238,14 +229,25 @@ bool GraphSBASolver::init() {
 			_optimizer->addVertex(v);
 			_frameVertices.insert(id, v);
 
+			raxis.x() = im->xRot().value();
+			raxis.y() = im->yRot().value();
+			raxis.z() = im->zRot().value();
+			r = rodriguezFormulaD(raxis);
+
+			t.x() = im->xCoord().value();
+			t.y() = im->yCoord().value();
+			t.z() = im->zCoord().value();
+
 			if (im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain() and
 				im->xRot().isUncertain() and im->yRot().isUncertain() and im->zRot().isUncertain()) {
 
 				EdgeSE3FullPrior* e = new EdgeSE3FullPrior();
 
+				CameraPose p_prior(r, t);
+
 				e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(v) );
 
-				e->setMeasurement(p);
+				e->setMeasurement(p_prior);
 
 				EdgeSE3FullPrior::InformationType info = EdgeSE3FullPrior::InformationType::Identity();
 				info(0,0) = 1./(im->xCoord().stddev()*im->xCoord().stddev());
@@ -317,7 +319,7 @@ bool GraphSBASolver::init() {
 
 					Eigen::Vector2d ptPos;
 					ptPos.x() = iml->x().value();
-					ptPos.y() = c->imSize().height() - iml->y().value();
+					ptPos.y() = iml->y().value();
 
 					e->setMeasurement(ptPos);
 
@@ -414,15 +416,15 @@ bool GraphSBASolver::writeResults() {
 		const CameraPose & e = imv->estimate();
 
 		Eigen::Vector3d t = e.t();
-		Eigen::Vector3d r = e.r().eulerAngles(0,1,2);
+		Eigen::Vector3d r = inverseRodriguezFormulaD(e.r());
 
 		im->setOptXCoord(static_cast<float>(t.x()));
 		im->setOptYCoord(static_cast<float>(t.y()));
 		im->setOptZCoord(static_cast<float>(t.z()));
 
-		im->setOptXRot(static_cast<float>(r.x()/M_PI*180.));
-		im->setOptYRot(static_cast<float>(r.y()/M_PI*180.));
-		im->setOptZRot(static_cast<float>(r.z()/M_PI*180.));
+		im->setOptXRot(static_cast<float>(r.x()));
+		im->setOptYRot(static_cast<float>(r.y()));
+		im->setOptZRot(static_cast<float>(r.z()));
 
 	}
 

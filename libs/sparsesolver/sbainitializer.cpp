@@ -252,7 +252,8 @@ SBAInitializer::InitialSolution EightPointsSBAMultiviewInitializer::computeIniti
 
 	if (_preconstrain) {
 		AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
-
+		ShapePreservingTransform rigid = affine2ShapePreservingMap(adjust);
+		Eigen::Matrix3f rotationPart = rodriguezFormula(rigid.r);
 		//apply adjustement transform to all points
 
 		for(auto & map_pt : r.points) {
@@ -261,7 +262,7 @@ SBAInitializer::InitialSolution EightPointsSBAMultiviewInitializer::computeIniti
 
 		for(auto & map_cam : r.cams) {
 			r.cams[map_cam.first].t = adjust.R*map_cam.second.t + adjust.t;
-			r.cams[map_cam.first].R = adjust.R*map_cam.second.R;
+			r.cams[map_cam.first].R = rotationPart*map_cam.second.R;
 		}
 	}
 
@@ -847,7 +848,7 @@ bool PhotometricInitializer::alignImage(InitialSolution & solution, Project* p, 
 
 	AffineTransform T = pnp(pts_cam, pts_world);
 
-	solution.cams.emplace(img->internalId(), T);
+	solution.cams.emplace(img->internalId(), AffineTransform(T.R.transpose(), -T.R.transpose()*T.t));
 	return true;
 
 }
@@ -871,9 +872,7 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 			continue;
 		}
 
-		AffineTransform const& world2cam1 = solution.cams.at(imgs[i]);
-		AffineTransform cam12world(world2cam1.R.transpose(),
-								   - world2cam1.R.transpose()*world2cam1.t);
+		AffineTransform const& cam12world = solution.cams.at(imgs[i]);
 
 		for (int j = i+1; j < imgs.size(); j++) {
 
@@ -889,14 +888,19 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 				continue;
 			}
 
-			AffineTransform const& world2cam2 = solution.cams.at(imgs[j]);
+			AffineTransform const& cam2toworld = solution.cams.at(imgs[j]);
+			AffineTransform world2cam2(cam2toworld.R.transpose(),
+									   - cam2toworld.R.transpose()*cam2toworld.t);
 
 			AffineTransform cam12cam2(world2cam2.R*cam12world.R,
 									  world2cam2.t + world2cam2.R*cam12world.t);
 
+			Eigen::Array2f ptCam1 = getHomogeneousImageCoordinates(im1, {pt});
+			Eigen::Array2f ptCam2 = getHomogeneousImageCoordinates(im2, {pt});
+
 			Eigen::Vector3f tmp = reprojectPoints(cam12cam2,
-												  Eigen::Array2f(im_lm1->x().value(), im_lm1->y().value()),
-												  Eigen::Array2f(im_lm2->x().value(), im_lm2->y().value()));
+												  ptCam1,
+												  ptCam2);
 
 			coord += cam12world*tmp;
 			n_obs++;

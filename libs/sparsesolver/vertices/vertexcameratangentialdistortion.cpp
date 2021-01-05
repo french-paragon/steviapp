@@ -1,5 +1,7 @@
 #include "vertexcameratangentialdistortion.h"
 
+namespace StereoVisionApp {
+
 VertexCameraTangentialDistortion::VertexCameraTangentialDistortion()
 {
 
@@ -27,3 +29,5 @@ void VertexCameraTangentialDistortion::oplusImpl(const double* update_) {
 	Eigen::Map<const Eigen::Vector2d> update(update_);
 	_estimate += update;
 }
+
+} // namespace StereoVisionApp

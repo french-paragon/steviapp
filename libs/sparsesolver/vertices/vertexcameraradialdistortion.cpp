@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+namespace StereoVisionApp {
+
 VertexCameraRadialDistortion::VertexCameraRadialDistortion()
 {
 
@@ -29,3 +31,5 @@ void VertexCameraRadialDistortion::oplusImpl(const double* update_) {
 	Eigen::Map<const Eigen::Vector3d> update(update_);
 	_estimate += update;
 }
+
+} // namespace StereoVisionApp

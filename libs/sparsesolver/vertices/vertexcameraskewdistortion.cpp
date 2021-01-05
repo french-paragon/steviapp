@@ -1,5 +1,7 @@
 #include "vertexcameraskewdistortion.h"
 
+namespace StereoVisionApp {
+
 VertexCameraSkewDistortion::VertexCameraSkewDistortion()
 {
 
@@ -27,3 +29,5 @@ void VertexCameraSkewDistortion::oplusImpl(const double* update_) {
 	Eigen::Map<const Eigen::Vector2d> update(update_);
 	_estimate += update;
 }
+
+} // namespace StereoVisionApp

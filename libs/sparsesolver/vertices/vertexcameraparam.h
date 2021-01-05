@@ -8,6 +8,8 @@
 #include "./vertexcameratangentialdistortion.h"
 #include "./vertexcameraskewdistortion.h"
 
+namespace StereoVisionApp {
+
 /*!
  * \brief The VertexCameraParam class store the focal lenght and principal point of a camera.
  */
@@ -36,5 +38,6 @@ struct CameraInnerVertexCollection {
 	VertexCameraSkewDistortion* skewDist;
 };
 
+} // namespace StereoVisionApp
 
 #endif // VERTEXCAMERAPARAM_H

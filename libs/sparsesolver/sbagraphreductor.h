@@ -19,9 +19,9 @@ public:
 		QSet<qint64> e_pts;
 	};
 
-	elementsSet reduceGraph(Project* p) const;
-	inline elementsSet operator()(Project* p) const {
-		return reduceGraph(p);
+	elementsSet reduceGraph(Project* p, bool initializedOnly = true) const;
+	inline elementsSet operator()(Project* p, bool initializedOnly = true) const {
+		return reduceGraph(p, initializedOnly);
 	}
 
 private:

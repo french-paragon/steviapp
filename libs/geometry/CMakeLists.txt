@@ -12,6 +12,8 @@ set(LIB_SRC core.cpp
             alignement.h
             imagecoordinates.cpp
             imagecoordinates.h
+            lensdistortion.cpp
+            lensdistortion.h
 )
 
 add_library(

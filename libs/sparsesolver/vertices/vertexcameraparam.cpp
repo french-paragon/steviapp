@@ -1,5 +1,7 @@
 #include "vertexcameraparam.h"
 
+namespace StereoVisionApp {
+
 const int CameraInnerVertexCollection::VerticesPerCam = 4;
 
 VertexCameraParam::VertexCameraParam()
@@ -24,3 +26,5 @@ void VertexCameraParam::setToOriginImpl() {
 void VertexCameraParam::oplusImpl(const double* update_) {
 	_estimate += update_;
 }
+
+} // namespace StereoVisionApp

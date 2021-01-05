@@ -21,7 +21,7 @@ SBAGraphReductor::SBAGraphReductor(int min_img_obs,
 }
 
 
-SBAGraphReductor::elementsSet SBAGraphReductor::reduceGraph(Project* p) const {
+SBAGraphReductor::elementsSet SBAGraphReductor::reduceGraph(Project* p, bool initializedOnly) const {
 
 	QVector<qint64> imgs_v = p->getIdsByClass(ImageFactory::imageClassName());
 	QVector<qint64> lmks_v = p->getIdsByClass(LandmarkFactory::landmarkClassName());
@@ -45,6 +45,11 @@ SBAGraphReductor::elementsSet SBAGraphReductor::reduceGraph(Project* p) const {
 			if (im == nullptr) {
 				continue;
 			}
+
+			if (initializedOnly and im->optimizationStep() < DataBlock::Initialized) {
+				continue;
+			}
+
 			int connections = im->countPointsRefered(excludedLmks);
 
 			if (_count_self_obs_pos and _count_self_obs_rot) {
@@ -69,9 +74,15 @@ SBAGraphReductor::elementsSet SBAGraphReductor::reduceGraph(Project* p) const {
 
 		for (qint64 id : lmks) {
 			Landmark* lm =  qobject_cast<Landmark*>(p->getById(id));
+
 			if (lm == nullptr) {
 				continue;
 			}
+
+			if (initializedOnly and lm->optimizationStep() < DataBlock::Initialized) {
+				continue;
+			}
+
 			int connections = lm->countImagesRefering(excludedImgs);
 
 			if (_count_self_obs_pos) {

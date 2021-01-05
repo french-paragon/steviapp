@@ -4,15 +4,17 @@
 #include <eigen3/Eigen/Core>
 #include "g2o/core/base_multi_edge.h"
 
+namespace g2o {
+	class VertexSBAPointXYZ;
+}
+
+namespace StereoVisionApp {
+
 class VertexCameraPose;
 class VertexCameraParam;
 class VertexCameraRadialDistortion;
 class VertexCameraTangentialDistortion;
 class VertexCameraSkewDistortion;
-
-namespace g2o {
-	class VertexSBAPointXYZ;
-}
 
 /*!
  * \brief The EdgeParametrizedXYZ2UV class represent a measurement from a cam to a tie points with accounting for camera parameters (principal points and focal length) and lens parameters (both radial and tangential distortion).
@@ -40,5 +42,7 @@ protected:
 
 
 };
+
+} // namespace StereoVisionApp
 
 #endif // EDGEPARAMETRIZEDXYZ2UV_H
