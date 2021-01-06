@@ -2,6 +2,7 @@
 
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/core/optimization_algorithm_levenberg.h"
+#include "g2o/core/optimization_algorithm_gauss_newton.h"
 #include "g2o/core/solver.h"
 #include "g2o/solvers/dense/linear_solver_dense.h"
 #include "g2o/solvers/csparse/linear_solver_csparse.h"
@@ -62,12 +63,12 @@ bool GraphSBASolver::init() {
 
 	std::unique_ptr<lSolvType> linearSolver;
 	if (_sparse) {
-		linearSolver = g2o::make_unique<g2o::LinearSolverDense<g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> >::PoseMatrixType>>();
-	} else {
 		linearSolver = g2o::make_unique<g2o::LinearSolverCSparse<g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> >::PoseMatrixType>>();
+	} else {
+		linearSolver = g2o::make_unique<g2o::LinearSolverDense<g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> >::PoseMatrixType>>();
 	}
 
-	g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(g2o::make_unique<bSolvType>(std::move(linearSolver)));
+	g2o::OptimizationAlgorithmGaussNewton* solver = new g2o::OptimizationAlgorithmGaussNewton(g2o::make_unique<bSolvType>(std::move(linearSolver)));
 
 	_optimizer->setAlgorithm(solver);
 
@@ -88,7 +89,7 @@ bool GraphSBASolver::init() {
 
 			landMarkVertex* v = new landMarkVertex();
 			v->setId(vid++);
-			v->setMarginalized(true);
+			v->setMarginalized(false);
 
 			g2o::Vector3 d;
 
@@ -166,6 +167,11 @@ bool GraphSBASolver::init() {
 				td_v->setId(vid++);
 				sd_v->setId(vid++);
 
+				cp_v->setMarginalized(false);
+				rd_v->setMarginalized(false);
+				td_v->setMarginalized(false);
+				sd_v->setMarginalized(false);
+
 				Eigen::Vector2d extend;
 				extend.x() = c->imSize().width();
 				extend.y() = c->imSize().height();
@@ -208,6 +214,7 @@ bool GraphSBASolver::init() {
 
 			VertexCameraPose* v = new VertexCameraPose();
 			v->setId(vid++);
+			v->setMarginalized(false);
 
 			Eigen::Matrix3d r;
 			Eigen::Vector3d t;
@@ -344,8 +351,8 @@ bool GraphSBASolver::init() {
 }
 
 bool GraphSBASolver::opt_step() {
-	//int n_steps = _optimizer->optimize(5, _not_first_step);
-	int n_steps = _optimizer->optimize(optimizationSteps());
+	int n_steps = _optimizer->optimize(1, _not_first_step);
+	//int n_steps = _optimizer->optimize(optimizationSteps());
 	_not_first_step = true;
 	return n_steps > 0;
 }
@@ -356,35 +363,46 @@ bool GraphSBASolver::std_step() {
 		return false;
 	}
 
-	std::vector<g2o::OptimizableGraph::Vertex*> marginals_computation_vertices;
+	if (_sparse) {
 
-	marginals_computation_vertices.reserve(_landmarkVertices.size() + _frameVertices.size() + _camVertices.size()*CameraInnerVertexCollection::VerticesPerCam);
+		std::vector<g2o::OptimizableGraph::Vertex*> marginals_computation_vertices;
 
-	for (landMarkVertex* v : _landmarkVertices) {
-		marginals_computation_vertices.push_back(v);
-	}
-	for (VertexCameraPose* v : _frameVertices) {
-		marginals_computation_vertices.push_back(v);
-	}
-	for (qint64 id : _camVertices.keys()) {
-		CameraInnerVertexCollection const& c = _camVertices[id];
+		marginals_computation_vertices.reserve(_landmarkVertices.size() + _frameVertices.size() + _camVertices.size()*CameraInnerVertexCollection::VerticesPerCam);
 
-		marginals_computation_vertices.push_back(c.param);
-
-		Camera* cam = qobject_cast<Camera*>(_currentProject->getById(id));
-
-		if (cam->useRadialDistortionModel()) {
-			marginals_computation_vertices.push_back(c.radialDist);
+		for (landMarkVertex* v : _landmarkVertices) {
+			marginals_computation_vertices.push_back(v);
 		}
-		if (cam->useTangentialDistortionModel()) {
-			marginals_computation_vertices.push_back(c.tangeantialDist);
+		for (VertexCameraPose* v : _frameVertices) {
+			marginals_computation_vertices.push_back(v);
 		}
-		if (cam->useSkewDistortionModel()) {
-			marginals_computation_vertices.push_back(c.skewDist);
-		}
-	}
+		for (qint64 id : _camVertices.keys()) {
+			CameraInnerVertexCollection const& c = _camVertices[id];
 
-	return _optimizer->computeMarginals(_spinv, marginals_computation_vertices);
+			marginals_computation_vertices.push_back(c.param);
+
+			Camera* cam = qobject_cast<Camera*>(_currentProject->getById(id));
+
+			if (cam->useRadialDistortionModel()) {
+				marginals_computation_vertices.push_back(c.radialDist);
+			}
+			if (cam->useTangentialDistortionModel()) {
+				marginals_computation_vertices.push_back(c.tangeantialDist);
+			}
+			if (cam->useSkewDistortionModel()) {
+				marginals_computation_vertices.push_back(c.skewDist);
+			}
+		}
+
+		bool r =  _optimizer->computeMarginals(_spinv, marginals_computation_vertices);
+
+		return r;
+
+	} else {
+		//dense solver do not allows direct access to Hessian and/or maginals
+		//TODO write helper function to copy hessian from vertices to dense matrix (which can be inverted by hand).
+
+		return false;
+	}
 }
 
 bool GraphSBASolver::writeResults() {
@@ -667,7 +685,7 @@ void GraphSBASolver::cleanup() {
 }
 
 bool GraphSBASolver::splitOptSteps() const {
-	return false;
+	return true;
 }
 
 } // namespace StereoVisionApp

@@ -34,7 +34,7 @@ bool SparseSolverConfigDialog::shouldRun() const
 }
 
 bool SparseSolverConfigDialog::computeUncertainty() const {
-	return ui->predictUncertaintyCheckBox->isChecked();
+	return ui->predictUncertaintyCheckBox->isChecked() and useSparseOptimizer();
 }
 bool SparseSolverConfigDialog::useSparseOptimizer() const {
 	return ui->useSparseOptimizerCheckBox->isChecked();

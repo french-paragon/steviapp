@@ -122,54 +122,54 @@ Q_SIGNALS:
 
 	void imSizeChanged();
 
-	void FLenChanged(floatParameter);
-	void pixelRatioChanged(floatParameter);
+	void FLenChanged(StereoVisionApp::floatParameter);
+	void pixelRatioChanged(StereoVisionApp::floatParameter);
 
-	void opticalCenterXChanged(floatParameter);
-	void opticalCenterYChanged(floatParameter);
+	void opticalCenterXChanged(StereoVisionApp::floatParameter);
+	void opticalCenterYChanged(StereoVisionApp::floatParameter);
 
 	void useRadialDistortionChanged(bool);
 
-	void k1Changed(floatParameter);
-	void k2Changed(floatParameter);
-	void k3Changed(floatParameter);
+	void k1Changed(StereoVisionApp::floatParameter);
+	void k2Changed(StereoVisionApp::floatParameter);
+	void k3Changed(StereoVisionApp::floatParameter);
 
 	void useDenominatorRadialCoeffsChanged(bool);
 
-	void k4Changed(floatParameter);
-	void k5Changed(floatParameter);
-	void k6Changed(floatParameter);
+	void k4Changed(StereoVisionApp::floatParameter);
+	void k5Changed(StereoVisionApp::floatParameter);
+	void k6Changed(StereoVisionApp::floatParameter);
 
 	void useTangentialDistortionChanged(bool);
 
-	void p1Changed(floatParameter);
-	void p2Changed(floatParameter);
+	void p1Changed(StereoVisionApp::floatParameter);
+	void p2Changed(StereoVisionApp::floatParameter);
 
 	void useSkewDistortionChanged(bool);
 
-	void B1Changed(floatParameter);
-	void B2Changed(floatParameter);
+	void B1Changed(StereoVisionApp::floatParameter);
+	void B2Changed(StereoVisionApp::floatParameter);
 
 
-	void optimizedFLenChanged(floatParameter);
-	void optimizedPixelRatioChanged(floatParameter);
+	void optimizedFLenChanged(StereoVisionApp::floatParameter);
+	void optimizedPixelRatioChanged(StereoVisionApp::floatParameter);
 
-	void optimizedOpticalCenterXChanged(floatParameter);
-	void optimizedOpticalCenterYChanged(floatParameter);
+	void optimizedOpticalCenterXChanged(StereoVisionApp::floatParameter);
+	void optimizedOpticalCenterYChanged(StereoVisionApp::floatParameter);
 
-	void optimizedK1Changed(floatParameter);
-	void optimizedK2Changed(floatParameter);
-	void optimizedK3Changed(floatParameter);
+	void optimizedK1Changed(StereoVisionApp::floatParameter);
+	void optimizedK2Changed(StereoVisionApp::floatParameter);
+	void optimizedK3Changed(StereoVisionApp::floatParameter);
 
-	void optimizedK4Changed(floatParameter);
-	void optimizedK5Changed(floatParameter);
-	void optimizedK6Changed(floatParameter);
+	void optimizedK4Changed(StereoVisionApp::floatParameter);
+	void optimizedK5Changed(StereoVisionApp::floatParameter);
+	void optimizedK6Changed(StereoVisionApp::floatParameter);
 
-	void optimizedP1Changed(floatParameter);
-	void optimizedP2Changed(floatParameter);
+	void optimizedP1Changed(StereoVisionApp::floatParameter);
+	void optimizedP2Changed(StereoVisionApp::floatParameter);
 
-	void optimizedB1Changed(floatParameter);
-	void optimizedB2Changed(floatParameter);
+	void optimizedB1Changed(StereoVisionApp::floatParameter);
+	void optimizedB2Changed(StereoVisionApp::floatParameter);
 
 protected:
 

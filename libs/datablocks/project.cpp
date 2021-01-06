@@ -768,7 +768,10 @@ void DataBlock::clearSubItem(qint64 id, QString className) {
 		cs = _itemCache[id]->metaObject()->className();
 	}
 
+	DataBlock* db = _itemCache[id];
+
 	Q_EMIT subItemAboutToBeRemoved(id);
+	db->clear();
 	_itemCache.remove(id);
 	_idBySubTypes[cs].removeAll(id);
 

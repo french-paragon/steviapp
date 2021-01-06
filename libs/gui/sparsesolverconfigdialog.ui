@@ -35,7 +35,7 @@
          <number>999</number>
         </property>
         <property name="value">
-         <number>50</number>
+         <number>5</number>
         </property>
        </widget>
       </item>
@@ -105,5 +105,22 @@
   </layout>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>useSparseOptimizerCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>predictUncertaintyCheckBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>128</x>
+     <y>73</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>128</x>
+     <y>47</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
