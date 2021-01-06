@@ -36,6 +36,8 @@ LensEditor::LensEditor(QWidget *parent) :
 
 	connect(ui->skewB1SpinBox, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &LensEditor::onParameterSkewB1Changed);
 	connect(ui->skewB2SpinBox, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &LensEditor::onParameterSkewB2Changed);
+
+	connect(ui->tabWidget, &QTabWidget::currentChanged, this, &LensEditor::onTabSwitch);
 }
 
 LensEditor::~LensEditor()
@@ -560,6 +562,13 @@ void LensEditor::onParameterSkewB2Changed() {
 	}
 
 	_cam->setB2(ui->skewB2SpinBox->value());
+
+}
+
+void LensEditor::onTabSwitch() {
+
+	bool useOpt = ui->tabWidget->currentIndex() == 1;
+	ui->lensViewWidget->useOptimizedValues(useOpt);
 
 }
 

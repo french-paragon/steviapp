@@ -76,6 +76,8 @@ private:
 	void onParameterSkewB1Changed();
 	void onParameterSkewB2Changed();
 
+	void onTabSwitch();
+
 	Ui::LenseEditor *ui;
 
 	Camera* _cam;
