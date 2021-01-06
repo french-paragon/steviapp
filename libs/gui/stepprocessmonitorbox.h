@@ -29,6 +29,7 @@ private:
 	void onCancelClicked();
 
 	void onStepChange();
+	void onProcessFinished();
 	void onProcessStopped();
 	void onProcessFailed();
 	void evaluatePauseState();

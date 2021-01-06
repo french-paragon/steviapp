@@ -344,7 +344,7 @@ bool GraphSBASolver::init() {
 }
 
 bool GraphSBASolver::opt_step() {
-	//int n_steps = _optimizer->optimize(1, _not_first_step);
+	//int n_steps = _optimizer->optimize(5, _not_first_step);
 	int n_steps = _optimizer->optimize(optimizationSteps());
 	_not_first_step = true;
 	return n_steps > 0;

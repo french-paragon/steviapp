@@ -37,6 +37,7 @@ void StepProcessMonitorBox::setProcess(SteppedProcess* process) {
 	connect(process, &SteppedProcess::paused, this, &StepProcessMonitorBox::evaluatePauseState);
 	connect(process, &SteppedProcess::stopped, this, &StepProcessMonitorBox::onProcessStopped);
 	connect(process, &SteppedProcess::failed, this, &StepProcessMonitorBox::onProcessFailed);
+	connect(process, &SteppedProcess::finished, this, &StepProcessMonitorBox::onProcessFinished);
 
 	_currentProcess = process;
 }
@@ -127,6 +128,18 @@ void StepProcessMonitorBox::onStepChange() {
 		ui->stepDescr->setText(_currentProcess->currentStepName());
 	}
 
+}
+void StepProcessMonitorBox::onProcessFinished() {
+
+	if (_currentProcess == nullptr) {
+		return;
+	}
+
+	if (_currentProcess->isDone()) {
+		evaluatePauseState();
+		ui->progressBar->setValue(_currentProcess->numberOfSteps());
+		ui->stepDescr->setText(tr("Finished"));
+	}
 }
 void StepProcessMonitorBox::onProcessStopped() {
 	ui->stepDescr->setText(tr("Stopped"));
