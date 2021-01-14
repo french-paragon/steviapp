@@ -37,7 +37,7 @@ void generateObs(int nPts,
 				 std::vector<Axis> & coordinate,
 				 AffineTransform const& T) {
 
-	std::default_random_engine rd;
+	std::random_device rd;
 	std::default_random_engine engine(rd());
 	std::uniform_int_distribution<int> uDist(0, 2);
 
