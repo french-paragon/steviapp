@@ -63,6 +63,6 @@ add_executable(steviapp
 target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(steviapp PRIVATE exiv2)
 
-target_link_libraries(steviapp PRIVATE ${DATA_LIB} ${GEOMETRY_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB})
+target_link_libraries(steviapp PRIVATE ${DATA_LIB} ${GEOMETRY_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB})
 
 add_subdirectory(tests)

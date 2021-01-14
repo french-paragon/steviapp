@@ -27,6 +27,9 @@ set(LIB_SRC imagewidget.cpp
             solutioninitconfigdialog.cpp
             solutioninitconfigdialog.h
             solutioninitconfigdialog.ui
+            rectifiedimageexportoptionsdialog.cpp
+            rectifiedimageexportoptionsdialog.h
+            rectifiedimageexportoptionsdialog.ui
 )
 
 add_library(

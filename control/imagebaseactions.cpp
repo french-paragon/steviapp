@@ -4,7 +4,15 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 
+#include "vision/imageio.h"
+#include "vision/interpolation.h"
+#include "vision/lensdistortionsmap.h"
+
+#include "mainwindow.h"
+#include "gui/rectifiedimageexportoptionsdialog.h"
+
 #include <QFileInfo>
+#include <QDir>
 #include <QPixmap>
 
 #include <exiv2/exiv2.hpp>
@@ -171,6 +179,108 @@ QStringList addImages(QStringList images, Project* p) {
 	}
 
 	return failed;
+}
+
+int exportRectifiedImages(QList<qint64> imagesIds, Project* p, bool useOptimizedVals, QString outputDirectory, float gamma) {
+
+	if (imagesIds.size() == 0) {
+		return 0;
+	}
+
+	int treated = 0;
+
+	for (qint64 id : imagesIds) {
+
+		Image* img = p->getDataBlock<Image>(id);
+
+		if (img != nullptr) {
+
+			Camera* cam = p->getDataBlock<Camera>(img->assignedCamera());
+
+			if (cam != nullptr) {
+
+				ImageArray array = getImageData(img->getImageFile(), gamma);
+
+				if (!array.empty()) {
+					int height = array.shape()[0];
+					int width = array.shape()[1];
+
+					float f = (useOptimizedVals) ? cam->optimizedFLen().value() : cam->fLen().value();
+
+					Eigen::Vector2f pp;
+					Eigen::Vector3f k123;
+					Eigen::Vector2f t12;
+					Eigen::Vector2f B12;
+
+					if (useOptimizedVals) {
+						pp << cam->optimizedOpticalCenterX().value(), cam->optimizedOpticalCenterY().value();
+						k123 << cam->optimizedK1().value(), cam->optimizedK2().value(), cam->optimizedK3().value();
+						t12 << cam->optimizedP1().value(), cam->optimizedP2().value();
+						B12 << cam->optimizedB1().value(), cam->optimizedB2().value();
+					} else {
+						pp << cam->opticalCenterX().value(), cam->opticalCenterY().value();
+						k123 << cam->k1().value(), cam->k2().value(), cam->k3().value();
+						t12 << cam->p1().value(), cam->p2().value();
+						B12 << cam->B1().value(), cam->B2().value();
+					}
+
+					ImageArray distMap = computeLensDistortionMap(height,
+																  width,
+																  f,
+																  pp,
+																  k123,
+																  t12,
+																  B12);
+
+					ImageArray transformed = interpolateImage(array, distMap);
+
+					QFileInfo infos(img->getImageFile());
+					QString outFile = (outputDirectory.isEmpty()) ? infos.dir().absolutePath() : outputDirectory;
+					outFile = QDir::cleanPath(outFile);
+
+					if (!outFile.endsWith('/')) {
+						outFile += "/";
+					}
+
+					outFile += infos.baseName() + "_rectified." + infos.completeSuffix();
+
+					if (saveImageData(outFile, transformed, gamma)) {
+						treated++;
+					}
+				}
+
+			}
+
+		}
+
+	}
+
+	return treated;
+
+}
+
+int exportRectifiedImages(QList<qint64> imagesIds, Project* p, QWidget* w) {
+
+	if (imagesIds.size() == 0) {
+		return 0;
+	}
+
+	RectifiedImageExportOptionsDialog d(w);
+	d.setModal(true);
+	d.setWindowTitle(imagesIds.size() > 1 ? QObject::tr("Export rectified images") : QObject::tr("Export rectified image"));
+
+	d.exec();
+
+	if (d.result() == QDialog::Rejected) {
+		return 0;
+	}
+
+	QString dir = d.selectedFolder();
+	bool useOptimizedParametersSet = d.useOptimizedCameraParameters();
+	float gamma = d.gamma();
+
+	return exportRectifiedImages(imagesIds, p, useOptimizedParametersSet, dir, gamma);
+
 }
 
 } // namespace StereoVisionApp

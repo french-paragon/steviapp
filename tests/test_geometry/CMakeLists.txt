@@ -15,3 +15,8 @@ add_test(TestRotations testRotations)
 add_executable(testPointCloudAlignement testPointCloudAlignement.cpp)
 target_link_libraries(testPointCloudAlignement ${GEOMETRY_LIB} Qt${QT_VERSION_MAJOR}::Test)
 add_test(TestPointCloudAlignement testPointCloudAlignement)
+
+
+add_executable(testLenseDistortion testLenseDistortion.cpp)
+target_link_libraries(testLenseDistortion ${GEOMETRY_LIB} Qt${QT_VERSION_MAJOR}::Test)
+add_test(TestLenseDistortion testLenseDistortion)

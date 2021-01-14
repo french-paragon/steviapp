@@ -40,7 +40,7 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
 	QString cn = itemClassName();
 
 	QAction* add = new QAction(tr("Add Images"), parent);
-	connect(add, &QAction::triggered, [w, p, cn] () {
+	connect(add, &QAction::triggered, [w, p] () {
 		QString filter = "Images(*.jpg *.jpeg *.png *.bmp *.tiff *.tif)";
 		QString folder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
 		QStringList images = QFileDialog::getOpenFileNames(w, tr("Open Images"), folder, filter);
@@ -53,7 +53,17 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
 		}
 	});
 
-	return {add};
+	QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
+	connect(exportRectified, &QAction::triggered, [w, p, cn] () {
+		QList<qint64> imageIds = p->getIdsByClass(cn).toList();
+		exportRectifiedImages(imageIds, p, w);
+	});
+
+	if (p->getIdsByClass(cn).size() == 0) {
+		exportRectified->setEnabled(false);
+	}
+
+	return {add, exportRectified};
 
 }
 QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* parent, DataBlock* item) const {
@@ -99,6 +109,16 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 	});
 	lst.append(remove);
 
+	QAction* assignToCamera = createAssignToCameraAction(parent, im->getProject(), {im});
+
+	lst.append(assignToCamera);
+
+	QAction* exportRectified = new QAction(tr("Export rectified image"), parent);
+	connect(exportRectified, &QAction::triggered, [mw, im] () {
+		exportRectifiedImages({im->internalId()}, im->getProject(), mw);
+	});
+	lst.append(exportRectified);
+
 	return lst;
 
 }
@@ -125,6 +145,31 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 
 	QList<QAction*> lst;
 
+	QAction* assignToCamera = createAssignToCameraAction(parent, p, ims);
+
+	lst.append(assignToCamera);
+
+
+	QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
+	connect(exportRectified, &QAction::triggered, [w, p, ims] () {
+		QList<qint64> imageIds;
+		imageIds.reserve(ims.size());
+
+		for (Image* im : ims) {
+			imageIds.push_back(im->internalId());
+		}
+
+		exportRectifiedImages(imageIds, p, w);
+	});
+
+	lst.append(exportRectified);
+
+	return lst;
+
+}
+
+QAction* ImageBaseActionManager::createAssignToCameraAction(QObject* parent, Project* p, QVector<Image*> const& ims) const {
+
 	QAction* assignToCamera = new QAction(tr("Assign to camera"), parent);
 	QMenu* camMenu = new QMenu();
 	connect(assignToCamera, &QObject::destroyed, camMenu, &QObject::deleteLater);
@@ -147,9 +192,7 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 	}
 	assignToCamera->setMenu(camMenu);
 
-	lst.append(assignToCamera);
-
-	return lst;
+	return assignToCamera;
 
 }
 
