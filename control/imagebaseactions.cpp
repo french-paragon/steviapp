@@ -4,9 +4,10 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 
+#include "interpolation/interpolation.h"
+#include "interpolation/lensdistortionsmap.h"
+
 #include "vision/imageio.h"
-#include "vision/interpolation.h"
-#include "vision/lensdistortionsmap.h"
 
 #include "mainwindow.h"
 #include "gui/rectifiedimageexportoptionsdialog.h"
@@ -199,7 +200,7 @@ int exportRectifiedImages(QList<qint64> imagesIds, Project* p, bool useOptimized
 
 			if (cam != nullptr) {
 
-				ImageArray array = getImageData(img->getImageFile(), gamma);
+				StereoVision::ImageArray array = getImageData(img->getImageFile(), gamma);
 
 				if (!array.empty()) {
 					int height = array.shape()[0];
@@ -224,7 +225,7 @@ int exportRectifiedImages(QList<qint64> imagesIds, Project* p, bool useOptimized
 						B12 << cam->B1().value(), cam->B2().value();
 					}
 
-					ImageArray distMap = computeLensDistortionMap(height,
+					StereoVision::ImageArray distMap = StereoVision::Interpolation::computeLensDistortionMap(height,
 																  width,
 																  f,
 																  pp,
@@ -232,7 +233,7 @@ int exportRectifiedImages(QList<qint64> imagesIds, Project* p, bool useOptimized
 																  t12,
 																  B12);
 
-					ImageArray transformed = interpolateImage(array, distMap);
+					StereoVision::ImageArray transformed = StereoVision::Interpolation::interpolateImage(array, distMap);
 
 					QFileInfo infos(img->getImageFile());
 					QString outFile = (outputDirectory.isEmpty()) ? infos.dir().absolutePath() : outputDirectory;

@@ -40,5 +40,5 @@ add_library(
 )
 
 target_link_libraries(${SOLVING_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)
-target_link_libraries(${SOLVING_LIB} PRIVATE ${DATA_LIB} ${GEOMETRY_LIB})
-target_link_libraries(${SOLVING_LIB} PRIVATE ${G2O_LIBS} ${PNP_LIBS})
+target_link_libraries(${SOLVING_LIB} PRIVATE ${DATA_LIB} ${STEREOVISION_LIB})
+target_link_libraries(${SOLVING_LIB} PRIVATE ${G2O_LIBS})

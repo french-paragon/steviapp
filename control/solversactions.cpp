@@ -131,7 +131,7 @@ void initSolution(Project* p, MainWindow* w) {
 			z.setIsSet(initial_setup.cams[id].t.z());
 			im->setOptZCoord(z);
 
-			Eigen::Vector3f r = inverseRodriguezFormula(initial_setup.cams[id].R);
+			Eigen::Vector3f r = StereoVision::Geometry::inverseRodriguezFormula(initial_setup.cams[id].R);
 
 			x = im->optXRot();
 			x.setIsSet(r.x());

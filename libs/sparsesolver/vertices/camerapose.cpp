@@ -77,7 +77,7 @@ CameraPose CameraPose::inverse() const {
 
 CameraPose::Vector6d CameraPose::log() const {
 
-	Eigen::Vector3d omega = inverseRodriguezFormulaD(_r);
+	Eigen::Vector3d omega = StereoVision::Geometry::inverseRodriguezFormulaD(_r);
 
 	Vector6d v;
 	v << omega, _t;
@@ -90,7 +90,7 @@ CameraPose CameraPose::exp(Vector6d const& log) {
 	Eigen::Vector3d r = log.block<3, 1>(0, 0);
 	Eigen::Vector3d t = log.block<3, 1>(3, 0);
 
-	return CameraPose(rodriguezFormulaD(r), t);
+	return CameraPose(StereoVision::Geometry::rodriguezFormulaD(r), t);
 }
 
 std::istream & operator>> (std::istream & in, StereoVisionApp::CameraPose & cam) {

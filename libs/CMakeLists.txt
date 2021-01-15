@@ -13,7 +13,6 @@ macro(define_stereovisionapp_lib varname name)
     set(${varname}_LIB ${STEVIAPP_LIB_PREFIX}${name})
 endmacro()
 
-add_stereovisionapp_libdirectory(geometry)
 add_stereovisionapp_libdirectory(datablocks)
 add_stereovisionapp_libdirectory(processing)
 add_stereovisionapp_libdirectory(gui)

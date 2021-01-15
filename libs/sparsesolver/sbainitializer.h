@@ -20,7 +20,7 @@ public:
 	typedef Eigen::Vector3f Pt3D;
 	typedef std::map<qint64, Pt3D, std::less<qint64>, Eigen::aligned_allocator<std::pair<const qint64, Pt3D> > > PointMap;
 
-	typedef AffineTransform Pt6D;
+	typedef StereoVision::Geometry::AffineTransform Pt6D;
 
 	typedef std::map<qint64, Pt6D, std::less<qint64>, Eigen::aligned_allocator<std::pair<const qint64, Pt6D> > > CamMap;
 
@@ -44,7 +44,7 @@ protected:
 	static Eigen::Matrix3f ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection);
 	static Eigen::Array2Xf getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids);
 
-	static AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
+	static StereoVision::Geometry::AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
 
 	static bool completeSolution(InitialSolution & solution,
 								 Project* p, QSet<qint64>

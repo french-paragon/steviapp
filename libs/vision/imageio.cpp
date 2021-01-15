@@ -10,7 +10,7 @@ ImageArray getImageData(QString const& imFile, float gamma) {
 	QImage img(imFile);
 
 	if (img.isNull()) {
-		return Multidim::Array<float, 3>(0,0,0);
+		return ImageArray(0,0,0);
 	}
 
 	img = img.convertToFormat(QImage::Format_RGB888);

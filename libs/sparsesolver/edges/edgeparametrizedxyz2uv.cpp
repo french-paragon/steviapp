@@ -173,23 +173,23 @@ Eigen::Vector2d EdgeParametrizedXYZ2UV::project(VertexCameraPose const* pose,
 		return {NAN, NAN};
 	}
 
-	Eigen::Vector2d proj = projectPointsD(Pbar);
+	Eigen::Vector2d proj = StereoVision::Geometry::projectPointsD(Pbar);
 
 	Eigen::Vector2d dRadial = Eigen::Vector2d::Zero();
 	Eigen::Vector2d dTangential = Eigen::Vector2d::Zero();
 
 	if (r_dist != nullptr) {
-		dRadial = radialDistortionD(proj, r_dist->estimate());
+		dRadial = StereoVision::Geometry::radialDistortionD(proj, r_dist->estimate());
 	}
 
 	if (t_dist != nullptr) {
-		dTangential = tangentialDistortionD(proj, t_dist->estimate());
+		dTangential = StereoVision::Geometry::tangentialDistortionD(proj, t_dist->estimate());
 	}
 
 	proj += dRadial + dTangential;
 
 	if (s_dist != nullptr) {
-		return skewDistortionD(proj, s_dist->estimate(), cam->estimate().f(), cam->estimate().pp());
+		return StereoVision::Geometry::skewDistortionD(proj, s_dist->estimate(), cam->estimate().f(), cam->estimate().pp());
 	}
 
 	return cam->estimate().f()*proj + cam->estimate().pp();

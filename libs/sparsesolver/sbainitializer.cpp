@@ -8,8 +8,6 @@
 #include <eigen3/Eigen/Core>
 #include <Eigen/Geometry>
 
-#include <pnp/pnp_ransac.h>
-
 #include "geometry/imagecoordinates.h"
 #include "geometry/pointcloudalignment.h"
 #include "geometry/alignement.h"
@@ -192,15 +190,15 @@ SBAInitializer::InitialSolution EightPointsSBAMultiviewInitializer::computeIniti
 		Eigen::Array2Xf coordsIm1 = getHomogeneousImageCoordinates(f1, tiePoints);
 		Eigen::Array2Xf coordsIm2 = getHomogeneousImageCoordinates(nextInLine, tiePoints);
 
-		AffineTransform T;
+		StereoVision::Geometry::AffineTransform T;
 		Eigen::Array3Xf proj;
 
 		try {
 
-			T = findTransform(coordsIm1, coordsIm2);
+			T = StereoVision::Geometry::findTransform(coordsIm1, coordsIm2);
 			proj = reprojectPoints(T, coordsIm1, coordsIm2);
 
-		} catch (GeometricException const&) {
+		} catch (StereoVision::Geometry::GeometricException const&) {
 			toProcess.remove(nextInLine->internalId());
 			continue;
 		}
@@ -251,9 +249,9 @@ SBAInitializer::InitialSolution EightPointsSBAMultiviewInitializer::computeIniti
 	completeSolution(r, p, s_pts, s_imgs);
 
 	if (_preconstrain) {
-		AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
-		ShapePreservingTransform rigid = affine2ShapePreservingMap(adjust);
-		Eigen::Matrix3f rotationPart = rodriguezFormula(rigid.r);
+		StereoVision::Geometry::AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
+		StereoVision::Geometry::ShapePreservingTransform rigid = affine2ShapePreservingMap(adjust);
+		Eigen::Matrix3f rotationPart = StereoVision::Geometry::rodriguezFormula(rigid.r);
 		//apply adjustement transform to all points
 
 		for(auto & map_pt : r.points) {
@@ -459,15 +457,15 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 	Eigen::Array2Xf homCoordsIm1 = getHomogeneousImageCoordinates(f1, ids);
 	Eigen::Array2Xf homCoordsIm2 = getHomogeneousImageCoordinates(f2, ids);
 
-	AffineTransform T;
+	StereoVision::Geometry::AffineTransform T;
 	Eigen::Array3Xf reproj;
 
 	try {
 
-		T = findTransform(homCoordsIm1, homCoordsIm2);
+		T = StereoVision::Geometry::findTransform(homCoordsIm1, homCoordsIm2);
 		reproj = reprojectPoints(T, homCoordsIm1, homCoordsIm2);
 
-	} catch (GeometricException const&) {
+	} catch (StereoVision::Geometry::GeometricException const&) {
 		return r;
 	}
 
@@ -483,7 +481,7 @@ SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolutio
 	completeSolution(r, p, s_pts, s_imgs);
 
 	if (_preconstrain) {
-		AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
+		StereoVision::Geometry::AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
 
 		//apply adjustement transform to all points
 
@@ -521,7 +519,7 @@ Eigen::Matrix3f PhotometricInitializer::ApproximateEssentialMatrix(Image* im1, I
 	Eigen::Array2Xf coordsIm1 = getHomogeneousImageCoordinates(im1, v_ids);
 	Eigen::Array2Xf coordsIm2 = getHomogeneousImageCoordinates(im2, v_ids);
 
-	return estimateEssentialMatrix(coordsIm1, coordsIm2);
+	return StereoVision::Geometry::estimateEssentialMatrix(coordsIm1, coordsIm2);
 }
 
 float EightPointsSBAInitializer::scoreApproximateEssentialMatrix(Eigen::Matrix3f const& Eapprox) {
@@ -539,14 +537,16 @@ Eigen::Array2Xf PhotometricInitializer::getHomogeneousImageCoordinates(Image* im
 										cam->fLen().value(),
 										cam->fLenY(),
 										Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
-										ImageAnchors::TopLeft) ;
+										StereoVision::Geometry::ImageAnchors::TopLeft) ;
 
 }
 
 
-AffineTransform PhotometricInitializer::estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement) {
+StereoVision::Geometry::AffineTransform PhotometricInitializer::estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement) {
 
-	AffineTransform t;
+	using Axis = StereoVision::Geometry::Axis;
+
+	StereoVision::Geometry::AffineTransform t;
 
 	if (p == nullptr) {
 		return t;
@@ -691,24 +691,24 @@ AffineTransform PhotometricInitializer::estimateTransform(InitialSolution const&
 
 	}
 
-	IterativeTermination status;
-	AffineTransform s;
+	StereoVision::Geometry::IterativeTermination status;
+	StereoVision::Geometry::AffineTransform s;
 
 	if (useConstraintsRefinement) {
 
 		try {
 			s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 50, 1e-4, 5e-1, 1e-1);
-		} catch (GeometricException const& e) {
+		} catch (StereoVision::Geometry::GeometricException const& e) {
 			return t;
 		}
 
 	} else {
 		s = estimateQuasiShapePreservingMap(obs, pts, idxs, axis, 2e-1, &status, 1e-6, 500, false);
-		ShapePreservingTransform s_tmps = affine2ShapePreservingMap(s);
+		StereoVision::Geometry::ShapePreservingTransform s_tmps = affine2ShapePreservingMap(s);
 		s = s_tmps.toAffineTransform();
 	}
 
-	if (status == IterativeTermination::Error) {
+	if (status == StereoVision::Geometry::IterativeTermination::Error) {
 		return t;
 	}
 
@@ -844,11 +844,11 @@ bool PhotometricInitializer::alignImage(InitialSolution & solution, Project* p, 
 										   cam->fLen().value(),
 										   cam->fLenY(),
 										   Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
-										   ImageAnchors::TopLeft);
+										   StereoVision::Geometry::ImageAnchors::TopLeft);
 
-	AffineTransform T = pnp(pts_cam, pts_world);
+	StereoVision::Geometry::AffineTransform T = StereoVision::Geometry::pnp(pts_cam, pts_world);
 
-	solution.cams.emplace(img->internalId(), AffineTransform(T.R.transpose(), -T.R.transpose()*T.t));
+	solution.cams.emplace(img->internalId(), StereoVision::Geometry::AffineTransform(T.R.transpose(), -T.R.transpose()*T.t));
 	return true;
 
 }
@@ -872,7 +872,7 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 			continue;
 		}
 
-		AffineTransform const& cam12world = solution.cams.at(imgs[i]);
+		StereoVision::Geometry::AffineTransform const& cam12world = solution.cams.at(imgs[i]);
 
 		for (int j = i+1; j < imgs.size(); j++) {
 
@@ -888,11 +888,11 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 				continue;
 			}
 
-			AffineTransform const& cam2toworld = solution.cams.at(imgs[j]);
-			AffineTransform world2cam2(cam2toworld.R.transpose(),
+			StereoVision::Geometry::AffineTransform const& cam2toworld = solution.cams.at(imgs[j]);
+			StereoVision::Geometry::AffineTransform world2cam2(cam2toworld.R.transpose(),
 									   - cam2toworld.R.transpose()*cam2toworld.t);
 
-			AffineTransform cam12cam2(world2cam2.R*cam12world.R,
+			StereoVision::Geometry::AffineTransform cam12cam2(world2cam2.R*cam12world.R,
 									  world2cam2.t + world2cam2.R*cam12world.t);
 
 			Eigen::Array2f ptCam1 = getHomogeneousImageCoordinates(im1, {pt});
