@@ -17,9 +17,7 @@ public:
 	Q_PROPERTY(floatParameter yCoord READ yCoord WRITE setYCoord NOTIFY yCoordChanged)
 	Q_PROPERTY(floatParameter zCoord READ zCoord WRITE setZCoord NOTIFY zCoordChanged)
 
-	Q_PROPERTY(floatParameter optimizedX READ optimizedX WRITE setOptimisedX NOTIFY optXCoordChanged)
-	Q_PROPERTY(floatParameter optimizedY READ optimizedY WRITE setOptimisedY NOTIFY optYCoordChanged)
-	Q_PROPERTY(floatParameter optimizedZ READ optimizedZ WRITE setOptimisedZ NOTIFY optZCoordChanged)
+	Q_PROPERTY(floatParameterGroup<3> optimizedPos READ optPos WRITE setOptPos NOTIFY optPosChanged)
 
 	explicit Landmark(Project* parent = nullptr);
 
@@ -33,17 +31,9 @@ public:
 	void setZCoord(const floatParameter &z);
 
 
-	floatParameter optimizedX() const;
-	void setOptimisedX(const floatParameter &o_x);
-	void clearOptimisedX();
-
-	floatParameter optimizedY() const;
-	void setOptimisedY(const floatParameter &o_x);
-	void clearOptimisedY();
-
-	floatParameter optimizedZ() const;
-	void setOptimisedZ(const floatParameter &o_x);
-	void clearOptimisedZ();
+	floatParameterGroup<3> optPos() const;
+	void setOptPos(floatParameterGroup<3> const& o_pos);
+	void clearOptPos();
 
 	int countImagesRefering(QSet<qint64> const& excluded = {}) const;
 	int countImagesRefering(QVector<qint64> const& excluded) const;
@@ -62,9 +52,7 @@ Q_SIGNALS:
 	void yCoordChanged(floatParameter);
 	void zCoordChanged(floatParameter);
 
-	void optXCoordChanged(floatParameter);
-	void optYCoordChanged(floatParameter);
-	void optZCoordChanged(floatParameter);
+	void optPosChanged();
 
 protected:
 
@@ -76,6 +64,8 @@ protected:
 	floatParameter _x;
 	floatParameter _y;
 	floatParameter _z;
+
+	floatParameterGroup<3> _o_pos;
 
 	floatParameter _o_x;
 	floatParameter _o_y;

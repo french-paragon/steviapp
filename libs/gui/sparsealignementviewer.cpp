@@ -157,9 +157,7 @@ void SparseAlignementViewer::reloadLandmarks() {
 			Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
 
 			if (lm != nullptr) {
-				if (lm->optimizedX().isSet() and
-					lm->optimizedY().isSet() and
-					lm->optimizedZ().isSet()) {
+				if (lm->optPos().isSet()) {
 					_loadedLandmarks.push_back(id);
 				}
 			}
@@ -171,9 +169,9 @@ void SparseAlignementViewer::reloadLandmarks() {
 
 		for (qint64 id : _loadedLandmarks) {
 			Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
-			_llm_pos.push_back(lm->optimizedX().value());
-			_llm_pos.push_back(lm->optimizedY().value());
-			_llm_pos.push_back(lm->optimizedZ().value());
+			_llm_pos.push_back(lm->optPos().value(0));
+			_llm_pos.push_back(lm->optPos().value(1));
+			_llm_pos.push_back(lm->optPos().value(2));
 		}
 	}
 
@@ -315,12 +313,8 @@ void SparseAlignementViewer::paintGL() {
 
 			if (im != nullptr) {
 
-				if (im->optXCoord().isSet() and
-						im->optYCoord().isSet() and
-						im->optZCoord().isSet() and
-						im->optXRot().isSet() and
-						im->optYRot().isSet() and
-						im->optZRot().isSet() ) {
+				if (im->optPos().isSet() and
+						im->optRot().isSet() ) {
 
 					_loadedFrames.push_back(im->internalId());
 
@@ -342,15 +336,15 @@ void SparseAlignementViewer::paintGL() {
 					}
 
 					QVector3D r;
-					r.setX(im->optXRot().value());
-					r.setY(im->optYRot().value());
-					r.setZ(im->optZRot().value());
+					r.setX(im->optRot().value(0));
+					r.setY(im->optRot().value(1));
+					r.setZ(im->optRot().value(2));
 
 					camRotate.rotate(r.length()/M_PI*180, r);
 
-					camTranslate.translate(im->optXCoord().value(),
-										   im->optYCoord().value(),
-										   im->optZCoord().value());
+					camTranslate.translate(im->optPos().value(0),
+										   im->optPos().value(1),
+										   im->optPos().value(2));
 
 					QMatrix4x4 camTransform = camTranslate*camRotate*camScale;
 					_camProgram->setUniformValue("matrixCamToScene", camTransform);
@@ -764,9 +758,9 @@ SparseAlignementViewer::itemClickInfos SparseAlignementViewer::nearestLandmark(Q
 		Landmark* lm = _currentProject->getDataBlock<Landmark>(cand_id);
 
 		if (lm != nullptr) {
-			QVector3D p(lm->optimizedX().value()*_sceneScale,
-						lm->optimizedY().value()*_sceneScale,
-						lm->optimizedZ().value()*_sceneScale);
+			QVector3D p(lm->optPos().value(0)*_sceneScale,
+						lm->optPos().value(1)*_sceneScale,
+						lm->optPos().value(2)*_sceneScale);
 
 			QVector3D project = p.project(_modelView, _projectionView, rect());
 
@@ -810,9 +804,9 @@ SparseAlignementViewer::itemClickInfos SparseAlignementViewer::nearestCam(QPoint
 		Image* im = _currentProject->getDataBlock<Image>(cand_id);
 
 		if (im != nullptr) {
-			QVector3D p(im->optXCoord().value()*_sceneScale,
-						im->optYCoord().value()*_sceneScale,
-						im->optZCoord().value()*_sceneScale);
+			QVector3D p(im->optPos().value(0)*_sceneScale,
+						im->optPos().value(1)*_sceneScale,
+						im->optPos().value(2)*_sceneScale);
 
 			QVector3D project = p.project(_modelView, _projectionView, rect());
 

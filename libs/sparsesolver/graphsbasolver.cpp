@@ -93,9 +93,9 @@ bool GraphSBASolver::init() {
 
 			g2o::Vector3 d;
 
-			d.x() = lm->optimizedX().value();
-			d.y() = lm->optimizedY().value();
-			d.z() = lm->optimizedZ().value();
+			d.x() = lm->optPos().value(0);
+			d.y() = lm->optPos().value(1);
+			d.z() = lm->optPos().value(2);
 
 			v->setEstimate(d);
 
@@ -220,14 +220,14 @@ bool GraphSBASolver::init() {
 			Eigen::Vector3d t;
 			Eigen::Vector3d raxis;
 
-			raxis.x() = im->optXRot().value();
-			raxis.y() = im->optYRot().value();
-			raxis.z() = im->optZRot().value();
+			raxis.x() = im->optRot().value(0);
+			raxis.y() = im->optRot().value(1);
+			raxis.z() = im->optRot().value(2);
 			r = StereoVision::Geometry::rodriguezFormulaD(raxis);
 
-			t.x() = im->optXCoord().value();
-			t.y() = im->optYCoord().value();
-			t.z() = im->optZCoord().value();
+			t.x() = im->optPos().value(0);
+			t.y() = im->optPos().value(1);
+			t.z() = im->optPos().value(2);
 
 			CameraPose p(r, t);
 
@@ -419,9 +419,12 @@ bool GraphSBASolver::writeResults() {
 
 		const landMarkVertex::EstimateType & e = lmv->estimate();
 
-		lm->setOptimisedX(static_cast<float>(e.x()));
-		lm->setOptimisedY(static_cast<float>(e.y()));
-		lm->setOptimisedZ(static_cast<float>(e.z()));
+		floatParameterGroup<3> pos;
+		pos.value(0) = static_cast<float>(e.x());
+		pos.value(1) = static_cast<float>(e.y());
+		pos.value(2) = static_cast<float>(e.z());
+		pos.setIsSet();
+		lm->setOptPos(pos);
 
 	}
 
@@ -436,13 +439,19 @@ bool GraphSBASolver::writeResults() {
 		Eigen::Vector3d t = e.t();
 		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormulaD(e.r());
 
-		im->setOptXCoord(static_cast<float>(t.x()));
-		im->setOptYCoord(static_cast<float>(t.y()));
-		im->setOptZCoord(static_cast<float>(t.z()));
+		floatParameterGroup<3> pos;
+		pos.value(0) = static_cast<float>(t.x());
+		pos.value(1) = static_cast<float>(t.y());
+		pos.value(2) = static_cast<float>(t.z());
+		pos.setIsSet();
+		im->setOptPos(pos);
 
-		im->setOptXRot(static_cast<float>(r.x()));
-		im->setOptYRot(static_cast<float>(r.y()));
-		im->setOptZRot(static_cast<float>(r.z()));
+		floatParameterGroup<3> rot;
+		rot.value(0) = static_cast<float>(r.x());
+		rot.value(1) = static_cast<float>(r.y());
+		rot.value(2) = static_cast<float>(r.z());
+		rot.setIsSet();
+		im->setOptRot(rot);
 
 	}
 
@@ -510,17 +519,17 @@ bool GraphSBASolver::writeUncertainty() {
 			return false;
 		}
 
-		floatParameter x = lm->optimizedX();
-		floatParameter y = lm->optimizedY();
-		floatParameter z = lm->optimizedZ();
+		floatParameterGroup<3> pos = lm->optPos();
 
-		x.setUncertainty(m(0,0));
-		y.setUncertainty(m(1,1));
-		z.setUncertainty(m(2,2));
+		pos.stddev(0, 0) = m(0,0);
+		pos.stddev(1, 0) = m(1,0);
+		pos.stddev(2, 0) = m(2,0);
+		pos.stddev(1, 1) = m(1,1);
+		pos.stddev(2, 1) = m(2,1);
+		pos.stddev(2, 2) = m(2,2);
+		pos.setUncertain();
 
-		lm->setOptimisedX(x);
-		lm->setOptimisedY(y);
-		lm->setOptimisedZ(z);
+		lm->setOptPos(pos);
 
 	}
 
@@ -542,29 +551,29 @@ bool GraphSBASolver::writeUncertainty() {
 			return false;
 		}
 
-		floatParameter x = im->optXCoord();
-		floatParameter y = im->optYCoord();
-		floatParameter z = im->optZCoord();
+		floatParameterGroup<3> pos = im->optPos();
 
-		x.setUncertainty(m(0,0));
-		y.setUncertainty(m(1,1));
-		z.setUncertainty(m(2,2));
+		pos.stddev(0, 0) = m(0,0);
+		pos.stddev(1, 0) = m(1,0);
+		pos.stddev(2, 0) = m(2,0);
+		pos.stddev(1, 1) = m(1,1);
+		pos.stddev(2, 1) = m(2,1);
+		pos.stddev(2, 2) = m(2,2);
+		pos.setUncertain();
 
-		im->setOptXCoord(x);
-		im->setOptYCoord(y);
-		im->setOptZCoord(z);
+		im->setOptPos(pos);
 
-		floatParameter rx = im->optXRot();
-		floatParameter ry = im->optYRot();
-		floatParameter rz = im->optZRot();
+		floatParameterGroup<3> rot = im->optRot();
 
-		rx.setUncertainty(m(3,3));
-		ry.setUncertainty(m(4,4));
-		rz.setUncertainty(m(5,5));
+		rot.stddev(0, 0) = m(3,3);
+		rot.stddev(1, 0) = m(4,3);
+		rot.stddev(2, 0) = m(5,3);
+		rot.stddev(1, 1) = m(4,4);
+		rot.stddev(2, 1) = m(5,4);
+		rot.stddev(2, 2) = m(5,5);
+		rot.setUncertain();
 
-		im->setOptXRot(rx);
-		im->setOptYRot(ry);
-		im->setOptZRot(rz);
+		im->setOptRot(rot);
 
 	}
 

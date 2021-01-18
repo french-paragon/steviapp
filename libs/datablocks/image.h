@@ -44,30 +44,13 @@ public:
 	floatParameter zRot() const;
 	void setZRot(const floatParameter &rz);
 
+	floatParameterGroup<3> optPos() const;
+	void setOptPos(floatParameterGroup<3> const& o_pos);
+	void clearOptPos();
 
-	floatParameter optXCoord() const;
-	void setOptXCoord(const floatParameter &o_x);
-	void clearOptXCoord();
-
-	floatParameter optYCoord() const;
-	void setOptYCoord(const floatParameter &o_y);
-	void clearOptYCoord();
-
-	floatParameter optZCoord() const;
-	void setOptZCoord(const floatParameter &o_z);
-	void clearOptZCoord();
-
-	floatParameter optXRot() const;
-	void setOptXRot(const floatParameter &o_rx);
-	void clearOptXRot();
-
-	floatParameter optYRot() const;
-	void setOptYRot(const floatParameter &o_ry);
-	void clearOptYRot();
-
-	floatParameter optZRot() const;
-	void setOptZRot(const floatParameter &o_rz);
-	void clearOptZRot();
+	floatParameterGroup<3> optRot() const;
+	void setOptRot(floatParameterGroup<3> const& o_rot);
+	void clearOptRot();
 
 	qint64 addImageLandmark(const QPointF &coordinates, bool uncertain = false, qreal sigma_pos = 1.0);
 	qint64 addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain = false, qreal sigma_pos = 1.0);
@@ -102,6 +85,8 @@ Q_SIGNALS:
 	void yRotChanged(floatParameter);
 	void zRotChanged(floatParameter);
 
+	void optPosChanged();
+	void optRotChanged();
 
 	void optXCoordChanged(floatParameter);
 	void optYCoordChanged(floatParameter);
@@ -131,14 +116,8 @@ protected:
 	floatParameter _ry;
 	floatParameter _rz;
 
-
-	floatParameter _o_x;
-	floatParameter _o_y;
-	floatParameter _o_z;
-
-	floatParameter _o_rx;
-	floatParameter _o_ry;
-	floatParameter _o_rz;
+	floatParameterGroup<3> _o_pos;
+	floatParameterGroup<3> _o_rot;
 };
 
 class ImageLandmark : public DataBlock

@@ -54,77 +54,23 @@ void Landmark::setZCoord(const floatParameter &z)
 	}
 }
 
-floatParameter Landmark::optimizedX() const
-{
-	return _o_x;
+floatParameterGroup<3> Landmark::optPos() const {
+	return _o_pos;
 }
-
-void Landmark::setOptimisedX(const floatParameter &o_x)
-{
-	floatParameter t = o_x;
+void Landmark::setOptPos(floatParameterGroup<3> const& o_pos) {
+	floatParameterGroup<3> t = o_pos;
 	t.setIsSet();
-	t.setUncertainty();
 
-	if (!t.isApproximatlyEqual(_o_x, 1e-4)) {
-		_o_x = t;
-		emit optXCoordChanged(t);
+	if (!t.isApproximatlyEqual(_o_pos, 1e-4)) {
+		_o_pos = t;
+		emit optPosChanged();
 		isChanged();
 	}
 }
-void Landmark::clearOptimisedX() {
-	if (_o_x.isSet()) {
-		_o_x.clearIsSet();
-		emit optXCoordChanged(_o_x);
-		isChanged();
-	}
-}
-
-floatParameter Landmark::optimizedY() const
-{
-	return _o_y;
-}
-
-void Landmark::setOptimisedY(const floatParameter &o_y)
-{
-	floatParameter t = o_y;
-	t.setIsSet();
-	t.setUncertainty();
-
-	if (!t.isApproximatlyEqual(_o_y, 1e-4)) {
-		_o_y = t;
-		emit optXCoordChanged(t);
-		isChanged();
-	}
-}
-void Landmark::clearOptimisedY() {
-	if (_o_y.isSet()) {
-		_o_y.clearIsSet();
-		emit optXCoordChanged(_o_y);
-		isChanged();
-	}
-}
-
-floatParameter Landmark::optimizedZ() const
-{
-	return _o_z;
-}
-
-void Landmark::setOptimisedZ(const floatParameter &o_z)
-{
-	floatParameter t = o_z;
-	t.setIsSet();
-	t.setUncertainty();
-
-	if (!t.isApproximatlyEqual(_o_z, 1e-4)) {
-		_o_z = t;
-		emit optXCoordChanged(t);
-		isChanged();
-	}
-}
-void Landmark::clearOptimisedZ() {
-	if (_o_z.isSet()) {
-		_o_z.clearIsSet();
-		emit optXCoordChanged(_o_z);
+void Landmark::clearOptPos() {
+	if (_o_pos.isSet()) {
+		_o_pos.clearIsSet();
+		emit optPosChanged();
 		isChanged();
 	}
 }
@@ -195,9 +141,7 @@ QSet<qint64> Landmark::getViewingImgInList(QSet<qint64> const& included) const {
 }
 
 void Landmark::clearOptimized() {
-	clearOptimisedX();
-	clearOptimisedY();
-	clearOptimisedZ();
+	clearOptPos();
 }
 
 bool Landmark::hasOptimizedParameters() const {
@@ -212,9 +156,7 @@ QJsonObject Landmark::encodeJson() const {
 	obj.insert("y", floatParameter::toJson(yCoord()));
 	obj.insert("z", floatParameter::toJson(zCoord()));
 
-	obj.insert("ox", floatParameter::toJson(optimizedX()));
-	obj.insert("oy", floatParameter::toJson(optimizedY()));
-	obj.insert("oz", floatParameter::toJson(optimizedZ()));
+	obj.insert("op", floatParameterGroup<3>::toJson(optPos()));
 
 	return obj;
 }
@@ -231,14 +173,8 @@ void Landmark::configureFromJson(QJsonObject const& data) {
 		_z = floatParameter::fromJson(data.value("z").toObject());
 	}
 
-	if (data.contains("ox")) {
-		_o_x = floatParameter::fromJson(data.value("ox").toObject());
-	}
-	if (data.contains("oy")) {
-		_o_y = floatParameter::fromJson(data.value("oy").toObject());
-	}
-	if (data.contains("oy")) {
-		_o_z = floatParameter::fromJson(data.value("oz").toObject());
+	if (data.contains("op")) {
+		_o_pos = floatParameterGroup<3>::fromJson(data.value("op").toObject());
 	}
 
 }

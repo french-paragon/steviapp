@@ -95,17 +95,12 @@ void initSolution(Project* p, MainWindow* w) {
 
 		if (lm != nullptr) {
 
-			floatParameter x = lm->optimizedX();
-			x.setIsSet(initial_setup.points[id].x());
-			lm->setOptimisedX(x);
-
-			floatParameter y = lm->optimizedY();
-			y.setIsSet(initial_setup.points[id].y());
-			lm->setOptimisedY(y);
-
-			floatParameter z = lm->optimizedZ();
-			z.setIsSet(initial_setup.points[id].z());
-			lm->setOptimisedZ(z);
+			floatParameterGroup<3> pos = lm->optPos();
+			pos.value(0) = initial_setup.points[id].x();
+			pos.value(1) = initial_setup.points[id].y();
+			pos.value(2) = initial_setup.points[id].z();
+			pos.setIsSet();
+			lm->setOptPos(pos);
 
 			lm->setOptimizationStep(DataBlock::Initialized);
 		}
@@ -119,31 +114,21 @@ void initSolution(Project* p, MainWindow* w) {
 		Image* im = qobject_cast<Image*>(p->getById(id));
 
 		if (im != nullptr) {
-			floatParameter x = im->optXCoord();
-			x.setIsSet(initial_setup.cams[id].t.x());
-			im->setOptXCoord(x);
-
-			floatParameter y = im->optYCoord();
-			y.setIsSet(initial_setup.cams[id].t.y());
-			im->setOptYCoord(y);
-
-			floatParameter z = im->optZCoord();
-			z.setIsSet(initial_setup.cams[id].t.z());
-			im->setOptZCoord(z);
+			floatParameterGroup<3> pos = im->optPos();
+			pos.value(0) = initial_setup.cams[id].t.x();
+			pos.value(1) = initial_setup.cams[id].t.y();
+			pos.value(2) = initial_setup.cams[id].t.z();
+			pos.setIsSet();
+			im->setOptPos(pos);
 
 			Eigen::Vector3f r = StereoVision::Geometry::inverseRodriguezFormula(initial_setup.cams[id].R);
 
-			x = im->optXRot();
-			x.setIsSet(r.x());
-			im->setOptXRot(x);
-
-			y = im->optYRot();
-			y.setIsSet(r.y());
-			im->setOptYRot(y);
-
-			z = im->optZRot();
-			z.setIsSet(r.z());
-			im->setOptZRot(z);
+			floatParameterGroup<3> rot = im->optRot();
+			rot.value(0) = r.x();
+			rot.value(1) = r.y();
+			rot.value(2) = r.z();
+			rot.setIsSet();
+			im->setOptRot(rot);
 
 			im->setOptimizationStep(DataBlock::Initialized);
 
