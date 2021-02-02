@@ -3,4 +3,4 @@
 	url = https://github.com/RainerKuemmerle/g2o.git
 [submodule "modules/LibStevi"]
 	path = modules/LibStevi
-	url = git@github.com:french-paragon/LibStevi.git
+	url = https://github.com/french-paragon/LibStevi.git
