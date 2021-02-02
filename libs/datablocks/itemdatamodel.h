@@ -406,6 +406,8 @@ public:
 																							signal);
 
 			_itemProperties.push_back(prop);
+
+			return prop;
 		}
 
 	protected:
@@ -444,7 +446,7 @@ public:
 		virtual NodeType type() const;
 
 		template<typename T, class D, bool refS, ItemPropertyDescription::SignalType signalT>
-		ItemPropertyDescription* addCatProperty(QString name,
+		ItemPropertyDescriptionFactory* addCatProperty(QString name,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::GetterType getter,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::SetterType setter,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::SignalType signal) {
@@ -460,6 +462,8 @@ public:
 				DataBlock* b = _model->_dataBlock->getById(n->subItemId);
 				_propertiesDescritions[n->subItemId].push_back(f->factorizeDescription(this, b));
 			}
+
+			return f;
 
 		}
 

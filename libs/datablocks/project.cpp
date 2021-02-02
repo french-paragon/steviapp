@@ -966,7 +966,7 @@ QVector<QVector<qint64>> json2UrlList(QJsonArray const& arr) {
 	for (QJsonValue const& v : arr) {
 		QString u = v.toString();
 
-		QStringList l = u.split("/", QString::SkipEmptyParts);
+		QStringList l = u.split("/", Qt::SkipEmptyParts);
 
 		QVector<qint64> url;
 		url.reserve(l.count());

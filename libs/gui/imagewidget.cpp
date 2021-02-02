@@ -442,7 +442,7 @@ void ImageWidget::wheelEvent(QWheelEvent *e) {
 		int old_zoom = zoom();
 		int n_zoom = clipZoom(old_zoom + delta);
 
-		QPoint mousePos = e->pos();
+		QPoint mousePos = e->position().toPoint();
 		QPoint oldTranslation = translation();
 
 		QPoint wCenter(width()/2, height()/2);
