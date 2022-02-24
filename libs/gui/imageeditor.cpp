@@ -151,7 +151,7 @@ void ImageEditor::addPoint(QPointF const& imageCoordinates) {
 		Landmark* lm = qobject_cast<Landmark*>(p->getById(lmId));
 		lm->setObjectName(newLmName);
 
-		ui->landmarkComboBox->setCurrentIndex(p->countTypeInstances(LandmarkFactory::landmarkClassName()));
+		ui->landmarkComboBox->setCurrentIndex(p->countTypeInstances(LandmarkFactory::landmarkClassName())-1);
 
 	} else {
 
