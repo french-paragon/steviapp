@@ -8,6 +8,8 @@ set(LIB_SRC sbagraphreductor.cpp
             sparsesolverbase.h
             graphsbasolver.cpp
             graphsbasolver.h
+            imagepointssolutionmodel.cpp
+            imagepointssolutionmodel.h
             vertices/camerapose.cpp
             vertices/camerapose.h
             vertices/camparam.cpp
@@ -32,6 +34,7 @@ set(LIB_SRC sbagraphreductor.cpp
             edges/edgese3xyzprior.h
             edges/edgexyzprior.cpp
             edges/edgexyzprior.h
+            helperfunctions.h
 )
 
 add_library(

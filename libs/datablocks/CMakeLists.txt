@@ -14,6 +14,8 @@ set(LIB_SRC floatparameter.cpp
             camera.h
             itemdatamodel.cpp
             itemdatamodel.h
+            stereorig.cpp
+            stereorig.h
 )
 
 add_library(

@@ -4,6 +4,7 @@
 #include "datablocks/image.h"
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
+#include "datablocks/stereorig.h"
 
 #include <eigen3/Eigen/Core>
 #include <Eigen/Geometry>
@@ -858,7 +859,7 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 	Eigen::Vector3f coord = Eigen::Vector3f::Zero();
 	int n_obs = 0;
 
-	for(int i = 0; i+2 < imgs.size(); i++) {
+	for(int i = 0; i+1 < imgs.size(); i++) {
 
 		Image* im1 = qobject_cast<Image*>(p->getById(imgs[i]));
 
@@ -1386,6 +1387,148 @@ SBAInitializer::InitialSolution RandomPosSBAInitializer::computeInitialSolution(
 
 		Eigen::Vector3f t(cDist(engine), cDist(engine), _camDist + cDist(engine));
 		r.cams.emplace(id, Pt6D(rot, rot*t));
+	}
+
+	return r;
+
+}
+
+StereoRigInitializer::StereoRigInitializer(qint64 f1,
+										   bool preconstrain,
+										   bool useConstraintsRefinement) :
+	_f1(f1),
+	_preconstrain(preconstrain),
+	_useConstraintsRefinement(useConstraintsRefinement)
+{
+
+}
+
+SBAInitializer::InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs) {
+
+	InitialSolution r;
+
+	struct RigPair{
+		StereoRig* rig;
+		Image* img1;
+		Image* img2;
+	};
+
+
+	QMap<int, RigPair> rigPairs;
+	QMap<int, QSet<qint64>> rigPairsPoints;
+	int idx = 0;
+
+	QVector<qint64> rigsIds = p->getIdsByClass(StereoRigFactory::StereoRigClassName());
+
+	for (qint64 rigId : rigsIds) {
+		StereoRig* rig = qobject_cast<StereoRig*>(p->getById(rigId));
+
+		if (rig != nullptr) {
+			for (qint64 impid : rig->listTypedSubDataBlocks(ImagePair::staticMetaObject.className())) {
+
+				ImagePair* imp = rig->getImagePair(impid);
+
+				if (imp != nullptr) {
+
+					Image* img1 = qobject_cast<Image*>(p->getById(imp->idImgCam1()));
+					Image* img2 = qobject_cast<Image*>(p->getById(imp->idImgCam2()));
+
+					if (img1 != nullptr and img2 != nullptr) {
+						if (s_imgs.contains(img1->internalId()) and s_imgs.contains(img2->internalId())) {
+							RigPair rp = {rig, img1, img2};
+
+							rigPairs[idx] = rp;
+
+							QVector<qint64> lst = rp.img1->getAttachedLandmarksIds();
+							QSet<qint64> interesectedPoints(lst.begin(), lst.end());
+
+							lst = rp.img2->getAttachedLandmarksIds();
+							QSet<qint64> img2Points(lst.begin(), lst.end());
+
+							interesectedPoints.intersect(img2Points);
+							interesectedPoints.intersect(s_pts);
+
+							rigPairsPoints[idx] = interesectedPoints;
+
+							idx++;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (rigPairs.isEmpty()) {
+		return r;
+	}
+
+	int maxRigPair = -1;
+	int maxRigPairSize = -1;
+	bool currentMaxMatchF1 = false;
+
+	for (int rp_id = 0; rp_id < idx; rp_id++) {
+		bool matchf1 =  rigPairs[rp_id].img1->internalId() == _f1 or rigPairs[rp_id].img2->internalId() == _f1;
+
+		if (_f1 >= 0 and currentMaxMatchF1) {
+			if (!matchf1) {
+				continue;
+			}
+		}
+
+		if (rigPairsPoints[rp_id].size() > maxRigPairSize) {
+			maxRigPair = rp_id;
+			maxRigPairSize = rigPairsPoints[rp_id].size();
+
+			if (matchf1) {
+				currentMaxMatchF1 = true;
+			}
+		}
+	}
+
+	if (maxRigPair < 0) {
+		return r;
+	}
+
+	RigPair const& start_rp = rigPairs[maxRigPair];
+	RigPair const& rp = start_rp;
+
+	Eigen::Matrix3f R = (Eigen::AngleAxisf(rp.rig->offsetRotX().value()/180*M_PI, Eigen::Vector3f::UnitX())*
+				Eigen::AngleAxisf(rp.rig->offsetRotY().value()/180*M_PI, Eigen::Vector3f::UnitY())*
+				Eigen::AngleAxisf(rp.rig->offsetRotZ().value()/180*M_PI, Eigen::Vector3f::UnitZ())).toRotationMatrix();
+
+	Eigen::Vector3f t(rp.rig->offsetX().value(),
+					  rp.rig->offsetY().value(),
+					  rp.rig->offsetZ().value());
+
+	StereoVision::Geometry::AffineTransform cam1(Eigen::Matrix3f::Identity(), Eigen::Vector3f::Zero());
+	StereoVision::Geometry::AffineTransform cam2tocam1(R, t);
+
+
+	r.cams[rp.img1->internalId()] = cam1;
+	r.cams[rp.img2->internalId()] = cam2tocam1;
+
+	for (qint64 ptid : rigPairsPoints[maxRigPair]) {
+		triangulatePoint(r, p, ptid, {rp.img1->internalId(), rp.img2->internalId()});
+	}
+
+	return r;
+
+	completeSolution(r, p, s_pts, s_imgs);
+
+	if (_preconstrain) {
+		StereoVision::Geometry::AffineTransform adjust = estimateTransform(r, p, _useConstraintsRefinement);
+		StereoVision::Geometry::ShapePreservingTransform rigid = affine2ShapePreservingMap(adjust);
+		Eigen::Matrix3f rotationPart = StereoVision::Geometry::rodriguezFormula(rigid.r);
+		//apply adjustement transform to all points
+
+		for(auto & map_pt : r.points) {
+			r.points[map_pt.first] = adjust.R*map_pt.second + adjust.t;
+		}
+
+		for(auto & map_cam : r.cams) {
+			r.cams[map_cam.first].t = adjust.R*map_cam.second.t + adjust.t;
+			r.cams[map_cam.first].R = rotationPart*map_cam.second.R;
+		}
 	}
 
 	return r;

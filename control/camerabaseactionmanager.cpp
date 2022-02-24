@@ -26,7 +26,19 @@ QString CameraBaseActionManager::itemClassName() const {
 QList<QAction*> CameraBaseActionManager::factorizeClassContextActions(QObject* parent, Project* p) const {
 	Q_UNUSED(parent);
 	Q_UNUSED(p);
-	return {};
+
+	QString classname = itemClassName();
+
+	QAction* add = new QAction(tr("Add a new Camera"), parent);
+	connect(add, &QAction::triggered, [classname, p] () {
+		qint64 block_id = p->createDataBlock(classname.toStdString().c_str());
+		if (block_id > 0) {
+			DataBlock* b = p->getById(block_id);
+			b->setObjectName(tr("new camera"));
+		}
+	});
+
+	return {add};
 }
 QList<QAction*> CameraBaseActionManager::factorizeItemContextActions(QObject* parent, DataBlock* item) const {
 

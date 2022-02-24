@@ -44,6 +44,8 @@ public:
 		QStringList options() const;
 		void setOptions(const QStringList &options);
 
+		virtual bool isWritable() const = 0;
+
 		virtual PropertyEdtior editor() const = 0;
 
 		virtual QVariant data(int role = Qt::DisplayRole) const = 0;
@@ -120,6 +122,10 @@ protected:
 			vChangedConnection = QObject::connect(d, signal, [this] () {
 				valueChanged();
 			});
+		}
+
+		bool isWritable() const override {
+			return _setter != nullptr;
 		}
 
 		PropertyEdtior editor() const override {
@@ -206,6 +212,10 @@ protected:
 			vChangedConnection = QObject::connect(d, signal, [this] () {
 				valueChanged();
 			});
+		}
+
+		bool isWritable() const override {
+			return _setter != nullptr;
 		}
 
 		PropertyEdtior editor() const override {
@@ -406,6 +416,7 @@ public:
 																							signal);
 
 			_itemProperties.push_back(prop);
+			return prop;
 		}
 
 	protected:
@@ -444,7 +455,7 @@ public:
 		virtual NodeType type() const;
 
 		template<typename T, class D, bool refS, ItemPropertyDescription::SignalType signalT>
-		ItemPropertyDescription* addCatProperty(QString name,
+		void addCatProperty(QString name,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::GetterType getter,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::SetterType setter,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::SignalType signal) {
