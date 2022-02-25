@@ -55,6 +55,8 @@ set(PROJ_SRC  main.cpp
     control/landmarkbaseactionmanager.h
     control/stereorigactionmanager.cpp
     control/stereorigactionmanager.h
+    control/angleconstrainactionmanager.cpp
+    control/angleconstrainactionmanager.h
     control/solversactions.cpp
     control/solversactions.h)
 

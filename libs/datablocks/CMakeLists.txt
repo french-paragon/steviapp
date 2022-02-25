@@ -16,6 +16,10 @@ set(LIB_SRC floatparameter.cpp
             itemdatamodel.h
             stereorig.cpp
             stereorig.h
+            angleconstrain.cpp
+            angleconstrain.h
+            landmarkscollection.cpp
+            landmarkscollection.h
 )
 
 add_library(

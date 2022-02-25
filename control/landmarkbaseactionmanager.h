@@ -5,6 +5,8 @@
 
 namespace StereoVisionApp {
 
+class Landmark;
+
 class LandmarkBaseActionManager : public DatablockActionManager
 {
 	Q_OBJECT
@@ -14,7 +16,11 @@ public:
 	QString ActionManagerClassName() const override;
 	QString itemClassName() const override;
 
-signals:
+	QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const override;
+
+protected:
+
+	QAction* createAssignToAngleConstrainAction(QObject* parent, Project* p, const QVector<Landmark *> &lms) const;
 
 };
 
