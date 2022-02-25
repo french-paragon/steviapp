@@ -9,6 +9,7 @@
 #include "datablocks/image.h"
 #include "datablocks/stereorig.h"
 #include "datablocks/angleconstrain.h"
+#include "datablocks/distanceconstrain.h"
 
 #include "gui/imageeditor.h"
 #include "gui/imagepointdetailseditor.h"
@@ -20,6 +21,7 @@
 #include "control/landmarkbaseactionmanager.h"
 #include "control/stereorigactionmanager.h"
 #include "control/angleconstrainactionmanager.h"
+#include "control/distanceconstrainactionmanager.h"
 
 int main(int argc, char *argv[])
 {
@@ -39,6 +41,7 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::StereoRigFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::AngleConstrainFactory(&a));
+	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::DistanceConstrainFactory(&a));
 
 	StereoVisionApp::ProjectFactory* pF = &StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
@@ -47,6 +50,7 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::CameraBaseActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::StereoRigActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::AngleConstrainActionManager(pF));
+	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::DistanceConstrainActionManager(pF));
 
 	StereoVisionApp::MainWindow w;
 

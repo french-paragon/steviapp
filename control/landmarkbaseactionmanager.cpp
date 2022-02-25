@@ -2,6 +2,7 @@
 
 #include "datablocks/landmark.h"
 #include "datablocks/angleconstrain.h"
+#include "datablocks/distanceconstrain.h"
 
 #include <QWidget>
 #include <QAction>
@@ -45,6 +46,12 @@ QList<QAction*> LandmarkBaseActionManager::factorizeMultiItemsContextActions(QOb
 
 	QList<QAction*> lst;
 
+	QAction* assignToDistanceConstrain = createAssignToDistanceConstrainAction(parent, p, lms);
+
+	if (assignToDistanceConstrain != nullptr) {
+		lst.append(assignToDistanceConstrain);
+	}
+
 	QAction* assignToAngleConstrain = createAssignToAngleConstrainAction(parent, p, lms);
 
 	if (assignToAngleConstrain != nullptr) {
@@ -53,6 +60,64 @@ QList<QAction*> LandmarkBaseActionManager::factorizeMultiItemsContextActions(QOb
 
 	return lst;
 
+}
+
+QAction* LandmarkBaseActionManager::createAssignToDistanceConstrainAction(QObject* parent, Project* p, const QVector<Landmark *> &lms) const {
+
+	bool ok = true;
+
+	QAction* assignToDistanceConstrain = new QAction(tr("Assign to distance constrain"), parent);
+
+	if (lms.size() != 2) {
+		assignToDistanceConstrain->deleteLater();
+		return nullptr;
+	}
+
+	QMenu* constaintsMenu = new QMenu();
+	connect(assignToDistanceConstrain, &QObject::destroyed, constaintsMenu, &QObject::deleteLater);
+
+	QVector<qint64> constraintsIds = p->getIdsByClass(DistanceConstrain::staticMetaObject.className());
+
+	for (qint64 constrainId : constraintsIds) {
+
+		DistanceConstrain* constraint = qobject_cast<DistanceConstrain*>(p->getById(constrainId));
+
+		if (constraint != nullptr) {
+
+			QVector<qint64> pairs = constraint->listTypedSubDataBlocks(DistanceLandmarksPair::staticMetaObject.className());
+
+			for (qint64 id_p : pairs) {
+				DistanceLandmarksPair* p = constraint->getLandmarksPair(id_p);
+
+				if (p != nullptr) {
+					if ((p->getNthLandmarkId(0) == lms[0]->internalId() and
+							p->getNthLandmarkId(1) == lms[1]->internalId()) or
+						(p->getNthLandmarkId(0) == lms[1]->internalId() and
+							p->getNthLandmarkId(1) == lms[0]->internalId())) {
+						ok = false;
+						break;
+					}
+				}
+			}
+
+			QAction* toConstrain = new QAction(constraint->objectName(), assignToDistanceConstrain);
+			connect(toConstrain, &QAction::triggered, [constraint, lms] () {
+				constraint->insertLandmarksPair(lms[0]->internalId(), lms[1]->internalId());
+			});
+			constaintsMenu->addAction(toConstrain);
+		}
+
+	}
+
+	if (ok) {
+		assignToDistanceConstrain->setMenu(constaintsMenu);
+		return assignToDistanceConstrain;
+	} else {
+		assignToDistanceConstrain->deleteLater();
+		return nullptr;
+	}
+
+	return nullptr;
 }
 
 QAction* LandmarkBaseActionManager::createAssignToAngleConstrainAction(QObject* parent, Project* p, const QVector<Landmark *> &lms) const {

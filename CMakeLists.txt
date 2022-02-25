@@ -57,6 +57,8 @@ set(PROJ_SRC  main.cpp
     control/stereorigactionmanager.h
     control/angleconstrainactionmanager.cpp
     control/angleconstrainactionmanager.h
+    control/distanceconstrainactionmanager.cpp
+    control/distanceconstrainactionmanager.h
     control/solversactions.cpp
     control/solversactions.h)
 
