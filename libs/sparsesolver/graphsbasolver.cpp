@@ -11,6 +11,8 @@
 #include "datablocks/landmark.h"
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
+#include "datablocks/angleconstrain.h"
+#include "datablocks/distanceconstrain.h"
 
 #include "g2o/types/sba/types_six_dof_expmap.h"
 #include "vertices/vertexcamerapose.h"
@@ -21,6 +23,8 @@
 #include "edges/edgese3fullprior.h"
 #include "edges/edgese3rpyprior.h"
 #include "edges/edgese3xyzprior.h"
+#include "edges/edgepointdistance.h"
+#include "edges/edgepointsangle.h"
 
 #include "sbagraphreductor.h"
 #include "sbainitializer.h"
@@ -340,6 +344,108 @@ bool GraphSBASolver::init() {
 				}
 			}
 		}
+	}
+
+	QVector<qint64> distConsts = _currentProject->getIdsByClass(DistanceConstrain::staticMetaObject.className());
+
+	for (qint64 id : distConsts) {
+
+		DistanceConstrain* constrain = _currentProject->getDataBlock<DistanceConstrain>(id);
+
+		if (constrain == nullptr) {
+			continue;
+		}
+
+		QVector<qint64> lmPairs = constrain->listTypedSubDataBlocks(DistanceLandmarksPair::staticMetaObject.className());
+
+		for (qint64 pair_id : lmPairs) {
+			DistanceLandmarksPair* pair = constrain->getLandmarksPair(pair_id);
+
+			if (pair == nullptr) {
+				continue;
+			}
+
+			if (_landmarkVertices.contains(pair->getNthLandmarkId(0)) and
+					_landmarkVertices.contains(pair->getNthLandmarkId(1))) {
+
+				g2o::VertexSBAPointXYZ* v1 = _landmarkVertices.value(pair->getNthLandmarkId(0), nullptr);
+				g2o::VertexSBAPointXYZ* v2 = _landmarkVertices.value(pair->getNthLandmarkId(1), nullptr);
+
+				if (v1 != nullptr and v2 != nullptr) {
+
+					floatParameter dist = constrain->distanceValue();
+
+					EdgePointDistance* e = new EdgePointDistance();
+
+					e->setMeasurement(dist.value());
+
+					e->setVertex(0, v1);
+					e->setVertex(1, v2);
+
+					EdgePointDistance::InformationType info = EdgePointDistance::InformationType::Identity();
+					info(0,0) = (dist.isUncertain()) ? 1./(dist.stddev()*dist.stddev()) : 1;
+
+					e->setInformation(info);
+
+					_optimizer->addEdge(e);
+				}
+
+			}
+		}
+
+	}
+
+	QVector<qint64> angleConsts = _currentProject->getIdsByClass(AngleConstrain::staticMetaObject.className());
+
+	for (qint64 id : angleConsts) {
+
+		AngleConstrain* constrain = _currentProject->getDataBlock<AngleConstrain>(id);
+
+		if (constrain == nullptr) {
+			continue;
+		}
+
+		QVector<qint64> lmTriplets = constrain->listTypedSubDataBlocks(AngleLandmarksTriplets::staticMetaObject.className());
+
+		for (qint64 pair_id : lmTriplets) {
+			AngleLandmarksTriplets* triplet = constrain->getLandmarksTriplet(pair_id);
+
+			if (triplet == nullptr) {
+				continue;
+			}
+
+			if (_landmarkVertices.contains(triplet->getNthLandmarkId(0)) and
+					_landmarkVertices.contains(triplet->getNthLandmarkId(1)) and
+					_landmarkVertices.contains(triplet->getNthLandmarkId(2))) {
+
+				g2o::VertexSBAPointXYZ* v1 = _landmarkVertices.value(triplet->getNthLandmarkId(0), nullptr);
+				g2o::VertexSBAPointXYZ* v2 = _landmarkVertices.value(triplet->getNthLandmarkId(1), nullptr);
+				g2o::VertexSBAPointXYZ* v3 = _landmarkVertices.value(triplet->getNthLandmarkId(2), nullptr);
+
+				if (v1 != nullptr and v2 != nullptr and v3 != nullptr) {
+
+					floatParameter angle = constrain->angleValue();
+
+					EdgePointDistance* e = new EdgePointDistance();
+
+					e->setMeasurement(angle.value()/180.0 * M_PI);
+
+					e->setVertex(0, v1);
+					e->setVertex(1, v2);
+					e->setVertex(2, v3);
+
+					EdgePointDistance::InformationType info = EdgePointDistance::InformationType::Identity();
+					float stddev_angle = angle.stddev()/180. * M_PI;
+					info(0,0) = (angle.isUncertain()) ? 1./(stddev_angle*stddev_angle) : 1;
+
+					e->setInformation(info);
+
+					_optimizer->addEdge(e);
+				}
+
+			}
+		}
+
 	}
 
 	s = _optimizer->initializeOptimization();

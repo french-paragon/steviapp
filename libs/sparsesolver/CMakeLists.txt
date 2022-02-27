@@ -33,7 +33,11 @@ set(LIB_SRC sbagraphreductor.cpp
             edges/edgese3xyzprior.cpp
             edges/edgese3xyzprior.h
             edges/edgexyzprior.cpp
-            edges/edgexyzprior.h
+			edges/edgexyzprior.h
+			edges/edgepointdistance.cpp
+			edges/edgepointdistance.h
+			edges/edgepointsangle.cpp
+			edges/edgepointsangle.h
             helperfunctions.h
 )
 
