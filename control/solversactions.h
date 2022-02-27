@@ -8,7 +8,9 @@ class MainWindow;
 
 bool resetSolution(Project* p, MainWindow* w = nullptr);
 void initSolution(Project* p, MainWindow* w = nullptr);
+void initMonoStereoRigSolution(Project* p, MainWindow* w = nullptr);
 void solveSparse(Project* p, MainWindow* w = nullptr, int nStep = 50);
+void solveSparseStereoRig(Project* p, MainWindow* w = nullptr, int nStep = 50);
 
 } //namespace StereoVisionApp
 

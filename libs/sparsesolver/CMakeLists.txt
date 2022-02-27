@@ -5,9 +5,11 @@ set(LIB_SRC sbagraphreductor.cpp
             sbainitializer.cpp
             sbainitializer.h
             sparsesolverbase.cpp
-            sparsesolverbase.h
-            graphsbasolver.cpp
-            graphsbasolver.h
+			sparsesolverbase.h
+			graphsbasolver.cpp
+			graphsbasolver.h
+			graphstereorigsolver.cpp
+			graphstereorigsolver.h
             imagepointssolutionmodel.cpp
             imagepointssolutionmodel.h
             vertices/camerapose.cpp

@@ -27,6 +27,9 @@ set(LIB_SRC imagewidget.cpp
             sparsesolverconfigdialog.cpp
             sparsesolverconfigdialog.h
             sparsesolverconfigdialog.ui
+			sparsestereosolverconfigdialog.cpp
+			sparsestereosolverconfigdialog.h
+			sparsestereosolverconfigdialog.ui
             solutioninitconfigdialog.cpp
             solutioninitconfigdialog.h
             solutioninitconfigdialog.ui

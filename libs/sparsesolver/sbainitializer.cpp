@@ -1394,8 +1394,10 @@ SBAInitializer::InitialSolution RandomPosSBAInitializer::computeInitialSolution(
 }
 
 StereoRigInitializer::StereoRigInitializer(qint64 f1,
+										   bool initial_pair_only,
 										   bool preconstrain,
 										   bool useConstraintsRefinement) :
+	_initial_pair_only(initial_pair_only),
 	_f1(f1),
 	_preconstrain(preconstrain),
 	_useConstraintsRefinement(useConstraintsRefinement)
@@ -1511,7 +1513,9 @@ SBAInitializer::InitialSolution StereoRigInitializer::computeInitialSolution(Pro
 		triangulatePoint(r, p, ptid, {rp.img1->internalId(), rp.img2->internalId()});
 	}
 
-	return r;
+	if (_initial_pair_only) {
+		return r;
+	}
 
 	completeSolution(r, p, s_pts, s_imgs);
 

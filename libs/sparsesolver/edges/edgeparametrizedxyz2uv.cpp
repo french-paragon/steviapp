@@ -16,6 +16,41 @@
 
 namespace StereoVisionApp {
 
+Eigen::Vector2d project(const CameraPose & pose,
+						const Eigen::Vector3d & point,
+						const CamParam & cam,
+						const std::optional<Eigen::Vector3d> & r_dist,
+						const std::optional<Eigen::Vector2d> & t_dist,
+						const std::optional<Eigen::Vector2d> & s_dist) {
+
+	Eigen::Vector3d Pbar = pose.r().transpose()*(point - pose.t());
+	if (Pbar[2] < 0.0) {
+		return {NAN, NAN};
+	}
+
+	Eigen::Vector2d proj = StereoVision::Geometry::projectPointsD(Pbar);
+
+	Eigen::Vector2d dRadial = Eigen::Vector2d::Zero();
+	Eigen::Vector2d dTangential = Eigen::Vector2d::Zero();
+
+	if (r_dist.has_value()) {
+		dRadial = StereoVision::Geometry::radialDistortionD(proj, r_dist.value());
+	}
+
+	if (t_dist.has_value()) {
+		dTangential = StereoVision::Geometry::tangentialDistortionD(proj, t_dist.value());
+	}
+
+	proj += dRadial + dTangential;
+
+	if (s_dist.has_value()) {
+		return StereoVision::Geometry::skewDistortionD(proj, s_dist.value(), cam.f(), cam.pp());
+	}
+
+	return cam.f()*proj + cam.pp();
+
+}
+
 EdgeParametrizedXYZ2UV::EdgeParametrizedXYZ2UV()
 {
 	resize(6);
@@ -57,7 +92,12 @@ void EdgeParametrizedXYZ2UV::computeError () {
 	const VertexCameraSkewDistortion * s_dist = (_vertices.size() > 5) ? static_cast<const VertexCameraSkewDistortion*>(_vertices[5]) : nullptr;
 
 	Eigen::Vector2d obs = _measurement;
-	Eigen::Vector2d proj = project(pose, point, cam, r_dist, t_dist, s_dist);
+	Eigen::Vector2d proj = project(pose->estimate(),
+								   point->estimate(),
+								   cam->estimate(),
+								   r_dist->estimate(),
+								   t_dist->estimate(),
+								   s_dist->estimate());
 
 	_error = proj - obs;
 
@@ -161,39 +201,52 @@ void EdgeParametrizedXYZ2UV::linearizeOplus () {
 
 }
 
-Eigen::Vector2d EdgeParametrizedXYZ2UV::project(VertexCameraPose const* pose,
-												g2o::VertexSBAPointXYZ const* point,
-												VertexCameraParam const* cam,
-												VertexCameraRadialDistortion const* r_dist,
-												VertexCameraTangentialDistortion const* t_dist,
-												VertexCameraSkewDistortion const* s_dist) {
+EdgeStereoRigXYZ2UV::EdgeStereoRigXYZ2UV() {
+	resize(3);
+}
 
-	Eigen::Vector3d Pbar = pose->estimate().r().transpose()*(point->estimate() - pose->estimate().t());
-	if (Pbar[2] < 0.0) {
-		return {NAN, NAN};
+bool EdgeStereoRigXYZ2UV::read  (std::istream& is) {
+
+	Eigen::Vector2d p;
+	is >> p[0] >> p[1];
+	setMeasurement(p);
+	for (int i = 0; i < 2; ++i)
+		for (int j = i; j < 2; ++j) {
+			is >> information()(i, j);
+			if (i != j)
+				information()(j, i) = information()(i, j);
+		}
+	return true;
+}
+bool EdgeStereoRigXYZ2UV::write (std::ostream& os) const {
+
+	Eigen::Vector2d p = measurement();
+	os << p[0] << " " << p[1] << " ";
+	for (int i = 0; i < 2; ++i)
+		for (int j = i; j < 2; ++j)
+			os << " " << information()(i, j);
+	return os.good();
+
+}
+void EdgeStereoRigXYZ2UV::computeError () {
+
+	const VertexCameraPose * pose = static_cast<const VertexCameraPose*>(_vertices[0]);
+	const g2o::VertexSBAPointXYZ* point = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[1]);
+	const VertexCameraFocal * cam = static_cast<const VertexCameraFocal*>(_vertices[2]);
+
+	Eigen::Vector2d obs = _measurement;
+
+	CamParam p;
+
+	if (cam->getCamParam().has_value()) {
+		p = cam->getCamParam().value();
+	} else {
+		p.setF(cam->estimate());
 	}
 
-	Eigen::Vector2d proj = StereoVision::Geometry::projectPointsD(Pbar);
+	Eigen::Vector2d proj = project(pose->estimate(), point->estimate(), p, std::nullopt, std::nullopt, std::nullopt);
 
-	Eigen::Vector2d dRadial = Eigen::Vector2d::Zero();
-	Eigen::Vector2d dTangential = Eigen::Vector2d::Zero();
-
-	if (r_dist != nullptr) {
-		dRadial = StereoVision::Geometry::radialDistortionD(proj, r_dist->estimate());
-	}
-
-	if (t_dist != nullptr) {
-		dTangential = StereoVision::Geometry::tangentialDistortionD(proj, t_dist->estimate());
-	}
-
-	proj += dRadial + dTangential;
-
-	if (s_dist != nullptr) {
-		return StereoVision::Geometry::skewDistortionD(proj, s_dist->estimate(), cam->estimate().f(), cam->estimate().pp());
-	}
-
-	return cam->estimate().f()*proj + cam->estimate().pp();
-
+	_error = proj - obs;
 }
 
 } // namespace StereoVisionApp

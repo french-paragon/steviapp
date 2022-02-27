@@ -137,6 +137,7 @@ class StereoRigInitializer : public PhotometricInitializer {
 
 public:
 	StereoRigInitializer(qint64 f1 = -1,
+						 bool initial_pair_only = false,
 						 bool preconstrain = true,
 						 bool useConstraintsRefinement = false);
 
@@ -144,6 +145,7 @@ public:
 
 private:
 
+	bool _initial_pair_only;
 	qint64 _f1;
 
 	bool _preconstrain;

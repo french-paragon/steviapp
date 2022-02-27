@@ -45,7 +45,7 @@
      <x>0</x>
      <y>0</y>
      <width>1035</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
@@ -74,7 +74,9 @@
     </property>
     <addaction name="actionclear_solution"/>
     <addaction name="actionFindInitialSolution"/>
+    <addaction name="actionInit_stereo_rig"/>
     <addaction name="actionsolve_sparse"/>
+    <addaction name="actionsolve_stereo_rig"/>
    </widget>
    <addaction name="menufile"/>
    <addaction name="menuproject"/>
@@ -192,6 +194,16 @@
    </property>
    <property name="text">
     <string>clear solution</string>
+   </property>
+  </action>
+  <action name="actionInit_stereo_rig">
+   <property name="text">
+    <string>Init stereo rig</string>
+   </property>
+  </action>
+  <action name="actionsolve_stereo_rig">
+   <property name="text">
+    <string>solve stereo rig</string>
    </property>
   </action>
  </widget>
