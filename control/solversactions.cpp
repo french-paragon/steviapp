@@ -15,6 +15,7 @@
 #include "datablocks/landmark.h"
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
+#include "datablocks/stereorig.h"
 
 #include <QThread>
 #include <QMessageBox>
@@ -76,7 +77,54 @@ void initSolution(Project* p, MainWindow* w) {
 	}
 
 	SBAGraphReductor selector(3,2,true,true);
-	EightPointsSBAMultiviewInitializer initializer(initial_frame, true, false);
+	SBAInitializer* initializer;
+
+	bool useStereoRigInitializer = false;
+
+	QVector<qint64> rigIds = p->getIdsByClass(StereoRig::staticMetaObject.className());
+
+	for(qint64 id : rigIds) {
+		StereoRig* rig = qobject_cast<StereoRig*>(p->getById(id));
+
+		if (rig != nullptr) {
+			QVector<qint64> subitems = rig->listTypedSubDataBlocks(ImagePair::staticMetaObject.className());
+
+			bool found = false;
+
+			for (qint64 id : subitems) {
+				ImagePair* imp = qobject_cast<ImagePair*>(rig->getById(id));
+
+				Image* img1 = qobject_cast<Image*>(p->getById(imp->idImgCam1()));
+				Image* img2 = qobject_cast<Image*>(p->getById(imp->idImgCam2()));
+
+				if (img1 != nullptr and img2 != nullptr) {
+					auto lms1 = img1->getAttachedLandmarksIds();
+					auto lms2 = img2->getAttachedLandmarksIds();
+
+					QSet<qint64> s1(lms1.begin(), lms1.end());
+					QSet<qint64> s2(lms2.begin(), lms2.end());
+
+					s1.intersect(s2);
+
+					if (s1.size() > 4) {
+						found = true;
+						break;
+					}
+				}
+			}
+
+			if (found) {
+				useStereoRigInitializer = true;
+				break;
+			}
+		}
+	}
+
+	if (useStereoRigInitializer) {
+		initializer = new StereoRigInitializer(initial_frame, true, false);
+	} else {
+		initializer = new EightPointsSBAMultiviewInitializer(initial_frame, true, false);
+	}
 
 	SBAGraphReductor::elementsSet selection = selector(p, false);
 
@@ -85,7 +133,9 @@ void initSolution(Project* p, MainWindow* w) {
 		return;
 	}
 
-	auto initial_setup = initializer.computeInitialSolution(p, selection.pts, selection.imgs);
+	auto initial_setup = initializer->computeInitialSolution(p, selection.pts, selection.imgs);
+
+	delete initializer;
 
 	for (auto & map_id : initial_setup.points) {
 

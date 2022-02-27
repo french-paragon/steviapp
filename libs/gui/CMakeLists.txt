@@ -7,6 +7,9 @@ set(LIB_SRC imagewidget.cpp
             imageeditor.cpp
             imageeditor.h
             imageeditor.ui
+            imagepointdetailseditor.cpp
+            imagepointdetailseditor.h
+            imagepointdetailseditor.ui
             sparsealignementviewer.cpp
             sparsealignementviewer.h
             sparsealignementeditor.cpp
@@ -39,4 +42,4 @@ add_library(
 
 
 target_link_libraries(${GUI_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB})
+target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${SOLVING_LIB})

@@ -15,6 +15,6 @@ endmacro()
 
 add_stereovisionapp_libdirectory(datablocks)
 add_stereovisionapp_libdirectory(processing)
-add_stereovisionapp_libdirectory(gui)
 add_stereovisionapp_libdirectory(sparsesolver)
 add_stereovisionapp_libdirectory(vision)
+add_stereovisionapp_libdirectory(gui)

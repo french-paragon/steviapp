@@ -429,7 +429,7 @@ void Image::configureFromJson(QJsonObject const& data) {
 	if (data.contains("y")) {
 		_y = floatParameter::fromJson(data.value("y").toObject());
 	}
-	if (data.contains("y")) {
+	if (data.contains("z")) {
 		_z = floatParameter::fromJson(data.value("z").toObject());
 	}
 
@@ -439,7 +439,7 @@ void Image::configureFromJson(QJsonObject const& data) {
 	if (data.contains("ry")) {
 		_ry = floatParameter::fromJson(data.value("ry").toObject());
 	}
-	if (data.contains("ry")) {
+	if (data.contains("rz")) {
 		_rz = floatParameter::fromJson(data.value("rz").toObject());
 	}
 

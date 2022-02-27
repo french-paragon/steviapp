@@ -580,9 +580,17 @@ Qt::ItemFlags ItemDataModel::flags(const QModelIndex &index) const {
 	}
 
 	if (index.column() == 1) {
-		return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
+		if (descr->isWritable()) {
+			return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
+		} else {
+			return QAbstractItemModel::flags(index) & ~Qt::ItemIsEditable;
+		}
 	} else if (index.column() == 2 and descr->hasSecondValue()) {
-		return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
+		if (descr->isWritable()) {
+			return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
+		} else {
+			return QAbstractItemModel::flags(index) & ~Qt::ItemIsEditable;
+		}
 	}
 
 	return QAbstractItemModel::flags(index);

@@ -44,6 +44,8 @@ public:
 		QStringList options() const;
 		void setOptions(const QStringList &options);
 
+		virtual bool isWritable() const = 0;
+
 		virtual PropertyEdtior editor() const = 0;
 
 		virtual QVariant data(int role = Qt::DisplayRole) const = 0;
@@ -120,6 +122,10 @@ protected:
 			vChangedConnection = QObject::connect(d, signal, [this] () {
 				valueChanged();
 			});
+		}
+
+		bool isWritable() const override {
+			return _setter != nullptr;
 		}
 
 		PropertyEdtior editor() const override {
@@ -206,6 +212,10 @@ protected:
 			vChangedConnection = QObject::connect(d, signal, [this] () {
 				valueChanged();
 			});
+		}
+
+		bool isWritable() const override {
+			return _setter != nullptr;
 		}
 
 		PropertyEdtior editor() const override {
@@ -446,7 +456,7 @@ public:
 		virtual NodeType type() const;
 
 		template<typename T, class D, bool refS, ItemPropertyDescription::SignalType signalT>
-		ItemPropertyDescriptionFactory* addCatProperty(QString name,
+		void addCatProperty(QString name,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::GetterType getter,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::SetterType setter,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::SignalType signal) {
@@ -462,8 +472,6 @@ public:
 				DataBlock* b = _model->_dataBlock->getById(n->subItemId);
 				_propertiesDescritions[n->subItemId].push_back(f->factorizeDescription(this, b));
 			}
-
-			return f;
 
 		}
 

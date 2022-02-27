@@ -14,6 +14,14 @@ set(LIB_SRC floatparameter.cpp
             camera.h
             itemdatamodel.cpp
             itemdatamodel.h
+            stereorig.cpp
+            stereorig.h
+            angleconstrain.cpp
+            angleconstrain.h
+            distanceconstrain.cpp
+            distanceconstrain.h
+            landmarkscollection.cpp
+            landmarkscollection.h
 )
 
 add_library(

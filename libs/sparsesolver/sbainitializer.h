@@ -133,6 +133,23 @@ private:
 	float _pointStd;
 };
 
+class StereoRigInitializer : public PhotometricInitializer {
+
+public:
+	StereoRigInitializer(qint64 f1 = -1,
+						 bool preconstrain = true,
+						 bool useConstraintsRefinement = false);
+
+	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs);
+
+private:
+
+	qint64 _f1;
+
+	bool _preconstrain;
+	bool _useConstraintsRefinement;
+
+};
 
 
 } // namespace StereoVisionApp

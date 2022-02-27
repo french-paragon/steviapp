@@ -2,9 +2,11 @@
 
 #include "mainwindow.h"
 #include "gui/imageeditor.h"
+#include "gui/imagepointdetailseditor.h"
 
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
+#include "datablocks/stereorig.h"
 
 #include <QAction>
 #include <QStandardPaths>
@@ -99,6 +101,19 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 		lst << edit;
 	}
 
+	if (mw != nullptr) {
+		QAction* edit = new QAction(tr("Point details"), parent);
+		connect(edit, &QAction::triggered, [mw, im] () {
+
+			Editor* e = mw->openEditor(ImagePointDetailsEditor::staticMetaObject.className());
+			ImagePointDetailsEditor* ie = qobject_cast<ImagePointDetailsEditor*>(e);
+
+			ie->setImage(im);
+
+		});
+		lst << edit;
+	}
+
 	QAction* remove = new QAction(tr("Remove"), parent);
 	connect(remove, &QAction::triggered, [im] () {
 		Project* p = im->getProject();
@@ -149,6 +164,12 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 
 	lst.append(assignToCamera);
 
+	QAction* assignToStereoRig = createAssignToStereoRigAction(parent, p, ims);
+
+	if (assignToStereoRig != nullptr) {
+		lst.append(assignToStereoRig);
+	}
+
 
 	QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
 	connect(exportRectified, &QAction::triggered, [w, p, ims] () {
@@ -193,6 +214,54 @@ QAction* ImageBaseActionManager::createAssignToCameraAction(QObject* parent, Pro
 	assignToCamera->setMenu(camMenu);
 
 	return assignToCamera;
+
+}
+QAction* ImageBaseActionManager::createAssignToStereoRigAction(QObject* parent, Project* p, const QVector<Image *> &ims) const {
+
+	bool ok = true;
+
+	QAction* assignToStereoRig = new QAction(tr("Assign to stereo rig"), parent);
+
+	if (ims.size() != 2) {
+		assignToStereoRig->deleteLater();
+		return nullptr;
+	}
+
+	QMenu* rigMenu = new QMenu();
+	connect(assignToStereoRig, &QObject::destroyed, rigMenu, &QObject::deleteLater);
+
+	QVector<qint64> rigsIds = p->getIdsByClass(StereoRigFactory::StereoRigClassName());
+
+	for (qint64 rigId : rigsIds) {
+
+		StereoRig* rig = qobject_cast<StereoRig*>(p->getById(rigId));
+
+		if (rig != nullptr) {
+
+			if (rig->getPairForImage(ims[0]->internalId()) != nullptr or
+					rig->getPairForImage(ims[1]->internalId()) != nullptr) {
+				ok = false;
+				break;
+			}
+
+			QAction* toRig = new QAction(rig->objectName(), assignToStereoRig);
+			connect(toRig, &QAction::triggered, [rig, ims] () {
+				rig->insertImagePair(ims[0]->internalId(), ims[1]->internalId());
+			});
+			rigMenu->addAction(toRig);
+		}
+
+	}
+
+	if (ok) {
+		assignToStereoRig->setMenu(rigMenu);
+		return assignToStereoRig;
+	} else {
+		assignToStereoRig->deleteLater();
+		return nullptr;
+	}
+
+	return nullptr;
 
 }
 
