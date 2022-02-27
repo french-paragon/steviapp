@@ -98,6 +98,16 @@ public:
 	{
 
 	}
+
+
+	floatParameterGroup& operator= (floatParameterGroup const& other) {
+		_parameters = other._parameters;
+		_CovMatTrig = other._CovMatTrig;
+		_isSet = other._isSet;
+		_isUncertain = other._isUncertain;
+		return *this;
+	}
+
 	bool operator== (floatParameterGroup const& other) const {
 		bool c = _isSet and other._isSet;
 		if (_isSet) {
