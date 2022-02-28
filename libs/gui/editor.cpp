@@ -2,7 +2,9 @@
 
 namespace StereoVisionApp {
 
-Editor::Editor(QWidget *parent) : QWidget(parent)
+Editor::Editor(QWidget *parent) :
+	QWidget(parent),
+	_activeProject(nullptr)
 {
 
 }

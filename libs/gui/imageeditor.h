@@ -41,6 +41,10 @@ protected:
 	void moveToPreviousLandmark();
 
 	void onCurrentImageIndexChanged(int id);
+	void onCurrentLandmarkIndexChanged();
+
+	void clearCombobox();
+	void setComboboxIndices();
 
 private:
 	Ui::ImageEditor *ui;
@@ -50,6 +54,9 @@ private:
 
 	QAction* _moveToNextLandmark;
 	QAction* _moveToPrevLandmark;
+
+	qint64 _current_image_id;
+	qint64 _current_landmark_id;
 };
 
 class ImageEditorFactory : public EditorFactory

@@ -16,7 +16,9 @@ const QString ImageEditor::ImageEditorClassName = "StereoVisionApp::ImageEditor"
 
 ImageEditor::ImageEditor(QWidget *parent) :
 	Editor(parent),
-	ui(new Ui::ImageEditor)
+	ui(new Ui::ImageEditor),
+	_current_image_id(-1),
+	_current_landmark_id(-1)
 {
 	ui->setupUi(this);
 
@@ -48,6 +50,7 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	connect(ui->imageDisplay, &ImageWidget::menuNonPointClick, this, &ImageEditor::openNonPointMenu);
 
 	connect(ui->imageComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ImageEditor::onCurrentImageIndexChanged);
+	connect(ui->landmarkComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ImageEditor::onCurrentLandmarkIndexChanged);
 
 	connect(_moveToNextImg, &QAction::triggered, this, &ImageEditor::moveToNextImage);
 	connect(_moveToPrevImg, &QAction::triggered, this, &ImageEditor::moveToPreviousImage);
@@ -100,19 +103,66 @@ void ImageEditor::setImage(Image* img) {
 	}
 }
 
-void ImageEditor::afterProjectChange(Project*) {
+void ImageEditor::afterProjectChange(Project* op) {
+
+	if (op != nullptr) {
+		disconnect(op, &Project::modelAboutToBeReset, this, &ImageEditor::clearCombobox);
+		disconnect(op, &Project::modelReset, this, &ImageEditor::setComboboxIndices);
+	}
+
+	if (activeProject() != nullptr) {
+		connect(activeProject(), &Project::modelAboutToBeReset, this, &ImageEditor::clearCombobox);
+		connect(activeProject(), &Project::modelReset, this, &ImageEditor::setComboboxIndices, Qt::QueuedConnection);
+	}
+
+	if (activeProject() != op) {
+		clearCombobox();
+	}
+
+	setComboboxIndices();
+
+}
+void ImageEditor::clearCombobox() {
+
+	ui->landmarkComboBox->blockSignals(true);
+	ui->landmarkComboBox->setCurrentIndex(-1);
+	ui->landmarkComboBox->clear();
+	ui->landmarkComboBox->blockSignals(false);
+
+	ui->imageComboBox->blockSignals(true);
+	ui->imageComboBox->setCurrentIndex(-1);
+	ui->imageComboBox->clear();
+	ui->imageComboBox->blockSignals(false);
+}
+
+void ImageEditor::setComboboxIndices() {
 
 	if (activeProject() == nullptr) {
 		return;
 	}
 
+	qint64 currentLmIndex = _current_landmark_id;
+	qint64 currentImIndex = _current_image_id;
+
 	ui->landmarkComboBox->setModel(activeProject());
 	ui->landmarkComboBox->setRootModelIndex(activeProject()->indexOfClass(LandmarkFactory::landmarkClassName()));
-	ui->landmarkComboBox->setCurrentIndex(-1);
+
+	if (currentLmIndex != -1) {
+		QVector<qint64> ids = activeProject()->getIdsByClass(Landmark::staticMetaObject.className());
+		ui->landmarkComboBox->setCurrentIndex(ids.indexOf(currentLmIndex));
+	} else {
+		ui->landmarkComboBox->setCurrentIndex(-1);
+	}
 
 	ui->imageComboBox->setModel(activeProject());
 	ui->imageComboBox->setRootModelIndex(activeProject()->indexOfClass(ImageFactory::imageClassName()));
-	ui->imageComboBox->setCurrentIndex(-1);
+
+	if (currentImIndex != -1) {
+		QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+		ui->imageComboBox->setCurrentIndex(ids.indexOf(currentImIndex));
+	} else {
+		ui->imageComboBox->setCurrentIndex(-1);
+	}
 }
 
 void ImageEditor::addPoint(QPointF const& imageCoordinates) {
@@ -266,9 +316,36 @@ void ImageEditor::onCurrentImageIndexChanged(int id) {
 
 	Image* nImg = qobject_cast<Image*>(p->getById(imageId));
 
+	if (nImg != nullptr) {
+		_current_image_id = nImg->internalId();
+	} else {
+		_current_image_id = -1;
+	}
+
 	setImage(nImg);
 
 }
+
+void ImageEditor::onCurrentLandmarkIndexChanged() {
+
+
+	Project* p = activeProject();
+
+	if (p == nullptr) {
+		return;
+	}
+
+	QModelIndex rootLm = p->indexOfClass(Landmark::staticMetaObject.className());
+	QModelIndex itemIndex = p->index(ui->landmarkComboBox->currentIndex(), 0, rootLm);
+
+	if (itemIndex == QModelIndex()) {
+		return;
+	} else {
+		_current_landmark_id = itemIndex.data(Project::IdRole).toInt();
+	}
+
+}
+
 
 ImageEditorFactory::ImageEditorFactory(QObject* parent) :
 	EditorFactory(parent)
