@@ -6,7 +6,7 @@ namespace StereoVisionApp {
 
 EdgePointsAngle::EdgePointsAngle()
 {
-
+	resize(3);
 }
 
 bool EdgePointsAngle::read(std::istream& is) {

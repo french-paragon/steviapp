@@ -426,7 +426,7 @@ bool GraphSBASolver::init() {
 
 					floatParameter angle = constrain->angleValue();
 
-					EdgePointDistance* e = new EdgePointDistance();
+					EdgePointsAngle* e = new EdgePointsAngle();
 
 					e->setMeasurement(angle.value()/180.0 * M_PI);
 

@@ -223,7 +223,7 @@ void initMonoStereoRigSolution(Project* p, MainWindow* w) {
 	}
 
 	SBAGraphReductor selector(3,2,true,true);
-	SBAInitializer* initializer = new StereoRigInitializer(initial_frame, false, true, false);
+	SBAInitializer* initializer = new StereoRigInitializer(initial_frame, true, true, false);
 
 	SBAGraphReductor::elementsSet selection = selector(p, false);
 
@@ -364,6 +364,7 @@ void solveSparseStereoRig(Project* p, MainWindow* w, int pnStep) {
 	if (w != nullptr) {
 
 		SparseStereoSolverConfigDialog d(w);
+		d.setProject(p);
 		d.setModal(true);
 		d.setWindowTitle(QObject::tr("Sparse stereo rig optimizer options"));
 
