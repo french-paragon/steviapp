@@ -3,6 +3,7 @@
 
 #include "control/actionmanager.h"
 #include "control/solversactions.h"
+#include "control/exportactions.h"
 
 #include "gui/imagewidget.h"
 #include "gui/editor.h"
@@ -36,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->actionsave_Project, &QAction::triggered, this, &MainWindow::saveProject);
 	connect(ui->actionsave_project_as, &QAction::triggered, this, &MainWindow::saveProjectAs);
 	connect(ui->actionopen_Project, &QAction::triggered, this, static_cast<void(MainWindow::*)()>(&MainWindow::openProject));
+	connect(ui->actionexport_optimized_to_collada, &QAction::triggered, [this] () { exportCollada(_activeProject, this); });
 
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);

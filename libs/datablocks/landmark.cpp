@@ -145,7 +145,7 @@ void Landmark::clearOptimized() {
 }
 
 bool Landmark::hasOptimizedParameters() const {
-	return _o_x.isSet() or _o_y.isSet() or _o_z.isSet();
+	return _o_pos.isSet();
 }
 
 QJsonObject Landmark::encodeJson() const {

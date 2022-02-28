@@ -45,17 +45,24 @@
      <x>0</x>
      <y>0</y>
      <width>1035</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
     <property name="title">
      <string>file</string>
     </property>
+    <widget class="QMenu" name="menuexport">
+     <property name="title">
+      <string>export</string>
+     </property>
+     <addaction name="actionexport_optimized_to_collada"/>
+    </widget>
     <addaction name="actionnew_Project"/>
     <addaction name="actionsave_Project"/>
     <addaction name="actionsave_project_as"/>
     <addaction name="actionopen_Project"/>
+    <addaction name="menuexport"/>
    </widget>
    <widget class="QMenu" name="menuproject">
     <property name="enabled">
@@ -204,6 +211,11 @@
   <action name="actionsolve_stereo_rig">
    <property name="text">
     <string>solve stereo rig</string>
+   </property>
+  </action>
+  <action name="actionexport_optimized_to_collada">
+   <property name="text">
+    <string>export optimized to collada</string>
    </property>
   </action>
  </widget>

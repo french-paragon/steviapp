@@ -60,7 +60,9 @@ set(PROJ_SRC  main.cpp
     control/distanceconstrainactionmanager.cpp
     control/distanceconstrainactionmanager.h
     control/solversactions.cpp
-    control/solversactions.h)
+    control/solversactions.h
+    control/exportactions.cpp
+    control/exportactions.h)
 
 add_executable(steviapp
     ${PROJ_SRC}

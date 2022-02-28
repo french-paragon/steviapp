@@ -22,6 +22,8 @@ set(LIB_SRC floatparameter.cpp
             distanceconstrain.h
             landmarkscollection.cpp
             landmarkscollection.h
+            io/collada_export_filter.cpp
+            io/collada_export_filter.h
 )
 
 add_library(

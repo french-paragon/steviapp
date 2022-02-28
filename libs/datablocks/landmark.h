@@ -66,10 +66,6 @@ protected:
 	floatParameter _z;
 
 	floatParameterGroup<3> _o_pos;
-
-	floatParameter _o_x;
-	floatParameter _o_y;
-	floatParameter _o_z;
 };
 
 class LandmarkFactory : public DataBlockFactory
