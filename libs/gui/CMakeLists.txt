@@ -10,6 +10,9 @@ set(LIB_SRC imagewidget.cpp
             imagepointdetailseditor.cpp
             imagepointdetailseditor.h
             imagepointdetailseditor.ui
+            landmarkpointdetailseditor.cpp
+            landmarkpointdetailseditor.h
+            landmarkpointdetailseditor.ui
             sparsealignementviewer.cpp
             sparsealignementviewer.h
             sparsealignementeditor.cpp

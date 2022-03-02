@@ -75,6 +75,24 @@ void Landmark::clearOptPos() {
 	}
 }
 
+
+QVector<qint64> Landmark::getImagesRefering() const {
+
+	QVector<qint64> referingImgsId;
+	referingImgsId.reserve(_referers.size());
+
+	for (QVector<qint64> const& path : _referers) {
+		qint64 id = path.first();
+		Image* im = qobject_cast<Image*>(getProject()->getById(id));
+
+		if (im != nullptr) {
+			referingImgsId.push_back(id);
+		}
+	}
+
+	return referingImgsId;
+
+}
 int Landmark::countImagesRefering(const QSet<qint64> &excluded) const {
 
 	if (!isInProject()) {

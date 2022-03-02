@@ -35,6 +35,8 @@ public:
 	void setOptPos(floatParameterGroup<3> const& o_pos);
 	void clearOptPos();
 
+	QVector<qint64> getImagesRefering() const;
+
 	int countImagesRefering(QSet<qint64> const& excluded = {}) const;
 	int countImagesRefering(QVector<qint64> const& excluded) const;
 

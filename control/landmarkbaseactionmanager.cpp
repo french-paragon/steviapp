@@ -4,6 +4,10 @@
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
 
+#include "gui/landmarkpointdetailseditor.h"
+
+#include "mainwindow.h"
+
 #include <QWidget>
 #include <QAction>
 #include <QMenu>
@@ -21,6 +25,41 @@ QString LandmarkBaseActionManager::ActionManagerClassName() const {
 }
 QString LandmarkBaseActionManager::itemClassName() const {
 	return LandmarkFactory::landmarkClassName();
+}
+
+QList<QAction*> LandmarkBaseActionManager::factorizeItemContextActions(QObject* parent, DataBlock* p) const {
+
+	Landmark* lm = qobject_cast<Landmark*>(p);
+
+	if (lm == nullptr) {
+		return {};
+	}
+
+	QWidget* w = qobject_cast<QWidget*>(parent);
+
+	if (w != nullptr) {
+		w = w->window();
+	}
+
+	MainWindow* mw = qobject_cast<MainWindow*>(w);
+
+	QList<QAction*> lst;
+
+	if (mw != nullptr) {
+		QAction* edit = new QAction(tr("Point details"), parent);
+		connect(edit, &QAction::triggered, [mw, lm] () {
+
+			Editor* e = mw->openEditor(LandmarkPointDetailsEditor::staticMetaObject.className());
+			LandmarkPointDetailsEditor* le = qobject_cast<LandmarkPointDetailsEditor*>(e);
+
+			le->setLandmark(lm);
+
+		});
+
+		lst << edit;
+	}
+
+	return lst;
 }
 
 QList<QAction*> LandmarkBaseActionManager::factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const {

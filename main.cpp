@@ -13,6 +13,7 @@
 
 #include "gui/imageeditor.h"
 #include "gui/imagepointdetailseditor.h"
+#include "gui/landmarkpointdetailseditor.h"
 #include "gui/sparsealignementeditor.h"
 #include "gui/lenseditor.h"
 
@@ -56,6 +57,7 @@ int main(int argc, char *argv[])
 
 	w.installEditor(new StereoVisionApp::ImageEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::ImagePointDetailsEditorFactory(&a));
+	w.installEditor(new StereoVisionApp::LandmarkPointDetailsEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::LensEditorFactory(&a));
 
