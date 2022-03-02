@@ -5,7 +5,10 @@
 #include "g2o/core/block_solver.h"
 #include "./vertices/vertexcameraparam.h"
 
+#include "initialsolution.h"
+
 #include <QMap>
+#include <optional>
 
 namespace g2o {
 	class SparseOptimizer;
@@ -36,6 +39,15 @@ public:
 
 	int uncertaintySteps() const override;
 	bool hasUncertaintyStep() const override;
+
+	bool initialize(const InitialSolution* sol = nullptr);
+	bool runSteps(int n_steps);
+
+	std::optional<Eigen::Vector3f> getLandmarkOptimizedPos(qint64 id) const;
+	std::optional<InitialSolution::Pt6D> getOptimizedViewPose(qint64 id) const;
+	std::optional<float> getOptimizedCamFocal(qint64 id) const;
+
+	InitialSolution resultToSolution() const;
 
 protected:
 

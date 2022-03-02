@@ -5,6 +5,8 @@
 
 #include "geometry/pointcloudalignment.h"
 
+#include "initialsolution.h"
+
 #include <map>
 #include <Eigen/Core>
 
@@ -17,17 +19,12 @@ class SBAInitializer
 {
 public:
 
-	typedef Eigen::Vector3f Pt3D;
-	typedef std::map<qint64, Pt3D, std::less<qint64>, Eigen::aligned_allocator<std::pair<const qint64, Pt3D> > > PointMap;
+	typedef InitialSolution::Pt3D Pt3D;
+	typedef InitialSolution::PointMap PointMap;
 
-	typedef StereoVision::Geometry::AffineTransform Pt6D;
+	typedef InitialSolution::Pt6D Pt6D;
 
-	typedef std::map<qint64, Pt6D, std::less<qint64>, Eigen::aligned_allocator<std::pair<const qint64, Pt6D> > > CamMap;
-
-	struct InitialSolution {
-		PointMap points;
-		CamMap cams;
-	};
+	typedef InitialSolution::CamMap CamMap;
 
 	virtual ~SBAInitializer();
 
@@ -52,7 +49,13 @@ protected:
 								 const& s_imgs,
 								 int minNTiePoints = 4,
 								 int minViewingImgs = 2);
+
 	static bool alignImage(InitialSolution & solution, Project* p, Image *img, QSet<qint64> &pts);
+
+	static QSet<qint64> pointsInCommon(InitialSolution const& solution, InitialSolution const& toAlign);
+	static int nPointInCommon(const InitialSolution &solution, InitialSolution const& toAlign);
+	static bool alignSolution(InitialSolution & solution, InitialSolution const& toAlign);
+
 	static bool triangulatePoint(InitialSolution & solution, Project* p, qint64 pt, QVector<qint64> const& imgs);
 
 };

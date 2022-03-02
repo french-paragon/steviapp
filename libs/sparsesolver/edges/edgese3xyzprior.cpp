@@ -34,6 +34,7 @@ void EdgeSE3xyzPrior::computeError()
   const VertexXiType* v = static_cast<const VertexXiType*>(_vertices[0]);
   VertexXiType::EstimateType pose = v->estimate();
   _error = pose.translation() - _measurement;
+
 }
 
 } // namespace StereoVisionApp

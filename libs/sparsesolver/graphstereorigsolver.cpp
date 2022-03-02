@@ -62,8 +62,7 @@ bool GraphStereoRigSolver::hasUncertaintyStep() const {
 	return _compute_marginals;
 }
 
-bool GraphStereoRigSolver::init() {
-
+bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 	if (_currentProject == nullptr) {
 		return false;
 	}
@@ -122,53 +121,24 @@ bool GraphStereoRigSolver::init() {
 
 			g2o::Vector3 d;
 
-			d.x() = lm->optPos().value(0);
-			d.y() = lm->optPos().value(1);
-			d.z() = lm->optPos().value(2);
+			if (sol != nullptr) {
+				if (sol->points.count(id) > 0) {
+					d = sol->points.at(id).cast<double>();
+				} else {
+					d.x() = lm->optPos().value(0);
+					d.y() = lm->optPos().value(1);
+					d.z() = lm->optPos().value(2);
+				}
+			} else {
+				d.x() = lm->optPos().value(0);
+				d.y() = lm->optPos().value(1);
+				d.z() = lm->optPos().value(2);
+			}
 
 			v->setEstimate(d);
 
 			_optimizer->addVertex(v);
 			_landmarkVertices.insert(id, v);
-
-			if (lm->xCoord().isSet() and lm->yCoord().isSet() and lm->zCoord().isSet()) {
-
-				EdgeXyzPrior* e = new EdgeXyzPrior();
-
-				e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(v) );
-
-				Eigen::Vector3d m;
-				m.x() = lm->xCoord().value();
-				m.y() = lm->yCoord().value();
-				m.z() = lm->zCoord().value();
-
-				e->setMeasurement(m);
-
-				Eigen::Matrix3d info = Eigen::Matrix3d::Identity();
-
-				if (lm->xCoord().isUncertain()) {
-					info(0,0) = 1./(lm->xCoord().stddev()*lm->xCoord().stddev());
-				} else {
-					info(0,0) = 1e6;
-				}
-
-				if (lm->yCoord().isUncertain()) {
-					info(1,1) = 1./(lm->yCoord().stddev()*lm->yCoord().stddev());
-				} else {
-					info(1,1) = 1e6;
-				}
-
-				if (lm->zCoord().isUncertain()) {
-					info(2,2) = 1./(lm->zCoord().stddev()*lm->zCoord().stddev());
-				} else {
-					info(2,2) = 1e6;
-				}
-
-				e->setInformation(info);
-
-				_optimizer->addEdge(e);
-
-			}
 		}
 	}
 
@@ -464,12 +434,64 @@ bool GraphStereoRigSolver::init() {
 
 	return s;
 }
+bool GraphStereoRigSolver::runSteps(int pn_steps) {
 
-bool GraphStereoRigSolver::opt_step() {
-	int n_steps = _optimizer->optimize(1, _not_first_step);
+	int n_steps = _optimizer->optimize(pn_steps, _not_first_step);
 	//int n_steps = _optimizer->optimize(optimizationSteps());
 	_not_first_step = true;
 	return n_steps > 0;
+}
+
+std::optional<Eigen::Vector3f> GraphStereoRigSolver::getLandmarkOptimizedPos(qint64 id) const {
+	if (_landmarkVertices.contains(id)) {
+		return _landmarkVertices[id]->estimate().cast<float>();
+	}
+	return std::nullopt;
+}
+std::optional<InitialSolution::Pt6D> GraphStereoRigSolver::getOptimizedViewPose(qint64 id) const {
+	if (_frameVertices.contains(id)) {
+		CameraPose p = _frameVertices[id]->estimate();
+		InitialSolution::Pt6D r(p.r().cast<float>(), p.t().cast<float>());
+		return r;
+	}
+	return std::nullopt;
+}
+std::optional<float> GraphStereoRigSolver::getOptimizedCamFocal(qint64 id) const {
+	if (_camVertices.contains(id)) {
+		return _camVertices[id]->estimate();
+	}
+	return std::nullopt;
+}
+
+InitialSolution GraphStereoRigSolver::resultToSolution() const {
+
+	InitialSolution s;
+
+	for (qint64 lm_id : _landmarkVertices.keys()) {
+		auto val = getLandmarkOptimizedPos(lm_id);
+		if (val.has_value()) {
+			s.points[lm_id] = val.value();
+		}
+	}
+
+
+	for (qint64 im_id : _frameVertices.keys()) {
+		auto val = getOptimizedViewPose(im_id);
+		if (val.has_value()) {
+			s.cams[im_id] = val.value();
+		}
+	}
+
+	return s;
+
+}
+
+bool GraphStereoRigSolver::init() {
+	return initialize();
+}
+
+bool GraphStereoRigSolver::opt_step() {
+	return runSteps(1);
 }
 
 bool GraphStereoRigSolver::std_step() {

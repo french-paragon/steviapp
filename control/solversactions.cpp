@@ -123,9 +123,9 @@ void initSolution(Project* p, MainWindow* w) {
 	}
 
 	if (useStereoRigInitializer) {
-		initializer = new StereoRigInitializer(initial_frame, false, true, false);
+		initializer = new StereoRigInitializer(initial_frame, false, true, true);
 	} else {
-		initializer = new EightPointsSBAMultiviewInitializer(initial_frame, true, false);
+		initializer = new EightPointsSBAMultiviewInitializer(initial_frame, true, true);
 	}
 
 	SBAGraphReductor::elementsSet selection = selector(p, false);

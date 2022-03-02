@@ -14,6 +14,8 @@
 #include "geometry/alignement.h"
 #include "geometry/geometricexception.h"
 
+#include "graphstereorigsolver.h"
+
 #include <QSet>
 #include <QDebug>
 
@@ -37,7 +39,7 @@ EightPointsSBAMultiviewInitializer::EightPointsSBAMultiviewInitializer(qint64 f1
 
 }
 
-SBAInitializer::InitialSolution EightPointsSBAMultiviewInitializer::computeInitialSolution(Project* p,
+InitialSolution EightPointsSBAMultiviewInitializer::computeInitialSolution(Project* p,
 																		   QSet<qint64> const& s_pts,
 																		   QSet<qint64> const& s_imgs) {
 	InitialSolution r;
@@ -282,9 +284,9 @@ EightPointsSBAInitializer::EightPointsSBAInitializer(qint64 f1,
 
 }
 
-SBAInitializer::InitialSolution EightPointsSBAInitializer::computeInitialSolution(Project* p,
-																				  QSet<qint64> const& s_pts,
-																				  QSet<qint64> const& s_imgs) {
+InitialSolution EightPointsSBAInitializer::computeInitialSolution(Project* p,
+																  QSet<qint64> const& s_pts,
+																  QSet<qint64> const& s_imgs) {
 
 	InitialSolution r;
 	r.cams.clear();
@@ -698,7 +700,7 @@ StereoVision::Geometry::AffineTransform PhotometricInitializer::estimateTransfor
 	if (useConstraintsRefinement) {
 
 		try {
-			s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 50, 1e-4, 5e-1, 1e-1);
+			s = estimateShapePreservingMap(obs, pts, idxs, axis, &status, 5000, 1e-4, 5e-1, 1e-1).toAffineTransform();
 		} catch (StereoVision::Geometry::GeometricException const& e) {
 			return t;
 		}
@@ -854,6 +856,108 @@ bool PhotometricInitializer::alignImage(InitialSolution & solution, Project* p, 
 
 }
 
+QSet<qint64> PhotometricInitializer::pointsInCommon(InitialSolution const& solution, InitialSolution const& toAlign) {
+	QSet<qint64> ptInSol;
+	QSet<qint64> ptToAlign;
+
+	for (auto & [id, sol] : solution.points) {
+		ptInSol.insert(id);
+	}
+
+	for (auto & [id, sol] : toAlign.points) {
+		ptToAlign.insert(id);
+	}
+
+	ptInSol.intersect(ptToAlign);
+
+	return ptInSol;
+}
+int PhotometricInitializer::nPointInCommon(InitialSolution const& solution, InitialSolution const& toAlign) {
+	QSet<qint64> ptInSol = pointsInCommon(solution, toAlign);
+
+	return ptInSol.size();
+}
+bool PhotometricInitializer::alignSolution(InitialSolution & solution, InitialSolution const& toAlign) {
+
+	QSet<qint64> ptsInCommon = pointsInCommon(solution, toAlign);
+	int nPtCommon = ptsInCommon.size();
+
+	if (nPtCommon < 3) {
+		return false;
+	}
+
+	Eigen::VectorXf obs;
+	obs.resize(nPtCommon*3);
+
+	Eigen::Matrix3Xf pts;
+	pts.resize(3, nPtCommon);
+
+	std::vector<int> idxs(nPtCommon*3);
+	std::vector<StereoVision::Geometry::Axis> coordinate(nPtCommon*3);
+
+	int i = 0;
+	for (qint64 id : ptsInCommon) {
+		Eigen::Vector3f ptRef = solution.points[id];
+		Eigen::Vector3f pt2align = toAlign.points.at(id);
+
+		obs.block<3,1>(3*i,0) = ptRef;
+		pts.col(i) = pt2align;
+
+		idxs[3*i] = i;
+		idxs[3*i+1] = i;
+		idxs[3*i+2] = i;
+
+		coordinate[3*i] = StereoVision::Geometry::Axis::X;
+		coordinate[3*i+1] = StereoVision::Geometry::Axis::Y;
+		coordinate[3*i+2] = StereoVision::Geometry::Axis::Z;
+
+		i++;
+	}
+
+	StereoVision::Geometry::IterativeTermination status;
+
+	StereoVision::Geometry::ShapePreservingTransform t = estimateShapePreservingMap(obs,
+																					pts,
+																					idxs,
+																					coordinate,
+																					&status,
+																					5000,
+																					1e-6,
+																					5e-1,
+																					1e-1);
+
+	if (status != StereoVision::Geometry::IterativeTermination::Converged) {
+		return false;
+	}
+
+	if (t.s <= 0) {
+		return false;
+	}
+
+	if (!t.isFinite()) {
+		return false;
+	}
+
+	Eigen::Matrix3f rotationPart = StereoVision::Geometry::rodriguezFormula(t.r);
+	//apply adjustement transform to all points
+
+	for(auto & [id, pos] : toAlign.points) {
+		if (solution.points.count(id) < 1) {
+			solution.points[id] = t*pos;
+		}
+	}
+
+	for(auto & [id, pose] : toAlign.cams) {
+		if (solution.cams.count(id) < 1) {
+			solution.cams[id] = SBAInitializer::Pt6D();
+			solution.cams[id].t = t*pose.t;
+			solution.cams[id].R = rotationPart*pose.R;
+		}
+	}
+
+	return true;
+}
+
 bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Project* p, qint64 pt, QVector<qint64> const& imgs) {
 
 	Eigen::Vector3f coord = Eigen::Vector3f::Zero();
@@ -874,6 +978,8 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 		}
 
 		StereoVision::Geometry::AffineTransform const& cam12world = solution.cams.at(imgs[i]);
+		StereoVision::Geometry::AffineTransform world2cam1(cam12world.R.transpose(),
+								   - cam12world.R.transpose()*cam12world.t);
 
 		for (int j = i+1; j < imgs.size(); j++) {
 
@@ -883,7 +989,7 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 				continue;
 			}
 
-			ImageLandmark* im_lm2 = im1->getImageLandmarkByLandmarkId(pt);
+			ImageLandmark* im_lm2 = im2->getImageLandmarkByLandmarkId(pt);
 
 			if (im_lm2 == nullptr) {
 				continue;
@@ -896,6 +1002,9 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 			StereoVision::Geometry::AffineTransform cam12cam2(world2cam2.R*cam12world.R,
 									  world2cam2.t + world2cam2.R*cam12world.t);
 
+			StereoVision::Geometry::AffineTransform cam2tocam1(world2cam1.R*cam2toworld.R,
+									  world2cam1.t + world2cam1.R*cam2toworld.t);
+
 			Eigen::Array2f ptCam1 = getHomogeneousImageCoordinates(im1, {pt});
 			Eigen::Array2f ptCam2 = getHomogeneousImageCoordinates(im2, {pt});
 
@@ -903,8 +1012,19 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 												  ptCam1,
 												  ptCam2);
 
-			coord += cam12world*tmp;
-			n_obs++;
+			if (tmp.array().allFinite()) {
+				coord += cam12world*tmp;
+				n_obs++;
+			}
+
+			tmp = reprojectPoints(cam2tocam1,
+								  ptCam2,
+								  ptCam1);
+
+			if (tmp.array().allFinite()) {
+				coord += cam12world*tmp;
+				n_obs++;
+			}
 
 		}
 	}
@@ -925,7 +1045,7 @@ FrontCamSBAInitializer::FrontCamSBAInitializer(int min_n_obs, int rot_adjustemen
 
 }
 
-SBAInitializer::InitialSolution FrontCamSBAInitializer::computeInitialSolution(Project* p, const QSet<qint64> &s_pts, const QSet<qint64> &s_imgs) {
+InitialSolution FrontCamSBAInitializer::computeInitialSolution(Project* p, const QSet<qint64> &s_pts, const QSet<qint64> &s_imgs) {
 
 	InitialSolution r;
 	r.points.clear();
@@ -1363,7 +1483,7 @@ RandomPosSBAInitializer::RandomPosSBAInitializer(float camDist, float camStd, fl
 
 }
 
-SBAInitializer::InitialSolution RandomPosSBAInitializer::computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs) {
+InitialSolution RandomPosSBAInitializer::computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs) {
 
 	Q_UNUSED(p);
 
@@ -1405,7 +1525,7 @@ StereoRigInitializer::StereoRigInitializer(qint64 f1,
 
 }
 
-SBAInitializer::InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs) {
+InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs) {
 
 	InitialSolution r;
 
@@ -1484,6 +1604,13 @@ SBAInitializer::InitialSolution StereoRigInitializer::computeInitialSolution(Pro
 			if (matchf1) {
 				currentMaxMatchF1 = true;
 			}
+		} else if (_f1 >= 0 and matchf1 and !currentMaxMatchF1) {
+			maxRigPair = rp_id;
+			maxRigPairSize = rigPairsPoints[rp_id].size();
+
+			if (matchf1) {
+				currentMaxMatchF1 = true;
+			}
 		}
 	}
 
@@ -1494,9 +1621,9 @@ SBAInitializer::InitialSolution StereoRigInitializer::computeInitialSolution(Pro
 	RigPair const& start_rp = rigPairs[maxRigPair];
 	RigPair const& rp = start_rp;
 
-	Eigen::Matrix3f R = (Eigen::AngleAxisf(rp.rig->offsetRotX().value()/180*M_PI, Eigen::Vector3f::UnitX())*
-				Eigen::AngleAxisf(rp.rig->offsetRotY().value()/180*M_PI, Eigen::Vector3f::UnitY())*
-				Eigen::AngleAxisf(rp.rig->offsetRotZ().value()/180*M_PI, Eigen::Vector3f::UnitZ())).toRotationMatrix();
+	Eigen::Matrix3f R = StereoVision::Geometry::eulerDegXYZToRotation(rp.rig->offsetRotX().value(),
+																	  rp.rig->offsetRotY().value(),
+																	  rp.rig->offsetRotZ().value());
 
 	Eigen::Vector3f t(rp.rig->offsetX().value(),
 					  rp.rig->offsetY().value(),
@@ -1516,7 +1643,94 @@ SBAInitializer::InitialSolution StereoRigInitializer::computeInitialSolution(Pro
 	if (_initial_pair_only) {
 		return r;
 	}
+	//initial solution found
 
+	GraphStereoRigSolver rSolve(p, rp.img1->internalId(), rp.img2->internalId(), false, true);
+	bool ok = rSolve.initialize(&r);
+
+	if (!ok) {
+		return r;
+	}
+
+	ok = rSolve.runSteps(5);
+
+	if (!ok) {
+		return r;
+	}
+
+	r = rSolve.resultToSolution();
+
+	//match the other rigs
+	QSet<int> processedRigs;
+	QSet<int> excludedRigs;
+	processedRigs.insert(maxRigPair);
+
+	QSet<qint64> processedPoints = rigPairsPoints[maxRigPair];
+
+	for (int step = 0; step < idx; step++) {
+
+		int maxRigIntersect = -1;
+		int maxRigIntersectSize = -1;
+
+		for (int rp_id = 0; rp_id < idx; rp_id++) {
+			if (processedRigs.contains(rp_id)) {
+				continue;
+			}
+			if (excludedRigs.contains(rp_id)) {
+				continue;
+			}
+
+			QSet<qint64> rpts = rigPairsPoints[rp_id];
+			rpts.intersect(processedPoints);
+
+			if (rpts.size() > maxRigIntersectSize) {
+				maxRigIntersect = rp_id;
+				maxRigIntersectSize = rpts.size();
+			}
+		}
+
+		if (maxRigIntersectSize < 3) { //minimum 3 points to align
+			break;
+		}
+
+		RigPair rp = rigPairs[maxRigIntersect];
+
+		InitialSolution r_tmp;
+
+		r_tmp.cams[rp.img1->internalId()] = cam1;
+		r_tmp.cams[rp.img2->internalId()] = cam2tocam1;
+
+		for (qint64 ptid : rigPairsPoints[maxRigIntersect]) {
+			triangulatePoint(r_tmp, p, ptid, {rp.img1->internalId(), rp.img2->internalId()});
+		}
+
+		GraphStereoRigSolver rSolveTmp(p, rp.img1->internalId(), rp.img2->internalId(), false, true);
+
+		ok = rSolve.initialize(&r_tmp);
+
+		if (!ok) {
+			excludedRigs.insert(maxRigIntersect);
+			continue;
+		}
+
+		ok = rSolve.runSteps(5);
+
+		if (!ok) {
+			excludedRigs.insert(maxRigIntersect);
+			continue;
+		}
+
+		bool aligned = alignSolution(r, r_tmp);
+
+		if (aligned) {
+			processedRigs.insert(maxRigIntersect);
+		} else {
+			excludedRigs.insert(maxRigIntersect);
+		}
+	}
+
+
+	//complete missings
 	completeSolution(r, p, s_pts, s_imgs);
 
 	if (_preconstrain) {

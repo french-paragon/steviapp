@@ -31,12 +31,13 @@ bool EdgePointDistance::write(std::ostream& os) const {
 void EdgePointDistance::computeError() {
 	const VertexXiType* v1 = static_cast<const VertexXiType*>(_vertices[0]);
 	VertexXiType::EstimateType pt1 = v1->estimate();
-	const VertexXjType* v2 = static_cast<const VertexXjType*>(_vertices[0]);
+	const VertexXjType* v2 = static_cast<const VertexXjType*>(_vertices[1]);
 	VertexXjType::EstimateType pt2 = v2->estimate();
 
 	double dist = (pt1 - pt2).norm();
 
 	_error[0] = dist - _measurement;
+
 }
 
 } // namespace StereoVisionApp

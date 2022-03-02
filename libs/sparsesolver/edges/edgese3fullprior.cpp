@@ -41,6 +41,7 @@ void EdgeSE3FullPrior::computeError()
 	VertexXiType::EstimateType pose = v->estimate();
 	VertexXiType::EstimateType q = pose.inverse() * _measurement;
 	_error = q.log(); //implementation using Rodriguez formula.
+
 }
 
 } // namespace StereoVisionApp

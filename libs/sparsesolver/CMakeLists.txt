@@ -1,6 +1,8 @@
 define_stereovisionapp_lib(SOLVING Solving)
 
-set(LIB_SRC sbagraphreductor.cpp
+set(LIB_SRC initialsolution.cpp
+            initialsolution.h
+            sbagraphreductor.cpp
             sbagraphreductor.h
             sbainitializer.cpp
             sbainitializer.h
@@ -12,6 +14,8 @@ set(LIB_SRC sbagraphreductor.cpp
 			graphstereorigsolver.h
             imagepointssolutionmodel.cpp
             imagepointssolutionmodel.h
+            landmarkpointssolutionmodel.cpp
+            landmarkpointssolutionmodel.h
             vertices/camerapose.cpp
             vertices/camerapose.h
             vertices/camparam.cpp

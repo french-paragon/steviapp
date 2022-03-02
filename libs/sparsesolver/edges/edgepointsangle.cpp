@@ -53,6 +53,7 @@ void EdgePointsAngle::computeError() {
 	double eSin = sinPoints - sinMeasure;
 
 	_error[0] = std::sqrt(eCos*eCos + eSin*eSin);
+
 }
 
 } // namespace StereoVisionApp

@@ -40,6 +40,7 @@ void EdgeSE3rpyPrior::computeError()
 	VertexXiType::EstimateType pose = v->estimate();
 	Eigen::AngleAxisd r(pose.rotation().inverse() * _measurement);
 	_error = r.axis();
+
 }
 
 } // namespace StereoVisionApp

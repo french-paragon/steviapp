@@ -33,6 +33,7 @@ void EdgeXyzPrior::computeError()
 {
   const g2o::VertexSBAPointXYZ* v = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[0]);
   _error = v->estimate() - _measurement;
+
 }
 
 } // namespace StereoVisionApp

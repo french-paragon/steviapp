@@ -101,7 +101,6 @@ void EdgeParametrizedXYZ2UV::computeError () {
 
 	_error = proj - obs;
 
-
 }
 
 void EdgeParametrizedXYZ2UV::linearizeOplus () {
