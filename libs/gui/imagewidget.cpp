@@ -19,6 +19,7 @@ ImageWidget::ImageWidget(QWidget *parent) :
 	_img(),
 	_c_img(),
 	_activePoint(-1),
+	_drawOnlyPoint(-1),
 	_control_pressed_when_clicked(false)
 {
 
@@ -157,6 +158,148 @@ void ImageWidget::drawPoint(QPainter* painter, QPointF const& imagePoint, bool i
 
 	painter->drawText(textBg, Qt::AlignCenter|Qt::AlignTop, ptName);
 }
+void ImageWidget::drawOuterPoint(QPainter* painter, QPointF const& imagePoint, bool isActive, const QString &ptn) {
+
+	QString ptName = ptn;
+
+	if (ptName.isEmpty()) {
+		ptName = "No name";
+	}
+
+	QPointF wCoord = imageToWidgetCoordinates(imagePoint);
+
+	QPointF constrained = wCoord;
+
+	if (constrained.x() < 0) {
+		constrained.setX(0);
+	}
+	if (constrained.y() < 0) {
+		constrained.setY(0);
+	}
+	if (constrained.x() > size().width()) {
+		constrained.setX(size().width());
+	}
+	if (constrained.y() > size().height()) {
+		constrained.setY(size().height());
+	}
+
+	int hPw = 12;
+
+	QPointF hExtend(hPw, hPw);
+
+	QColor pColor(191, 51, 26);
+	QColor tColor(255, 255, 255);
+	QColor black(0, 0, 0);
+
+	if (isActive) {
+		tColor = pColor;
+		pColor = QColor(255, 255, 255);
+	}
+
+	QBrush fill;
+	QPen line(black);
+	line.setWidth(4);
+
+	painter->setFont(QFont("sans", 8, QFont::Normal));
+	int hMTw = 50;
+	QRectF maxWidth(0, 0, 2*hMTw, 2*hMTw);
+	QRectF b = painter->boundingRect(maxWidth, Qt::AlignHCenter|Qt::AlignTop, ptName);
+
+	QPolygonF arrow;
+
+	QRectF textBg;
+
+	if (constrained.x() == size().width() and constrained.y() == size().height()) {
+		arrow << QPointF(constrained)
+			  << QPointF(size().width() - hPw, size().height())
+			  << QPointF(size().width(), size().height() - hPw);
+
+		textBg = QRectF(constrained + QPointF(-2*hMTw -hPw , -hPw-b.height()) + b.topLeft(),
+						  constrained + QPointF(-2*hMTw -hPw, -hPw-b.height()) + b.bottomRight());
+
+	} else if (constrained.x() == size().width() and constrained.y() == 0) {
+		arrow << QPointF(constrained)
+			  << QPointF(size().width() - hPw, 0)
+			  << QPointF(size().width(), hPw);
+
+		textBg = QRectF(constrained + QPointF(-2*hMTw -hPw , -b.height()) + b.topLeft(),
+						  constrained + QPointF(-2*hMTw -hPw, -b.height()) + b.bottomRight());
+
+	} else if (constrained.x() == 0 and constrained.y() == size().height()) {
+		arrow << QPointF(constrained)
+			  << QPointF(hPw, size().height())
+			  << QPointF(0, size().height() - hPw);
+
+		textBg = QRectF(constrained + QPointF(hPw , -hPw-b.height()) + b.topLeft(),
+						  constrained + QPointF(hPw, -hPw-b.height()) + b.bottomRight());
+
+	}  else if (constrained.x() == 0 and constrained.y() == 0) {
+		arrow << QPointF(constrained)
+			  << QPointF(hPw, 0)
+			  << QPointF(0, hPw);
+
+		textBg = QRectF(constrained + QPointF(hPw , hPw-b.height()) + b.topLeft(),
+						  constrained + QPointF(hPw, hPw-b.height()) + b.bottomRight());
+
+	} else if (constrained.x() == size().width()) {
+		arrow << QPointF(constrained)
+			  << QPointF(size().width() - hPw, constrained.y() - hPw)
+			  << QPointF(size().width() - hPw, constrained.y() + hPw);
+
+		textBg = QRectF(constrained + QPointF(-2*hMTw -hPw , -b.height()) + b.topLeft(),
+						  constrained + QPointF(-2*hMTw -hPw, -b.height()) + b.bottomRight());
+
+	} else if (constrained.y() == size().height()) {
+		arrow << QPointF(constrained)
+			  << QPointF(constrained.x() - hPw, size().height() - hPw)
+			  << QPointF(constrained.x() + hPw, size().height() - hPw);
+
+		textBg = QRectF(constrained + QPointF(-hMTw -hPw , -hPw-b.height()) + b.topLeft(),
+						  constrained + QPointF(-hMTw -hPw, -hPw-b.height()) + b.bottomRight());
+
+	} else if (constrained.x() == 0) {
+		arrow << QPointF(constrained)
+			  << QPointF(hPw, constrained.y() - hPw)
+			  << QPointF(hPw, constrained.y() + hPw);
+
+		textBg = QRectF(constrained + QPointF(hPw , -hPw-b.height()) + b.topLeft(),
+						  constrained + QPointF(hPw, -hPw-b.height()) + b.bottomRight());
+
+	} else if (constrained.y() == 0) {
+		arrow << QPointF(constrained)
+			  << QPointF(constrained.x() - hPw, hPw)
+			  << QPointF(constrained.x() + hPw, hPw);
+
+		textBg = QRectF(constrained + QPointF(-hMTw -hPw , hPw) + b.topLeft(),
+						  constrained + QPointF(-hMTw -hPw, hPw) + b.bottomRight());
+	}
+
+
+
+	painter->setBrush(fill);
+	painter->setPen(line);
+
+	painter->drawConvexPolygon(arrow);
+	painter->drawRect(textBg);
+	painter->drawPoint(constrained);
+
+	line.setColor(pColor);
+	line.setWidth(2);
+	painter->setPen(line);
+
+	painter->drawConvexPolygon(arrow);
+	painter->drawPoint(constrained);
+
+	fill = QBrush(pColor);
+	painter->setBrush(fill);
+
+	painter->drawRect(textBg);
+
+	line.setColor(tColor);
+	painter->setPen(line);
+
+	painter->drawText(textBg, Qt::AlignCenter|Qt::AlignTop, ptName);
+}
 
 qint64 ImageWidget::activePoint() const
 {
@@ -187,6 +330,16 @@ qint64 ImageWidget::pointAt(QPoint const& widgetCoordinate) {
 
 	QPointF imCoord = widgetToImageCoordinates(widgetCoordinate);
 	return _currentImageDataBlock->getImageLandMarkAt(imCoord, 600./_zoom);
+}
+
+void ImageWidget::drawOnlyPoint(qint64 only) {
+	if (only != _drawOnlyPoint) {
+		_drawOnlyPoint = only;
+		update();
+	}
+}
+qint64 ImageWidget::drawOnlyPoint() const {
+	return _drawOnlyPoint;
 }
 
 void ImageWidget::setZoom(int zp) {
@@ -338,11 +491,42 @@ void ImageWidget::paintEvent(QPaintEvent *) {
 			continue;
 		}
 
-		drawPoint(&painter, lm->imageCoordinates(), false, lm->attachedLandmarkName());
+		if (_drawOnlyPoint >= 0 and _drawOnlyPoint != lm->attachedLandmarkid()) {
+			continue;
+		}
+
+		auto coords = lm->imageCoordinates();
+		auto extend = _img.size();
+
+		if (coords.x() < 0 or coords.y() < 0 or
+				coords.x() > extend.width() or coords.y() > extend.height() ) {
+			drawOuterPoint(&painter, coords, false, lm->attachedLandmarkName());
+		} else {
+			drawPoint(&painter, lm->imageCoordinates(), false, lm->attachedLandmarkName());
+		}
 	}
 
 	if (active != nullptr) {
-		drawPoint(&painter, active->imageCoordinates(), true, active->attachedLandmarkName());
+
+		bool ok = false;
+
+		auto coords = active->imageCoordinates();
+		auto extend = _img.size();
+
+		if (_drawOnlyPoint >= 0 and _drawOnlyPoint == active->attachedLandmarkid()) {
+			ok = true;
+		} else if (_drawOnlyPoint < 0) {
+			ok = true;
+		}
+
+		if (ok) {
+			if (coords.x() < 0 or coords.y() < 0 or
+					coords.x() > extend.width() or coords.y() > extend.height() ) {
+				drawOuterPoint(&painter, coords, true, active->attachedLandmarkName());
+			} else {
+				drawPoint(&painter, coords, true, active->attachedLandmarkName());
+			}
+		}
 	}
 
 }

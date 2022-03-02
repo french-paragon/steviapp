@@ -64,6 +64,8 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	connect(ui->nextLandmarkButton, &QPushButton::clicked, this, &ImageEditor::moveToNextLandmark);
 	connect(ui->previousLandmarkButton, &QPushButton::clicked, this, &ImageEditor::moveToPreviousLandmark);
 
+	connect(ui->viewSingleLandmarkButton, &QPushButton::toggled, this, &ImageEditor::onViewSingleStateChanged);
+
 	addAction(_moveToNextImg);
 	addAction(_moveToPrevImg);
 
@@ -163,6 +165,18 @@ void ImageEditor::setComboboxIndices() {
 	} else {
 		ui->imageComboBox->setCurrentIndex(-1);
 	}
+}
+
+void ImageEditor::onViewSingleStateChanged() {
+
+	bool check = ui->viewSingleLandmarkButton->isChecked();
+
+	if (check) {
+		ui->imageDisplay->drawOnlyPoint(_current_landmark_id);
+	} else {
+		ui->imageDisplay->drawOnlyPoint(-1);
+	}
+
 }
 
 void ImageEditor::addPoint(QPointF const& imageCoordinates) {
@@ -339,11 +353,17 @@ void ImageEditor::onCurrentLandmarkIndexChanged() {
 	QModelIndex itemIndex = p->index(ui->landmarkComboBox->currentIndex(), 0, rootLm);
 
 	if (itemIndex == QModelIndex()) {
+		ui->imageDisplay->drawOnlyPoint(-1);
 		return;
 	} else {
 		_current_landmark_id = itemIndex.data(Project::IdRole).toInt();
 	}
 
+	if (ui->viewSingleLandmarkButton->isChecked()) {
+		ui->imageDisplay->drawOnlyPoint(_current_landmark_id);
+	} else {
+		ui->imageDisplay->drawOnlyPoint(-1);
+	}
 }
 
 

@@ -31,6 +31,9 @@ public:
 
 	qint64 pointAt(QPoint const& widgetCoordinate);
 
+	void drawOnlyPoint(qint64 only);
+	qint64 drawOnlyPoint() const;
+
 Q_SIGNALS:
 
 	void zoomChanged(int zoom_percent);
@@ -65,6 +68,7 @@ protected:
 	static int clipZoom(int rawZoom);
 
 	void drawPoint(QPainter* painter, QPointF const& imagePoint, bool isActive, const QString &ptName);
+	void drawOuterPoint(QPainter* painter, QPointF const& imagePoint, bool isActive, const QString &ptName);
 
 	QPoint _translation;
 	int _zoom;
@@ -74,6 +78,7 @@ protected:
 	QPixmap _c_img;
 
 	qint64 _activePoint;
+	qint64 _drawOnlyPoint;
 
 private:
 

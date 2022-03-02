@@ -46,6 +46,8 @@ protected:
 	void clearCombobox();
 	void setComboboxIndices();
 
+	void onViewSingleStateChanged();
+
 private:
 	Ui::ImageEditor *ui;
 
