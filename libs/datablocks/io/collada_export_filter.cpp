@@ -11,16 +11,16 @@ namespace StereoVisionApp {
 
 void writeCameraToCollada(QTextStream & oStream, Camera* cam) {
 
-	QString headerTemplate("<camera id=\"Camera%1\" name=\"%2\">");
+	QString headerTemplate("<camera id=\"Camera%1\" name=\"%2\">\n");
 
 	oStream << headerTemplate.arg(cam->internalId()).arg(cam->objectName()).toUtf8();
 
-	oStream << QString("<optics>").toUtf8();
-	oStream << QString("<technique_common>").toUtf8();
-	oStream << QString("<perspective>").toUtf8();
+	oStream << QString("<optics>\n").toUtf8();
+	oStream << QString("<technique_common>\n").toUtf8();
+	oStream << QString("<perspective>\n").toUtf8();
 
-	QString xfovTemplate("<xfov sid=\"xfov\">%1</xfov>");
-	QString aspectRatioTemplate("<aspect_ratio>%1</aspect_ratio>");
+	QString xfovTemplate("<xfov sid=\"xfov\">%1</xfov>\n");
+	QString aspectRatioTemplate("<aspect_ratio>%1</aspect_ratio>\n");
 
 	QSize s = cam->imSize();
 
@@ -38,18 +38,18 @@ void writeCameraToCollada(QTextStream & oStream, Camera* cam) {
 	float aspect = float(s.width())/float(s.height());
 	oStream << aspectRatioTemplate.arg(aspect).toUtf8();
 
-	oStream << QString("<znear sid=\"znear\">0.1</znear>").toUtf8();
-	oStream << QString("<zfar sid=\"zfar\">1000</zfar>").toUtf8();
-	oStream << QString("</perspective>").toUtf8();
-	oStream << QString("</technique_common>").toUtf8();
-	oStream << QString("</optics>").toUtf8();
-	oStream << QString("</camera>").toUtf8();
+	oStream << QString("<znear sid=\"znear\">0.1</znear>\n").toUtf8();
+	oStream << QString("<zfar sid=\"zfar\">1000</zfar>\n").toUtf8();
+	oStream << QString("</perspective>\n").toUtf8();
+	oStream << QString("</technique_common>\n").toUtf8();
+	oStream << QString("</optics>\n").toUtf8();
+	oStream << QString("</camera>\n").toUtf8();
 }
 
 
 void writeLandmarkToCollada(QTextStream & oStream, Landmark* lm) {
 
-	QString headerTemplate("<node id=\"Landmark%1\" name=\"%2\" type=\"NODE\">");
+	QString headerTemplate("<node id=\"Landmark%1\" name=\"%2\" type=\"NODE\">\n");
 	oStream << headerTemplate.arg(lm->internalId()).arg(lm->objectName()).toUtf8();
 
 	float pX;
@@ -68,15 +68,15 @@ void writeLandmarkToCollada(QTextStream & oStream, Landmark* lm) {
 		pZ = lm->zCoord().value();
 	}
 
-	QString matrixTemplate("<matrix sid=\"transform\">1 0 0 %1 0 1 0 %2 0 0 1 %3 0 0 0 1</matrix>");
+	QString matrixTemplate("<matrix sid=\"transform\">1 0 0 %1 0 1 0 %2 0 0 1 %3 0 0 0 1</matrix>\n");
 	oStream << matrixTemplate.arg(pX).arg(pY).arg(pZ).toUtf8();
 
-	oStream << QString("</node>").toUtf8();
+	oStream << QString("</node>\n").toUtf8();
 }
 
 void writeViewToCollada(QTextStream & oStream, Image* view) {
 
-	QString headerTemplate("<node id=\"View%1\" name=\"%2\" type=\"NODE\">");
+	QString headerTemplate("<node id=\"View%1\" name=\"%2\" type=\"NODE\">\n");
 	oStream << headerTemplate.arg(view->internalId()).arg(view->objectName()).toUtf8();
 
 	float pX;
@@ -95,31 +95,31 @@ void writeViewToCollada(QTextStream & oStream, Image* view) {
 		pZ = view->zCoord().value();
 	}
 
-	float eX;
-	float eY;
-	float eZ;
+	float rX;
+	float rY;
+	float rZ;
 
 	floatParameterGroup<3> oR = view->optRot();
 
 	if (oR.isSet()) {
-		eX = oR.value(0);
-		eY = oR.value(1);
-		eZ = oR.value(2);
+		rX = oR.value(0);
+		rY = oR.value(1);
+		rZ = oR.value(2);
 	} else {
-		eX = view->xRot().value();
-		eY = view->yRot().value();
-		eZ = view->zRot().value();
+		rX = view->xRot().value();
+		rY = view->yRot().value();
+		rZ = view->zRot().value();
 	}
 
 	Eigen::Matrix3f S = Eigen::Matrix3f::Identity();
 	S(1,1) = -1;
 	S(2,2) = -1;
 
-	Eigen::Matrix3f R = StereoVision::Geometry::eulerDegXYZToRotation(eX, eY, eZ)*S;
+	Eigen::Matrix3f R = StereoVision::Geometry::rodriguezFormula(Eigen::Vector3f(rX, rY, rZ))*S;
 	Eigen::Vector3f t(pX, pY, pZ);
 
 	QString matrixLineTemplate("%1 %2 %3 %4");
-	QString matrixTemplate("<matrix sid=\"transform\">%1 %2 %3 0 0 0 1</matrix>");
+	QString matrixTemplate("<matrix sid=\"transform\">%1 %2 %3 0 0 0 1</matrix>\n");
 
 	for (int i = 0; i < 3; i++) {
 		QString l = matrixLineTemplate.arg(R(i,0)).arg(R(i,1)).arg(R(i,2)).arg(t[i]);
@@ -128,10 +128,10 @@ void writeViewToCollada(QTextStream & oStream, Image* view) {
 
 	oStream << matrixTemplate.toUtf8();
 
-	QString camInstanceTemplate("<instance_camera url=\"#Camera%1\"/>");
+	QString camInstanceTemplate("<instance_camera url=\"#Camera%1\"/>\n");
 	oStream << camInstanceTemplate.arg(view->assignedCamera());
 
-	oStream << QString("</node>").toUtf8();
+	oStream << QString("</node>\n").toUtf8();
 }
 
 void exportOptimizedToCollada(QTextStream & oStream, Project* p, bool optimizedOnly = true) {
@@ -140,29 +140,23 @@ void exportOptimizedToCollada(QTextStream & oStream, Project* p, bool optimizedO
 	oStream << QString("<COLLADA xmlns=\"http://www.collada.org/2005/11/COLLADASchema\" version=\"1.4.1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n").toUtf8();
 
 
-	oStream << QString("<library_cameras>").toUtf8();
+	oStream << QString("<library_cameras>\n").toUtf8();
 
 	QVector<qint64> cams = p->getIdsByClass(Camera::staticMetaObject.className());
 
 	for (qint64 id : cams) {
 		Camera* cam = p->getDataBlock<Camera>(id);
 		if (cam != nullptr) {
-			if (optimizedOnly) {
-				if (!cam->hasOptimizedParameters()) {
-					continue;
-				}
-			}
-
 			writeCameraToCollada(oStream, cam);
 		}
 	}
 
-	oStream << QString("</library_cameras>").toUtf8();
+	oStream << QString("</library_cameras>\n").toUtf8();
 
-	oStream << QString("<library_images/>");
+	oStream << QString("<library_images/>\n");
 
-	oStream << QString("<library_visual_scenes>");
-	oStream << QString("<visual_scene id=\"Scene\" name=\"Scene\">");
+	oStream << QString("<library_visual_scenes>\n");
+	oStream << QString("<visual_scene id=\"Scene\" name=\"Scene\">\n");
 
 
 	QVector<qint64> landmarks = p->getIdsByClass(Landmark::staticMetaObject.className());
@@ -196,8 +190,8 @@ void exportOptimizedToCollada(QTextStream & oStream, Project* p, bool optimizedO
 		}
 	}
 
-	oStream << QString("</visual_scene>");
-	oStream << QString("</library_visual_scenes>");
+	oStream << QString("</visual_scene>\n");
+	oStream << QString("</library_visual_scenes>\n");
 
 	oStream << QString("</COLLADA>").toUtf8();
 
