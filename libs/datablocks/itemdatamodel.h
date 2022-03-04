@@ -7,12 +7,18 @@
 #include "./floatparameter.h"
 #include "./project.h"
 
+#include <optional>
+
 namespace StereoVisionApp {
 
 class ItemDataModel : public QAbstractItemModel
 {
 	Q_OBJECT
 public:
+
+	enum CustomRoles {
+		HasDeleterRole = Qt::UserRole+1
+	};
 
 	class Category;
 	class SubItemCollectionManager;
@@ -377,6 +383,9 @@ protected:
 		virtual NodeType type() const;
 		virtual Node* parent() const;
 
+		virtual bool hasDeleter() const;
+		virtual bool deleteAtRow(int row);
+
 	protected:
 
 		Node* _parent;
@@ -407,7 +416,8 @@ public:
 		ItemPropertyDescription* addCatProperty(QString name,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::GetterType getter,
 							typename TypedItemPropertyDescr<T, D, refS, signalT>::SetterType setter,
-							typename TypedItemPropertyDescr<T, D, refS, signalT>::SignalType signal) {
+							typename TypedItemPropertyDescr<T, D, refS, signalT>::SignalType signal)
+		{
 
 			ItemPropertyDescription* prop = new TypedItemPropertyDescr<T, D, refS, signalT>(this,
 																							name,
@@ -447,6 +457,8 @@ public:
 
 		typedef std::function<QString(DataBlock*)> TitleFunc ;
 
+		typedef std::function<void(DataBlock*, qint64)> DeleterFunc;
+
 		virtual ~SubItemCollectionManager();
 
 		int countSubItems() const;
@@ -475,12 +487,17 @@ public:
 
 		}
 
+		bool hasDeleter() const override;
+		bool deleteAtRow(int row) override;
+
 	protected:
 
 		SubItemCollectionManager(ItemDataModel* model,
 								 QString const& descrName,
 								 QString const& targetClass,
-								 const TitleFunc &titleGetter = [] (DataBlock* b) { return b->objectName(); });
+								 const TitleFunc &titleGetter = [] (DataBlock* b) { return b->objectName(); },
+								 std::optional<DeleterFunc> deleter = std::nullopt
+								 );
 
 		void newItem(qint64 id);
 		void itemRemoved(qint64 id);
@@ -492,8 +509,11 @@ public:
 		int rowForProperty(qint64 id, ItemPropertyDescription* descr) const;
 		int rowForItem(Node* itemNode) const;
 
+		bool deleteNodeAtRow(int row);
+
 		QString _targetClass;
 		TitleFunc _titleGetter;
+		std::optional<DeleterFunc> _deleter;
 
 		QVector<SubItemNode*> _subItems;
 		QVector<ItemPropertyDescriptionFactory*> _propsDescrFactories;
@@ -510,7 +530,10 @@ public:
 	~ItemDataModel();
 
 	Category* addCategory(const QString &name);
-	SubItemCollectionManager* addCollectionManager(const QString &name, QString const& targetClass, typename SubItemCollectionManager::TitleFunc const& titleGetter);
+	SubItemCollectionManager* addCollectionManager(const QString &name,
+												   QString const& targetClass,
+												   typename SubItemCollectionManager::TitleFunc const& titleGetter,
+												   std::optional<SubItemCollectionManager::DeleterFunc> deleterFunc = std::nullopt);
 
 	QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
 	QModelIndex parent(const QModelIndex &index) const override;
@@ -519,6 +542,7 @@ public:
 	QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
 	bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
+	bool deleteAtIndex(const QModelIndex &index);
 	Qt::ItemFlags flags(const QModelIndex &index) const override;
 
 	QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;

@@ -29,6 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 	ui->projectView->setHeaderHidden(true);
 	ui->projectView->setContextMenuPolicy(Qt::CustomContextMenu);
+	ui->dataBlockView->setContextMenuPolicy(Qt::CustomContextMenu);
 
 	ui->editorPanel->setTabsClosable(true);
 	connect(ui->editorPanel, &QTabWidget::tabCloseRequested, this, &MainWindow::closeEditor);
@@ -41,6 +42,8 @@ MainWindow::MainWindow(QWidget *parent)
 
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
+
+	connect(ui->dataBlockView, &QTreeView::customContextMenuRequested, this, &MainWindow::datablockContextMenu);
 
 	connect(ui->actionclear_solution, &QAction::triggered, this, &MainWindow::clearOptimSolution);
 	connect(ui->actionsolve_coarse, &QAction::triggered, this, &MainWindow::runCoarseOptim);
@@ -346,6 +349,49 @@ void MainWindow::onProjectSelectionChanged() {
 
 	ui->dataBlockView->setModel(nullptr);
 
+}
+
+void MainWindow::datablockContextMenu(QPoint const& pt) {
+
+	if (_activeProject == nullptr) {
+		return;
+	}
+
+	QMenu m(ui->dataBlockView);
+
+	QModelIndex id = ui->dataBlockView->indexAt(pt);
+	ItemDataModel* model = qobject_cast<ItemDataModel*>(ui->dataBlockView->model());
+
+	if (!id.isValid() or model == nullptr or ui->dataBlockView->model() != id.model()) {
+		return;
+	}
+
+	QPersistentModelIndex perId(id);
+
+	QList<QAction*> acts;
+
+	if (id.data(ItemDataModel::HasDeleterRole).toBool()) {
+		QAction* del = new QAction("delete");
+		connect(del, &QAction::triggered, [perId, model] () {
+			if (perId.isValid()) {
+				model->deleteAtIndex(perId);
+			}
+		});
+		acts.push_back(del);
+
+	}
+
+	for (QAction* a : acts) {
+		m.addAction(a);
+	}
+
+	if (acts.count() > 0) {
+		m.exec(ui->dataBlockView->mapToGlobal(pt));
+	}
+
+	for (QAction* a : acts) {
+		a->deleteLater();
+	}
 }
 
 

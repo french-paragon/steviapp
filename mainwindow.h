@@ -43,6 +43,8 @@ private:
 	void projectContextMenu(QPoint const& pt);
 	void onProjectSelectionChanged();
 
+	void datablockContextMenu(QPoint const& pt);
+
 	void clearOptimSolution();
 	void runCoarseOptim();
 	void runSparseOptim();

@@ -27,6 +27,8 @@ public:
 
 	AngleLandmarksTriplets* getLandmarksTriplet(qint64 id) const;
 	qint64 insertLandmarksTriplet(qint64 lm1Id, qint64 lm2Id, qint64 lm3Id);
+	bool removeLandmarkTriplet(qint64 id);
+
 
 Q_SIGNALS:
 

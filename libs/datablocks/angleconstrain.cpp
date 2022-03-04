@@ -93,6 +93,14 @@ qint64 AngleConstrain::insertLandmarksTriplet(qint64 lm1Id, qint64 lm2Id, qint64
 
 	return -1;
 }
+bool AngleConstrain::removeLandmarkTriplet(qint64 id) {
+	LandmarksTriplet* lms3 = getLandmarksTriplet(id);
+	if (lms3 != nullptr) {
+		clearSubItem(id, AngleLandmarksTriplets::staticMetaObject.className());
+		return true;
+	}
+	return false;
+}
 
 QJsonObject AngleConstrain::encodeJson() const {
 
@@ -159,9 +167,20 @@ void AngleConstrain::extendDataModel() {
 		return tr("Unvalid landmark triplet");
 	};
 
+	auto lmDeleteTriplet = [] (DataBlock* b, qint64 id) {
+		AngleConstrain* constr = qobject_cast<AngleConstrain*>(b);
+
+		if (constr != nullptr) {
+			return constr->removeLandmarkTriplet(id);
+		}
+
+		return false;
+	};
+
 	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Landmarks triplets"),
 																					  AngleLandmarksTriplets::staticMetaObject.className(),
-																					  lmNameFunc);
+																					  lmNameFunc,
+																					  lmDeleteTriplet);
 
 
 

@@ -132,6 +132,14 @@ ItemDataModel::Node* ItemDataModel::Node::parent() const {
 	return _parent;
 }
 
+bool ItemDataModel::Node::hasDeleter() const {
+	return false;
+}
+bool ItemDataModel::Node::deleteAtRow(int row) {
+	Q_UNUSED(row);
+	return false;
+}
+
 ItemDataModel::TopLevelNode::TopLevelNode(ItemDataModel* model, QString descrName) :
 	Node(model),
 	_name(descrName)
@@ -166,10 +174,12 @@ ItemDataModel::Node::NodeType ItemDataModel::Category::type() const {
 ItemDataModel::SubItemCollectionManager::SubItemCollectionManager(ItemDataModel* model,
 																  QString const& descrName,
 																  QString const& targetClass,
-																  TitleFunc const& titleGetter) :
+																  TitleFunc const& titleGetter,
+																  std::optional<DeleterFunc> deleter) :
 	TopLevelNode(model, descrName),
 	_targetClass(targetClass),
-	_titleGetter(titleGetter)
+	_titleGetter(titleGetter),
+	_deleter(deleter)
 {
 
 	DataBlock* b = model->_dataBlock;
@@ -187,6 +197,14 @@ ItemDataModel::SubItemCollectionManager::SubItemCollectionManager(ItemDataModel*
 	});
 
 }
+
+bool ItemDataModel::SubItemCollectionManager::hasDeleter() const {
+	return _deleter.has_value();
+}
+bool ItemDataModel::SubItemCollectionManager::deleteAtRow(int row) {
+	return deleteNodeAtRow(row);
+}
+
 ItemDataModel::SubItemCollectionManager::~SubItemCollectionManager() {
 
 	QObject::disconnect(nItemConnection);
@@ -354,6 +372,23 @@ int ItemDataModel::SubItemCollectionManager::rowForItem(Node* itemNode) const {
 	return -1;
 }
 
+bool ItemDataModel::SubItemCollectionManager::deleteNodeAtRow(int row) {
+
+	if (!hasDeleter()) {
+		return false;
+	}
+
+	qint64 id = _subItems[row]->subItemId;
+
+	if (id < 0) {
+		return false;
+	}
+
+	_deleter.value()(_model->_dataBlock, id);
+	return true;
+
+}
+
 QString ItemDataModel::SubItemCollectionManager::SubItemNode::title() const {
 	if (_parent == nullptr) {
 		return "";
@@ -396,8 +431,16 @@ ItemDataModel::Category* ItemDataModel::addCategory(QString const& name) {
 	_topLevelNodes.append(cat);
 	return cat;
 }
-ItemDataModel::SubItemCollectionManager* ItemDataModel::addCollectionManager(const QString &name, QString const& targetClass, const SubItemCollectionManager::TitleFunc &titleGetter) {
-	SubItemCollectionManager* manager = new SubItemCollectionManager(this, name, targetClass, titleGetter);
+
+ItemDataModel::SubItemCollectionManager* ItemDataModel::addCollectionManager(const QString &name,
+																			 QString const& targetClass,
+																			 const SubItemCollectionManager::TitleFunc &titleGetter,
+																			 std::optional<SubItemCollectionManager::DeleterFunc> deleterFunc) {
+	SubItemCollectionManager* manager = new SubItemCollectionManager(this,
+																	 name,
+																	 targetClass,
+																	 titleGetter,
+																	 deleterFunc);
 	_topLevelNodes.append(manager);
 	return manager;
 }
@@ -524,11 +567,15 @@ QVariant ItemDataModel::data(const QModelIndex &index, int role) const {
 		}
 		break;
 	case Qt::FontRole :
+	{
 		QFont font;
 		if (node != nullptr) { //non leaf items
 			font.setBold(true);
 		}
 		return font;
+	}
+	case HasDeleterRole :
+		return pNode->hasDeleter();
 	}
 
 	return QVariant();
@@ -560,6 +607,13 @@ bool ItemDataModel::setData(const QModelIndex &index, const QVariant &value, int
 	}
 
 	return false;
+}
+bool ItemDataModel::deleteAtIndex(const QModelIndex &index) {
+
+	Node* pNode = reinterpret_cast<Node*>(index.internalPointer());
+
+	return pNode->deleteAtRow(index.row());
+
 }
 Qt::ItemFlags ItemDataModel::flags(const QModelIndex &index) const {
 
