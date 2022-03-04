@@ -75,6 +75,36 @@ void Landmark::clearOptPos() {
 	}
 }
 
+float Landmark::optXCoord() const {
+	return _o_pos.value(0);
+}
+void Landmark::setOptXCoord(const float &x) {
+	if (_o_pos.value(0) != x) {
+		_o_pos.value(0) = x;
+		emit optPosChanged();
+	}
+}
+
+float Landmark::optYCoord() const {
+	return _o_pos.value(1);
+}
+void Landmark::setOptYCoord(const float &y) {
+	if (_o_pos.value(1) != y) {
+		_o_pos.value(1) = y;
+		emit optPosChanged();
+	}
+}
+
+float Landmark::optZCoord() const {
+	return _o_pos.value(2);
+}
+void Landmark::setOptZCoord(const float &z) {
+	if (_o_pos.value(2) != z) {
+		_o_pos.value(2) = z;
+		emit optPosChanged();
+	}
+}
+
 
 QVector<qint64> Landmark::getImagesRefering() const {
 
@@ -216,6 +246,24 @@ void Landmark::extendDataModel() {
 																												 &Landmark::setZCoord,
 																												 &Landmark::zCoordChanged);
 
+
+	ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));
+
+	//Position
+	og->addCatProperty<float, Landmark, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+																									 &Landmark::optXCoord,
+																									 &Landmark::setOptXCoord,
+																									 &Landmark::optPosChanged);
+
+	og->addCatProperty<float, Landmark, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+																									 &Landmark::optYCoord,
+																									 &Landmark::setOptYCoord,
+																									 &Landmark::optPosChanged);
+
+	og->addCatProperty<float, Landmark, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+																									 &Landmark::optZCoord,
+																									 &Landmark::setOptZCoord,
+																									 &Landmark::optPosChanged);
 }
 
 LandmarkFactory::LandmarkFactory(QObject* parent) : DataBlockFactory(parent)

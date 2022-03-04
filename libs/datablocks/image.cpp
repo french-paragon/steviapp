@@ -165,6 +165,36 @@ void Image::clearOptPos() {
 	}
 }
 
+float Image::optXCoord() const {
+	return _o_pos.value(0);
+}
+void Image::setOptXCoord(const float &x) {
+	if (_o_pos.value(0) != x) {
+		_o_pos.value(0) = x;
+		emit optPosChanged();
+	}
+}
+
+float Image::optYCoord() const {
+	return _o_pos.value(1);
+}
+void Image::setOptYCoord(const float &y) {
+	if (_o_pos.value(1) != y) {
+		_o_pos.value(1) = y;
+		emit optPosChanged();
+	}
+}
+
+float Image::optZCoord() const {
+	return _o_pos.value(2);
+}
+void Image::setOptZCoord(const float &z) {
+	if (_o_pos.value(2) != z) {
+		_o_pos.value(2) = z;
+		emit optPosChanged();
+	}
+}
+
 floatParameterGroup<3> Image::optRot() const {
 	return _o_rot;
 }
@@ -183,6 +213,36 @@ void Image::clearOptRot() {
 		_o_rot.clearIsSet();
 		emit optRotChanged();
 		isChanged();
+	}
+}
+
+float Image::optXRot() const {
+	return _o_rot.value(0);
+}
+void Image::setOptXRot(const float &rx) {
+	if (_o_rot.value(0) != rx) {
+		_o_rot.value(0) = rx;
+		emit optRotChanged();
+	}
+}
+
+float Image::optYRot() const {
+	return _o_rot.value(1);
+}
+void Image::setOptYRot(const float &ry){
+	if (_o_rot.value(1) != ry) {
+		_o_rot.value(1) = ry;
+		emit optRotChanged();
+	}
+}
+
+float Image::optZRot() const {
+	return _o_rot.value(2);
+}
+void Image::setOptZRot(const float &rz) {
+	if (_o_rot.value(2) != rz) {
+		_o_rot.value(2) = rz;
+		emit optRotChanged();
 	}
 }
 
@@ -502,6 +562,40 @@ void Image::extendDataModel() {
 																												 &Image::zRot,
 																												 &Image::setZRot,
 																												 &Image::zRotChanged);
+
+	ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));
+
+	//Position
+	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+																								  &Image::optXCoord,
+																								  &Image::setOptXCoord,
+																								  &Image::optPosChanged);
+
+	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+																								  &Image::optYCoord,
+																								  &Image::setOptYCoord,
+																								  &Image::optPosChanged);
+
+	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+																								  &Image::optZCoord,
+																								  &Image::setOptZCoord,
+																								  &Image::optPosChanged);
+
+	//Rotation
+	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Raxis"),
+																								  &Image::optXRot,
+																								  &Image::setOptXRot,
+																								  &Image::optRotChanged);
+
+	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Raxis"),
+																								  &Image::optYRot,
+																								  &Image::setOptYRot,
+																								  &Image::optRotChanged);
+
+	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Raxis"),
+																								  &Image::optZRot,
+																								  &Image::setOptZRot,
+																								  &Image::optRotChanged);
 
 	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Image landmarks"),
 																					  ImageLandmark::ImageLandmarkClassName,

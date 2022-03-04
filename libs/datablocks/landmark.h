@@ -35,6 +35,15 @@ public:
 	void setOptPos(floatParameterGroup<3> const& o_pos);
 	void clearOptPos();
 
+	float optXCoord() const;
+	void setOptXCoord(const float &x);
+
+	float optYCoord() const;
+	void setOptYCoord(const float &y);
+
+	float optZCoord() const;
+	void setOptZCoord(const float &z);
+
 	QVector<qint64> getImagesRefering() const;
 
 	int countImagesRefering(QSet<qint64> const& excluded = {}) const;

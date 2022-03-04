@@ -48,9 +48,27 @@ public:
 	void setOptPos(floatParameterGroup<3> const& o_pos);
 	void clearOptPos();
 
+	float optXCoord() const;
+	void setOptXCoord(const float &x);
+
+	float optYCoord() const;
+	void setOptYCoord(const float &y);
+
+	float optZCoord() const;
+	void setOptZCoord(const float &z);
+
 	floatParameterGroup<3> optRot() const;
 	void setOptRot(floatParameterGroup<3> const& o_rot);
 	void clearOptRot();
+
+	float optXRot() const;
+	void setOptXRot(const float &rx);
+
+	float optYRot() const;
+	void setOptYRot(const float &ry);
+
+	float optZRot() const;
+	void setOptZRot(const float &rz);
 
 	qint64 addImageLandmark(const QPointF &coordinates, bool uncertain = false, qreal sigma_pos = 1.0);
 	qint64 addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain = false, qreal sigma_pos = 1.0);
