@@ -295,17 +295,17 @@ std::optional<float> LandmarkPointsSolutionModel::getImageReprojCoord(int imId, 
 				ppy = cam->opticalCenterY().value();
 			}
 
-			if (im->hasOptimizedParameters()) {
-				auto opos = im->optPos();
-				auto orot = im->optRot();
+			auto world2cam = getWorldToImageTransform(im);
 
-				Eigen::Vector3f tvec(opos.value(0),opos.value(1),opos.value(2));
-				Eigen::Vector3f rvec(orot.value(0),orot.value(1),orot.value(2));
+			if (world2cam.has_value()) {
 
-				StereoVision::Geometry::ShapePreservingTransform cam2World(rvec, tvec, 1);
-				StereoVision::Geometry::ShapePreservingTransform world2cam = cam2World.inverse();
+				Eigen::Vector3f pcam = world2cam.value()*ppos;
 
-				Eigen::Vector2f pos = StereoVision::Geometry::projectPoints(world2cam*ppos);
+				if (pcam[2] < 0.0) {
+					return std::nanf("");
+				}
+
+				Eigen::Vector2f pos = StereoVision::Geometry::projectPoints(pcam);
 
 				if (coordId == 0) {
 					return flen*pos[0] + ppx;

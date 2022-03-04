@@ -26,15 +26,14 @@ inline std::optional<StereoVision::Geometry::ShapePreservingTransform> getImageT
 		floatParameterGroup<3> pos = img->optPos();
 		floatParameterGroup<3> rot = img->optRot();
 
-		Eigen::Matrix3f R = (Eigen::AngleAxisf(rot.value(0)/180*M_PI, Eigen::Vector3f(1,0,0))*
-					Eigen::AngleAxisf(rot.value(1)/180*M_PI, Eigen::Vector3f(0,1,0))*
-					Eigen::AngleAxisf(rot.value(2)/180*M_PI, Eigen::Vector3f(0,0,1))).toRotationMatrix();
+		Eigen::Vector3f r;
+		r.x() = rot.value(0);
+		r.y() = rot.value(1);
+		r.z() = rot.value(2);
 
 		Eigen::Vector3f t(pos.value(0),
 						  pos.value(1),
 						  pos.value(2));
-
-		Eigen::Vector3f r = StereoVision::Geometry::inverseRodriguezFormula(R);
 
 		StereoVision::Geometry::ShapePreservingTransform imgToWorld(r, t, 1.);
 
