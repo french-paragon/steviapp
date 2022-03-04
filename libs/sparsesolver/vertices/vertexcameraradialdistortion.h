@@ -4,12 +4,14 @@
 #include <Eigen/Core>
 #include "g2o/core/base_vertex.h"
 
+#include "../../datablocks/project.h"
+
 namespace StereoVisionApp {
 
 /*!
  * \brief The VertexCameraRadialDistorsion class represent the radial distorsion coefficients of a lens (R1, R2, R3).
  */
-class VertexCameraRadialDistortion : public g2o::BaseVertex<3, Eigen::Vector3d>
+class VertexCameraRadialDistortion : public g2o::BaseVertex<3, Eigen::Vector3d>, public DataBlockReference
 {
 public:
 

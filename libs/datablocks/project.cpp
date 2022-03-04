@@ -641,6 +641,12 @@ DataBlock::DataBlock(DataBlock *parent) :
 	_dataModel = nullptr;
 }
 
+DataBlock::~DataBlock() {
+	for (DataBlockReference* r : _nonDatablockReferences) {
+		r->_referedDatablock = nullptr;
+	}
+}
+
 Project* DataBlock::getProject() const {
 
 	Project* p = qobject_cast<Project*>(parent());
@@ -1045,6 +1051,25 @@ void DataBlock::buildDataModel() {
 qint64 DataBlock::internalId() const
 {
 	return _internalId;
+}
+
+DataBlockReference::DataBlockReference() :
+	_referedDatablock(nullptr)
+{
+
+}
+
+void DataBlockReference::setReferedDatablock(DataBlock* block) {
+
+	if (_referedDatablock != nullptr) {
+		_referedDatablock->_nonDatablockReferences.remove(this);
+	}
+
+	_referedDatablock = block;
+
+	if (_referedDatablock != nullptr) {
+		_referedDatablock->_nonDatablockReferences.insert(this);
+	}
 }
 
 } // namespace StereoVisionApp

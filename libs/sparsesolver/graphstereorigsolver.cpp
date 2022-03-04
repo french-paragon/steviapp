@@ -118,6 +118,7 @@ bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 			landMarkVertex* v = new landMarkVertex();
 			v->setId(vid++);
 			v->setMarginalized(false);
+			v->setReferedDatablock(lm);
 
 			g2o::Vector3 d;
 
@@ -195,8 +196,8 @@ bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 				VertexCameraFocal* cp_v = new VertexCameraFocal();
 
 				cp_v->setId(vid++);
-
 				cp_v->setMarginalized(false);
+				cp_v->setReferedDatablock(c);
 
 				Eigen::Vector2d extend;
 				extend.x() = c->imSize().width();
@@ -219,6 +220,7 @@ bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 			VertexCameraPose* v = new VertexCameraPose();
 			v->setId(vid++);
 			v->setMarginalized(false);
+			v->setReferedDatablock(im);
 
 			Eigen::Matrix3d r = Eigen::Matrix3d::Identity();
 			Eigen::Vector3d t = Eigen::Vector3d::Zero();

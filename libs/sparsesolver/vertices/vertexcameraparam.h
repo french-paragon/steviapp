@@ -8,12 +8,14 @@
 #include "./vertexcameratangentialdistortion.h"
 #include "./vertexcameraskewdistortion.h"
 
+#include "../../datablocks/project.h"
+
 namespace StereoVisionApp {
 
 /*!
  * \brief The VertexCameraParam class store the focal lenght and principal point of a camera.
  */
-class VertexCameraParam : public g2o::BaseVertex<3, CamParam>
+class VertexCameraParam : public g2o::BaseVertex<3, CamParam>, public DataBlockReference
 {
 public:
 
@@ -35,7 +37,7 @@ public:
  *
  * Aditionaly the principal point can be stored as well.
  */
-class VertexCameraFocal : public g2o::BaseVertex<1, double>
+class VertexCameraFocal : public g2o::BaseVertex<1, double>, public DataBlockReference
 {
 public:
 

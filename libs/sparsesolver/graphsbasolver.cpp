@@ -94,6 +94,7 @@ bool GraphSBASolver::init() {
 			landMarkVertex* v = new landMarkVertex();
 			v->setId(vid++);
 			v->setMarginalized(false);
+			v->setReferedDatablock(lm);
 
 			g2o::Vector3 d;
 
@@ -176,6 +177,11 @@ bool GraphSBASolver::init() {
 				td_v->setMarginalized(false);
 				sd_v->setMarginalized(false);
 
+				cp_v->setReferedDatablock(c);
+				rd_v->setReferedDatablock(c);
+				td_v->setReferedDatablock(c);
+				sd_v->setReferedDatablock(c);
+
 				Eigen::Vector2d extend;
 				extend.x() = c->imSize().width();
 				extend.y() = c->imSize().height();
@@ -219,6 +225,7 @@ bool GraphSBASolver::init() {
 			VertexCameraPose* v = new VertexCameraPose();
 			v->setId(vid++);
 			v->setMarginalized(false);
+			v->setReferedDatablock(im);
 
 			Eigen::Matrix3d r;
 			Eigen::Vector3d t;

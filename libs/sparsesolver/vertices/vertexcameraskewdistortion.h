@@ -4,9 +4,11 @@
 #include <Eigen/Core>
 #include "g2o/core/base_vertex.h"
 
+#include "../../datablocks/project.h"
+
 namespace StereoVisionApp {
 
-class VertexCameraSkewDistortion : public g2o::BaseVertex<2, Eigen::Vector2d>
+class VertexCameraSkewDistortion : public g2o::BaseVertex<2, Eigen::Vector2d>, public DataBlockReference
 {
 public:
 

@@ -4,6 +4,7 @@
 #include "./sparsesolverbase.h"
 #include "g2o/core/block_solver.h"
 #include "./vertices/vertexcameraparam.h"
+#include "./vertices/vertexlandmarkpos.h"
 
 #include "initialsolution.h"
 
@@ -18,9 +19,9 @@ namespace g2o {
 typedef g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> >::LinearSolverType lSolvType;
 typedef g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> > bSolvType;
 
-typedef g2o::VertexSBAPointXYZ landMarkVertex;
-
 namespace StereoVisionApp {
+
+typedef VertexLandmarkPos landMarkVertex;
 
 class VertexCameraPose;
 

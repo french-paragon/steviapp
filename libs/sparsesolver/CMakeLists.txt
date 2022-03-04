@@ -30,6 +30,8 @@ set(LIB_SRC initialsolution.cpp
             vertices/vertexcameraskewdistortion.h
             vertices/vertexcameratangentialdistortion.cpp
             vertices/vertexcameratangentialdistortion.h
+            vertices/vertexlandmarkpos.cpp
+            vertices/vertexlandmarkpos.h
             edges/edgeparametrizedxyz2uv.cpp
             edges/edgeparametrizedxyz2uv.h
             edges/edgese3fullprior.cpp

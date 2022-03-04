@@ -2,6 +2,7 @@
 #define STEREOVISIONAPP_DATABLOCK_H
 
 #include <QObject>
+#include <QSet>
 #include <QAbstractItemModel>
 
 class QAction;
@@ -137,6 +138,8 @@ public:
 	virtual QString itemClassName() const;
 };
 
+class DataBlockReference;
+
 class DataBlock : public QObject
 {
 	Q_OBJECT
@@ -152,6 +155,7 @@ public:
 
 	explicit DataBlock(Project *parent = nullptr);
 	explicit DataBlock(DataBlock *parent = nullptr);
+	virtual ~DataBlock();
 
 	qint64 internalId() const;
 
@@ -222,6 +226,8 @@ protected:
 	QVector<QVector<qint64>> _referers;
 	QVector<QVector<qint64>> _referered;
 
+	QSet<DataBlockReference*> _nonDatablockReferences;
+
 	QMap<qint64, DataBlock*> _itemCache;
 	QMap<QString, QVector<qint64>> _idBySubTypes;
 
@@ -234,6 +240,30 @@ protected:
 
 	friend class Project;
 	friend class DataBlockFactory;
+	friend class DataBlockReference;
+};
+
+/*!
+ * \brief The EditableItemReference class allow for a non-datablock class to keep a reference to a given datablock.
+ *
+ * The datablock when it gets deleted, will notify the EditableItemReference by replacing the pointer by nullptr.
+ */
+class DataBlockReference
+{
+public:
+
+	void setReferedDatablock(DataBlock* block);
+	inline DataBlock* getReferredDatablock() const {
+		return _referedDatablock;
+	}
+
+protected:
+	DataBlockReference();
+
+	DataBlock* _referedDatablock;
+
+	friend class DataBlock;
+
 };
 
 } // namespace StereoVisionApp
