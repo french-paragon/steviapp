@@ -52,7 +52,11 @@ void EdgePointsAngle::computeError() {
 	double eCos = cosPoints - cosMeasure;
 	double eSin = sinPoints - sinMeasure;
 
-	_error[0] = std::sqrt(eCos*eCos + eSin*eSin);
+	if (!std::isfinite(eCos) or !std::isfinite(eSin)) { // points are at the same coordinates
+		_error[0] = 0;
+	} else {
+		_error[0] = std::sqrt(eCos*eCos + eSin*eSin);
+	}
 
 }
 

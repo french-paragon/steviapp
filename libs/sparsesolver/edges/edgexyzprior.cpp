@@ -22,7 +22,7 @@ bool EdgeXyzPrior::read(std::istream& is) {
 
 bool EdgeXyzPrior::write(std::ostream& os) const {
 	Eigen::Vector3d p = measurement();
-	os << p[0] << " " << p[1] << " " << p[1];
+	os << p[0] << " " << p[1] << " " << p[2] << " ";
 	for (int i = 0; i < 3; ++i)
 	  for (int j = i; j < 3; ++j)
 		os << " " << information()(i, j);

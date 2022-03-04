@@ -82,6 +82,7 @@
     <addaction name="actionclear_solution"/>
     <addaction name="actionFindInitialSolution"/>
     <addaction name="actionInit_stereo_rig"/>
+    <addaction name="actionsolve_coarse"/>
     <addaction name="actionsolve_sparse"/>
     <addaction name="actionsolve_stereo_rig"/>
    </widget>
@@ -216,6 +217,11 @@
   <action name="actionexport_optimized_to_collada">
    <property name="text">
     <string>export optimized to collada</string>
+   </property>
+  </action>
+  <action name="actionsolve_coarse">
+   <property name="text">
+    <string>solve coarse</string>
    </property>
   </action>
  </widget>

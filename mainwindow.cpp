@@ -43,6 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
 
 	connect(ui->actionclear_solution, &QAction::triggered, this, &MainWindow::clearOptimSolution);
+	connect(ui->actionsolve_coarse, &QAction::triggered, this, &MainWindow::runCoarseOptim);
 	connect(ui->actionsolve_sparse, &QAction::triggered, this, &MainWindow::runSparseOptim);
 	connect(ui->actionsolve_stereo_rig, &QAction::triggered, [this] () {solveSparseStereoRig(_activeProject, this); });
 	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openSparseViewer(); });
@@ -354,6 +355,15 @@ void MainWindow::clearOptimSolution() {
 		resetSolution(_activeProject, this);
 	} else {
 		QMessageBox::warning(this, tr("Impossible to clear solution !"), tr("No project set"));
+	}
+}
+
+void MainWindow::runCoarseOptim() {
+
+	if (_activeProject != nullptr) {
+		solveCoarse(_activeProject, this);
+	} else {
+		QMessageBox::warning(this, tr("Impossible to optimize !"), tr("No project set"));
 	}
 }
 

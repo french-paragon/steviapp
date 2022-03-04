@@ -16,10 +16,16 @@ public:
 	explicit SparseSolverConfigDialog(QWidget *parent = nullptr);
 	~SparseSolverConfigDialog();
 
+	void enableComputeUncertaintyOption(bool enable);
+	void enableUseCurrentSolutionOption(bool enable);
+
 	bool shouldRun() const;
 	bool computeUncertainty() const;
 	bool useSparseOptimizer() const;
+	bool initWithCurrentSol() const;
 	int numberOfSteps() const;
+
+	void setNumberOfSteps(int nSteps);
 
 private:
 	Ui::SparseSolverConfigDialog *ui;

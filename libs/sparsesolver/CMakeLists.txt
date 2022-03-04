@@ -7,11 +7,13 @@ set(LIB_SRC initialsolution.cpp
             sbainitializer.cpp
             sbainitializer.h
             sparsesolverbase.cpp
-			sparsesolverbase.h
-			graphsbasolver.cpp
-			graphsbasolver.h
-			graphstereorigsolver.cpp
-			graphstereorigsolver.h
+            sparsesolverbase.h
+            graphroughbundleadjustementsolver.cpp
+            graphroughbundleadjustementsolver.h
+            graphsbasolver.cpp
+            graphsbasolver.h
+            graphstereorigsolver.cpp
+            graphstereorigsolver.h
             imagepointssolutionmodel.cpp
             imagepointssolutionmodel.h
             landmarkpointssolutionmodel.cpp
@@ -41,11 +43,15 @@ set(LIB_SRC initialsolution.cpp
             edges/edgese3xyzprior.cpp
             edges/edgese3xyzprior.h
             edges/edgexyzprior.cpp
-			edges/edgexyzprior.h
-			edges/edgepointdistance.cpp
-			edges/edgepointdistance.h
-			edges/edgepointsangle.cpp
-			edges/edgepointsangle.h
+            edges/edgexyzprior.h
+            edges/edgepointdistance.cpp
+            edges/edgepointdistance.h
+            edges/edgepointsangle.cpp
+            edges/edgepointsangle.h
+            edges/edgecameralandmarkdirectionalalignement.cpp
+            edges/edgecameralandmarkdirectionalalignement.h
+            edges/edgecamerase3leverarm.cpp
+            edges/edgecamerase3leverarm.h
             helperfunctions.h
 )
 

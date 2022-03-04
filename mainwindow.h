@@ -44,6 +44,7 @@ private:
 	void onProjectSelectionChanged();
 
 	void clearOptimSolution();
+	void runCoarseOptim();
 	void runSparseOptim();
 
 	Ui::MainWindow *ui;

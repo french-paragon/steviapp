@@ -9,6 +9,7 @@
 #include "gui/stepprocessmonitorbox.h"
 #include "gui/sparsealignementeditor.h"
 
+#include "sparsesolver/graphroughbundleadjustementsolver.h"
 #include "sparsesolver/graphsbasolver.h"
 #include "sparsesolver/graphstereorigsolver.h"
 #include "sparsesolver/sbagraphreductor.h"
@@ -51,6 +52,68 @@ bool resetSolution(Project* p, MainWindow* w) {
 	p->clearOptimized();
 
 	return true;
+}
+
+void solveCoarse(Project* p, MainWindow* w, int pnStep) {
+
+	bool useSparseOptimizer = true;
+	bool initWithCurrentSolution = false;
+	int nSteps = pnStep;
+
+	if (w != nullptr) {
+
+		SparseSolverConfigDialog d(w);
+		d.setModal(true);
+		d.setWindowTitle(QObject::tr("Sparse optimizer options"));
+		d.enableComputeUncertaintyOption(false);
+
+		d.exec();
+
+		if (!d.shouldRun()) {
+			return;
+		}
+
+		useSparseOptimizer = d.useSparseOptimizer();
+		nSteps = d.numberOfSteps();
+		initWithCurrentSolution = d.initWithCurrentSol();
+	}
+
+	if (nSteps <= 0) {
+		return;
+	}
+
+	GraphRoughBundleAdjustementSolver* solver = new GraphRoughBundleAdjustementSolver(p, useSparseOptimizer, initWithCurrentSolution);
+
+	solver->setOptimizationSteps(nSteps);
+
+	QThread* t = new QThread();
+
+	solver->moveToThread(t);
+	QObject::connect(solver, &QObject::destroyed, t, &QThread::quit);
+	QObject::connect(t, &QThread::finished, t, &QObject::deleteLater);
+
+	if (w != nullptr) {
+
+		QObject::connect(solver, &SteppedProcess::finished, w, &MainWindow::openSparseViewer, Qt::QueuedConnection);
+
+		StepProcessMonitorBox* box = new StepProcessMonitorBox(w);
+		box->setWindowFlag(Qt::Dialog);
+		box->setWindowModality(Qt::WindowModal);
+		box->setWindowTitle(QObject::tr("Sparse optimization"));
+
+		box->setProcess(solver);
+
+		QObject::connect(box, &QObject::destroyed, solver, &QObject::deleteLater);
+
+		box->show();
+
+	} else {
+
+		solver->deleteWhenDone(true);
+	}
+
+	t->start();
+	solver->run();
 }
 
 void initSolution(Project* p, MainWindow* w) {
@@ -301,6 +364,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		SparseSolverConfigDialog d(w);
 		d.setModal(true);
 		d.setWindowTitle(QObject::tr("Sparse optimizer options"));
+		d.enableUseCurrentSolutionOption(false);
 
 		d.exec();
 
