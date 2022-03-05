@@ -1,5 +1,7 @@
 #include "landmarkbaseactionmanager.h"
 
+#include "landmarkbasedactions.h"
+
 #include "datablocks/landmark.h"
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
@@ -11,7 +13,7 @@
 #include <QWidget>
 #include <QAction>
 #include <QMenu>
-#include <QFile>
+#include <QFileDialog>
 
 namespace StereoVisionApp {
 
@@ -66,13 +68,16 @@ QList<QAction*> LandmarkBaseActionManager::factorizeItemContextActions(QObject* 
 QList<QAction*> LandmarkBaseActionManager::factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const {
 
 	QVector<Landmark*> lms;
+	QVector<qint64> lmids;
 	lms.reserve(projectIndex.count());
+	lmids.reserve(projectIndex.count());
 
 	for (QModelIndex const& id : projectIndex) {
 		Landmark* lm = qobject_cast<Landmark*>(p->getById(p->data(id, Project::IdRole).toInt()));
 
 		if (lm != nullptr) {
 			lms.push_back(lm);
+			lmids.push_back(lm->internalId());
 		}
 	}
 
@@ -81,8 +86,6 @@ QList<QAction*> LandmarkBaseActionManager::factorizeMultiItemsContextActions(QOb
 	if (w != nullptr) {
 		w = w->window();
 	}
-
-	QString cn = itemClassName();
 
 	QList<QAction*> lst;
 
@@ -97,6 +100,17 @@ QList<QAction*> LandmarkBaseActionManager::factorizeMultiItemsContextActions(QOb
 	if (assignToAngleConstrain != nullptr) {
 		lst.append(assignToAngleConstrain);
 	}
+
+	QAction* exportLandmarksToCSVAction = new QAction("export to csv", parent);
+
+	connect(exportLandmarksToCSVAction, &QAction::triggered, p, [w, p, lmids] () {
+		QString f = QFileDialog::getSaveFileName(w, tr("Export landmarks to csv"), QString(), "csv files (*.csv)");
+		if (!f.isEmpty()) {
+			exportLandmarksToCsv(p, lmids, f);
+		}
+	});
+
+	lst.append(exportLandmarksToCSVAction);
 
 	return lst;
 

@@ -51,6 +51,8 @@ set(PROJ_SRC  main.cpp
     control/imagebaseactionmanager.h
     control/camerabaseactionmanager.cpp
     control/camerabaseactionmanager.h
+	control/landmarkbasedactions.cpp
+	control/landmarkbasedactions.h
     control/landmarkbaseactionmanager.cpp
     control/landmarkbaseactionmanager.h
     control/stereorigactionmanager.cpp
