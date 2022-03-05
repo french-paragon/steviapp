@@ -11,6 +11,7 @@
 #include <QWidget>
 #include <QAction>
 #include <QMenu>
+#include <QFile>
 
 namespace StereoVisionApp {
 
@@ -140,7 +141,7 @@ QAction* LandmarkBaseActionManager::createAssignToDistanceConstrainAction(QObjec
 			}
 
 			QAction* toConstrain = new QAction(constraint->objectName(), assignToDistanceConstrain);
-			connect(toConstrain, &QAction::triggered, [constraint, lms] () {
+			connect(toConstrain, &QAction::triggered, constraint, [constraint, lms] () {
 				constraint->insertLandmarksPair(lms[0]->internalId(), lms[1]->internalId());
 			});
 			constaintsMenu->addAction(toConstrain);
@@ -182,7 +183,7 @@ QAction* LandmarkBaseActionManager::createAssignToAngleConstrainAction(QObject* 
 		if (constraint != nullptr) {
 
 			QAction* toConstrain = new QAction(constraint->objectName(), assignToAngleConstrain);
-			connect(toConstrain, &QAction::triggered, [constraint, lms] () {
+			connect(toConstrain, &QAction::triggered, constraint, [constraint, lms] () {
 				constraint->insertLandmarksTriplet(lms[0]->internalId(), lms[1]->internalId(), lms[2]->internalId());
 			});
 			rigMenu->addAction(toConstrain);
