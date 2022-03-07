@@ -4,12 +4,13 @@
 #include "./vision_global.h"
 
 #include <QString>
+#include <optional>
 
 namespace StereoVisionApp {
 
-ImageArray getImageData(QString const& imFile, float gamma = 2.2);
+ImageArray getImageData(QString const& imFile, float gamma = 2.2, int* originalFormat = nullptr);
 
-bool saveImageData(QString const& imFile, ImageArray const& imageData, float gamma = 2.2);
+bool saveImageData(QString const& imFile, ImageArray const& imageData, float gamma = 2.2, std::optional<int> imgFormat = std::nullopt);
 
 } // namespace StereoVisionApp
 

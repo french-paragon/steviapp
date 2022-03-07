@@ -204,7 +204,8 @@ int exportRectifiedImages(QList<qint64> imagesIds, Project* p, bool useOptimized
 
 			if (cam != nullptr) {
 
-				StereoVision::ImageArray array = getImageData(img->getImageFile(), gamma);
+				int originalFormat;
+				StereoVision::ImageArray array = getImageData(img->getImageFile(), gamma, &originalFormat);
 
 				if (!array.empty()) {
 					int height = array.shape()[0];
@@ -249,7 +250,7 @@ int exportRectifiedImages(QList<qint64> imagesIds, Project* p, bool useOptimized
 
 					outFile += infos.baseName() + "_rectified." + infos.completeSuffix();
 
-					if (saveImageData(outFile, transformed, gamma)) {
+					if (saveImageData(outFile, transformed, gamma, originalFormat)) {
 						treated++;
 					}
 				}
@@ -464,8 +465,10 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 		return 0;
 	}
 
-	StereoVision::ImageArray arrayIm1 = getImageData(image1->getImageFile(), gamma);
-	StereoVision::ImageArray arrayIm2 = getImageData(image2->getImageFile(), gamma);
+	int originalFormat1;
+	StereoVision::ImageArray arrayIm1 = getImageData(image1->getImageFile(), gamma, &originalFormat1);
+	int originalFormat2;
+	StereoVision::ImageArray arrayIm2 = getImageData(image2->getImageFile(), gamma, &originalFormat2);
 
 	StereoVision::ImageArray transformedCam1 = StereoVision::Interpolation::interpolateImage(arrayIm1, rectifier.backWardMapCam1());
 	StereoVision::ImageArray transformedCam2 = StereoVision::Interpolation::interpolateImage(arrayIm2, rectifier.backWardMapCam2());
@@ -482,7 +485,7 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 
 	outFileCam1 += infosCam1.baseName() + "_stereorectified_rig" + QString("%1").arg(rig->internalId()) + "_." + infosCam1.completeSuffix();
 
-	if (saveImageData(outFileCam1, transformedCam1, gamma)) {
+	if (saveImageData(outFileCam1, transformedCam1, gamma, originalFormat1)) {
 		treated++;
 	}
 
@@ -496,7 +499,7 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 
 	outFileCam2 += infosCam2.baseName() + "_stereorectified_rig" + QString("%1").arg(rig->internalId()) + "_." + infosCam2.completeSuffix();
 
-	if (saveImageData(outFileCam2, transformedCam2, gamma)) {
+	if (saveImageData(outFileCam2, transformedCam2, gamma, originalFormat2)) {
 		treated++;
 	}
 
