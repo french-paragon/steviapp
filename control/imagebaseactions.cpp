@@ -503,6 +503,67 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 		treated++;
 	}
 
+	if (treated > 0) {
+		float dispDelta = rectifier.dispDelta();
+		float normalizedBasline = rectifier.normalizedBasline();
+		float rectifiedFLen = rectifier.reprojectionFLen();
+
+		auto c1_2_w = worldToImg1->inverse().toAffineTransform();
+		auto c2_2_w = img2toWorld.value().toAffineTransform();
+
+		Eigen::Matrix3f RCam1 = rectifier.CorrRCam1()*c1_2_w.R;
+		Eigen::Matrix3f RCam2 = rectifier.CorrRCam2()*c2_2_w.R;
+
+		Eigen::Vector3f tCam1 = c1_2_w.t;
+		Eigen::Vector3f tCam2 = c2_2_w.t;
+
+		Eigen::Vector2f ppCam1 = rectifier.newPrincipalPointCam1();
+		Eigen::Vector2f ppCam2 = rectifier.newPrincipalPointCam2();
+
+		QString outFileInfos = (dir.isEmpty()) ? infosCam2.dir().absolutePath() : dir;
+		outFileInfos = QDir::cleanPath(outFileInfos);
+
+		if (!outFileInfos.endsWith('/')) {
+			outFileInfos += "/";
+		}
+
+		outFileInfos += infosCam1.baseName() + "_" + infosCam2.baseName() +
+				"_stereorectified_rig" + QString("%1").arg(rig->internalId()) + "_infos.txt";
+
+		QFile infoFile(outFileInfos);
+
+		if (infoFile.open(QFile::WriteOnly)) {
+
+			QTextStream infostream(&infoFile);
+
+			infostream << "Disparity delta [px]: " << dispDelta << Qt::endl;
+			infostream << "Normalized baseline [px / length unit]: " << normalizedBasline << '\n' << Qt::endl;
+
+			infostream << "rectified focal length [px]: " << rectifiedFLen << Qt::endl;
+			infostream << "principal point cam 1 [px]: [" << ppCam1.x() << ", " << ppCam1.y() << ']' << Qt::endl;
+			infostream << "principal point cam 2 [px]: [" << ppCam2.x() << ", " << ppCam2.y() << ']' << '\n' << Qt::endl;
+
+			std::stringstream ss;
+
+			ss << RCam1.eulerAngles(0,1,2)/M_PI*180.;
+			infostream << "Rotation cam 1 [deg]: \n" << QString::fromStdString(ss.str()) << Qt::endl;
+
+			ss.str(std::string());
+			ss << tCam1;
+			infostream << "translation cam 1 [length unit]: \n" << QString::fromStdString(ss.str()) << '\n' << Qt::endl;
+
+			ss.str(std::string());
+			ss << RCam2.eulerAngles(0,1,2)/M_PI*180.;
+			infostream << "Rotation cam 2 [deg]: \n" << QString::fromStdString(ss.str()) << Qt::endl;
+
+			ss.str(std::string());
+			ss << tCam2;
+			infostream << "translation cam 2 [length unit]: \n" << QString::fromStdString(ss.str()) << '\n' << Qt::endl;
+
+			infoFile.close();
+		}
+	}
+
 	return treated;
 
 }
