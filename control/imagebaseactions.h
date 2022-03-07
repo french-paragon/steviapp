@@ -2,6 +2,7 @@
 #define IMAGEBASEACTIONS_H
 
 #include <QStringList>
+#include <QTextStream>
 
 class QWidget;
 
@@ -27,6 +28,11 @@ QStringList addImages(QStringList images, Project* p);
 int exportRectifiedImages(QList<qint64> imagesIds, Project* p, bool useOptimizedVals = true, QString outputDirectory = "", float gamma = 2.2);
 
 int exportRectifiedImages(QList<qint64> imagesIds, Project* p, QWidget* w);
+
+int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Project* p, QWidget* w);
+
+
+QTextStream& printImagesRelativePositions(QTextStream & stream, QVector<qint64> imagesIds, Project* p);
 
 } // namespace StereoVisionApp
 

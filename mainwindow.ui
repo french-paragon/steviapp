@@ -45,7 +45,7 @@
      <x>0</x>
      <y>0</y>
      <width>1035</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
@@ -86,9 +86,16 @@
     <addaction name="actionsolve_sparse"/>
     <addaction name="actionsolve_stereo_rig"/>
    </widget>
+   <widget class="QMenu" name="menueditors">
+    <property name="title">
+     <string>editors</string>
+    </property>
+    <addaction name="actionopen_Sparse_solution_editor"/>
+   </widget>
    <addaction name="menufile"/>
    <addaction name="menuproject"/>
    <addaction name="menusolve"/>
+   <addaction name="menueditors"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="projectDockWidget">
@@ -222,6 +229,11 @@
   <action name="actionsolve_coarse">
    <property name="text">
     <string>solve coarse</string>
+   </property>
+  </action>
+  <action name="actionopen_Sparse_solution_editor">
+   <property name="text">
+    <string>open Sparse solution editor</string>
    </property>
   </action>
  </widget>

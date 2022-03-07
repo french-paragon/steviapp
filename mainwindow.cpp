@@ -52,6 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openSparseViewer(); });
 	connect(ui->actionFindInitialSolution, &QAction::triggered, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
 	connect(ui->actionInit_stereo_rig, &QAction::triggered, [this] () {if (_activeProject != nullptr) {initMonoStereoRigSolution(_activeProject, this); } });
+	connect(ui->actionopen_Sparse_solution_editor, &QAction::triggered, this, [this] () {openSparseViewer(); });
 
 }
 

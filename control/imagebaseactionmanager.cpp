@@ -140,13 +140,17 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const {
 
 	QVector<Image*> ims;
+	QVector<qint64> imIds;
 	ims.reserve(projectIndex.count());
+	imIds.reserve(projectIndex.count());
 
 	for (QModelIndex const& id : projectIndex) {
-		Image* im = qobject_cast<Image*>(p->getById(p->data(id, Project::IdRole).toInt()));
+		qint64 imid = p->data(id, Project::IdRole).toInt();
+		Image* im = qobject_cast<Image*>(p->getById(imid));
 
 		if (im != nullptr) {
 			ims.push_back(im);
+			imIds.push_back(imid);
 		}
 	}
 
@@ -172,18 +176,27 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 
 
 	QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
-	connect(exportRectified, &QAction::triggered, [w, p, ims] () {
-		QList<qint64> imageIds;
-		imageIds.reserve(ims.size());
-
-		for (Image* im : ims) {
-			imageIds.push_back(im->internalId());
-		}
-
-		exportRectifiedImages(imageIds, p, w);
+	connect(exportRectified, &QAction::triggered, [w, p, imIds] () {
+		exportRectifiedImages(imIds.toList(), p, w);
 	});
 
 	lst.append(exportRectified);
+
+
+	QAction* exportForStereoRig = createExportRectifiedForRigAction(parent, p, imIds, w);
+
+	if (exportForStereoRig != nullptr) {
+		lst.append(exportForStereoRig);
+	}
+
+
+	QAction* printRelPose = new QAction(tr("Print relative poses"), parent);
+	connect(printRelPose, &QAction::triggered, [p, imIds] () {
+		QTextStream cout(stdout, QIODevice::WriteOnly);
+		printImagesRelativePositions(cout, imIds, p);
+	});
+
+	lst.append(printRelPose);
 
 	return lst;
 
@@ -263,6 +276,58 @@ QAction* ImageBaseActionManager::createAssignToStereoRigAction(QObject* parent, 
 
 	return nullptr;
 
+}
+
+QAction* ImageBaseActionManager::createExportRectifiedForRigAction(QObject* parent, Project* p, const QVector<qint64> &ims, QWidget* w) const {
+
+	bool ok = false;
+
+	QAction* exportForStereoRig = new QAction(tr("Export rectified for rig"), parent);
+
+	if (ims.size() != 2) {
+		exportForStereoRig->deleteLater();
+		return nullptr;
+	}
+
+	QMenu* rigMenu = new QMenu();
+	connect(exportForStereoRig, &QObject::destroyed, rigMenu, &QObject::deleteLater);
+
+	QVector<qint64> rigsIds = p->getIdsByClass(StereoRigFactory::StereoRigClassName());
+
+	for (qint64 rigId : rigsIds) {
+
+		StereoRig* rig = qobject_cast<StereoRig*>(p->getById(rigId));
+
+		if (rig != nullptr) {
+
+			ImagePair* pair = rig->getPairForImage(ims[0]);
+
+			if (pair != nullptr) {
+
+				if (pair->idImgCam1() == ims[1] or
+						pair->idImgCam2() == ims[1]) {
+
+					QAction* forRig = new QAction(rig->objectName(), exportForStereoRig);
+					connect(forRig, &QAction::triggered, [rigId, ims, p, w] () {
+						exportStereoRigRectifiedImages(ims.toList(), rigId, p, w);
+					});
+					rigMenu->addAction(forRig);
+					ok = true;
+				}
+			}
+		}
+
+	}
+
+	if (ok) {
+		exportForStereoRig->setMenu(rigMenu);
+		return exportForStereoRig;
+	} else {
+		exportForStereoRig->deleteLater();
+		return nullptr;
+	}
+
+	return nullptr;
 }
 
 } // namespace StereoVisionApp
