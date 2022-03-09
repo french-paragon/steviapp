@@ -511,8 +511,8 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 		auto c1_2_w = worldToImg1->inverse().toAffineTransform();
 		auto c2_2_w = img2toWorld.value().toAffineTransform();
 
-		Eigen::Matrix3f RCam1 = rectifier.CorrRCam1()*c1_2_w.R;
-		Eigen::Matrix3f RCam2 = rectifier.CorrRCam2()*c2_2_w.R;
+		Eigen::Matrix3f RCam1 = c1_2_w.R*rectifier.CorrRCam1();
+		Eigen::Matrix3f RCam2 = c2_2_w.R*rectifier.CorrRCam2();
 
 		Eigen::Vector3f tCam1 = c1_2_w.t;
 		Eigen::Vector3f tCam2 = c2_2_w.t;
@@ -535,6 +535,7 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 		if (infoFile.open(QFile::WriteOnly)) {
 
 			QTextStream infostream(&infoFile);
+			infostream.setRealNumberPrecision(12);
 
 			infostream << "Disparity delta [px]: " << dispDelta << Qt::endl;
 			infostream << "Normalized baseline [px / length unit]: " << normalizedBasline << '\n' << Qt::endl;

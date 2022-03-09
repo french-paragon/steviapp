@@ -4,6 +4,7 @@
 #include "datablocks/landmark.h"
 
 #include <QFile>
+#include <QTextStream>
 
 namespace StereoVisionApp {
 
