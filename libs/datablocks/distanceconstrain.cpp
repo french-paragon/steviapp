@@ -154,7 +154,7 @@ void DistanceConstrain::extendDataModel() {
 		return tr("Unvalid landmark pair");
 	};
 
-	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Landmarks triplets"),
+	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Landmarks pairs"),
 																					  DistanceLandmarksPair::staticMetaObject.className(),
 																					  lmNameFunc);
 
