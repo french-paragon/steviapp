@@ -337,6 +337,10 @@ bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 			continue;
 		}
 
+		if (!constrain->distanceValue().isSet()) {
+			continue; //not treating uset constraints for the moment TODO: treat them
+		}
+
 		QVector<qint64> lmPairs = constrain->listTypedSubDataBlocks(DistanceLandmarksPair::staticMetaObject.className());
 
 		for (qint64 pair_id : lmPairs) {
@@ -384,6 +388,10 @@ bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 
 		if (constrain == nullptr) {
 			continue;
+		}
+
+		if (!constrain->angleValue().isSet()) {
+			continue; //not treating uset constraints for the moment TODO: treat them
 		}
 
 		QVector<qint64> lmTriplets = constrain->listTypedSubDataBlocks(AngleLandmarksTriplets::staticMetaObject.className());

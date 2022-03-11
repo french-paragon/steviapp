@@ -199,7 +199,7 @@ InitialSolution EightPointsSBAMultiviewInitializer::computeInitialSolution(Proje
 		try {
 
 			T = StereoVision::Geometry::findTransform(coordsIm1, coordsIm2);
-			proj = reprojectPoints(T, coordsIm1, coordsIm2);
+			proj = reprojectPointsLstSqr(T, coordsIm1, coordsIm2);
 
 		} catch (StereoVision::Geometry::GeometricException const&) {
 			toProcess.remove(nextInLine->internalId());
@@ -466,7 +466,7 @@ InitialSolution EightPointsSBAInitializer::computeInitialSolution(Project* p,
 	try {
 
 		T = StereoVision::Geometry::findTransform(homCoordsIm1, homCoordsIm2);
-		reproj = reprojectPoints(T, homCoordsIm1, homCoordsIm2);
+		reproj = reprojectPointsLstSqr(T, homCoordsIm1, homCoordsIm2);
 
 	} catch (StereoVision::Geometry::GeometricException const&) {
 		return r;
@@ -1008,7 +1008,7 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 			Eigen::Array2f ptCam1 = getHomogeneousImageCoordinates(im1, {pt});
 			Eigen::Array2f ptCam2 = getHomogeneousImageCoordinates(im2, {pt});
 
-			Eigen::Vector3f tmp = reprojectPoints(cam12cam2,
+			Eigen::Vector3f tmp = reprojectPointsLstSqr(cam12cam2,
 												  ptCam1,
 												  ptCam2);
 
@@ -1017,7 +1017,7 @@ bool PhotometricInitializer::triangulatePoint(InitialSolution & solution, Projec
 				n_obs++;
 			}
 
-			tmp = reprojectPoints(cam2tocam1,
+			tmp = reprojectPointsLstSqr(cam2tocam1,
 								  ptCam2,
 								  ptCam1);
 
