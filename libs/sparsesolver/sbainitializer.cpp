@@ -1706,7 +1706,7 @@ InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qi
 
 		GraphStereoRigSolver rSolveTmp(p, rp.img1->internalId(), rp.img2->internalId(), false, true);
 
-		ok = rSolve.initialize(&r_tmp);
+		ok = rSolveTmp.initialize(&r_tmp);
 
 		if (!ok) {
 			excludedRigs.insert(maxRigIntersect);
@@ -1719,6 +1719,8 @@ InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qi
 			excludedRigs.insert(maxRigIntersect);
 			continue;
 		}
+
+		r_tmp = rSolve.resultToSolution();
 
 		bool aligned = alignSolution(r, r_tmp);
 
