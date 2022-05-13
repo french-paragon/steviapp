@@ -123,6 +123,10 @@ void MainWindow::openProject(QString const& fName) {
 	}
 }
 
+void MainWindow::displayInfoMessage(QString msg) {
+	ui->statusbar->showMessage(msg);
+}
+
 void MainWindow::resetProject() {
 
 	if (_activeProject != nullptr) {
@@ -150,6 +154,10 @@ Editor* MainWindow::openEditor(QString editorClassName) {
 		}
 
 		e = _installedEditors[editorClassName]->factorizeEditor(this);
+
+		// pass messages
+		connect(e, &StereoVisionApp::Editor::sendStatusMessage,
+				this, &MainWindow::displayInfoMessage);
 
 		if (_activeProject != nullptr) {
 			e->setProject(_activeProject);
@@ -192,6 +200,8 @@ void MainWindow::closeEditor(int index) {
 			if (_openedEditors.contains(e->metaObject()->className())) {
 				_openedEditors.remove(e->metaObject()->className());
 			}
+			disconnect(e, &StereoVisionApp::Editor::sendStatusMessage,
+					   this, &MainWindow::displayInfoMessage);
 			e->deleteLater();
 		}
 		ui->editorPanel->removeTab(index);

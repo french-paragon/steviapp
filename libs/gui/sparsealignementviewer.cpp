@@ -11,6 +11,9 @@
 
 #include <QOpenGLShaderProgram>
 #include <QOpenGLFunctions>
+#include <QOpenGLTexture>
+#include <QOffscreenSurface>
+#include <QOpenGLFramebufferObjectFormat>
 
 #include <QWheelEvent>
 #include <QGuiApplication>
@@ -36,6 +39,18 @@ SparseAlignementViewer::SparseAlignementViewer(QWidget *parent) :
 	_camScale = 0.2;
 
 	setFocusPolicy(Qt::StrongFocus);
+	setMouseTracking(true);
+
+	QSurfaceFormat offscreen_id_format = QSurfaceFormat::defaultFormat();
+	offscreen_id_format.setSamples(1); //ensure we use a single sample for offscreen id rendering
+	offscreen_id_format.setSwapBehavior(QSurfaceFormat::SingleBuffer); //we are not showing the rendered image, so double buffering not required.
+
+	_obj_raycasting_context = new QOpenGLContext();
+	_obj_raycasting_surface = new QOffscreenSurface();
+	_obj_raycasting_surface->setFormat(offscreen_id_format);
+	_obj_raycasting_fbo = nullptr;
+
+	_id_img = nullptr;
 
 	resetView();
 }
@@ -79,6 +94,33 @@ SparseAlignementViewer::~SparseAlignementViewer() {
 	_cam_vao.destroy();
 
 	doneCurrent();
+
+	if (_obj_raycasting_context != nullptr) {
+		if (_obj_raycasting_surface != nullptr) {
+			_obj_raycasting_context->makeCurrent(_obj_raycasting_surface);
+
+			if (_objIdProgram != nullptr) {
+				delete _objIdProgram;
+			}
+
+			if (_objFixedIdProgram != nullptr) {
+				delete _objFixedIdProgram;
+			}
+
+			_obj_raycasting_context->doneCurrent();
+		}
+
+		delete _obj_raycasting_context;
+
+	}
+
+	if (_obj_raycasting_surface != nullptr) {
+		delete _obj_raycasting_surface;
+	}
+
+	if (_id_img != nullptr) {
+		delete _id_img;
+	}
 }
 
 
@@ -176,6 +218,7 @@ void SparseAlignementViewer::reloadLandmarks() {
 	}
 
 	_hasToReloadLandmarks = true;
+	_hasToReloadLandmarksIds = true;
 }
 
 void SparseAlignementViewer::clearLandmarks() {
@@ -211,6 +254,9 @@ void SparseAlignementViewer::initializeGL() {
 	_lm_pos_buffer.create();
 	_lm_pos_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
 
+	_lm_pos_id_buffer.create();
+	_lm_pos_id_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
+
 	reloadLandmarks();
 
 	_landMarkPointProgram = new QOpenGLShaderProgram();
@@ -232,11 +278,19 @@ void SparseAlignementViewer::initializeGL() {
 	_camProgram->link();
 
 	_has_been_initialised = true;
+
+	initializeObjectIdMaskPart();
+
+	makeCurrent(); //make the current context current again, in case initializeGL was called by paintGL.
 }
 
 void SparseAlignementViewer::paintGL() {
 
 	QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
+
+	f->glClearColor(1,1,1,1);
+	f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	f->glLineWidth(1.);
 
 	setView(width(), height());
 
@@ -364,12 +418,224 @@ void SparseAlignementViewer::paintGL() {
 
 		_camProgram->disableAttributeArray(vertexLocation);
 		_camProgram->release();
+
+		paintObjectIdMask(); //paint the selection mask as well
 	}
 
-
 }
+
 void SparseAlignementViewer::resizeGL(int w, int h) {
 	setView(w, h);
+}
+
+
+void SparseAlignementViewer::initializeObjectIdMaskPart() {
+
+	if (_obj_raycasting_context == nullptr or _obj_raycasting_surface == nullptr) {
+		return; //no object id context mean no object id masks
+	}
+
+	_obj_raycasting_context->makeCurrent(_obj_raycasting_surface);
+
+	_objIdProgram = new QOpenGLShaderProgram();
+	_objIdProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/objectId.vert");
+	_objIdProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/objectId.frag");
+
+	_objIdProgram->link();
+
+	_objFixedIdProgram = new QOpenGLShaderProgram();
+	_objFixedIdProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/objectCstId.vert");
+	_objFixedIdProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/objectId.frag");
+
+	_objFixedIdProgram->link();
+
+}
+
+void SparseAlignementViewer::paintObjectIdMask() {
+
+	if (_obj_raycasting_context == nullptr or _obj_raycasting_surface == nullptr) {
+		return; //no object id context mean no object id masks
+	}
+
+	setView(width(), height());
+
+	_obj_raycasting_context->makeCurrent(_obj_raycasting_surface);
+
+	QOpenGLFramebufferObjectFormat fbo_format;
+	fbo_format.setSamples(0);
+	fbo_format.setInternalTextureFormat(GL_RGB32F); //this can store an int64 using two floats, plus additional information.
+
+	if (_obj_raycasting_fbo == nullptr) {
+		_obj_raycasting_fbo = new QOpenGLFramebufferObject(width(), height(), fbo_format);
+	} else if (_obj_raycasting_fbo->size() != size()) {
+		delete _obj_raycasting_fbo;
+		_obj_raycasting_fbo = new QOpenGLFramebufferObject(width(), height(), fbo_format);
+	}
+
+	QOpenGLFunctions *f = _obj_raycasting_context->functions();
+
+	_obj_raycasting_fbo->bind();
+	f->glViewport(0, 0, width(), height());
+
+	f->glClearColor(0,0,0,0);
+	f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	if (_currentProject != nullptr) {
+
+		int vertexLocation;
+		int idLocation;
+
+		if (!_loadedLandmarks.empty()) {
+
+			vertexLocation = _objIdProgram->attributeLocation("in_location");
+			idLocation = _objIdProgram->attributeLocation("in_id");
+
+			_objIdProgram->bind();
+			_scene_ids_vao.bind();
+			_lm_pos_buffer.bind();
+
+			_objIdProgram->enableAttributeArray(vertexLocation);
+			_objIdProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
+
+			_lm_pos_id_buffer.bind();
+
+			if (_hasToReloadLandmarksIds) {
+				_lm_pos_id_buffer.allocate(_loadedLandmarks.data(), _loadedLandmarks.size()* sizeof (qint64));
+				_hasToReloadLandmarksIds = false;
+			}
+
+			_objIdProgram->enableAttributeArray(idLocation);
+			_objIdProgram->setAttributeBuffer(idLocation, GL_FLOAT, 0, 2);
+
+			_objIdProgram->setUniformValue("matrixViewProjection", _projectionView*_modelView);
+			_objIdProgram->setUniformValue("matrixObjToScene", QMatrix4x4());
+			_objIdProgram->setUniformValue("sceneScale", _sceneScale);
+			_objIdProgram->setUniformValue("pointScale", 10.0f);
+			_objIdProgram->setUniformValue("typeColorIndex", LandmarkColorCode);
+
+			f->glDrawArrays(GL_POINTS, 0, _loadedLandmarks.size());
+
+			_lm_pos_buffer.release();
+			_lm_pos_id_buffer.release();
+			_scene_ids_vao.release();
+
+			_landMarkPointProgram->disableAttributeArray(vertexLocation);
+			_landMarkPointProgram->release();
+
+		}
+
+		//cameras
+
+		_objFixedIdProgram->bind();
+		_scene_ids_vao.bind();
+		_cam_buffer.bind();
+		_cam_indices.bind();
+
+		vertexLocation = _objFixedIdProgram->attributeLocation("in_location");
+		_objFixedIdProgram->enableAttributeArray(vertexLocation);
+		_objFixedIdProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
+
+		_objFixedIdProgram->setUniformValue("matrixViewProjection", _projectionView*_modelView);
+		_objFixedIdProgram->setUniformValue("sceneScale", _sceneScale);
+		_objFixedIdProgram->setUniformValue("pointScale", 10.0f);
+		_objFixedIdProgram->setUniformValue("typeColorIndex", CameraColorCode);
+
+		f->glLineWidth(10.);
+
+		QVector<qint64> frames = _currentProject->getIdsByClass(ImageFactory::imageClassName());
+		_loadedFrames.clear();
+		_loadedFrames.reserve(frames.size());
+
+		for (qint64 id : frames) {
+
+			Image* im = qobject_cast<Image*>(_currentProject->getById(id));
+
+			if (im != nullptr) {
+
+				if (im->optPos().isSet() and
+						im->optRot().isSet() ) {
+
+					_loadedFrames.push_back(im->internalId());
+
+					Camera* cam = qobject_cast<Camera*>(_currentProject->getById(im->assignedCamera()));
+
+					QMatrix4x4 camScale;
+					QMatrix4x4 camRotate;
+					QMatrix4x4 camTranslate;
+					camScale.scale(_camScale);
+
+					if (cam != nullptr) {
+						QSize s = cam->imSize();
+						qreal aspect_ratio = static_cast<qreal>(s.width())/static_cast<qreal>(s.height());
+						if (aspect_ratio > 1) {
+							camScale.scale(1., 1./aspect_ratio);
+						} else {
+							camScale.scale(aspect_ratio, 1.0);
+						}
+					}
+
+					QVector3D r;
+					r.setX(im->optRot().value(0));
+					r.setY(im->optRot().value(1));
+					r.setZ(im->optRot().value(2));
+
+					camRotate.rotate(r.length()/M_PI*180, r);
+
+					camTranslate.translate(im->optPos().value(0),
+										   im->optPos().value(1),
+										   im->optPos().value(2));
+
+					QMatrix4x4 camTransform = camTranslate*camRotate*camScale;
+					_objFixedIdProgram->setUniformValue("matrixObjToScene", camTransform);
+
+					//internal id
+					qint64 id = im->internalId();
+					float convSpace[2];
+
+					std::memcpy(convSpace, &id, sizeof (id));
+
+					QVector2D idColorCode;
+					idColorCode.setX(convSpace[0]);
+					idColorCode.setY(convSpace[1]);
+
+					_objFixedIdProgram->setUniformValue("in_id", idColorCode);
+
+
+					f->glDrawElements(GL_LINES, 30, GL_UNSIGNED_INT, 0);
+					//f->glDrawArrays(GL_LINES, 0, 4);
+
+				}
+
+			}
+
+		}
+
+		_cam_buffer.release();
+		_cam_indices.release();
+		_scene_ids_vao.release();
+	}
+
+	if (_id_img == nullptr) {
+
+		_id_img = new Multidim::Array<float, 3>({height(), width(), 3}, {3*width(), 3, 1});
+
+	} else if (_id_img->shape()[0] != height() or _id_img->shape()[1] != width()) {
+
+		delete _id_img;
+		_id_img = new Multidim::Array<float, 3>({height(), width(), 3}, {3*width(), 3, 1});
+	}
+
+	// tell openGL we want to read from the back buffer
+	//f->glReadBuffer(GL_BACK);
+	f->glReadPixels(0, 0, width(), height(), GL_RGB, GL_FLOAT, &(_id_img->atUnchecked(0)));
+
+	auto err = glGetError();
+	if (err != GL_NO_ERROR) {
+		qDebug() << "OpenGL error while reading  id pass: " << err;
+	}
+
+	_obj_raycasting_fbo->release();
+	_obj_raycasting_context->doneCurrent();
 }
 
 void SparseAlignementViewer::generateGrid() {
@@ -423,6 +689,7 @@ void SparseAlignementViewer::generateGrid() {
 	_grid_buffer.setUsagePattern(QOpenGLBuffer::StaticDraw);
 
 }
+
 void SparseAlignementViewer::generateCamModel() {
 
 	if (_cam_buffer.isCreated()) {
@@ -706,22 +973,22 @@ void SparseAlignementViewer::mouseReleaseEvent(QMouseEvent *e) {
 
 	} else if (_previously_pressed == Qt::LeftButton) {
 
-		itemClickInfos camInfo = nearestCam(e->pos());
-		itemClickInfos landmarkInfo = nearestLandmark(e->pos());
+		int x = e->pos().x();
+		int y = e->pos().y();
 
-		if (camInfo.itemId >= 0 and landmarkInfo.itemId >= 0) {
-			if (camInfo.zDist < landmarkInfo.zDist) {
-				frameClick(camInfo.itemId);
-			} else {
-				landmarkClick(landmarkInfo.itemId);
-			}
-		} else if (camInfo.itemId >= 0) {
-			frameClick(camInfo.itemId);
-		} else if (landmarkInfo.itemId >= 0) {
-			landmarkClick(landmarkInfo.itemId);
+		IdPassInfos cid = idPassAtPos(x, y);
+
+		if (cid.itemType == ItemTypeInfo::Landmark) {
+			landmarkClick(cid.itemId);
+		} else if (cid.itemType == ItemTypeInfo::Camera) {
+			frameClick(cid.itemId);
+		} else {
+			voidClick();
 		}
 
 		e->accept();
+
+		return;
 	}
 }
 
@@ -737,8 +1004,118 @@ void SparseAlignementViewer::mouseMoveEvent(QMouseEvent *e) {
 
 		rotateZenith(-t.y()/3.);
 		rotateAzimuth(t.x()/3.);
+	} else if (b == Qt::NoButton) {
+
+		int x = e->pos().x();
+		int y = e->pos().y();
+
+		IdPassInfos cid = idPassAtPos(x, y);
+
+		if (cid.itemType == ItemTypeInfo::Landmark) {
+			landmarkHover(cid.itemId);
+		} else if (cid.itemType == ItemTypeInfo::Camera) {
+			frameHover(cid.itemId);
+		} else {
+			voidHover();
+		}
+
+		e->accept();
+
+		return;
 	}
 
+}
+
+SparseAlignementViewer::IdPassInfos SparseAlignementViewer::idPassAtPos(int x, int y) {
+
+	IdPassInfos ret = { -1, ItemTypeInfo::Unknown};
+
+	if (_obj_raycasting_context == nullptr or _obj_raycasting_surface == nullptr) {
+		return ret; //no object id context mean no object id masks
+	}
+
+	if (_obj_raycasting_fbo == nullptr) {
+		return ret;
+	}
+
+	if (x < 0 or x > width()-1) {
+		return ret;
+	}
+
+	if (y < 0 or y > height()-1) {
+		return ret;
+	}
+
+	if (_id_img != nullptr) {
+
+		int y_idx = height() - y - 1;
+
+		float red = _id_img->atUnchecked(y_idx, x, 0);
+		float green = _id_img->atUnchecked(y_idx, x, 1);
+		float blue = _id_img->atUnchecked(y_idx, x, 2);
+
+		//qDebug() << "red: " << red << " green: " << green << " blue: " << blue;
+
+		if (blue <= 0.1) { //
+			return ret;
+		}
+
+		int r;
+		int g;
+
+		//get the bytes of the float pixel values as integer
+		std::memcpy(&r, &red, sizeof r);
+		std::memcpy(&g, &green, sizeof g);
+
+		qint64 data = static_cast<qint64>(g) << 32 | r;
+
+		ret.itemId = data;
+		if (blue == LandmarkColorCode) {
+			//qDebug() << "Landmark";
+			ret.itemType = ItemTypeInfo::Landmark;
+		}
+		if (blue == CameraColorCode) {
+			//qDebug() << "Camera";
+			ret.itemType = ItemTypeInfo::Camera;
+		}
+
+		//qDebug() << data;
+
+		return ret;
+	}
+
+	return ret;
+
+	/* // keeping that just in case.
+	_obj_raycasting_context->makeCurrent(_obj_raycasting_surface);
+	_obj_raycasting_fbo->bind();
+
+	QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();//_obj_raycasting_context->functions();
+
+	qint64 data;
+	float red;
+	float green;
+
+	f->glReadPixels(x, y, 1, 1, GL_RED, GL_FLOAT, &red);
+	f->glReadPixels(x, y, 1, 1, GL_GREEN, GL_FLOAT, &green);
+
+	qDebug() << "red: " << red << " green: " << green;
+
+	int r;
+	int g;
+
+	//get the bytes of the float pixel values as integer
+	std::memcpy(&r, &red, sizeof r);
+	std::memcpy(&g, &green, sizeof g);
+
+	qDebug() << "r: " << r << " g: " << g;
+
+	data = static_cast<qint64>(r) << 32 | g;
+
+	return data;
+
+	_obj_raycasting_fbo->release();
+	_obj_raycasting_context->doneCurrent();*/
 }
 
 SparseAlignementViewer::itemClickInfos SparseAlignementViewer::nearestLandmark(QPoint const& pt, int minPixDist) {
@@ -833,31 +1210,49 @@ SparseAlignementViewer::itemClickInfos SparseAlignementViewer::nearestCam(QPoint
 
 }
 
-void SparseAlignementViewer::landmarkClick(int landMarkId) {
+void SparseAlignementViewer::landmarkHover(int landMarkId) {
 
 	if (_currentProject != nullptr) {
 
 		Landmark* lm = _currentProject->getDataBlock<Landmark>(landMarkId);
 
 		if (lm != nullptr) {
-			qDebug() << "Landmark [" << lm->objectName() << "] clicked !";
+			sendStatusMessage(QString("Landmark \"%1\"").arg(lm->objectName()));
 		}
 
 	}
 
 }
 
-void SparseAlignementViewer::frameClick(int frameId) {
+void SparseAlignementViewer::frameHover(int frameId) {
 
 	if (_currentProject != nullptr) {
 
 		Image* im = _currentProject->getDataBlock<Image>(frameId);
 
 		if (im != nullptr) {
-			qDebug() << "Frame [" << im->objectName() << "] clicked !";
+			sendStatusMessage(QString("Frame \"%1\"").arg(im->objectName()));
 		}
 
 	}
+}
+
+void SparseAlignementViewer::voidHover() {
+	sendStatusMessage("");
+}
+
+
+void SparseAlignementViewer::landmarkClick(int landMarkId) {
+	landmarkHover(landMarkId);
+	setMouseTracking(false);
+}
+void SparseAlignementViewer::frameClick(int frameId) {
+	frameHover(frameId);
+	setMouseTracking(false);
+}
+void SparseAlignementViewer::voidClick() {
+	voidHover();
+	setMouseTracking(true);
 }
 
 void SparseAlignementViewer::setSceneScale(float sceneScale)

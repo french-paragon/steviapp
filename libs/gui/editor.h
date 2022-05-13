@@ -18,6 +18,8 @@ public:
 
 Q_SIGNALS:
 
+	void sendStatusMessage(QString msg);
+
 protected:
 
 	virtual void beforeProjectChange(Project* np);

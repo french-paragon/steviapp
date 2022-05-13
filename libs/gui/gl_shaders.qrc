@@ -11,5 +11,8 @@
         <file>shaders/sparseViewerCam.vert</file>
         <file>shaders/sparseViewerGrid.frag</file>
         <file>shaders/sparseViewerCam.frag</file>
+        <file>shaders/objectId.frag</file>
+        <file>shaders/objectId.vert</file>
+        <file>shaders/objectCstId.vert</file>
     </qresource>
 </RCC>

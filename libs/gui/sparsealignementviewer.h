@@ -7,7 +7,11 @@
 #include <QOpenGLVertexArrayObject>
 #include <QOpenGLBuffer>
 
+#include <MultidimArrays/MultidimArrays.h>
+
 class QOpenGLShaderProgram;
+class QOffscreenSurface;
+class QOpenGLFramebufferObject;
 
 namespace StereoVisionApp {
 
@@ -44,7 +48,9 @@ public:
 	void setCamScale(float camScale);
 	void setSceneScale(float sceneScale);
 
-signals:
+Q_SIGNALS:
+
+	void sendStatusMessage(QString msg);
 
 protected:
 
@@ -54,7 +60,11 @@ protected:
 	void paintGL() override;
 	void resizeGL(int w, int h) override;
 
+	void initializeObjectIdMaskPart();
+	void paintObjectIdMask();
+
 	void generateGrid();
+	void generateFullSurfaceGrid();
 	void generateCamModel();
 	void setView(int w, int h);
 	void resetView(int w, int h);
@@ -65,6 +75,22 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
 
+	enum class ItemTypeInfo {
+		Unknown,
+		Landmark,
+		Camera
+	};
+
+	struct IdPassInfos {
+		qint64 itemId;
+		ItemTypeInfo itemType;
+	};
+
+	constexpr static float LandmarkColorCode = 1.0f;
+	constexpr static float CameraColorCode = 2.0f;
+
+	IdPassInfos idPassAtPos(int x, int y);
+
 	struct itemClickInfos {
 		qint64 itemId;
 		float viewDist;
@@ -74,8 +100,13 @@ protected:
 	itemClickInfos nearestLandmark(QPoint const& pt, int minPixDist = 5);
 	itemClickInfos nearestCam(QPoint const& pt, int minPixDist = 5);
 
+	void landmarkHover(int landMarkId);
+	void frameHover(int frameId);
+	void voidHover();
+
 	void landmarkClick(int landMarkId);
 	void frameClick(int frameId);
+	void voidClick();
 
 private:
 
@@ -108,18 +139,34 @@ private:
 
 	QOpenGLBuffer _grid_buffer;
 	QOpenGLBuffer _lm_pos_buffer;
+	QOpenGLBuffer _lm_pos_id_buffer;
 	QOpenGLBuffer _cam_buffer;
 	QOpenGLBuffer _cam_indices;
 
 	QOpenGLShaderProgram* _gridProgram;
 	QOpenGLShaderProgram* _landMarkPointProgram;
 	QOpenGLShaderProgram* _camProgram;
+	QOpenGLShaderProgram* _objIdProgram;
+	QOpenGLShaderProgram* _objFixedIdProgram;
 
 	Project* _currentProject;
 	QVector<qint64> _loadedLandmarks;
 	QVector<qint64> _loadedFrames;
 	std::vector<GLfloat> _llm_pos;
 	bool _hasToReloadLandmarks;
+	bool _hasToReloadLandmarksIds;
+
+	//object id raycasting variables
+	//those values are used to render (offscreen) an object id pass and other informations for mouse based interactions
+	Multidim::Array<float, 3>* _id_img;
+
+	QOpenGLContext* _obj_raycasting_context;
+	QOffscreenSurface* _obj_raycasting_surface;
+	QOpenGLFramebufferObject* _obj_raycasting_fbo;
+
+	QOpenGLVertexArrayObject _scene_ids_vao;
+
+	bool _has_objectid_parts_initialised;
 
 };
 

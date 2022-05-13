@@ -10,6 +10,10 @@ SparseAlignementEditor::SparseAlignementEditor(QWidget *parent) :
 	ui(new Ui::SparseAlignementEditor)
 {
 	ui->setupUi(this);
+
+	//pass messages
+	connect(ui->widget, &SparseAlignementViewer::sendStatusMessage,
+			this, &SparseAlignementEditor::sendStatusMessage);
 }
 
 SparseAlignementEditor::~SparseAlignementEditor()

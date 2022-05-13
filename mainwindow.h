@@ -37,6 +37,8 @@ public:
 
 private:
 
+	void displayInfoMessage(QString msg);
+
 	void resetProject();
 
 	void configureProjectWindowsMenu();
