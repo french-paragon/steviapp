@@ -31,6 +31,8 @@ int exportRectifiedImages(QList<qint64> imagesIds, Project* p, QWidget* w);
 
 int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Project* p, QWidget* w);
 
+int addImagesToCalibration(QList<qint64> imagesIds, qint64 calibId, Project* p);
+
 
 QTextStream& printImagesRelativePositions(QTextStream & stream, QVector<qint64> imagesIds, Project* p);
 

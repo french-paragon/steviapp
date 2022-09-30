@@ -42,10 +42,12 @@ void SteppedProcess::deleteWhenDone(bool set) {
 
 void SteppedProcess::run() {
 
-	QMutexLocker locker(&_sync);
+	_sync.lock();
 
 	_goOn = true;
 	_isDone = false;
+
+	_sync.unlock();
 
 	Q_EMIT launched();
 }

@@ -6,6 +6,7 @@
 namespace StereoVisionApp {
 
 typedef Multidim::Array<float, 3> ImageArray;
+typedef Multidim::Array<float, 2> GrayImageArray;
 
 }
 

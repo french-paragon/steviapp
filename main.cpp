@@ -10,12 +10,14 @@
 #include "datablocks/stereorig.h"
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
+#include "datablocks/cameracalibration.h"
 
 #include "gui/imageeditor.h"
 #include "gui/imagepointdetailseditor.h"
 #include "gui/landmarkpointdetailseditor.h"
 #include "gui/sparsealignementeditor.h"
 #include "gui/lenseditor.h"
+#include "gui/cameracalibrationeditor.h"
 
 #include "control/imagebaseactionmanager.h"
 #include "control/camerabaseactionmanager.h"
@@ -23,6 +25,7 @@
 #include "control/stereorigactionmanager.h"
 #include "control/angleconstrainactionmanager.h"
 #include "control/distanceconstrainactionmanager.h"
+#include "control/cameracalibrationactionmanager.h"
 
 int main(int argc, char *argv[])
 {
@@ -43,6 +46,7 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::StereoRigFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::AngleConstrainFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::DistanceConstrainFactory(&a));
+	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraCalibrationFactory(&a));
 
 	StereoVisionApp::ProjectFactory* pF = &StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
@@ -52,6 +56,7 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::StereoRigActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::AngleConstrainActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::DistanceConstrainActionManager(pF));
+	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::CameraCalibrationActionManager(pF));
 
 	StereoVisionApp::MainWindow w;
 
@@ -60,6 +65,7 @@ int main(int argc, char *argv[])
 	w.installEditor(new StereoVisionApp::LandmarkPointDetailsEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::LensEditorFactory(&a));
+	w.installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
 
 	if (argc > 1) {
 		w.openProject(QString(argv[1]));

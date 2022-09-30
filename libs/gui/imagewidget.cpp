@@ -9,7 +9,16 @@
 #include "datablocks/image.h"
 #include "datablocks/landmark.h"
 
+#include <QDebug>
+
 namespace StereoVisionApp {
+
+
+ImageWidgetDrawable::ImageWidgetDrawable(QWidget *parent) :
+	QObject(parent)
+{
+
+}
 
 ImageWidget::ImageWidget(QWidget *parent) :
 	QWidget(parent),
@@ -20,6 +29,7 @@ ImageWidget::ImageWidget(QWidget *parent) :
 	_c_img(),
 	_activePoint(-1),
 	_drawOnlyPoint(-1),
+	_showPoints(true),
 	_control_pressed_when_clicked(false)
 {
 
@@ -99,7 +109,7 @@ int ImageWidget::clipZoom(int rawZoom) {
 	return zoom_percent;
 }
 
-void ImageWidget::drawPoint(QPainter* painter, QPointF const& imagePoint, bool isActive, QString const& ptn) {
+void ImageWidget::drawLandmark(QPainter* painter, QPointF const& imagePoint, bool isActive, QString const& ptn) {
 
 	QString ptName = ptn;
 
@@ -158,7 +168,7 @@ void ImageWidget::drawPoint(QPainter* painter, QPointF const& imagePoint, bool i
 
 	painter->drawText(textBg, Qt::AlignCenter|Qt::AlignTop, ptName);
 }
-void ImageWidget::drawOuterPoint(QPainter* painter, QPointF const& imagePoint, bool isActive, const QString &ptn) {
+void ImageWidget::drawOuterLandmark(QPainter* painter, QPointF const& imagePoint, bool isActive, const QString &ptn) {
 
 	QString ptName = ptn;
 
@@ -342,6 +352,20 @@ qint64 ImageWidget::drawOnlyPoint() const {
 	return _drawOnlyPoint;
 }
 
+void ImageWidget::displayPoints(bool display) {
+	if (display != _showPoints) {
+		_showPoints = display;
+		update();
+	}
+}
+bool ImageWidget::displayingPoints() const {
+	return _showPoints;
+}
+
+void ImageWidget::addDrawable(ImageWidgetDrawable* drawable) {
+	_drawables.push_back(drawable);
+}
+
 void ImageWidget::setZoom(int zp) {
 
 	int zoom_percent = clipZoom(zp);
@@ -483,50 +507,61 @@ void ImageWidget::paintEvent(QPaintEvent *) {
 
 	ImageLandmark* active = nullptr;
 
-	for(qint64 id : pointsids) {
-		ImageLandmark* lm = _currentImageDataBlock->getImageLandmark(id);
+	if (_showPoints) {
 
-		if (id == activePoint()) {
-			active = lm;
-			continue;
+		for(qint64 id : pointsids) {
+			ImageLandmark* lm = _currentImageDataBlock->getImageLandmark(id);
+
+			if (id == activePoint()) {
+				active = lm;
+				continue;
+			}
+
+			if (_drawOnlyPoint >= 0 and _drawOnlyPoint != lm->attachedLandmarkid()) {
+				continue;
+			}
+
+			auto coords = lm->imageCoordinates();
+			auto extend = _img.size();
+
+			if (coords.x() < 0 or coords.y() < 0 or
+					coords.x() > extend.width() or coords.y() > extend.height() ) {
+				drawOuterLandmark(&painter, coords, false, lm->attachedLandmarkName());
+			} else {
+				drawLandmark(&painter, lm->imageCoordinates(), false, lm->attachedLandmarkName());
+			}
 		}
 
-		if (_drawOnlyPoint >= 0 and _drawOnlyPoint != lm->attachedLandmarkid()) {
-			continue;
-		}
+		if (active != nullptr) {
 
-		auto coords = lm->imageCoordinates();
-		auto extend = _img.size();
+			bool ok = false;
 
-		if (coords.x() < 0 or coords.y() < 0 or
-				coords.x() > extend.width() or coords.y() > extend.height() ) {
-			drawOuterPoint(&painter, coords, false, lm->attachedLandmarkName());
-		} else {
-			drawPoint(&painter, lm->imageCoordinates(), false, lm->attachedLandmarkName());
+			auto coords = active->imageCoordinates();
+			auto extend = _img.size();
+
+			if (_drawOnlyPoint >= 0 and _drawOnlyPoint == active->attachedLandmarkid()) {
+				ok = true;
+			} else if (_drawOnlyPoint < 0) {
+				ok = true;
+			}
+
+			if (ok) {
+				if (coords.x() < 0 or coords.y() < 0 or
+						coords.x() > extend.width() or coords.y() > extend.height() ) {
+					drawOuterLandmark(&painter, coords, true, active->attachedLandmarkName());
+				} else {
+					drawLandmark(&painter, coords, true, active->attachedLandmarkName());
+				}
+			}
 		}
 	}
 
-	if (active != nullptr) {
+	QTransform img2widget;
+	img2widget.translate(_translation.x()-(is.width() - s.width())/2, _translation.y()-(is.height() - s.height())/2);
+	img2widget.scale(_zoom/100., _zoom/100.);
 
-		bool ok = false;
-
-		auto coords = active->imageCoordinates();
-		auto extend = _img.size();
-
-		if (_drawOnlyPoint >= 0 and _drawOnlyPoint == active->attachedLandmarkid()) {
-			ok = true;
-		} else if (_drawOnlyPoint < 0) {
-			ok = true;
-		}
-
-		if (ok) {
-			if (coords.x() < 0 or coords.y() < 0 or
-					coords.x() > extend.width() or coords.y() > extend.height() ) {
-				drawOuterPoint(&painter, coords, true, active->attachedLandmarkName());
-			} else {
-				drawPoint(&painter, coords, true, active->attachedLandmarkName());
-			}
-		}
+	for (ImageWidgetDrawable* d : _drawables) {
+		d->paintItem(&painter, img2widget);
 	}
 
 }

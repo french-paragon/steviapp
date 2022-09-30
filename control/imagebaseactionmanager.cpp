@@ -7,6 +7,7 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 #include "datablocks/stereorig.h"
+#include "datablocks/cameracalibration.h"
 
 #include <QAction>
 #include <QStandardPaths>
@@ -134,6 +135,10 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 	});
 	lst.append(exportRectified);
 
+	QAction* addToCalibration = createAddToCalibrationAction(parent, im->getProject(), {im});
+
+	lst.append(addToCalibration);
+
 	return lst;
 
 }
@@ -198,6 +203,10 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 
 	lst.append(printRelPose);
 
+	QAction* addToCalibration = createAddToCalibrationAction(parent, p, ims);
+
+	lst.append(addToCalibration);
+
 	return lst;
 
 }
@@ -229,6 +238,39 @@ QAction* ImageBaseActionManager::createAssignToCameraAction(QObject* parent, Pro
 	return assignToCamera;
 
 }
+QAction* ImageBaseActionManager::createAddToCalibrationAction(QObject* parent, Project* p, const QVector<Image *> &ims) const {
+
+	QAction* addToCalibration = new QAction(tr("Add to Calibration"), parent);
+	QMenu* calibMenu = new QMenu();
+	connect(addToCalibration, &QObject::destroyed, calibMenu, &QObject::deleteLater);
+
+	QVector<qint64> calibsIds = p->getIdsByClass(CameraCalibration::staticMetaObject.className());
+
+	QList<qint64> imsIds;
+	imsIds.reserve(ims.size());
+
+	for (Image* img : ims) {
+		imsIds.push_back(img->internalId());
+	}
+
+	for(qint64 calibId : calibsIds) {
+
+		CameraCalibration* c = qobject_cast<CameraCalibration*>(p->getById(calibId));
+
+		if (c != nullptr) {
+			QAction* toCam = new QAction(c->objectName(), addToCalibration);
+			connect(toCam, &QAction::triggered, [calibId, imsIds, p] () {
+				addImagesToCalibration(imsIds, calibId, p);
+			});
+			calibMenu->addAction(toCam);
+		}
+	}
+	addToCalibration->setMenu(calibMenu);
+
+	return addToCalibration;
+
+}
+
 QAction* ImageBaseActionManager::createAssignToStereoRigAction(QObject* parent, Project* p, const QVector<Image *> &ims) const {
 
 	bool ok = true;

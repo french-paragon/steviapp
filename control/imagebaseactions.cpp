@@ -4,6 +4,7 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 #include "datablocks/stereorig.h"
+#include "datablocks/cameracalibration.h"
 
 #include "interpolation/interpolation.h"
 #include "interpolation/lensdistortionsmap.h"
@@ -563,6 +564,37 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 
 			infoFile.close();
 		}
+	}
+
+	return treated;
+
+}
+
+int addImagesToCalibration(QList<qint64> imagesIds, qint64 calibId, Project* p) {
+
+	if (p == nullptr) {
+		return 0;
+	}
+
+	CameraCalibration* calib = p->getDataBlock<CameraCalibration>(calibId);
+
+	if (calib == nullptr) {
+		return 0;
+	}
+
+	int treated = 0;
+
+	for (qint64 id : imagesIds) {
+
+		Image* img = p->getDataBlock<Image>(id);
+
+		if (img == nullptr) {
+			continue;
+		}
+
+		calib->addImg(id);
+		treated++;
+
 	}
 
 	return treated;

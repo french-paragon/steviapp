@@ -16,6 +16,9 @@ else(WIN32)
 endif(WIN32)
 
 add_subdirectory(g2o)
+
+option(buildTests OFF)
+option(buildExamples OFF)
 add_subdirectory(LibStevi)
 
 set(G2O_LIB_DIR ${g2o_LIBRARY_OUTPUT_DIRECTORY})

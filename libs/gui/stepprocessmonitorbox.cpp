@@ -12,6 +12,8 @@ StepProcessMonitorBox::StepProcessMonitorBox(QWidget *parent) :
 {
 	ui->setupUi(this);
 
+	_removeWhenDone = true;
+
 	connect(ui->pauseButton, &QPushButton::clicked, this, &StepProcessMonitorBox::onPauseClicked);
 	connect(ui->Cancelbutton, &QPushButton::clicked, this, &StepProcessMonitorBox::onCancelClicked);
 

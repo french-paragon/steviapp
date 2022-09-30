@@ -39,6 +39,9 @@ set(LIB_SRC imagewidget.cpp
             rectifiedimageexportoptionsdialog.cpp
             rectifiedimageexportoptionsdialog.h
             rectifiedimageexportoptionsdialog.ui
+            cameracalibrationeditor.cpp
+            cameracalibrationeditor.h
+            cameracalibrationeditor.ui
 )
 
 add_library(

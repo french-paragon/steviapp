@@ -64,7 +64,9 @@ set(PROJ_SRC  main.cpp
     control/solversactions.cpp
     control/solversactions.h
     control/exportactions.cpp
-    control/exportactions.h)
+    control/exportactions.h
+    control/cameracalibrationactionmanager.cpp
+    control/cameracalibrationactionmanager.h)
 
 add_executable(steviapp
     ${PROJ_SRC}

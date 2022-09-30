@@ -61,5 +61,5 @@ add_library(
 )
 
 target_link_libraries(${SOLVING_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)
-target_link_libraries(${SOLVING_LIB} PRIVATE ${DATA_LIB} ${STEREOVISION_LIB})
+target_link_libraries(${SOLVING_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${STEREOVISION_LIB})
 target_link_libraries(${SOLVING_LIB} PRIVATE ${G2O_LIBS})

@@ -22,6 +22,8 @@ set(LIB_SRC floatparameter.cpp
             distanceconstrain.h
             landmarkscollection.cpp
             landmarkscollection.h
+            cameracalibration.cpp
+            cameracalibration.h
             io/collada_export_filter.cpp
             io/collada_export_filter.h
 )

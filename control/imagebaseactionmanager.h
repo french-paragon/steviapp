@@ -23,6 +23,7 @@ public:
 protected:
 
 	QAction* createAssignToCameraAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
+	QAction* createAddToCalibrationAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
 	QAction* createAssignToStereoRigAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
 	QAction* createExportRectifiedForRigAction(QObject* parent, Project* p, const QVector<qint64> &ims, QWidget *w) const;
 };
