@@ -11,7 +11,13 @@ SparseAlignementEditor::SparseAlignementEditor(QWidget *parent) :
 {
 	ui->setupUi(this);
 
+	_viewerInterface = new ProjectSparseAlignementDataInterface(this);
+	ui->widget->setInterface(_viewerInterface);
+
 	//pass messages
+	connect(_viewerInterface, &ProjectSparseAlignementDataInterface::sendStatusMessage,
+			this, &SparseAlignementEditor::sendStatusMessage);
+
 	connect(ui->widget, &SparseAlignementViewer::sendStatusMessage,
 			this, &SparseAlignementEditor::sendStatusMessage);
 }
@@ -23,7 +29,7 @@ SparseAlignementEditor::~SparseAlignementEditor()
 
 void SparseAlignementEditor::beforeProjectChange(Project* np) {
 	Editor::beforeProjectChange(np);
-	ui->widget->setProject(np);
+	_viewerInterface->setProject(np);
 }
 
 void SparseAlignementEditor::reloadLandmarks() {

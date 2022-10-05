@@ -17,6 +17,66 @@ namespace StereoVisionApp {
 
 class Project;
 
+class AbstractSparseAlignementDataInterface : public QObject
+{
+	Q_OBJECT
+public:
+	explicit AbstractSparseAlignementDataInterface(QObject* parent = nullptr);
+
+	virtual int nCameras() const = 0;
+	virtual int nPoints() const = 0;
+
+	virtual QMatrix4x4 getCameraTransform(int idx) const = 0;
+	virtual QVector3D getPointPos(int idx) const = 0;
+
+Q_SIGNALS:
+
+	void dataChanged();
+
+	void sendStatusMessage(QString msg) const;
+
+protected:
+
+	virtual void onPointHoover(int idx) const = 0;
+	virtual void onCamHoover(int idx) const = 0;
+
+	virtual void onPointClick(int idx) const = 0;
+	virtual void onCamClick(int idx) const = 0;
+
+	friend class SparseAlignementViewer;
+
+};
+
+class ProjectSparseAlignementDataInterface : public AbstractSparseAlignementDataInterface
+{
+	Q_OBJECT
+public:
+	explicit ProjectSparseAlignementDataInterface(QObject* parent = nullptr);
+
+	void setProject(Project* p);
+	void clearProject();
+
+	int nCameras() const override;
+	int nPoints() const override;
+
+	QMatrix4x4 getCameraTransform(int idx) const override;
+	QVector3D getPointPos(int idx) const override;
+
+protected:
+
+	void reloadCache();
+
+	void onPointHoover(int idx) const override;
+	void onCamHoover(int idx) const override;
+
+	void onPointClick(int idx) const override;
+	void onCamClick(int idx) const override;
+
+	Project* _currentProject;
+	QVector<qint64> _loadedLandmarks;
+	QVector<qint64> _loadedFrames;
+};
+
 class SparseAlignementViewer : public QOpenGLWidget
 {
 	Q_OBJECT
@@ -25,8 +85,8 @@ public:
 
 	~SparseAlignementViewer();
 
-	void setProject(Project* p);
-	void clearProject();
+	void setInterface(AbstractSparseAlignementDataInterface* i);
+	void clearInterface();
 
 	void resetView();
 
@@ -91,15 +151,6 @@ protected:
 
 	IdPassInfos idPassAtPos(int x, int y);
 
-	struct itemClickInfos {
-		qint64 itemId;
-		float viewDist;
-		float zDist;
-	};
-
-	itemClickInfos nearestLandmark(QPoint const& pt, int minPixDist = 5);
-	itemClickInfos nearestCam(QPoint const& pt, int minPixDist = 5);
-
 	void landmarkHover(int landMarkId);
 	void frameHover(int frameId);
 	void voidHover();
@@ -149,10 +200,9 @@ private:
 	QOpenGLShaderProgram* _objIdProgram;
 	QOpenGLShaderProgram* _objFixedIdProgram;
 
-	Project* _currentProject;
-	QVector<qint64> _loadedLandmarks;
-	QVector<qint64> _loadedFrames;
+	AbstractSparseAlignementDataInterface* _currentInterface;
 	std::vector<GLfloat> _llm_pos;
+	std::vector<qint64> _llm_id;
 	bool _hasToReloadLandmarks;
 	bool _hasToReloadLandmarksIds;
 

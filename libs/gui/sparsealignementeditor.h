@@ -7,6 +7,8 @@
 
 namespace StereoVisionApp {
 
+class ProjectSparseAlignementDataInterface;
+
 namespace Ui {
 class SparseAlignementEditor;
 }
@@ -31,6 +33,8 @@ protected:
 
 private:
 	Ui::SparseAlignementEditor *ui;
+
+	ProjectSparseAlignementDataInterface* _viewerInterface;
 };
 
 class SparseAlignementEditorFactory : public EditorFactory

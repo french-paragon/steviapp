@@ -14,6 +14,8 @@ set(LIB_SRC initialsolution.cpp
             graphsbasolver.h
             graphstereorigsolver.cpp
             graphstereorigsolver.h
+            graphcameracalibrator.cpp
+            graphcameracalibrator.h
             imagepointssolutionmodel.cpp
             imagepointssolutionmodel.h
             landmarkpointssolutionmodel.cpp

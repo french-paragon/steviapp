@@ -53,11 +53,18 @@
        </item>
        <item>
         <widget class="QWidget" name="tools" native="true">
-         <layout class="QHBoxLayout" name="horizontalLayout">
+         <layout class="QVBoxLayout" name="verticalLayout_4">
           <item>
            <widget class="QPushButton" name="detectCheckboardsButton">
             <property name="text">
              <string>Detect checkboards</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="calibrateCamerasButton">
+            <property name="text">
+             <string>Calibrate cameras</string>
             </property>
            </widget>
           </item>

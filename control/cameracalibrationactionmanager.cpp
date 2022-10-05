@@ -8,6 +8,8 @@
 
 #include "mainwindow.h"
 
+#include "cameracalibrationactions.h"
+
 #include <QAction>
 
 namespace StereoVisionApp {
@@ -68,6 +70,7 @@ QList<QAction*> CameraCalibrationActionManager::factorizeItemContextActions(QObj
 			Editor* e = mw->openEditor(CameraCalibrationEditor::staticMetaObject.className());
 			CameraCalibrationEditor* le = qobject_cast<CameraCalibrationEditor*>(e);
 
+			QObject::connect(le, &CameraCalibrationEditor::optimizeCalibrationTriggered, runCameraCalibration);
 			le->setCalibration(calib);
 
 		});

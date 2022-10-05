@@ -10,6 +10,7 @@
 
 #include <QAction>
 #include <QMenu>
+#include <QSortFilterProxyModel>
 
 #include <optional>
 
@@ -42,10 +43,14 @@ CameraCalibrationEditor::CameraCalibrationEditor(QWidget *parent) :
 	ui->imgsListView->setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(ui->imgsListView, &QListView::customContextMenuRequested, this, &CameraCalibrationEditor::imgsListContextMenu);
 
+	_proxyModel = new QSortFilterProxyModel(this);
+	ui->imgsListView->setModel(_proxyModel);
+
 	connect(_moveToNextImg, &QAction::triggered, this, &CameraCalibrationEditor::moveToNextImage);
 	connect(_moveToPrevImg, &QAction::triggered, this, &CameraCalibrationEditor::moveToPreviousImage);
 
 	connect(ui->detectCheckboardsButton, &QPushButton::clicked, this, &CameraCalibrationEditor::detectCheckBoardsAllImages);
+	connect(ui->calibrateCamerasButton, &QPushButton::clicked, this, &CameraCalibrationEditor::optimizationTriggered);
 }
 
 CameraCalibrationEditor::~CameraCalibrationEditor()
@@ -57,13 +62,14 @@ void CameraCalibrationEditor::setCalibration(CameraCalibration* calib) {
 
 	if (calib == nullptr) {
 		ui->imageView->setImage(nullptr);
-		ui->imgsListView->setModel(nullptr);
+		_proxyModel->setSourceModel(nullptr);
 		_checkBoardDrawer->setCalibration(nullptr);
 		_currentCalib = nullptr;
 		return;
 	}
 
-	ui->imgsListView->setModel(calib->imageList());
+	_proxyModel->setSourceModel(calib->imageList());
+	_proxyModel->sort(0);
 	QList<qint64> imgsIds = calib->loadedImages();
 
 	_currentCalib = calib;
@@ -87,6 +93,22 @@ void CameraCalibrationEditor::openContextMenu(QPoint const& pos) {
 	cMenu.addAction(_moveToPrevImg);
 
 	cMenu.exec(ui->imageView->mapToGlobal(pos));
+}
+
+void CameraCalibrationEditor::optimizationTriggered() {
+
+	if (_currentCalib == nullptr) {
+		return;
+	}
+
+	Project* p = _currentCalib->getProject();
+
+	if (p == nullptr) {
+		return;
+	}
+
+	Q_EMIT optimizeCalibrationTriggered(p, _currentCalib->internalId());
+
 }
 
 void CameraCalibrationEditor::moveToNextImage() {
@@ -342,11 +364,37 @@ void CheckboardPtsDrawable::paintItemImpl(QPainter* painter) const {
 		QPolygonF points;
 		points.reserve(corners.size());
 
+		QPointF origin;
+		QPointF xaxis;
+		QPointF yaxis;
+
 		for (StereoVision::refinedCornerInfos const& corner : qAsConst(corners)) {
+
+			if (corner.grid_coord_x == 0 and corner.grid_coord_y == 0) {
+				origin.setX(corner.pix_coord_x+0.5);
+				origin.setY(corner.pix_coord_y+0.5);
+			}
+
+			if (corner.grid_coord_x == 1 and corner.grid_coord_y == 0) {
+				xaxis.setX(corner.pix_coord_x+0.5);
+				xaxis.setY(corner.pix_coord_y+0.5);
+			}
+
+			if (corner.grid_coord_x == 0 and corner.grid_coord_y == 1) {
+				yaxis.setX(corner.pix_coord_x+0.5);
+				yaxis.setY(corner.pix_coord_y+0.5);
+			}
+
 			points.push_back(QPointF(corner.pix_coord_x+0.5, corner.pix_coord_y+0.5));
 		}
 
 		drawPoints(painter, points, QColor(10, 200, 10), 5);
+
+		QLineF xDirection(origin, xaxis);
+		QLineF yDirection(origin, yaxis);
+
+		drawLine(painter, xDirection, QColor(125,0,0),2);
+		drawLine(painter, yDirection, QColor(0,125,0),2);
 	}
 
 }

@@ -72,7 +72,7 @@ bool SparseSolverBase::doNextStep() {
 
 	bool s = false;
 
-	if ((splitOptSteps() and currentStep() < optimizationSteps()) or currentStep() < 1) {
+	if ((splitOptSteps() and currentStep() < optimizationSteps()) or (currentStep() < 1 and !splitOptSteps())) {
 		s = opt_step();
 	} else if (currentStep() < (splitOptSteps() ? optimizationSteps() : 1) + uncertaintySteps()) {
 		s = std_step();

@@ -20,6 +20,22 @@
 
 namespace StereoVisionApp {
 
+
+MainWindow* MainWindow::getActiveMainWindow() {
+
+	QWidgetList lst = QApplication::topLevelWidgets();
+
+	for (QWidget* w : lst) {
+		MainWindow* mw = qobject_cast<MainWindow*>(w);
+
+		if (mw != nullptr) {
+			return mw;
+		}
+	}
+
+	return nullptr;
+}
+
 MainWindow::MainWindow(QWidget *parent)
 	: QMainWindow(parent)
 	, ui(new Ui::MainWindow),

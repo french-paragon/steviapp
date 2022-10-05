@@ -6,6 +6,8 @@
 #include "./editor.h"
 #include "./imagewidget.h"
 
+class QSortFilterProxyModel;
+
 namespace StereoVisionApp {
 
 class CameraCalibration;
@@ -25,12 +27,17 @@ public:
 
 	void setCalibration(CameraCalibration* cam);
 
+Q_SIGNALS:
+
+	void optimizeCalibrationTriggered(Project* p, qint64 calibrationid);
+
 protected:
 
 
 private:
 
 	void openContextMenu(QPoint const& pos);
+	void optimizationTriggered();
 
 	void moveToNextImage();
 	void moveToPreviousImage();
@@ -52,6 +59,8 @@ private:
 	CameraCalibration* _currentCalib;
 
 	CheckboardPtsDrawable* _checkBoardDrawer;
+
+	QSortFilterProxyModel* _proxyModel;
 };
 
 class CheckboardPtsDrawable : public ImageWidgetDrawable

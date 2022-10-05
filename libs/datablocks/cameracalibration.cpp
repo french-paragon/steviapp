@@ -6,13 +6,26 @@
 #include "LibStevi/imageProcessing/colorConversions.h"
 #include "LibStevi/imageProcessing/checkBoardDetection.h"
 
+#include <QSize>
 #include <QDebug>
+
+bool operator<(const QSize& s1, const QSize& s2) {
+	if (s1.width() == s2.width()) {
+		return  s1.height() < s2.height();
+	}
+	return s1.width() < s2.width();
+}
 
 namespace StereoVisionApp {
 
-CameraCalibration::CameraCalibration(Project* parent) : DataBlock(parent)
+CameraCalibration::CameraCalibration(Project* parent) :
+	DataBlock(parent),
+	_selected_grid_width(0),
+	_selected_grid_height(0),
+	_grid_size(1)
 {
 	_imageList = new CameraCalibrationImageList(this);
+	_selectedImages.clear();
 }
 
 void CameraCalibration::addImg(qint64 id) {
@@ -54,10 +67,20 @@ void CameraCalibration::setImageCorners(qint64 id,
 
 	bool active = imageIsActive(id);
 	_imagesInfos.insert(id, {active, candidates, selected, corners});
+	clearConfiguredImages();
 }
+
+void CameraCalibration::setImageEstimatedPose(qint64 id, const floatParameterGroup<6> &pose) {
+	if (_images.contains(id)) {
+		_camerasLocations[id] = pose;
+	}
+}
+
+
 void CameraCalibration::clearImageCorners(qint64 id) {
 	if (_imagesInfos.contains(id)) {
 		_imagesInfos.remove(id);
+		clearConfiguredImages();
 	}
 }
 
@@ -68,6 +91,8 @@ void CameraCalibration::removeImg(qint64 id) {
 	if (!_images.contains(id)) {
 		return;
 	}
+
+	clearConfiguredImages();
 
 	_imageList->beginResetModel();
 
@@ -110,6 +135,122 @@ std::optional<QVector<StereoVision::refinedCornerInfos>> CameraCalibration::getI
 	}
 
 	return std::nullopt;
+}
+
+int CameraCalibration::nSelectedCameras() const {
+	return _selectedImages.size();
+}
+qint64 CameraCalibration::nthSelectedCameras(int idx) const {
+
+	if (idx < 0 or idx >= _selectedImages.size()) {
+		return -1;
+	}
+
+	return _selectedImages.at(idx);
+}
+
+void CameraCalibration::configureSelectedImages() {
+
+	QMap<qint64, QSize> imGridSizes;
+	QMap<QSize, int> gridSizeFrequency;
+
+	for (qint64 imgId : _images) {
+
+		int maxGridWith = 0;
+		int maxGridHeight = 0;
+
+
+		if (!_imagesInfos.contains(imgId)) {
+			continue;
+		}
+
+		for (StereoVision::refinedCornerInfos & corner : _imagesInfos[imgId].DetectedCorners) {
+
+			if (corner.grid_coord_x >= maxGridWith) {
+				maxGridWith = corner.grid_coord_x+1;
+			}
+
+			if (corner.grid_coord_y >= maxGridHeight) {
+				maxGridHeight = corner.grid_coord_y+1;
+			}
+
+		}
+
+		QSize gridsize(maxGridWith, maxGridHeight);
+
+		imGridSizes[imgId] = gridsize;
+
+		if (!gridSizeFrequency.contains(gridsize)) {
+			gridSizeFrequency.insert(gridsize,0);
+		}
+
+		gridSizeFrequency[gridsize] = gridSizeFrequency[gridsize]+1;
+
+	}
+
+	//TODO: treate the case of transposed grids
+	QSize maxSize(0,0);
+	int freq = 0;
+
+	for (QSize s : gridSizeFrequency.keys()) {
+		if (gridSizeFrequency[s] > freq) {
+			maxSize = s;
+			freq = gridSizeFrequency[s];
+		}
+	}
+
+	configureSelectedImages(maxSize.width(), maxSize.height());
+
+
+}
+void CameraCalibration::configureSelectedImages(int gridWidth, int gridHeight) {
+
+	_selectedImages.clear();
+
+	_selectedImages.reserve(_images.size());
+
+	for (qint64 imgId : _images) {
+
+		int maxGridWith = 0;
+		int maxGridHeight = 0;
+
+
+		if (!_imagesInfos.contains(imgId)) {
+			continue;
+		}
+
+		for (StereoVision::refinedCornerInfos & corner : _imagesInfos[imgId].DetectedCorners) {
+
+			if (corner.grid_coord_x >= maxGridWith) {
+				maxGridWith = corner.grid_coord_x+1;
+			}
+
+			if (corner.grid_coord_y >= maxGridHeight) {
+				maxGridHeight = corner.grid_coord_y+1;
+			}
+
+		}
+
+		if (maxGridWith == gridWidth and maxGridHeight == gridHeight)  {
+			_selectedImages.push_back(imgId);
+		}
+
+	}
+
+	if (_selectedImages.size() > 0) {
+		_selected_grid_width = gridWidth;
+		_selected_grid_height = gridHeight;
+
+		Q_EMIT selectedImagesConfigured(true);
+	} else {
+		Q_EMIT selectedImagesConfigured(false);
+	}
+
+}
+void CameraCalibration::clearConfiguredImages() {
+	_selectedImages.clear();
+	Q_EMIT selectedImagesConfigured(false);
+	isChanged();
 }
 
 QJsonObject CameraCalibration::encodeJson() const {
@@ -177,6 +318,7 @@ QJsonObject CameraCalibration::encodeJson() const {
 	}
 
 	obj.insert("imgs", imgs);
+	obj.insert("grid_size", _grid_size);
 
 	return obj;
 
@@ -353,11 +495,15 @@ void CameraCalibration::configureFromJson(QJsonObject const& data) {
 
 	}
 
+	if (data.contains("grid_size")) {
+		_grid_size = data.value("grid_size").toDouble(1);
+	}
+
 }
 
 CameraCalibrationWorker::CameraCalibrationWorker(CameraCalibration* parent, qint64 imgId, QString imageFile) :
-	QThread(parent),
-	_calibration(parent),
+    QThread(parent),
+    _calibration(parent),
 	_imgId(imgId),
 	_imageFile(imageFile)
 {

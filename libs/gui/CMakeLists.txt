@@ -42,6 +42,14 @@ set(LIB_SRC imagewidget.cpp
             cameracalibrationeditor.cpp
             cameracalibrationeditor.h
             cameracalibrationeditor.ui
+            cameracalibrationsparsealignementviewerinterface.cpp
+            cameracalibrationsparsealignementviewerinterface.h
+            cameracalibrationsparsealignementeditor.cpp
+            cameracalibrationsparsealignementeditor.h
+            cameracalibrationsparsealignementeditor.ui
+            cameracalibrationoptionsdialog.cpp
+            cameracalibrationoptionsdialog.h
+            cameracalibrationoptionsdialog.ui
 )
 
 add_library(

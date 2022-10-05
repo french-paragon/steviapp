@@ -20,13 +20,200 @@
 
 namespace StereoVisionApp {
 
+
+AbstractSparseAlignementDataInterface::AbstractSparseAlignementDataInterface(QObject* parent) :
+	QObject(parent)
+{
+
+}
+
+ProjectSparseAlignementDataInterface::ProjectSparseAlignementDataInterface(QObject* parent) :
+	AbstractSparseAlignementDataInterface(parent)
+{
+
+}
+
+void ProjectSparseAlignementDataInterface::setProject(Project* p) {
+
+	if (p == _currentProject) {
+		return;
+	}
+
+	clearProject();
+
+	_currentProject = p;
+	connect(p, &Project::projectChanged, this, &ProjectSparseAlignementDataInterface::reloadCache);
+
+	reloadCache();
+
+}
+void ProjectSparseAlignementDataInterface::clearProject() {
+
+	if (_currentProject != nullptr) {
+		disconnect(_currentProject, &Project::projectChanged, this, &ProjectSparseAlignementDataInterface::reloadCache);
+		_currentProject = nullptr;
+	}
+
+	reloadCache();
+}
+
+int ProjectSparseAlignementDataInterface::nCameras() const {
+	return _loadedFrames.size();
+}
+int ProjectSparseAlignementDataInterface::nPoints() const {
+	return _loadedLandmarks.size();
+}
+
+QMatrix4x4 ProjectSparseAlignementDataInterface::getCameraTransform(int idx) const {
+
+	qint64 imId = _loadedFrames.at(idx);
+
+	Image* im = qobject_cast<Image*>(_currentProject->getById(imId));
+
+	if (im != nullptr) {
+
+		if (im->optPos().isSet() and
+				im->optRot().isSet() ) {
+
+			Camera* cam = qobject_cast<Camera*>(_currentProject->getById(im->assignedCamera()));
+
+			QMatrix4x4 camScale;
+			QMatrix4x4 camRotate;
+			QMatrix4x4 camTranslate;
+
+			if (cam != nullptr) {
+				QSize s = cam->imSize();
+				qreal aspect_ratio = static_cast<qreal>(s.width())/static_cast<qreal>(s.height());
+				if (aspect_ratio > 1) {
+					camScale.scale(1., 1./aspect_ratio);
+				} else {
+					camScale.scale(aspect_ratio, 1.0);
+				}
+			}
+
+			QVector3D r;
+			r.setX(im->optRot().value(0));
+			r.setY(im->optRot().value(1));
+			r.setZ(im->optRot().value(2));
+
+			camRotate.rotate(r.length()/M_PI*180, r);
+
+			camTranslate.translate(im->optPos().value(0),
+								   im->optPos().value(1),
+								   im->optPos().value(2));
+
+			QMatrix4x4 camTransform = camTranslate*camRotate*camScale;
+
+			return camTransform;
+		}
+	}
+
+	return QMatrix4x4();
+
+}
+
+QVector3D ProjectSparseAlignementDataInterface::getPointPos(int idx) const {
+
+	QVector3D ret;
+
+	qint64 lmId = _loadedLandmarks.at(idx);
+
+	Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(lmId));
+
+	ret.setX(lm->optPos().value(0));
+	ret.setY(lm->optPos().value(1));
+	ret.setZ(lm->optPos().value(2));
+
+	return ret;
+
+}
+
+void ProjectSparseAlignementDataInterface::reloadCache() {
+
+	_loadedFrames.clear();
+	_loadedLandmarks.clear();
+
+	if (_currentProject == nullptr) {
+		Q_EMIT dataChanged();
+		return;
+	}
+
+	QVector<qint64> lmIds = _currentProject->getIdsByClass(LandmarkFactory::landmarkClassName());
+
+	for (qint64 id : lmIds) {
+		Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
+
+		if (lm != nullptr) {
+			if (lm->optPos().isSet()) {
+				_loadedLandmarks.push_back(id);
+			}
+		}
+	}
+
+	QVector<qint64> imIds = _currentProject->getIdsByClass(ImageFactory::imageClassName());
+
+	for (qint64 id : imIds) {
+		Image* im = qobject_cast<Image*>(_currentProject->getById(id));
+
+		if (im != nullptr) {
+			if (im->optPos().isSet() and im->optRot().isSet()) {
+				_loadedFrames.push_back(id);
+			}
+		}
+	}
+
+	Q_EMIT dataChanged();
+}
+
+void ProjectSparseAlignementDataInterface::onPointHoover(int idx) const {
+
+	if (idx < 0 or idx >= _loadedLandmarks.size()) {
+		return;
+	}
+
+	if (_currentProject != nullptr) {
+
+		Landmark* lm = _currentProject->getDataBlock<Landmark>(_loadedLandmarks[idx]);
+
+		if (lm != nullptr) {
+			sendStatusMessage(QString("Landmark \"%1\"").arg(lm->objectName()));
+		}
+
+	}
+
+}
+void ProjectSparseAlignementDataInterface::onCamHoover(int idx) const {
+
+	if (idx < 0 or idx >= _loadedFrames.size()) {
+		return;
+	}
+
+	if (_currentProject != nullptr) {
+
+		Image* im = _currentProject->getDataBlock<Image>(_loadedFrames[idx]);
+
+		if (im != nullptr) {
+			sendStatusMessage(QString("Frame \"%1\"").arg(im->objectName()));
+		}
+
+	}
+
+}
+
+void ProjectSparseAlignementDataInterface::onPointClick(int idx) const {
+	return onPointHoover(idx);
+}
+void ProjectSparseAlignementDataInterface::onCamClick(int idx) const {
+	return onCamHoover(idx);
+}
+
 SparseAlignementViewer::SparseAlignementViewer(QWidget *parent) :
 	QOpenGLWidget(parent),
 	_has_been_initialised(false),
 	_cam_indices(QOpenGLBuffer::IndexBuffer),
 	_gridProgram(nullptr),
 	_landMarkPointProgram(nullptr),
-	_currentProject(nullptr),
+	_currentInterface(nullptr),
 	_hasToReloadLandmarks(true)
 {
 	_gridDistance = 10.;
@@ -191,29 +378,26 @@ void SparseAlignementViewer::rotateAzimuth(float degrees) {
 
 void SparseAlignementViewer::reloadLandmarks() {
 
-	if (_currentProject != nullptr) {
-		_loadedLandmarks.clear();
-		QVector<qint64> lmIds = _currentProject->getIdsByClass(LandmarkFactory::landmarkClassName());
+	if (_currentInterface != nullptr) {
 
-		for (qint64 id : lmIds) {
-			Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
-
-			if (lm != nullptr) {
-				if (lm->optPos().isSet()) {
-					_loadedLandmarks.push_back(id);
-				}
-			}
-		}
+		int nPoints = _currentInterface->nPoints();
 
 		_llm_pos.clear();
-		_llm_pos.reserve(_loadedLandmarks.size()*3);
+		_llm_pos.reserve(nPoints*3);
+
+		_llm_id.clear();
+		_llm_id.reserve(nPoints);
 
 
-		for (qint64 id : _loadedLandmarks) {
-			Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
-			_llm_pos.push_back(lm->optPos().value(0));
-			_llm_pos.push_back(lm->optPos().value(1));
-			_llm_pos.push_back(lm->optPos().value(2));
+		for (int i = 0; i < nPoints; i++) {
+
+			QVector3D pos = _currentInterface->getPointPos(i);
+
+			_llm_pos.push_back(pos.x());
+			_llm_pos.push_back(pos.y());
+			_llm_pos.push_back(pos.z());
+
+			_llm_id.push_back(i);
 		}
 	}
 
@@ -222,7 +406,7 @@ void SparseAlignementViewer::reloadLandmarks() {
 }
 
 void SparseAlignementViewer::clearLandmarks() {
-	_loadedLandmarks.clear();
+	_llm_pos.clear();
 	update();
 }
 
@@ -313,9 +497,9 @@ void SparseAlignementViewer::paintGL() {
 	_gridProgram->disableAttributeArray(vertexLocation);
 	_gridProgram->release();
 
-	if (_currentProject != nullptr) {
+	if (_currentInterface != nullptr) {
 
-		if (!_loadedLandmarks.empty()) {
+		if (!_llm_pos.empty()) {
 
 			_landMarkPointProgram->bind();
 			_scene_vao.bind();
@@ -333,7 +517,7 @@ void SparseAlignementViewer::paintGL() {
 			_landMarkPointProgram->setUniformValue("matrixViewProjection", _projectionView*_modelView);
 			_landMarkPointProgram->setUniformValue("sceneScale", _sceneScale);
 
-			f->glDrawArrays(GL_POINTS, 0, _loadedLandmarks.size());
+			f->glDrawArrays(GL_POINTS, 0, _llm_pos.size()/3);
 
 			_scene_vao.release();
 			_lm_pos_buffer.release();
@@ -357,58 +541,19 @@ void SparseAlignementViewer::paintGL() {
 		_camProgram->setUniformValue("matrixViewProjection", _projectionView*_modelView);
 		_camProgram->setUniformValue("sceneScale", _sceneScale);
 
-		QVector<qint64> frames = _currentProject->getIdsByClass(ImageFactory::imageClassName());
-		_loadedFrames.clear();
-		_loadedFrames.reserve(frames.size());
+		int nFrames = _currentInterface->nCameras();
 
-		for (qint64 id : frames) {
+		for (int i = 0; i < nFrames; i++) {
 
-			Image* im = qobject_cast<Image*>(_currentProject->getById(id));
+			QMatrix4x4 camPose = _currentInterface->getCameraTransform(i);
 
-			if (im != nullptr) {
+			QMatrix4x4 camScale;
+			camScale.scale(_camScale);
 
-				if (im->optPos().isSet() and
-						im->optRot().isSet() ) {
+			QMatrix4x4 camTransform = camPose*camScale;
+			_camProgram->setUniformValue("matrixCamToScene", camTransform);
 
-					_loadedFrames.push_back(im->internalId());
-
-					Camera* cam = qobject_cast<Camera*>(_currentProject->getById(im->assignedCamera()));
-
-					QMatrix4x4 camScale;
-					QMatrix4x4 camRotate;
-					QMatrix4x4 camTranslate;
-					camScale.scale(_camScale);
-
-					if (cam != nullptr) {
-						QSize s = cam->imSize();
-						qreal aspect_ratio = static_cast<qreal>(s.width())/static_cast<qreal>(s.height());
-						if (aspect_ratio > 1) {
-							camScale.scale(1., 1./aspect_ratio);
-						} else {
-							camScale.scale(aspect_ratio, 1.0);
-						}
-					}
-
-					QVector3D r;
-					r.setX(im->optRot().value(0));
-					r.setY(im->optRot().value(1));
-					r.setZ(im->optRot().value(2));
-
-					camRotate.rotate(r.length()/M_PI*180, r);
-
-					camTranslate.translate(im->optPos().value(0),
-										   im->optPos().value(1),
-										   im->optPos().value(2));
-
-					QMatrix4x4 camTransform = camTranslate*camRotate*camScale;
-					_camProgram->setUniformValue("matrixCamToScene", camTransform);
-
-					f->glDrawElements(GL_LINES, 30, GL_UNSIGNED_INT, 0);
-					//f->glDrawArrays(GL_LINES, 0, 4);
-
-				}
-
-			}
+			f->glDrawElements(GL_LINES, 30, GL_UNSIGNED_INT, 0);
 
 		}
 
@@ -480,12 +625,12 @@ void SparseAlignementViewer::paintObjectIdMask() {
 	f->glClearColor(0,0,0,0);
 	f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	if (_currentProject != nullptr) {
+	if (_currentInterface != nullptr) {
 
 		int vertexLocation;
 		int idLocation;
 
-		if (!_loadedLandmarks.empty()) {
+		if (!_llm_id.empty()) {
 
 			vertexLocation = _objIdProgram->attributeLocation("in_location");
 			idLocation = _objIdProgram->attributeLocation("in_id");
@@ -500,7 +645,7 @@ void SparseAlignementViewer::paintObjectIdMask() {
 			_lm_pos_id_buffer.bind();
 
 			if (_hasToReloadLandmarksIds) {
-				_lm_pos_id_buffer.allocate(_loadedLandmarks.data(), _loadedLandmarks.size()* sizeof (qint64));
+				_lm_pos_id_buffer.allocate(_llm_id.data(), _llm_id.size()* sizeof (qint64));
 				_hasToReloadLandmarksIds = false;
 			}
 
@@ -513,7 +658,7 @@ void SparseAlignementViewer::paintObjectIdMask() {
 			_objIdProgram->setUniformValue("pointScale", 10.0f);
 			_objIdProgram->setUniformValue("typeColorIndex", LandmarkColorCode);
 
-			f->glDrawArrays(GL_POINTS, 0, _loadedLandmarks.size());
+			f->glDrawArrays(GL_POINTS, 0, _llm_id.size());
 
 			_lm_pos_buffer.release();
 			_lm_pos_id_buffer.release();
@@ -542,71 +687,31 @@ void SparseAlignementViewer::paintObjectIdMask() {
 
 		f->glLineWidth(10.);
 
-		QVector<qint64> frames = _currentProject->getIdsByClass(ImageFactory::imageClassName());
-		_loadedFrames.clear();
-		_loadedFrames.reserve(frames.size());
+		int nFrames = _currentInterface->nCameras();
 
-		for (qint64 id : frames) {
+		for (int i = 0; i < nFrames; i++) {
 
-			Image* im = qobject_cast<Image*>(_currentProject->getById(id));
+			QMatrix4x4 camPose = _currentInterface->getCameraTransform(i);
 
-			if (im != nullptr) {
+			QMatrix4x4 camScale;
+			camScale.scale(_camScale);
 
-				if (im->optPos().isSet() and
-						im->optRot().isSet() ) {
+			QMatrix4x4 camTransform = camPose*camScale;
+			_objFixedIdProgram->setUniformValue("matrixCamToScene", camTransform);
 
-					_loadedFrames.push_back(im->internalId());
+			//internal id
+			qint64 id = i;
+			float convSpace[2];
 
-					Camera* cam = qobject_cast<Camera*>(_currentProject->getById(im->assignedCamera()));
+			std::memcpy(convSpace, &id, sizeof (id));
 
-					QMatrix4x4 camScale;
-					QMatrix4x4 camRotate;
-					QMatrix4x4 camTranslate;
-					camScale.scale(_camScale);
+			QVector2D idColorCode;
+			idColorCode.setX(convSpace[0]);
+			idColorCode.setY(convSpace[1]);
 
-					if (cam != nullptr) {
-						QSize s = cam->imSize();
-						qreal aspect_ratio = static_cast<qreal>(s.width())/static_cast<qreal>(s.height());
-						if (aspect_ratio > 1) {
-							camScale.scale(1., 1./aspect_ratio);
-						} else {
-							camScale.scale(aspect_ratio, 1.0);
-						}
-					}
+			_objFixedIdProgram->setUniformValue("in_id", idColorCode);
 
-					QVector3D r;
-					r.setX(im->optRot().value(0));
-					r.setY(im->optRot().value(1));
-					r.setZ(im->optRot().value(2));
-
-					camRotate.rotate(r.length()/M_PI*180, r);
-
-					camTranslate.translate(im->optPos().value(0),
-										   im->optPos().value(1),
-										   im->optPos().value(2));
-
-					QMatrix4x4 camTransform = camTranslate*camRotate*camScale;
-					_objFixedIdProgram->setUniformValue("matrixObjToScene", camTransform);
-
-					//internal id
-					qint64 id = im->internalId();
-					float convSpace[2];
-
-					std::memcpy(convSpace, &id, sizeof (id));
-
-					QVector2D idColorCode;
-					idColorCode.setX(convSpace[0]);
-					idColorCode.setY(convSpace[1]);
-
-					_objFixedIdProgram->setUniformValue("in_id", idColorCode);
-
-
-					f->glDrawElements(GL_LINES, 30, GL_UNSIGNED_INT, 0);
-					//f->glDrawArrays(GL_LINES, 0, 4);
-
-				}
-
-			}
+			f->glDrawElements(GL_LINES, 30, GL_UNSIGNED_INT, 0);
 
 		}
 
@@ -823,26 +928,26 @@ void SparseAlignementViewer::generateCamModel() {
 
 }
 
-void SparseAlignementViewer::setProject(Project* p) {
+void SparseAlignementViewer::setInterface(AbstractSparseAlignementDataInterface *i) {
 
-	if (p == _currentProject) {
+	if (i == _currentInterface) {
 		return;
 	}
 
-	clearProject();
+	clearInterface();
 
-	_currentProject = p;
-	connect(p, &Project::projectChanged, this, &SparseAlignementViewer::clearLandmarks);
+	_currentInterface = i;
+	connect(i, &AbstractSparseAlignementDataInterface::dataChanged, this, &SparseAlignementViewer::reloadLandmarks);
 
 	if (_has_been_initialised) {
 		reloadLandmarks();
 	}
 }
-void SparseAlignementViewer::clearProject() {
+void SparseAlignementViewer::clearInterface() {
 
-	if (_currentProject != nullptr) {
-		disconnect(_currentProject, &Project::projectChanged, this, &SparseAlignementViewer::clearLandmarks);
-		_currentProject = nullptr;
+	if (_currentInterface != nullptr) {
+		disconnect(_currentInterface, &AbstractSparseAlignementDataInterface::dataChanged, this, &SparseAlignementViewer::reloadLandmarks);
+		_currentInterface = nullptr;
 	}
 
 	clearLandmarks();
@@ -1118,107 +1223,11 @@ SparseAlignementViewer::IdPassInfos SparseAlignementViewer::idPassAtPos(int x, i
 	_obj_raycasting_context->doneCurrent();*/
 }
 
-SparseAlignementViewer::itemClickInfos SparseAlignementViewer::nearestLandmark(QPoint const& pt, int minPixDist) {
-
-	if (_currentProject == nullptr) {
-		return {-1, -1, -1};
-	}
-
-	qint64 id = -1;
-	float dist = minPixDist;
-	float z_dist = std::numeric_limits<float>::infinity();
-
-	QVector2D clickPos(pt.x(), height() - pt.y());
-
-	for (qint64 cand_id : _loadedLandmarks) {
-
-		Landmark* lm = _currentProject->getDataBlock<Landmark>(cand_id);
-
-		if (lm != nullptr) {
-			QVector3D p(lm->optPos().value(0)*_sceneScale,
-						lm->optPos().value(1)*_sceneScale,
-						lm->optPos().value(2)*_sceneScale);
-
-			QVector3D project = p.project(_modelView, _projectionView, rect());
-
-			if (project.z() > 1) {
-				continue;
-			}
-
-			QVector2D ppos(project.x(), project.y());
-
-			float d = ppos.distanceToPoint(clickPos);
-
-			if (d < 2*minPixDist) {
-				if (project.z() < z_dist) {
-					id = cand_id;
-					dist = d;
-					z_dist = project.z();
-				}
-			}
-		}
-
-	}
-
-	return {id, dist/2, z_dist};
-
-}
-
-SparseAlignementViewer::itemClickInfos SparseAlignementViewer::nearestCam(QPoint const& pt, int minPixDist) {
-
-	if (_currentProject == nullptr) {
-		return {-1, -1, -1};
-	}
-
-	qint64 id = -1;
-	float dist = minPixDist;
-	float z_dist = std::numeric_limits<float>::infinity();
-
-	QVector2D clickPos(pt.x(), height() - pt.y());
-
-	for (qint64 cand_id : _loadedFrames) {
-
-		Image* im = _currentProject->getDataBlock<Image>(cand_id);
-
-		if (im != nullptr) {
-			QVector3D p(im->optPos().value(0)*_sceneScale,
-						im->optPos().value(1)*_sceneScale,
-						im->optPos().value(2)*_sceneScale);
-
-			QVector3D project = p.project(_modelView, _projectionView, rect());
-
-			if (project.z() > 1) {
-				continue;
-			}
-
-			QVector2D ppos(project.x(), project.y());
-
-			float d = ppos.distanceToPoint(clickPos);
-
-			if (d < 2*minPixDist) {
-				if (project.z() < z_dist) {
-					id = cand_id;
-					dist = d;
-					z_dist = project.z();
-				}
-			}
-		}
-
-	}
-
-	return {id, dist/2, z_dist};
-
-}
-
 void SparseAlignementViewer::landmarkHover(int landMarkId) {
 
-	if (_currentProject != nullptr) {
+	if (_currentInterface != nullptr) {
 
-		Landmark* lm = _currentProject->getDataBlock<Landmark>(landMarkId);
-
-		if (lm != nullptr) {
-			sendStatusMessage(QString("Landmark \"%1\"").arg(lm->objectName()));
-		}
+		_currentInterface->onPointHoover(landMarkId);
 
 	}
 
@@ -1226,13 +1235,9 @@ void SparseAlignementViewer::landmarkHover(int landMarkId) {
 
 void SparseAlignementViewer::frameHover(int frameId) {
 
-	if (_currentProject != nullptr) {
+	if (_currentInterface != nullptr) {
 
-		Image* im = _currentProject->getDataBlock<Image>(frameId);
-
-		if (im != nullptr) {
-			sendStatusMessage(QString("Frame \"%1\"").arg(im->objectName()));
-		}
+		_currentInterface->onCamHoover(frameId);
 
 	}
 }

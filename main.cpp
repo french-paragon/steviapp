@@ -18,6 +18,7 @@
 #include "gui/sparsealignementeditor.h"
 #include "gui/lenseditor.h"
 #include "gui/cameracalibrationeditor.h"
+#include "gui/cameracalibrationsparsealignementeditor.h"
 
 #include "control/imagebaseactionmanager.h"
 #include "control/camerabaseactionmanager.h"
@@ -66,6 +67,7 @@ int main(int argc, char *argv[])
 	w.installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::LensEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
+	w.installEditor(new StereoVisionApp::CameraCalibrationSparseAlignementEditorFactory(&a));
 
 	if (argc > 1) {
 		w.openProject(QString(argv[1]));
