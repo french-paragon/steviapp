@@ -85,7 +85,7 @@ bool EdgeParametrizedXYZ2UV::write (std::ostream& os) const {
 void EdgeParametrizedXYZ2UV::computeError () {
 
 	const VertexCameraPose * pose = static_cast<const VertexCameraPose*>(_vertices[0]);
-	const g2o::VertexSBAPointXYZ* point = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[1]);
+	const g2o::VertexPointXYZ* point = static_cast<const g2o::VertexPointXYZ*>(_vertices[1]);
 	const VertexCameraParam * cam = static_cast<const VertexCameraParam*>(_vertices[2]);
 	const VertexCameraRadialDistortion * r_dist = (_vertices.size() > 3) ? static_cast<const VertexCameraRadialDistortion*>(_vertices[3]) : nullptr;
 	const VertexCameraTangentialDistortion * t_dist = (_vertices.size() > 4) ?  static_cast<const VertexCameraTangentialDistortion*>(_vertices[4]) : nullptr;
@@ -195,7 +195,7 @@ void EdgeParametrizedXYZ2UV::linearizeOplus () {
 		}
 
 	#else
-		BaseMultiEdge::linearizeOplus();
+		g2o::BaseMultiEdge<2, Eigen::Vector2d>::linearizeOplus();
 	#endif
 
 }
@@ -230,7 +230,7 @@ bool EdgeStereoRigXYZ2UV::write (std::ostream& os) const {
 void EdgeStereoRigXYZ2UV::computeError () {
 
 	const VertexCameraPose * pose = static_cast<const VertexCameraPose*>(_vertices[0]);
-	const g2o::VertexSBAPointXYZ* point = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[1]);
+	const g2o::VertexPointXYZ* point = static_cast<const g2o::VertexPointXYZ*>(_vertices[1]);
 	const VertexCameraFocal * cam = static_cast<const VertexCameraFocal*>(_vertices[2]);
 
 	Eigen::Vector2d obs = _measurement;

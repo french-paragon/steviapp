@@ -8,7 +8,7 @@
 #include "vertices/camparam.h"
 
 namespace g2o {
-	class VertexSBAPointXYZ;
+	class VertexPointXYZ;
 }
 
 namespace StereoVisionApp {

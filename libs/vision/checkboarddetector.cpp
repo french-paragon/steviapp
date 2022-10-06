@@ -137,6 +137,9 @@ bool CheckboardDetector::doNextStep() {
 
 	auto refined = StereoVision::refineCheckBoardCorners(gray, selected);
 
+	int refSize = refined.size();
+	int selectedSize = selected.nPointsFound();
+
 	qDebug() << "Refined " << refined.size() << " candidates";
 
 	Q_EMIT processedImage(imgId,

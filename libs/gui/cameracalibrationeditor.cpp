@@ -21,7 +21,7 @@ namespace StereoVisionApp {
 CameraCalibrationEditor::CameraCalibrationEditor(QWidget *parent) :
 	Editor(parent),
 	ui(new Ui::CameraCalibrationEditor),
-	_currentId(0),
+	_currentId(-1),
 	_currentCalib(nullptr)
 {
 	ui->setupUi(this);
@@ -164,19 +164,19 @@ void CameraCalibrationEditor::moveToImage(int row) {
 				ui->labelNSelected->setText("");
 				ui->labelGridSize->setText("");
 
-				auto candidates = _currentCalib->getDetectedCandidates(_currentId);
+				auto candidates = _currentCalib->getDetectedCandidates(img->internalId());
 
 				if (candidates.has_value()) {
 					ui->labelNCandidates->setText(QString("%0").arg(candidates.value().size()));
 				}
 
-				auto filtered = _currentCalib->getFilteredCandidates(_currentId);
+				auto filtered = _currentCalib->getFilteredCandidates(img->internalId());
 
 				if (filtered.has_value()) {
 					ui->labelNSelected->setText(QString("%0").arg(filtered.value().size()));
 				}
 
-				auto grid = _currentCalib->getImageCorners(_currentId);
+				auto grid = _currentCalib->getImageCorners(img->internalId());
 
 				if (grid.has_value()) {
 					ui->labelGridSize->setText(QString("%0").arg(grid.value().size()));

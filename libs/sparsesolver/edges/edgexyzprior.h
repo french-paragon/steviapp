@@ -14,7 +14,7 @@ namespace StereoVisionApp {
 /*!
  * \brief The EdgeXyzPrior class allow to get an apriori for the position of a landmark
  */
-class EdgeXyzPrior : public g2o::BaseUnaryEdge<3, Eigen::Vector3d, g2o::VertexSBAPointXYZ>
+class EdgeXyzPrior : public g2o::BaseUnaryEdge<3, Eigen::Vector3d, g2o::VertexPointXYZ>
 {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -31,7 +31,7 @@ public:
  * \brief The EdgeXyzPrior class allow to get an apriori for the position of a landmark
  */
 template<StereoVision::Geometry::Axis Ax>
-class EdgeLmCoordPrior : public g2o::BaseUnaryEdge<1, double, g2o::VertexSBAPointXYZ>
+class EdgeLmCoordPrior : public g2o::BaseUnaryEdge<1, double, g2o::VertexPointXYZ>
 {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -55,7 +55,7 @@ public:
 
 	virtual void computeError() {
 
-		const g2o::VertexSBAPointXYZ* v = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[0]);
+		const g2o::VertexPointXYZ* v = static_cast<const g2o::VertexPointXYZ*>(_vertices[0]);
 
 		int id;
 

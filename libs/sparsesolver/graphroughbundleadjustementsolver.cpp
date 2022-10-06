@@ -429,8 +429,8 @@ bool GraphRoughBundleAdjustementSolver::init() {
 			if (_landmarkVertices.contains(pair->getNthLandmarkId(0)) and
 					_landmarkVertices.contains(pair->getNthLandmarkId(1))) {
 
-				g2o::VertexSBAPointXYZ* v1 = _landmarkVertices.value(pair->getNthLandmarkId(0), nullptr);
-				g2o::VertexSBAPointXYZ* v2 = _landmarkVertices.value(pair->getNthLandmarkId(1), nullptr);
+				g2o::VertexPointXYZ* v1 = _landmarkVertices.value(pair->getNthLandmarkId(0), nullptr);
+				g2o::VertexPointXYZ* v2 = _landmarkVertices.value(pair->getNthLandmarkId(1), nullptr);
 
 				if (v1 != nullptr and v2 != nullptr) {
 

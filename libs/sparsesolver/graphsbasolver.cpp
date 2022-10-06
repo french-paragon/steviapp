@@ -375,8 +375,8 @@ bool GraphSBASolver::init() {
 			if (_landmarkVertices.contains(pair->getNthLandmarkId(0)) and
 					_landmarkVertices.contains(pair->getNthLandmarkId(1))) {
 
-				g2o::VertexSBAPointXYZ* v1 = _landmarkVertices.value(pair->getNthLandmarkId(0), nullptr);
-				g2o::VertexSBAPointXYZ* v2 = _landmarkVertices.value(pair->getNthLandmarkId(1), nullptr);
+				g2o::VertexPointXYZ* v1 = _landmarkVertices.value(pair->getNthLandmarkId(0), nullptr);
+				g2o::VertexPointXYZ* v2 = _landmarkVertices.value(pair->getNthLandmarkId(1), nullptr);
 
 				if (v1 != nullptr and v2 != nullptr) {
 
@@ -425,9 +425,9 @@ bool GraphSBASolver::init() {
 					_landmarkVertices.contains(triplet->getNthLandmarkId(1)) and
 					_landmarkVertices.contains(triplet->getNthLandmarkId(2))) {
 
-				g2o::VertexSBAPointXYZ* v1 = _landmarkVertices.value(triplet->getNthLandmarkId(0), nullptr);
-				g2o::VertexSBAPointXYZ* v2 = _landmarkVertices.value(triplet->getNthLandmarkId(1), nullptr);
-				g2o::VertexSBAPointXYZ* v3 = _landmarkVertices.value(triplet->getNthLandmarkId(2), nullptr);
+				g2o::VertexPointXYZ* v1 = _landmarkVertices.value(triplet->getNthLandmarkId(0), nullptr);
+				g2o::VertexPointXYZ* v2 = _landmarkVertices.value(triplet->getNthLandmarkId(1), nullptr);
+				g2o::VertexPointXYZ* v3 = _landmarkVertices.value(triplet->getNthLandmarkId(2), nullptr);
 
 				if (v1 != nullptr and v2 != nullptr and v3 != nullptr) {
 

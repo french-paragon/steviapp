@@ -69,7 +69,7 @@ bool GraphCameraCalibrator::initialize() {
 		linearSolver = g2o::make_unique<g2o::LinearSolverDense<g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> >::PoseMatrixType>>();
 	}
 
-	g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(g2o::make_unique<bSolvType>(std::move(linearSolver)));
+	g2o::OptimizationAlgorithmGaussNewton* solver = new g2o::OptimizationAlgorithmGaussNewton(g2o::make_unique<bSolvType>(std::move(linearSolver)));
 
 	_optimizer->setAlgorithm(solver);
 

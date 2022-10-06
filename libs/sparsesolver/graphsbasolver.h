@@ -11,7 +11,7 @@
 
 namespace g2o {
 	class SparseOptimizer;
-	class VertexSBAPointXYZ;
+	class VertexPointXYZ;
 }
 
 typedef g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> >::LinearSolverType lSolvType;

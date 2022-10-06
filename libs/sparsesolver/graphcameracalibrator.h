@@ -12,7 +12,7 @@
 
 namespace g2o {
 	class SparseOptimizer;
-	class VertexSBAPointXYZ;
+	class VertexPointXYZ;
 }
 
 typedef g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> >::LinearSolverType lSolvType;
@@ -20,7 +20,7 @@ typedef g2o::BlockSolver< g2o::BlockSolverTraits<-1, -1> > bSolvType;
 
 namespace StereoVisionApp {
 
-typedef g2o::VertexSBAPointXYZ checkboardPointVertex;
+typedef g2o::VertexPointXYZ checkboardPointVertex;
 
 class VertexCameraPose;
 

@@ -32,13 +32,13 @@ bool EdgePointsAngle::write(std::ostream& os) const {
 
 void EdgePointsAngle::computeError() {
 
-	const g2o::VertexSBAPointXYZ* point1 = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[0]);
-	const g2o::VertexSBAPointXYZ* point2 = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[1]);
-	const g2o::VertexSBAPointXYZ* point3 = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[2]);
+	const g2o::VertexPointXYZ* point1 = static_cast<const g2o::VertexPointXYZ*>(_vertices[0]);
+	const g2o::VertexPointXYZ* point2 = static_cast<const g2o::VertexPointXYZ*>(_vertices[1]);
+	const g2o::VertexPointXYZ* point3 = static_cast<const g2o::VertexPointXYZ*>(_vertices[2]);
 
-	g2o::VertexSBAPointXYZ::EstimateType pt1 = point1->estimate();
-	g2o::VertexSBAPointXYZ::EstimateType pt2 = point2->estimate();
-	g2o::VertexSBAPointXYZ::EstimateType pt3 = point3->estimate();
+	g2o::VertexPointXYZ::EstimateType pt1 = point1->estimate();
+	g2o::VertexPointXYZ::EstimateType pt2 = point2->estimate();
+	g2o::VertexPointXYZ::EstimateType pt3 = point3->estimate();
 
 	Eigen::Vector3d pt2to1 = pt1 - pt2;
 	Eigen::Vector3d pt2to3 = pt3 - pt2;

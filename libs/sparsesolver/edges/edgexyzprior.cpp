@@ -2,7 +2,7 @@
 
 namespace StereoVisionApp {
 
-EdgeXyzPrior::EdgeXyzPrior() : g2o::BaseUnaryEdge< 3, Eigen::Vector3d, g2o::VertexSBAPointXYZ >()
+EdgeXyzPrior::EdgeXyzPrior() : g2o::BaseUnaryEdge< 3, Eigen::Vector3d, g2o::VertexPointXYZ >()
 {
 
 }
@@ -31,7 +31,7 @@ bool EdgeXyzPrior::write(std::ostream& os) const {
 
 void EdgeXyzPrior::computeError()
 {
-  const g2o::VertexSBAPointXYZ* v = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[0]);
+  const g2o::VertexPointXYZ* v = static_cast<const g2o::VertexPointXYZ*>(_vertices[0]);
   _error = v->estimate() - _measurement;
 
 }
