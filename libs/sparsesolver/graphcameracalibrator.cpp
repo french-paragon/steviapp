@@ -10,11 +10,13 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 #include "datablocks/cameracalibration.h"
+#include "datablocks/stereorig.h"
 
 #include "vertices/vertexcamerapose.h"
 #include "vertices/vertexcameraparam.h"
 
 #include "edges/edgeparametrizedxyz2uv.h"
+#include "edges/edgecamerase3leverarm.h"
 
 #include "LibStevi/geometry/alignement.h"
 
@@ -32,6 +34,8 @@ namespace StereoVisionApp {
 GraphCameraCalibrator::GraphCameraCalibrator(CameraCalibration *calib, bool sparse, QObject *parent) :
 	SparseSolverBase(nullptr, parent),
 	_sparse(sparse),
+	_stereo_rig_activated(false),
+	_vid(0),
 	_currentCalibration(calib),
 	_optimizer(nullptr)
 {
@@ -83,14 +87,16 @@ bool GraphCameraCalibrator::initialize() {
 		return false;
 	}
 
-	int vid = 0;
+	_vid = 0;
+
+	//checkboard corners
 
 	for (int i = 0; i < _currentCalibration->selectedGridHeight(); i++) {
 		for (int j = 0; j < _currentCalibration->selectedGridWidth(); j++) {
 
 
 			checkboardPointVertex* v = new checkboardPointVertex();
-			v->setId(vid++);
+			v->setId(_vid++);
 			v->setMarginalized(false);
 
 			QPointF gridPos = _currentCalibration->gridPointXYCoordinate(QPoint(j,i));
@@ -109,6 +115,7 @@ bool GraphCameraCalibrator::initialize() {
 		}
 	}
 
+	//images
 
 	for (int i = 0; i < _currentCalibration->nSelectedCameras(); i++) {
 
@@ -142,10 +149,10 @@ bool GraphCameraCalibrator::initialize() {
 			VertexCameraTangentialDistortion* td_v = new VertexCameraTangentialDistortion();
 			VertexCameraSkewDistortion* sd_v = new VertexCameraSkewDistortion();
 
-			cp_v->setId(vid++);
-			rd_v->setId(vid++);
-			td_v->setId(vid++);
-			sd_v->setId(vid++);
+			cp_v->setId(_vid++);
+			rd_v->setId(_vid++);
+			td_v->setId(_vid++);
+			sd_v->setId(_vid++);
 
 			cp_v->setMarginalized(false);
 			rd_v->setMarginalized(false);
@@ -198,7 +205,7 @@ bool GraphCameraCalibrator::initialize() {
 		}
 
 		VertexCameraPose* v = new VertexCameraPose();
-		v->setId(vid++);
+		v->setId(_vid++);
 		v->setMarginalized(false);
 		v->setReferedDatablock(im);
 
@@ -275,6 +282,8 @@ bool GraphCameraCalibrator::initialize() {
 
 	}
 
+	//stereo rigs activated later
+	_stereo_rig_activated = false;
 
 	s = _optimizer->initializeOptimization();
 	_not_first_step = false;
@@ -284,9 +293,106 @@ bool GraphCameraCalibrator::initialize() {
 	return s;
 
 }
+
+bool GraphCameraCalibrator::activateStereoRigs() {
+
+	//stereo rigs
+
+	QVector<qint64> rigs = _currentProject->getIdsByClass(StereoRig::staticMetaObject.className());
+
+	for (qint64 id : rigs) {
+		StereoRig* rg = _currentProject->getDataBlock<StereoRig>(id);
+
+		if (rg != nullptr) {
+
+			QVector<qint64> pairs = rg->listTypedSubDataBlocks(ImagePair::staticMetaObject.className());
+			QVector<ImagePair*> pairsInCalibration;
+			pairsInCalibration.reserve(pairs.size());
+
+			for (qint64 p_id : pairs) {
+				ImagePair* p = qobject_cast<ImagePair*>(rg->getById(p_id));
+
+				if (p != nullptr) {
+					if (_frameVertices.contains(p->idImgCam1()) and _frameVertices.contains(p->idImgCam2())) {
+						pairsInCalibration.push_back(p);
+					}
+				}
+			}
+
+			if (pairsInCalibration.isEmpty()) {
+				continue;
+			}
+
+			VertexCameraPose* vRig = new VertexCameraPose();
+			vRig->setId(_vid++);
+			vRig->setMarginalized(false);
+			vRig->setReferedDatablock(rg);
+
+			int nMeasures = 0;
+			CameraPose::Vector6d meanLog = CameraPose::Vector6d::Zero();
+
+			for (ImagePair* imp : pairsInCalibration) {
+				VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
+				VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam1());
+
+				CameraPose cam1toworld = vcam1->estimate();
+				CameraPose cam2toworld = vcam2->estimate();
+
+				CameraPose cam2tocam1 = cam2toworld * cam1toworld.inverse();
+
+				meanLog += cam2tocam1.log();
+				nMeasures++;
+			}
+
+			meanLog /= nMeasures;
+
+			CameraPose cam2tocam1_est = CameraPose::exp(meanLog);
+
+			vRig->setEstimate(cam2tocam1_est);
+			_StereoRigPoseVertices.insert(rg->internalId(), vRig);
+
+			_optimizer->addVertex(vRig);
+
+			for (ImagePair* imp : pairsInCalibration) {
+				VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
+				VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam1());
+
+				EdgeCameraParametrizedSE3LeverArm* e = new EdgeCameraParametrizedSE3LeverArm();
+				e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(vcam1));
+				e->setVertex(1, static_cast<g2o::OptimizableGraph::Vertex*>(vcam2));
+				e->setVertex(2, static_cast<g2o::OptimizableGraph::Vertex*>(vRig));
+
+				EdgeCameraParametrizedSE3LeverArm::InformationType info = EdgeCameraParametrizedSE3LeverArm::InformationType::Identity();
+
+				e->setInformation(info);
+
+				_optimizer->addEdge(e);
+
+			}
+
+		}
+	}
+
+	bool ok = _optimizer->initializeOptimization();
+	_not_first_step = false;
+	_stereo_rig_activated = true;
+
+	return ok;
+}
+
+
+
 bool GraphCameraCalibrator::runSteps(int pn_steps) {
 	int n_steps = _optimizer->optimize(pn_steps, _not_first_step);
 	_not_first_step = true;
+
+	if (currentStep() > optimizationSteps()/2 + 1) {
+		if (!_stereo_rig_activated) {
+			activateStereoRigs();
+			qDebug() << "stereorigs activated";
+		}
+	}
+
 	return n_steps > 0;
 }
 
@@ -303,6 +409,8 @@ bool GraphCameraCalibrator::writeResults() {
 	if (_currentProject == nullptr) {
 		return false;
 	}
+
+	//frames
 
 	for (qint64 id : _frameVertices.keys()) {
 
@@ -324,6 +432,8 @@ bool GraphCameraCalibrator::writeResults() {
 		_currentCalibration->setImageEstimatedPose(id, poseEstimate);
 
 	}
+
+	//cameras
 
 	for (qint64 id : _camVertices.keys()) {
 
@@ -359,6 +469,36 @@ bool GraphCameraCalibrator::writeResults() {
 			cam->setOptimizedB1(static_cast<float>(be.x()));
 			cam->setOptimizedB2(static_cast<float>(be.y()));
 		}
+
+	}
+
+	//stereo rigs
+
+	for (qint64 id : _StereoRigPoseVertices.keys()) {
+
+		StereoRig* rig =_currentProject->getDataBlock<StereoRig>(id);
+		rig->clearOptimized();
+
+		VertexCameraPose* rgv = _StereoRigPoseVertices.value(id);
+
+		const CameraPose & e = rgv->estimate();
+
+		Eigen::Vector3d t = e.t();
+		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormulaD(e.r());
+
+		floatParameterGroup<3> pos;
+		pos.value(0) = static_cast<float>(t.x());
+		pos.value(1) = static_cast<float>(t.y());
+		pos.value(2) = static_cast<float>(t.z());
+		pos.setIsSet();
+		rig->setOptOffset(pos);
+
+		floatParameterGroup<3> rot;
+		rot.value(0) = static_cast<float>(r.x());
+		rot.value(1) = static_cast<float>(r.y());
+		rot.value(2) = static_cast<float>(r.z());
+		rot.setIsSet();
+		rig->setOptOffsetRot(rot);
 
 	}
 

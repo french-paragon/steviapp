@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
+include(CheckCXXCompilerFlag)
 project(steviapp LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -10,6 +11,27 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp -march=native -ftree-vectorize")
+
+#SIMD for x86
+check_cxx_compiler_flag("-mavx" AVXSUPPORTED)
+check_cxx_compiler_flag("-mavx2" AVX2SUPPORTED)
+check_cxx_compiler_flag("-mfma" FMASUPPORTED)
+
+if (AVXSUPPORTED)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mavx")
+endif()
+
+if (AVX2SUPPORTED)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mavx2")
+endif()
+
+if (FMASUPPORTED)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mfma")
+endif()
+
 
 # QtCreator supports the following variables for Android, which are identical to qmake Android variables.
 # Check http://doc.qt.io/qt-5/deployment-android.html for more information.

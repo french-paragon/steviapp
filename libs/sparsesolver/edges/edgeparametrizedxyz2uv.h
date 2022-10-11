@@ -20,7 +20,7 @@ class VertexCameraTangentialDistortion;
 class VertexCameraSkewDistortion;
 
 /*!
- * \brief project fumnction represent the camera model for general point projection from reference to pixel coordinate.
+ * \brief project function represent the camera model for general point projection from reference to pixel coordinate.
  * \param pose the pose of the camera in the reference system
  * \param point the point coordinate in the reference system
  * \param cam the intrisic parameters of the camera

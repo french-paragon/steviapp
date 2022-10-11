@@ -274,6 +274,7 @@ QAction* ImageBaseActionManager::createAddToCalibrationAction(QObject* parent, P
 QAction* ImageBaseActionManager::createAssignToStereoRigAction(QObject* parent, Project* p, const QVector<Image *> &ims) const {
 
 	bool ok = true;
+	int countActions = 0;
 
 	QAction* assignToStereoRig = new QAction(tr("Assign to stereo rig"), parent);
 
@@ -293,10 +294,21 @@ QAction* ImageBaseActionManager::createAssignToStereoRigAction(QObject* parent, 
 
 		if (rig != nullptr) {
 
-			if (rig->getPairForImage(ims[0]->internalId()) != nullptr or
-					rig->getPairForImage(ims[1]->internalId()) != nullptr) {
-				ok = false;
-				break;
+			ImagePair* pairImg1 = rig->getPairForImage(ims[0]->internalId());
+			ImagePair* pairImg2 = rig->getPairForImage(ims[1]->internalId());
+
+			if ( pairImg1 != nullptr and
+					pairImg2 != nullptr) {
+
+				if (pairImg1 == pairImg2) {
+					ok = false;
+					break;
+				}
+			}
+
+			if (pairImg1 != nullptr or
+					pairImg2 != nullptr) {
+				continue;
 			}
 
 			QAction* toRig = new QAction(rig->objectName(), assignToStereoRig);
@@ -304,11 +316,12 @@ QAction* ImageBaseActionManager::createAssignToStereoRigAction(QObject* parent, 
 				rig->insertImagePair(ims[0]->internalId(), ims[1]->internalId());
 			});
 			rigMenu->addAction(toRig);
+			countActions++;
 		}
 
 	}
 
-	if (ok) {
+	if (ok and countActions > 0) {
 		assignToStereoRig->setMenu(rigMenu);
 		return assignToStereoRig;
 	} else {

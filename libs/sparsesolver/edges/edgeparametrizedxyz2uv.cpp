@@ -14,6 +14,8 @@
 
 #include <cmath>
 
+#include <QDebug>
+
 namespace StereoVisionApp {
 
 Eigen::Vector2d project(const CameraPose & pose,
@@ -28,7 +30,14 @@ Eigen::Vector2d project(const CameraPose & pose,
 		return {NAN, NAN};
 	}
 
-	Eigen::Vector2d proj = StereoVision::Geometry::projectPointsD(Pbar);
+	Eigen::Array3Xd pt;
+	pt.resize(3,1);
+	pt(0,0) = Pbar.x();
+	pt(1,0) = Pbar.y();
+	pt(2,0) = Pbar.z();
+
+	Eigen::Array2Xd projtmp = StereoVision::Geometry::projectPointsD(pt);
+	Eigen::Vector2d proj(projtmp(0,0),projtmp(1,0));
 
 	Eigen::Vector2d dRadial = Eigen::Vector2d::Zero();
 	Eigen::Vector2d dTangential = Eigen::Vector2d::Zero();
@@ -44,7 +53,8 @@ Eigen::Vector2d project(const CameraPose & pose,
 	proj += dRadial + dTangential;
 
 	if (s_dist.has_value()) {
-		return StereoVision::Geometry::skewDistortionD(proj, s_dist.value(), cam.f(), cam.pp());
+		Eigen::Vector2d final = StereoVision::Geometry::skewDistortionD(proj, s_dist.value(), cam.f(), cam.pp());
+		return final;
 	}
 
 	return cam.f()*proj + cam.pp();
@@ -92,12 +102,33 @@ void EdgeParametrizedXYZ2UV::computeError () {
 	const VertexCameraSkewDistortion * s_dist = (_vertices.size() > 5) ? static_cast<const VertexCameraSkewDistortion*>(_vertices[5]) : nullptr;
 
 	Eigen::Vector2d obs = _measurement;
-	Eigen::Vector2d proj = project(pose->estimate(),
-								   point->estimate(),
-								   cam->estimate(),
-								   r_dist->estimate(),
-								   t_dist->estimate(),
-								   s_dist->estimate());
+
+	auto pose_est = pose->estimate();
+	auto point_est = point->estimate();
+	auto cam_est = cam->estimate();
+
+	std::optional<Eigen::Vector3d> rdist_est = std::nullopt;
+	std::optional<Eigen::Vector2d> tdist_est = std::nullopt;
+	std::optional<Eigen::Vector2d> sdist_est = std::nullopt;
+
+	if (r_dist != nullptr) {
+		rdist_est = r_dist->estimate();
+	}
+
+	if (t_dist != nullptr) {
+		tdist_est = t_dist->estimate();
+	}
+
+	if (s_dist != nullptr) {
+		sdist_est = s_dist->estimate();
+	}
+
+	Eigen::Vector2d proj = project(pose_est,
+								   point_est,
+								   cam_est,
+								   rdist_est,
+								   tdist_est,
+								   sdist_est);
 
 	_error = proj - obs;
 

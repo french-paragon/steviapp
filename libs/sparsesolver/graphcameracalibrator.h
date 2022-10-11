@@ -41,6 +41,8 @@ public:
 
 protected:
 
+	bool activateStereoRigs();
+
 	bool init() override;
 	bool opt_step() override;
 	bool writeResults() override;
@@ -50,6 +52,9 @@ protected:
 
 	bool _sparse;
 	bool _not_first_step;
+	bool _stereo_rig_activated;
+
+	int _vid;
 
 	CameraCalibration* _currentCalibration;
 
@@ -59,6 +64,7 @@ protected:
 
 	QMap<qint64, CameraInnerVertexCollection> _camVertices;
 	QMap<qint64, VertexCameraPose*> _frameVertices;
+	QMap<qint64, VertexCameraPose*> _StereoRigPoseVertices;
 };
 
 } // namespace StereoVisionApp
