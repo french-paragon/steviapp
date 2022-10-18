@@ -521,6 +521,27 @@ void Camera::setImSize(const QSize &imSize)
 {
 	if (_imSize != imSize) {
 		_imSize = imSize;
+		Q_EMIT imSizeChanged();
+	}
+}
+
+int Camera::imWidth() const {
+	return _imSize.width();
+}
+void Camera::setImWidth(int width) {
+	if (_imSize.width() != width) {
+		_imSize.setWidth(width);
+		Q_EMIT imSizeChanged();
+	}
+}
+
+int Camera::imHeight() const {
+	return _imSize.height();
+}
+void Camera::setImHeight(int height) {
+	if (_imSize.height() != height) {
+		_imSize.setHeight(height);
+		Q_EMIT imSizeChanged();
 	}
 }
 
@@ -734,6 +755,16 @@ void Camera::extendDataModel() {
 																												&Camera::fLen,
 																												&Camera::setFLen,
 																												&Camera::FLenChanged);
+
+	p->addCatProperty<int, Camera, false, ItemDataModel::ItemPropertyDescription::NoValueSignal> (tr("Image width"),
+																								  &Camera::imWidth,
+																								  &Camera::setImWidth,
+																								  &Camera::imSizeChanged);
+
+	p->addCatProperty<int, Camera, false, ItemDataModel::ItemPropertyDescription::NoValueSignal> (tr("Image height"),
+																								  &Camera::imHeight,
+																								  &Camera::setImHeight,
+																								  &Camera::imSizeChanged);
 
 	p->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Optical center X"),
 																												&Camera::opticalCenterX,

@@ -18,6 +18,12 @@ public:
 	QSize imSize() const;
 	void setImSize(const QSize &imSize);
 
+	int imWidth() const;
+	void setImWidth(int width);
+
+	int imHeight() const;
+	void setImHeight(int height);
+
 	floatParameter fLen() const;
 	float fLenY() const;
 	void setFLen(const floatParameter &f_pix);
