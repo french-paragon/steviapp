@@ -33,6 +33,8 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 
 int addImagesToCalibration(QList<qint64> imagesIds, qint64 calibId, Project* p);
 
+int detectHexagonalTargets(QList<qint64> imagesIds, Project* p);
+
 
 QTextStream& printImagesRelativePositions(QTextStream & stream, QVector<qint64> imagesIds, Project* p);
 

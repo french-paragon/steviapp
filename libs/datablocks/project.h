@@ -64,6 +64,24 @@ public:
 		return qobject_cast<T*>(getById(internalId));
 	}
 
+	template<class T>
+	T* getDataBlockByName(QString name) const {
+
+		for (QString type : _idsByTypes.keys()) {
+			for (qint64 id : _idsByTypes.value(type)) {
+				T* cand = getDataBlock<T>(id);
+
+				if (cand != nullptr) {
+					if (cand->objectName() == name) {
+						return cand;
+					}
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
 	QVector<qint64> getIds() const;
 	QVector<qint64> getIdsByClass(QString const& className) const;
 	int countTypeInstances(QString type) const;

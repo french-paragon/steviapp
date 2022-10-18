@@ -10,12 +10,17 @@
 #include "interpolation/lensdistortionsmap.h"
 #include "geometry/stereorigrectifier.h"
 
+#include "imageProcessing/hexagonalRGBTargetsDetection.h"
+
+#include "io/image_io.h"
+
 #include "vision/imageio.h"
 
 #include "sparsesolver/helperfunctions.h"
 
 #include "mainwindow.h"
 #include "gui/rectifiedimageexportoptionsdialog.h"
+#include "gui/hexagonaltargetdetectionoptionsdialog.h"
 
 #include <QFileInfo>
 #include <QDir>
@@ -598,6 +603,165 @@ int addImagesToCalibration(QList<qint64> imagesIds, qint64 calibId, Project* p) 
 	}
 
 	return treated;
+
+}
+
+int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
+
+	if (p == nullptr) {
+		return 0; //no processing without projects
+	}
+
+	MainWindow* mw = MainWindow::getActiveMainWindow();
+
+	double minThreshold = 80;
+	double diffThreshold = 30;
+
+	int minArea = 10;
+	int maxArea = 800;
+
+	double minToMaxAxisRatioThreshold = 0.6;
+	double hexRelMaxDiameter = 0.2;
+
+	double redGain = 1.1;
+	double greenGain = 1.1;
+	double blueGain = 1.0;
+
+	bool clearPrevious = false;
+
+	if (mw != nullptr) {
+
+		HexagonalTargetDetectionOptionsDialog od(mw);
+		od.setModal(true);
+
+		od.setMinThreshold(minThreshold);
+		od.setDiffThreshold(diffThreshold);
+
+		od.setMinArea(minArea);
+		od.setMaxArea(maxArea);
+
+		od.setMinToMaxAxisRatioThreshold(minToMaxAxisRatioThreshold);
+
+		od.setHexagonMaxRelDiameter(hexRelMaxDiameter);
+
+		od.setRedGain(redGain);
+		od.setGreenGain(greenGain);
+		od.setBlueGain(blueGain);
+
+		od.setReplaceOld(clearPrevious);
+
+
+		int code = od.exec();
+
+		if (code != QDialog::Accepted) {
+			return 0;
+		}
+
+		minThreshold = od.minThreshold();
+		diffThreshold = od.diffThreshold();
+
+		maxArea = od.maxArea();
+		minArea = od.minArea();
+
+		minToMaxAxisRatioThreshold = od.minToMaxAxisRatioThreshold();
+		hexRelMaxDiameter = od.hexagonMaxRelDiameter();
+
+		redGain = od.redGain();
+		greenGain = od.greenGain();
+		blueGain = od.blueGain();
+
+		clearPrevious = od.replaceOld();
+
+	}
+
+	int nImgsProcessed = 0;
+
+	for (qint64 id : imagesIds) {
+
+		Image* image = p->getDataBlock<Image>(id);
+
+		if (image == nullptr) {
+			continue;
+		}
+
+		Multidim::Array<uint8_t, 3> img = StereoVision::IO::readImage<uint8_t>(image->getImageFile().toStdString());
+
+		if (img.empty()) {
+			continue;
+		}
+
+		constexpr StereoVision::Color::RedGreenBlue MC = StereoVision::Color::Blue;
+		constexpr StereoVision::Color::RedGreenBlue PC = StereoVision::Color::Green;
+		constexpr StereoVision::Color::RedGreenBlue NC = StereoVision::Color::Red;
+
+		std::vector<StereoVision::ImageProcessing::HexRgbTarget::HexTargetPosition> targets =
+			StereoVision::ImageProcessing::HexRgbTarget::detectHexTargets<uint8_t, MC, PC, NC>
+				(img,
+				 minThreshold,
+				 diffThreshold,
+				 minArea,
+				 maxArea,
+				 minToMaxAxisRatioThreshold,
+				 hexRelMaxDiameter,
+				 redGain,
+				 greenGain,
+				 blueGain);
+
+		nImgsProcessed++;
+
+		for (StereoVision::ImageProcessing::HexRgbTarget::HexTargetPosition & target : targets) {
+
+			QString colorCode = "RRRRR";
+
+
+			for (int i = 0; i < 5; i++) {
+				if (target.dotsPositives[i]) {
+					colorCode[i] = 'G';
+				}
+			}
+
+			QString lmNameBase = QString("HexaTarget_%1").arg(colorCode);
+
+			for (int i = 0; i < 6; i++) {
+				QString lmName = lmNameBase + QString("_%1").arg(i+1);
+
+				Landmark* target_lm = p->getDataBlockByName<Landmark>(lmName);
+
+				if (target_lm == nullptr) { //create the landmark if it does not exist.
+					qint64 id = p->createDataBlock(LandmarkFactory::landmarkClassName().toStdString().c_str());
+
+					target_lm = p->getDataBlock<Landmark>(id);
+					target_lm->setObjectName(lmName);
+				}
+
+				Eigen::Vector2f pos;
+
+				if (i == 0) {
+					pos = target.posRefDot;
+				} else {
+					pos = target.dotsPositions[i-1];
+				}
+
+				ImageLandmark* im_lm = image->getImageLandmarkByLandmarkId(target_lm->internalId());
+
+				if (im_lm == nullptr) {
+
+					qint64 imlm_id = image->addImageLandmark(QPointF(pos.y(), pos.x()), target_lm->internalId(), true, 3.0);
+					im_lm = image->getImageLandmark(imlm_id);
+
+				} else if (!clearPrevious) {
+					continue;
+				}
+
+				im_lm->setX(pos.y());
+				im_lm->setY(pos.x());
+			}
+
+		}
+
+	}
+
+	return nImgsProcessed;
 
 }
 

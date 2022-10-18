@@ -135,6 +135,12 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 	});
 	lst.append(exportRectified);
 
+	QAction* detectHexaTarget = new QAction(tr("Detect hexagonal targets"), parent);
+	connect(detectHexaTarget, &QAction::triggered, [im] () {
+		detectHexagonalTargets({im->internalId()}, im->getProject());
+	});
+	lst.append(detectHexaTarget);
+
 	QAction* addToCalibration = createAddToCalibrationAction(parent, im->getProject(), {im});
 
 	lst.append(addToCalibration);
@@ -193,6 +199,12 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 	if (exportForStereoRig != nullptr) {
 		lst.append(exportForStereoRig);
 	}
+
+	QAction* detectHexaTarget = new QAction(tr("Detect hexagonal targets"), parent);
+	connect(detectHexaTarget, &QAction::triggered, [p, imIds] () {
+		detectHexagonalTargets(imIds.toList(), p);
+	});
+	lst.append(detectHexaTarget);
 
 
 	QAction* printRelPose = new QAction(tr("Print relative poses"), parent);

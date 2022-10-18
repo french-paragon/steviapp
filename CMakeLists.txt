@@ -53,6 +53,9 @@ find_package(exiv2 REQUIRED CONFIG NAMES exiv2)
 find_package(Eigen3 3.3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 #configure submodules
 add_subdirectory(modules)
 include_directories(${MODULES_INCLUDE_DIRECTORIES} libs)
@@ -100,4 +103,4 @@ add_executable(steviapp
 target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(steviapp PRIVATE exiv2)
 
-target_link_libraries(steviapp PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB})
+target_link_libraries(steviapp PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} Threads::Threads)

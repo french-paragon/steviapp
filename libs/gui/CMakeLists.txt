@@ -50,6 +50,9 @@ set(LIB_SRC imagewidget.cpp
             cameracalibrationoptionsdialog.cpp
             cameracalibrationoptionsdialog.h
             cameracalibrationoptionsdialog.ui
+            hexagonaltargetdetectionoptionsdialog.cpp
+            hexagonaltargetdetectionoptionsdialog.h
+            hexagonaltargetdetectionoptionsdialog.ui
 )
 
 add_library(
