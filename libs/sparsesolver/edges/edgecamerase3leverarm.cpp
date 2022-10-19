@@ -43,9 +43,9 @@ void EdgeCameraSE3LeverArm::computeError() {
 	const VertexXjType* v2 = static_cast<const VertexXjType*>(_vertices[1]);
 	VertexXjType::EstimateType cam2toWorld = v2->estimate();
 
-	VertexXiType::EstimateType cam1tocam2 = cam1toWorld*cam2toWorld.inverse();
+	VertexXiType::EstimateType cam1tocam2 = cam1toWorld.applySE3(cam2toWorld.inverseSE3());
 
-	VertexXiType::EstimateType q = cam1tocam2 * _measurement;
+	VertexXiType::EstimateType q = cam1tocam2.applySE3(_measurement);
 	_error = q.log(); //implementation using Rodriguez formula.
 }
 
@@ -86,8 +86,6 @@ bool EdgeCameraParametrizedSE3LeverArm::write(std::ostream& os) const {
 
 void EdgeCameraParametrizedSE3LeverArm::computeError() {
 
-	qDebug() << "EdgeCameraParametrizedSE3LeverArm compute error";
-
 	const VertexCameraPose* v1 = static_cast<const VertexCameraPose*>(_vertices[0]);
 	VertexCameraPose::EstimateType cam1toWorld = v1->estimate();
 	const VertexCameraPose* v2 = static_cast<const VertexCameraPose*>(_vertices[1]);
@@ -96,9 +94,9 @@ void EdgeCameraParametrizedSE3LeverArm::computeError() {
 	const VertexCameraPose* v3 = static_cast<const VertexCameraPose*>(_vertices[2]);
 	VertexCameraPose::EstimateType relativePose = v3->estimate();
 
-	VertexCameraPose::EstimateType cam1tocam2 = cam1toWorld*cam2toWorld.inverse();
+	VertexCameraPose::EstimateType cam1tocam2 = cam1toWorld.applySE3(cam2toWorld.inverseSE3());
 
-	VertexCameraPose::EstimateType q = cam1tocam2 * relativePose.inverse() * _measurement;
+	VertexCameraPose::EstimateType q = cam1tocam2.applySE3(relativePose.inverseSE3()).applySE3(_measurement);
 	_error = q.log(); //implementation using Rodriguez formula.
 
 }

@@ -38,6 +38,8 @@ public:
 	CameraPose& operator*= (CameraPose const& other);
 	CameraPose operator* (CameraPose const& other);
 
+	CameraPose applySE3 (CameraPose const& other);
+
 	friend std::istream & operator>> (std::istream & in, CameraPose & cam);
 	friend std::ostream & operator<< (std::ostream & out, CameraPose const& cam);
 
@@ -49,7 +51,17 @@ public:
 	inline Eigen::Vector3d translation() const { return t(); }
 	void setT(const Eigen::Vector3d &t);
 
+	/*!
+	 * \brief inverse return the inverse in SO(3) x R3
+	 * \return the inverse of the rotation and translation independently.
+	 */
 	CameraPose inverse() const;
+
+	/*!
+	 * \brief inverseSE3 return the inverse in SE(3)
+	 * \return the inverse of the rotation and translation as joint action (first rotation then translation.
+	 */
+	CameraPose inverseSE3() const;
 
 	Vector6d log() const;
 	static CameraPose exp(Vector6d const& log);

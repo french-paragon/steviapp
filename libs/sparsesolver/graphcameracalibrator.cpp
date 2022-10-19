@@ -294,6 +294,55 @@ bool GraphCameraCalibrator::initialize() {
 
 }
 
+
+CameraPose::Vector6d GraphCameraCalibrator::meanLogRigOffset(QVector<ImagePair*> const& imgPairs) const {
+
+	int nMeasures = 0;
+	CameraPose::Vector6d meanLog = CameraPose::Vector6d::Zero();
+
+	for (ImagePair* imp : imgPairs) {
+		VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
+		VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam2());
+
+		CameraPose cam1toworld = vcam1->estimate();
+		CameraPose cam2toworld = vcam2->estimate();
+
+		CameraPose cam2tocam1 = cam2toworld.applySE3(cam1toworld.inverseSE3());
+
+		meanLog += cam2tocam1.log();
+		nMeasures++;
+	}
+
+	meanLog /= nMeasures;
+
+	return meanLog;
+}
+
+CameraPose::Vector6d GraphCameraCalibrator::stdLogRigOffset(QVector<ImagePair*> const& imgPairs, CameraPose::Vector6d const& mean) const {
+
+	int nMeasures = 0;
+	CameraPose::Vector6d varLog = CameraPose::Vector6d::Zero();
+
+	for (ImagePair* imp : imgPairs) {
+		VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
+		VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam2());
+
+		CameraPose cam1toworld = vcam1->estimate();
+		CameraPose cam2toworld = vcam2->estimate();
+
+		CameraPose cam2tocam1 = cam2toworld.applySE3(cam1toworld.inverseSE3());
+
+		CameraPose::Vector6d delta = cam2tocam1.log() - mean;
+		varLog += (delta.array()*delta.array()).matrix();
+		nMeasures++;
+	}
+
+	varLog /= nMeasures-1;
+
+	return varLog;
+
+}
+
 bool GraphCameraCalibrator::activateStereoRigs() {
 
 	//stereo rigs
@@ -323,51 +372,95 @@ bool GraphCameraCalibrator::activateStereoRigs() {
 				continue;
 			}
 
-			VertexCameraPose* vRig = new VertexCameraPose();
-			vRig->setId(_vid++);
-			vRig->setMarginalized(false);
-			vRig->setReferedDatablock(rg);
+			bool hasPrior = true;
+			hasPrior = hasPrior and rg->offsetX().isSet();
+			hasPrior = hasPrior and rg->offsetY().isSet();
+			hasPrior = hasPrior and rg->offsetZ().isSet();
+			hasPrior = hasPrior and rg->offsetRotX().isSet();
+			hasPrior = hasPrior and rg->offsetRotY().isSet();
+			hasPrior = hasPrior and rg->offsetRotZ().isSet();
 
-			int nMeasures = 0;
-			CameraPose::Vector6d meanLog = CameraPose::Vector6d::Zero();
+			if (hasPrior) {
 
-			for (ImagePair* imp : pairsInCalibration) {
-				VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
-				VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam1());
+				for (ImagePair* imp : pairsInCalibration) {
 
-				CameraPose cam1toworld = vcam1->estimate();
-				CameraPose cam2toworld = vcam2->estimate();
+					VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
+					VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam2());
 
-				CameraPose cam2tocam1 = cam2toworld * cam1toworld.inverse();
+					Eigen::Vector3d t;
+					t.x() = rg->offsetX().value();
+					t.y() = rg->offsetY().value();
+					t.z() = rg->offsetZ().value();
 
-				meanLog += cam2tocam1.log();
-				nMeasures++;
-			}
+					float eX = rg->offsetRotX().value();
+					float eY = rg->offsetRotY().value();
+					float eZ = rg->offsetRotZ().value();
 
-			meanLog /= nMeasures;
+					Eigen::Matrix3d R = StereoVision::Geometry::eulerDegXYZToRotation(eX, eY, eZ).cast<double>();
 
-			CameraPose cam2tocam1_est = CameraPose::exp(meanLog);
+					CameraPose cam2tocam1Prior(R, t);
 
-			vRig->setEstimate(cam2tocam1_est);
-			_StereoRigPoseVertices.insert(rg->internalId(), vRig);
+					EdgeCameraSE3LeverArm* e = new EdgeCameraSE3LeverArm();
+					e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(vcam1));
+					e->setVertex(1, static_cast<g2o::OptimizableGraph::Vertex*>(vcam2));
 
-			_optimizer->addVertex(vRig);
+					e->setMeasurement(cam2tocam1Prior);
 
-			for (ImagePair* imp : pairsInCalibration) {
-				VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
-				VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam1());
+					if (rg->offsetX().isUncertain() and rg->offsetY().isUncertain() and rg->offsetZ().isUncertain() and
+						rg->offsetRotX().isUncertain() and rg->offsetRotY().isUncertain() and rg->offsetRotZ().isUncertain()) {
 
-				EdgeCameraParametrizedSE3LeverArm* e = new EdgeCameraParametrizedSE3LeverArm();
-				e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(vcam1));
-				e->setVertex(1, static_cast<g2o::OptimizableGraph::Vertex*>(vcam2));
-				e->setVertex(2, static_cast<g2o::OptimizableGraph::Vertex*>(vRig));
+						EdgeCameraSE3LeverArm::InformationType info = EdgeCameraSE3LeverArm::InformationType::Identity();
+						info(0,0) = 1./(rg->offsetX().stddev()*rg->offsetX().stddev());
+						info(1,1) = 1./(rg->offsetY().stddev()*rg->offsetY().stddev());
+						info(2,2) = 1./(rg->offsetZ().stddev()*rg->offsetZ().stddev());
+						info(3,3) = 1./(rg->offsetRotX().stddev()*rg->offsetRotX().stddev());
+						info(4,4) = 1./(rg->offsetRotY().stddev()*rg->offsetRotY().stddev());
+						info(5,5) = 1./(rg->offsetRotZ().stddev()*rg->offsetRotZ().stddev());
 
-				EdgeCameraParametrizedSE3LeverArm::InformationType info = EdgeCameraParametrizedSE3LeverArm::InformationType::Identity();
+						e->setInformation(info);
 
-				e->setInformation(info);
+					} else {
+						e->setInformation(EdgeCameraSE3LeverArm::InformationType::Identity());
+					}
 
-				_optimizer->addEdge(e);
+					_optimizer->addEdge(e);
 
+				}
+
+				_StereoRigToEstimate.insert(rg->internalId(), pairsInCalibration);
+
+			} else {
+				//need to estimate the pose ourselves
+				VertexCameraPose* vRig = new VertexCameraPose();
+				vRig->setId(_vid++);
+				vRig->setMarginalized(false);
+				vRig->setReferedDatablock(rg);
+
+				CameraPose::Vector6d meanLog = meanLogRigOffset(pairsInCalibration);
+
+				CameraPose cam2tocam1_est = CameraPose::exp(meanLog);
+
+				vRig->setEstimate(cam2tocam1_est);
+				_StereoRigPoseVertices.insert(rg->internalId(), vRig);
+
+				_optimizer->addVertex(vRig);
+
+				for (ImagePair* imp : pairsInCalibration) {
+					VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
+					VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam2());
+
+					EdgeCameraParametrizedSE3LeverArm* e = new EdgeCameraParametrizedSE3LeverArm();
+					e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(vcam1));
+					e->setVertex(1, static_cast<g2o::OptimizableGraph::Vertex*>(vcam2));
+					e->setVertex(2, static_cast<g2o::OptimizableGraph::Vertex*>(vRig));
+
+					EdgeCameraParametrizedSE3LeverArm::InformationType info = EdgeCameraParametrizedSE3LeverArm::InformationType::Identity();
+
+					e->setInformation(info);
+
+					_optimizer->addEdge(e);
+
+				}
 			}
 
 		}
@@ -473,6 +566,36 @@ bool GraphCameraCalibrator::writeResults() {
 	}
 
 	//stereo rigs
+
+	if (_StereoRigPoseVertices.empty()) {
+
+		for (qint64 id : _StereoRigToEstimate.keys()) {
+
+			StereoRig* rig =_currentProject->getDataBlock<StereoRig>(id);
+			rig->clearOptimized();
+
+			CameraPose::Vector6d meanLog = meanLogRigOffset(_StereoRigToEstimate[id]);
+
+			Eigen::Vector3d r = meanLog.block<3, 1>(0, 0);
+			Eigen::Vector3d t = meanLog.block<3, 1>(3, 0);
+
+			floatParameterGroup<3> pos;
+			pos.value(0) = static_cast<float>(t.x());
+			pos.value(1) = static_cast<float>(t.y());
+			pos.value(2) = static_cast<float>(t.z());
+			pos.setIsSet();
+			rig->setOptOffset(pos);
+
+			floatParameterGroup<3> rot;
+			rot.value(0) = static_cast<float>(r.x());
+			rot.value(1) = static_cast<float>(r.y());
+			rot.value(2) = static_cast<float>(r.z());
+			rot.setIsSet();
+			rig->setOptOffsetRot(rot);
+
+		}
+
+	}
 
 	for (qint64 id : _StereoRigPoseVertices.keys()) {
 

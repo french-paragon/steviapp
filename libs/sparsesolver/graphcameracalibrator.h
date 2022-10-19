@@ -6,9 +6,12 @@
 #include "./vertices/vertexcameraparam.h"
 #include "./vertices/vertexlandmarkpos.h"
 
+#include "./vertices/camerapose.h"
+
 #include "initialsolution.h"
 
 #include <QMap>
+#include <QVector>
 
 namespace g2o {
 	class SparseOptimizer;
@@ -26,6 +29,7 @@ class VertexCameraPose;
 
 class Project;
 class CameraCalibration;
+class ImagePair;
 
 class GraphCameraCalibrator : public SparseSolverBase
 {
@@ -41,6 +45,8 @@ public:
 
 protected:
 
+	CameraPose::Vector6d meanLogRigOffset(QVector<ImagePair*> const& imgPairs) const;
+	CameraPose::Vector6d stdLogRigOffset(QVector<ImagePair*> const& imgPairs, CameraPose::Vector6d const& mean) const;
 	bool activateStereoRigs();
 
 	bool init() override;
@@ -65,6 +71,7 @@ protected:
 	QMap<qint64, CameraInnerVertexCollection> _camVertices;
 	QMap<qint64, VertexCameraPose*> _frameVertices;
 	QMap<qint64, VertexCameraPose*> _StereoRigPoseVertices;
+	QMap<qint64, QVector<ImagePair*>> _StereoRigToEstimate;
 };
 
 } // namespace StereoVisionApp

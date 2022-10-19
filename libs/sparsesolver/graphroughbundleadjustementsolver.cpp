@@ -559,6 +559,8 @@ bool GraphRoughBundleAdjustementSolver::init() {
 					CameraPose cam2tocam1Prior(R, t);
 
 					EdgeCameraSE3LeverArm* e = new EdgeCameraSE3LeverArm();
+					e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(v1));
+					e->setVertex(1, static_cast<g2o::OptimizableGraph::Vertex*>(v2));
 
 					e->setMeasurement(cam2tocam1Prior);
 

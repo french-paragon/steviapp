@@ -50,6 +50,10 @@ CameraPose CameraPose::operator* (CameraPose const& other) {
 	return CameraPose(_r*other.r(), _t + other.t());
 }
 
+CameraPose CameraPose::applySE3 (CameraPose const& other) {
+	return CameraPose(_r*other.r(), _t + _r*other.t());
+}
+
 Eigen::Matrix3d CameraPose::r() const
 {
 	return _r;
@@ -72,6 +76,9 @@ void CameraPose::setT(const Eigen::Vector3d &t)
 
 CameraPose CameraPose::inverse() const {
 	return CameraPose(_r.transpose(), -_t);
+}
+CameraPose CameraPose::inverseSE3() const {
+	return CameraPose(_r.transpose(), _r.transpose()*(-_t));
 }
 
 
