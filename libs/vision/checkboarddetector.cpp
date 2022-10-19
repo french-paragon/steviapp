@@ -92,12 +92,7 @@ bool CheckboardDetector::doNextStep() {
 		}
 	}
 
-	qDebug() << "Detecting checkboard in image " << imageFile;
-
 	auto candidates = StereoVision::checkBoardCornersCandidates(gray, 1, 2, _lambda_threshold); //TODO: make the parameters editables
-
-	qDebug() << "Found " << candidates.size() << " candidates";
-
 	if (candidates.size() < 9) {
 
 		Q_EMIT processedImage(imgId,
@@ -108,8 +103,6 @@ bool CheckboardDetector::doNextStep() {
 	}
 
 	auto filtereds = StereoVision::checkBoardFilterCandidates(gray, candidates, _filter_failure_threshold, _filter_error_threshold);
-
-	qDebug() << "Filtered " << filtereds.size() << " candidates";
 
 	if (filtereds.size() < 9) {
 
@@ -123,8 +116,6 @@ bool CheckboardDetector::doNextStep() {
 
 	auto selected = StereoVision::isolateCheckBoard(filtereds, 0.3, 0.25);
 
-	qDebug() << "Selected " << selected.nPointsFound() << " candidates";
-
 	if (selected.nPointsFound() < 9) {
 
 		Q_EMIT processedImage(imgId,
@@ -136,11 +127,6 @@ bool CheckboardDetector::doNextStep() {
 	}
 
 	auto refined = StereoVision::refineCheckBoardCorners(gray, selected);
-
-	int refSize = refined.size();
-	int selectedSize = selected.nPointsFound();
-
-	qDebug() << "Refined " << refined.size() << " candidates";
 
 	Q_EMIT processedImage(imgId,
 						  QVector<StereoVision::discretCheckCornerInfos>(candidates.begin(), candidates.end()),
