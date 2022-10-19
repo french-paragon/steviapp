@@ -664,8 +664,8 @@ void SparseAlignementViewer::paintObjectIdMask() {
 			_lm_pos_id_buffer.release();
 			_scene_ids_vao.release();
 
-			_landMarkPointProgram->disableAttributeArray(vertexLocation);
-			_landMarkPointProgram->release();
+			_objIdProgram->disableAttributeArray(vertexLocation);
+			_objIdProgram->release();
 
 		}
 
@@ -697,7 +697,7 @@ void SparseAlignementViewer::paintObjectIdMask() {
 			camScale.scale(_camScale);
 
 			QMatrix4x4 camTransform = camPose*camScale;
-			_objFixedIdProgram->setUniformValue("matrixCamToScene", camTransform);
+			_objFixedIdProgram->setUniformValue("matrixObjToScene", camTransform);
 
 			//internal id
 			qint64 id = i;
@@ -718,6 +718,9 @@ void SparseAlignementViewer::paintObjectIdMask() {
 		_cam_buffer.release();
 		_cam_indices.release();
 		_scene_ids_vao.release();
+
+		_objFixedIdProgram->disableAttributeArray(vertexLocation);
+		_objFixedIdProgram->release();
 	}
 
 	if (_id_img == nullptr) {
