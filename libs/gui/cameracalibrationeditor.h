@@ -12,6 +12,7 @@ namespace StereoVisionApp {
 
 class CameraCalibration;
 class CheckboardPtsDrawable;
+class CheckboardPtsReprojDrawable;
 
 namespace Ui {
 class CameraCalibrationEditor;
@@ -59,6 +60,7 @@ private:
 	CameraCalibration* _currentCalib;
 
 	CheckboardPtsDrawable* _checkBoardDrawer;
+	CheckboardPtsReprojDrawable* _reprojectionDrawer;
 
 	QSortFilterProxyModel* _proxyModel;
 };
@@ -69,6 +71,25 @@ class CheckboardPtsDrawable : public ImageWidgetDrawable
 public:
 
 	explicit CheckboardPtsDrawable(QWidget *parent);
+
+	void setCalibration(CameraCalibration* calib);
+	void setImgId(qint64 id);
+
+protected:
+
+	void paintItemImpl(QPainter* painter) const override;
+
+	qint64 _id;
+	CameraCalibration* _calib;
+};
+
+
+class CheckboardPtsReprojDrawable : public ImageWidgetDrawable
+{
+	Q_OBJECT
+public:
+
+	explicit CheckboardPtsReprojDrawable(QWidget *parent);
 
 	void setCalibration(CameraCalibration* calib);
 	void setImgId(qint64 id);

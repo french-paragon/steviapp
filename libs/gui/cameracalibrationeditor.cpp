@@ -1,7 +1,12 @@
 #include "cameracalibrationeditor.h"
 #include "ui_cameracalibrationeditor.h"
 
+#include "geometry/rotations.h"
+#include "geometry/alignement.h"
+#include "geometry/lensdistortion.h"
+
 #include "datablocks/image.h"
+#include "datablocks/camera.h"
 #include "datablocks/cameracalibration.h"
 
 #include "vision/checkboarddetector.h"
@@ -27,7 +32,9 @@ CameraCalibrationEditor::CameraCalibrationEditor(QWidget *parent) :
 	ui->setupUi(this);
 
 	_checkBoardDrawer = new CheckboardPtsDrawable(this);
+	_reprojectionDrawer = new CheckboardPtsReprojDrawable(this);
 	ui->imageView->addDrawable(_checkBoardDrawer);
+	ui->imageView->addDrawable(_reprojectionDrawer);
 
 	_moveToNextImg = new QAction(tr("Next image"), this);
 	_moveToPrevImg = new QAction(tr("Previous image"), this);
@@ -64,6 +71,7 @@ void CameraCalibrationEditor::setCalibration(CameraCalibration* calib) {
 		ui->imageView->setImage(nullptr);
 		_proxyModel->setSourceModel(nullptr);
 		_checkBoardDrawer->setCalibration(nullptr);
+		_reprojectionDrawer->setCalibration(nullptr);
 		_currentCalib = nullptr;
 		return;
 	}
@@ -75,6 +83,7 @@ void CameraCalibrationEditor::setCalibration(CameraCalibration* calib) {
 	_currentCalib = calib;
 
 	_checkBoardDrawer->setCalibration(calib);
+	_reprojectionDrawer->setCalibration(calib);
 
 	if (imgsIds.size() > 0) {
 		moveToImage(0);
@@ -157,6 +166,7 @@ void CameraCalibrationEditor::moveToImage(int row) {
 				if (img != nullptr) {
 					ui->imageView->setImage(img);
 					_checkBoardDrawer->setImgId(id);
+					_reprojectionDrawer->setImgId(id);
 					_currentId = row;
 				}
 
@@ -396,6 +406,164 @@ void CheckboardPtsDrawable::paintItemImpl(QPainter* painter) const {
 		drawLine(painter, xDirection, QColor(125,0,0),2);
 		drawLine(painter, yDirection, QColor(0,125,0),2);
 	}
+
+}
+
+
+
+CheckboardPtsReprojDrawable::CheckboardPtsReprojDrawable(QWidget *parent) :
+	ImageWidgetDrawable(parent),
+	_id(-1),
+	_calib(nullptr)
+{
+
+}
+
+void CheckboardPtsReprojDrawable::setCalibration(CameraCalibration* calib) {
+	_calib = calib;
+}
+void CheckboardPtsReprojDrawable::setImgId(qint64 id) {
+	_id = id;
+}
+
+void CheckboardPtsReprojDrawable::paintItemImpl(QPainter* painter) const {
+	if (painter == nullptr) {
+		return;
+	}
+
+	if (_calib == nullptr) {
+		return;
+	}
+
+	if (!_calib->hasImage(_id)) {
+		return;
+	}
+
+	auto val = _calib->getImageCorners(_id);
+	auto imgTransform = _calib->getImageEstimatedPose(_id);
+
+	if (!imgTransform.has_value()) {
+		return;
+	}
+
+	auto pose = imgTransform.value();
+
+	Project* project = _calib->getProject();
+
+	if (project == nullptr) {
+		return;
+	}
+
+	Image* image = project->getDataBlock<Image>(_id);
+	Camera* camera = nullptr;
+
+	if (image != nullptr) {
+		camera = project->getDataBlock<Camera>(image->assignedCamera());
+	}
+
+	if (camera == nullptr) {
+		return;
+	}
+
+	if (camera != nullptr) {
+
+		if (!camera->optimizedFLen().isSet()) {
+			return;
+		}
+
+		if (!camera->optimizedOpticalCenterX().isSet()) {
+			return;
+		}
+
+		if (!camera->optimizedOpticalCenterY().isSet()) {
+			return;
+		}
+	}
+
+	if (val.has_value()) {
+
+		Eigen::Vector3d t;
+		t.x() = pose.value(0);
+		t.y() = pose.value(1);
+		t.z() = pose.value(2);
+
+		Eigen::Vector3d logR;
+		logR.x() = pose.value(3);
+		logR.y() = pose.value(4);
+		logR.z() = pose.value(5);
+
+		Eigen::Matrix3d R = StereoVision::Geometry::rodriguezFormulaD(logR);
+		float f = camera->optimizedFLen().value();
+
+		Eigen::Vector2d pp = Eigen::Vector2d::Zero();
+		pp[0] = camera->optimizedOpticalCenterX().value();
+		pp[1] = camera->optimizedOpticalCenterY().value();
+
+		Eigen::Vector3d k123 = Eigen::Vector3d::Zero();
+
+		if (camera->optimizedK1().isSet()) {
+			k123[0] = camera->optimizedK1().value();
+		}
+
+		if (camera->optimizedK2().isSet()) {
+			k123[1] = camera->optimizedK2().value();
+		}
+
+		if (camera->optimizedK3().isSet()) {
+			k123[2] = camera->optimizedK3().value();
+		}
+
+		Eigen::Vector2d p12 = Eigen::Vector2d::Zero();
+
+		if (camera->optimizedP1().isSet()) {
+			p12[0] = camera->optimizedP1().value();
+		}
+
+		if (camera->optimizedP2().isSet()) {
+			p12[1] = camera->optimizedP2().value();
+		}
+
+		QVector<StereoVision::refinedCornerInfos> corners = val.value();
+
+		QPolygonF points;
+		points.reserve(corners.size());
+
+		for (StereoVision::refinedCornerInfos const& corner : qAsConst(corners)) {
+
+			QPointF gridPos = _calib->gridPointXYCoordinate(QPoint(corner.grid_coord_x,corner.grid_coord_y));
+
+			Eigen::Vector3d point;
+			point.x() = gridPos.x();
+			point.y() = gridPos.y();
+			point.z() = 0;
+
+			Eigen::Vector3d Pbar = R.transpose()*(point - t);
+			if (Pbar[2] < 0.0) {
+				continue;
+			}
+
+			Eigen::Array3Xd pt;
+			pt.resize(3,1);
+			pt(0,0) = Pbar.x();
+			pt(1,0) = Pbar.y();
+			pt(2,0) = Pbar.z();
+
+			Eigen::Array2Xd projtmp = StereoVision::Geometry::projectPointsD(pt);
+			Eigen::Vector2d proj(projtmp(0,0),projtmp(1,0));
+
+			Eigen::Vector2d dRadial = StereoVision::Geometry::radialDistortionD(proj, k123);
+			Eigen::Vector2d dTangential = StereoVision::Geometry::tangentialDistortionD(proj, p12);
+
+			proj += dRadial + dTangential;
+
+			Eigen::Vector2d result = f*proj + pp;
+
+			points.push_back(QPointF(result.x()+0.5, result.y()+0.5));
+		}
+
+		drawPoints(painter, points, QColor(255, 0, 255), 3);
+	}
+
 
 }
 
