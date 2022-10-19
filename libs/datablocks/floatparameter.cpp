@@ -46,11 +46,17 @@ bool floatParameter::operator< (floatParameter const& other) const {
 	return _value < other.value();
 }
 bool floatParameter::operator== (floatParameter const& other) const {
-	return (other._isSet == _isSet) and (other._isUncertain == _isUncertain) and (other._value == _value) and (other._stddev == _stddev);
+	return (other._isSet == _isSet) and (other._isUncertain == _isUncertain) and (other._value == _value) and (!_isUncertain or (other._stddev == _stddev));
 }
 bool floatParameter::isApproximatlyEqual (floatParameter const& other, pFloatType tol) const {
 	if (_isSet and other.isSet() and other._isUncertain == _isUncertain) {
-		return std::abs(_value - other.value()) < tol;
+
+		if (_isUncertain) {
+			return std::abs(_value - other.value()) < tol and std::abs(_stddev - other.stddev()) < tol;
+		} else {
+			return std::abs(_value - other.value()) < tol;
+		}
+
 	} else {
 		return false;
 	}
@@ -277,7 +283,8 @@ floatParameter floatParameter::fromJson(QJsonObject const& obj) {
 
 	if (obj.contains("isUncertain")) {
 		QJsonValue v = obj.value("isUncertain");
-		if (v.toBool()) {
+		int code = v.toInt();
+		if (code) {
 			fp.setUncertainty();
 		}
 	}
