@@ -100,6 +100,31 @@ void StereoRig::setOffsetRotZ(const floatParameter &offset_rz)
 	}
 }
 
+
+
+
+floatParameter StereoRig::optOffsetX() const {
+	if (_o_offset.isUncertain()) {
+		return floatParameter(_o_offset.value(0), std::sqrt(_o_offset.stddev(0)));
+	} else {
+		return floatParameter(_o_offset.value(0));
+	}
+}
+floatParameter StereoRig::optOffsetY() const {
+	if (_o_offset.isUncertain()) {
+		return floatParameter(_o_offset.value(1), std::sqrt(_o_offset.stddev(1)));
+	} else {
+		return floatParameter(_o_offset.value(1));
+	}
+}
+floatParameter StereoRig::optOffsetZ() const {
+	if (_o_offset.isUncertain()) {
+		return floatParameter(_o_offset.value(2), std::sqrt(_o_offset.stddev(2)));
+	} else {
+		return floatParameter(_o_offset.value(2));
+	}
+}
+
 floatParameterGroup<3> StereoRig::optOffset() const {
 	return _o_offset;
 }
@@ -115,6 +140,29 @@ void StereoRig::clearOptOffset() {
 		_o_offset.clearIsSet();
 		emit optOffsetChanged();
 		isChanged();
+	}
+}
+
+
+floatParameter StereoRig::optOffsetRotX() const {
+	if (_o_offset.isUncertain()) {
+		return floatParameter(_o_offsetrot.value(0), std::sqrt(_o_offsetrot.stddev(0)));
+	} else {
+		return floatParameter(_o_offsetrot.value(0));
+	}
+}
+floatParameter StereoRig::optOffsetRotY() const {
+	if (_o_offset.isUncertain()) {
+		return floatParameter(_o_offsetrot.value(1), std::sqrt(_o_offsetrot.stddev(1)));
+	} else {
+		return floatParameter(_o_offsetrot.value(1));
+	}
+}
+floatParameter StereoRig::optOffsetRotZ() const {
+	if (_o_offset.isUncertain()) {
+		return floatParameter(_o_offsetrot.value(2), std::sqrt(_o_offsetrot.stddev(2)));
+	} else {
+		return floatParameter(_o_offsetrot.value(2));
 	}
 }
 
@@ -301,6 +349,42 @@ void StereoRig::extendDataModel() {
 																												  &StereoRig::offsetRotZ,
 																												  &StereoRig::setOffsetRotZ,
 																												  &StereoRig::offsetRotZChanged);
+
+
+
+	ItemDataModel::Category* op = _dataModel->addCategory(tr("Optimized properties"));
+
+	//Optimized Position
+	op->addCatProperty<floatParameter, StereoRig, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+																											   &StereoRig::optOffsetX,
+																											   nullptr,
+																											   &StereoRig::optOffsetChanged);
+
+	op->addCatProperty<floatParameter, StereoRig, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+																											   &StereoRig::optOffsetY,
+																											   nullptr,
+																											   &StereoRig::optOffsetChanged);
+
+	op->addCatProperty<floatParameter, StereoRig, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+																											   &StereoRig::optOffsetZ,
+																											   nullptr,
+																											   &StereoRig::optOffsetChanged);
+
+	//Optimized Rotation
+	op->addCatProperty<floatParameter, StereoRig, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Rot axis"),
+																											   &StereoRig::optOffsetRotX,
+																											   nullptr,
+																											   &StereoRig::optOffsetRotChanged);
+
+	op->addCatProperty<floatParameter, StereoRig, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Rot axis"),
+																											   &StereoRig::optOffsetRotY,
+																											   nullptr,
+																											   &StereoRig::optOffsetRotChanged);
+
+	op->addCatProperty<floatParameter, StereoRig, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Rot axis"),
+																											   &StereoRig::optOffsetRotZ,
+																											   nullptr,
+																											   &StereoRig::optOffsetRotChanged);
 
 	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Image Pairs"),
 																					  ImagePair::ImagePairClassName,

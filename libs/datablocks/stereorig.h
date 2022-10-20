@@ -36,13 +36,24 @@ public:
 	void setOffsetRotY(const floatParameter &offset_ry);
 	void setOffsetRotZ(const floatParameter &offset_rz);
 
+
+	floatParameter optOffsetX() const;
+	floatParameter optOffsetY() const;
+	floatParameter optOffsetZ() const;
+
 	floatParameterGroup<3> optOffset() const;
 	void setOptOffset(floatParameterGroup<3> const& o_pos);
 	void clearOptOffset();
 
+
+	floatParameter optOffsetRotX() const;
+	floatParameter optOffsetRotY() const;
+	floatParameter optOffsetRotZ() const;
+
 	floatParameterGroup<3> optOffsetRot() const;
 	void setOptOffsetRot(floatParameterGroup<3> const& o_rot);
 	void clearOptOffsetRot();
+
 
 	ImagePair* getImagePair(qint64 id) const;
 	qint64 insertImagePair(qint64 cam1ImgId, qint64 cam2ImgId);
