@@ -567,36 +567,34 @@ bool GraphCameraCalibrator::writeResults() {
 
 	//stereo rigs
 
-	if (_StereoRigPoseVertices.empty()) {
+	//rigs with prior
+	for (qint64 id : _StereoRigToEstimate.keys()) {
 
-		for (qint64 id : _StereoRigToEstimate.keys()) {
+		StereoRig* rig =_currentProject->getDataBlock<StereoRig>(id);
+		rig->clearOptimized();
 
-			StereoRig* rig =_currentProject->getDataBlock<StereoRig>(id);
-			rig->clearOptimized();
+		CameraPose::Vector6d meanLog = meanLogRigOffset(_StereoRigToEstimate[id]);
 
-			CameraPose::Vector6d meanLog = meanLogRigOffset(_StereoRigToEstimate[id]);
+		Eigen::Vector3d r = meanLog.block<3, 1>(0, 0);
+		Eigen::Vector3d t = meanLog.block<3, 1>(3, 0);
 
-			Eigen::Vector3d r = meanLog.block<3, 1>(0, 0);
-			Eigen::Vector3d t = meanLog.block<3, 1>(3, 0);
+		floatParameterGroup<3> pos;
+		pos.value(0) = static_cast<float>(t.x());
+		pos.value(1) = static_cast<float>(t.y());
+		pos.value(2) = static_cast<float>(t.z());
+		pos.setIsSet();
+		rig->setOptOffset(pos);
 
-			floatParameterGroup<3> pos;
-			pos.value(0) = static_cast<float>(t.x());
-			pos.value(1) = static_cast<float>(t.y());
-			pos.value(2) = static_cast<float>(t.z());
-			pos.setIsSet();
-			rig->setOptOffset(pos);
-
-			floatParameterGroup<3> rot;
-			rot.value(0) = static_cast<float>(r.x());
-			rot.value(1) = static_cast<float>(r.y());
-			rot.value(2) = static_cast<float>(r.z());
-			rot.setIsSet();
-			rig->setOptOffsetRot(rot);
-
-		}
+		floatParameterGroup<3> rot;
+		rot.value(0) = static_cast<float>(r.x());
+		rot.value(1) = static_cast<float>(r.y());
+		rot.value(2) = static_cast<float>(r.z());
+		rot.setIsSet();
+		rig->setOptOffsetRot(rot);
 
 	}
 
+	//rigs without prior
 	for (qint64 id : _StereoRigPoseVertices.keys()) {
 
 		StereoRig* rig =_currentProject->getDataBlock<StereoRig>(id);
