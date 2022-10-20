@@ -307,7 +307,7 @@ CameraPose::Vector6d GraphCameraCalibrator::meanLogRigOffset(QVector<ImagePair*>
 		CameraPose cam1toworld = vcam1->estimate();
 		CameraPose cam2toworld = vcam2->estimate();
 
-		CameraPose cam2tocam1 = cam2toworld.applySE3(cam1toworld.inverseSE3());
+		CameraPose cam2tocam1 = cam1toworld.inverseSE3().applySE3(cam2toworld);
 
 		meanLog += cam2tocam1.log();
 		nMeasures++;
@@ -382,23 +382,23 @@ bool GraphCameraCalibrator::activateStereoRigs() {
 
 			if (hasPrior) {
 
+				Eigen::Vector3d t;
+				t.x() = rg->offsetX().value();
+				t.y() = rg->offsetY().value();
+				t.z() = rg->offsetZ().value();
+
+				float eX = rg->offsetRotX().value();
+				float eY = rg->offsetRotY().value();
+				float eZ = rg->offsetRotZ().value();
+
+				Eigen::Matrix3d R = StereoVision::Geometry::eulerDegXYZToRotation(eX, eY, eZ).cast<double>();
+
+				CameraPose cam2tocam1Prior(R, t);
+
 				for (ImagePair* imp : pairsInCalibration) {
 
 					VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
 					VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam2());
-
-					Eigen::Vector3d t;
-					t.x() = rg->offsetX().value();
-					t.y() = rg->offsetY().value();
-					t.z() = rg->offsetZ().value();
-
-					float eX = rg->offsetRotX().value();
-					float eY = rg->offsetRotY().value();
-					float eZ = rg->offsetRotZ().value();
-
-					Eigen::Matrix3d R = StereoVision::Geometry::eulerDegXYZToRotation(eX, eY, eZ).cast<double>();
-
-					CameraPose cam2tocam1Prior(R, t);
 
 					EdgeCameraSE3LeverArm* e = new EdgeCameraSE3LeverArm();
 					e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(vcam1));
@@ -479,7 +479,7 @@ bool GraphCameraCalibrator::runSteps(int pn_steps) {
 	int n_steps = _optimizer->optimize(pn_steps, _not_first_step);
 	_not_first_step = true;
 
-	if (currentStep() > optimizationSteps()/2 + 1) {
+	if (currentStep() > optimizationSteps()/5 + 1) {
 		if (!_stereo_rig_activated) {
 			activateStereoRigs();
 			qDebug() << "stereorigs activated";
