@@ -96,7 +96,7 @@ void EdgeCameraParametrizedSE3LeverArm::computeError() {
 
 	VertexCameraPose::EstimateType cam1tocam2 = cam2toWorld.inverseSE3().applySE3(cam1toWorld);
 
-	VertexCameraPose::EstimateType q = cam1tocam2.applySE3(relativePose.inverseSE3()).applySE3(_measurement);
+	VertexCameraPose::EstimateType q = cam1tocam2.applySE3(relativePose).applySE3(_measurement);
 	_error = q.log(); //implementation using Rodriguez formula.
 
 }
