@@ -6,6 +6,8 @@
 #include "gui/lenseditor.h"
 
 #include <QAction>
+#include <QFileDialog>
+#include <QJsonDocument>
 
 namespace StereoVisionApp {
 
@@ -38,7 +40,54 @@ QList<QAction*> CameraBaseActionManager::factorizeClassContextActions(QObject* p
 		}
 	});
 
-	return {add};
+	QAction* import = new QAction(tr("Import a Camera"), parent);
+	connect(import, &QAction::triggered, [classname, p] () {
+
+		MainWindow* mw = MainWindow::getActiveMainWindow();
+
+		if (mw == nullptr) {
+			return;
+		}
+
+		QString cameraFile = QFileDialog::getOpenFileName(mw, tr("Import a camera"), QString(), tr("Steviap camera files (*.stevcam)"));
+
+		if (cameraFile.isEmpty()) {
+			return;
+		}
+
+		QFile infile(cameraFile);
+		bool opened = infile.open(QIODevice::ReadOnly | QIODevice::Text);
+
+		if (!opened) {
+			return;
+		}
+
+		QByteArray data = infile.readAll();
+		infile.close();
+
+		QJsonDocument doc = QJsonDocument::fromJson(data);
+		QJsonObject camRep = doc.object();
+
+		qint64 block_id = p->createDataBlock(classname.toStdString().c_str());
+
+		if (block_id > 0) {
+			Camera* cam = p->getDataBlock<Camera>(block_id);
+			if (cam != nullptr) {
+				cam->setObjectName(tr("imported camera"));
+				cam->setParametersFromJsonRepresentation(camRep);
+
+				if (camRep.contains("exportedCameraName")) {
+					QJsonValue exportedName = camRep.value("exportedCameraName");
+
+					if (exportedName.isString()) {
+						cam->setObjectName(tr("imported camera (%1)").arg(exportedName.toString()));
+					}
+				}
+			}
+		}
+	});
+
+	return {add, import};
 }
 QList<QAction*> CameraBaseActionManager::factorizeItemContextActions(QObject* parent, DataBlock* item) const {
 
@@ -70,6 +119,47 @@ QList<QAction*> CameraBaseActionManager::factorizeItemContextActions(QObject* pa
 		});
 		lst << edit;
 	}
+
+	QAction* exportCam = new QAction(tr("Export"), parent);
+	connect(exportCam, &QAction::triggered, [cam] () {
+
+		MainWindow* mw = MainWindow::getActiveMainWindow();
+
+		if (mw == nullptr) {
+			return;
+		}
+
+		QString cameraFile = QFileDialog::getSaveFileName(mw, tr("Export the camera"), QString(), tr("Steviap camera files (*.stevcam)"));
+
+		if (cameraFile.isEmpty()) {
+			return;
+		}
+
+		if (!cameraFile.endsWith(".stevcam")) {
+			cameraFile += ".stevcam";
+		}
+
+		QJsonObject camRep = cam->getJsonRepresentation();
+
+		camRep.insert("exportedCameraName", cam->objectName());
+
+		QJsonDocument doc(camRep);
+
+		QByteArray data = doc.toJson();
+
+		QFile outfile(cameraFile);
+		bool opened = outfile.open(QIODevice::WriteOnly | QIODevice::Text);
+
+		if (!opened) {
+			return;
+		}
+
+		outfile.write(data);
+		outfile.close();
+
+
+	});
+	lst.append(exportCam);
 
 	QAction* remove = new QAction(tr("Remove"), parent);
 	connect(remove, &QAction::triggered, [cam] () {
