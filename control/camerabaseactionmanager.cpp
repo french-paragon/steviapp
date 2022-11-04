@@ -70,7 +70,7 @@ QList<QAction*> CameraBaseActionManager::factorizeClassContextActions(QObject* p
 
 		qint64 block_id = p->createDataBlock(classname.toStdString().c_str());
 
-		if (block_id > 0) {
+		if (block_id >= 0) {
 			Camera* cam = p->getDataBlock<Camera>(block_id);
 			if (cam != nullptr) {
 				cam->setObjectName(tr("imported camera"));

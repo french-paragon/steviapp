@@ -11,6 +11,9 @@ class StereoRigActionManager : public DatablockActionManager
 public:
 	StereoRigActionManager(QObject *parent = nullptr);
 
+	QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const override;
+	QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* item) const override;
+
 	QString ActionManagerClassName() const override;
 	QString itemClassName() const override;
 };
