@@ -57,6 +57,13 @@ void HexagonalTargetDetectionOptionsDialog::setHexagonMaxRelDiameter(double thre
 	ui->hexRelDiameterSpinBox->setValue(threshold);
 }
 
+double HexagonalTargetDetectionOptionsDialog::hexagonFitMaxRelativeThreshold() const {
+	return ui->hexRelMaxResSpinBox->value();
+}
+void HexagonalTargetDetectionOptionsDialog::setHexagonFitMaxRelativeThreshold(double residual_threshold) {
+	ui->hexRelMaxResSpinBox->setValue(residual_threshold);
+}
+
 double HexagonalTargetDetectionOptionsDialog::redGain() const {
 	return ui->redGainSpinBox->value();
 }

@@ -623,6 +623,8 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 	double minToMaxAxisRatioThreshold = 0.6;
 	double hexRelMaxDiameter = 0.2;
 
+	double hexFirRelMaxRes = 0.1;
+
 	double redGain = 1.1;
 	double greenGain = 1.1;
 	double blueGain = 1.0;
@@ -643,6 +645,8 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 		od.setMinToMaxAxisRatioThreshold(minToMaxAxisRatioThreshold);
 
 		od.setHexagonMaxRelDiameter(hexRelMaxDiameter);
+
+		od.setHexagonFitMaxRelativeThreshold(hexFirRelMaxRes);
 
 		od.setRedGain(redGain);
 		od.setGreenGain(greenGain);
@@ -665,6 +669,7 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 
 		minToMaxAxisRatioThreshold = od.minToMaxAxisRatioThreshold();
 		hexRelMaxDiameter = od.hexagonMaxRelDiameter();
+		hexFirRelMaxRes = od.hexagonFitMaxRelativeThreshold();
 
 		redGain = od.redGain();
 		greenGain = od.greenGain();
@@ -705,7 +710,8 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 				 hexRelMaxDiameter,
 				 redGain,
 				 greenGain,
-				 blueGain);
+				 blueGain,
+				 hexFirRelMaxRes);
 
 		nImgsProcessed++;
 

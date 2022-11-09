@@ -35,6 +35,9 @@ public:
 	double hexagonMaxRelDiameter() const;
 	void setHexagonMaxRelDiameter(double threshold);
 
+	double hexagonFitMaxRelativeThreshold() const;
+	void setHexagonFitMaxRelativeThreshold(double residual_threshold);
+
 	double redGain() const;
 	void setRedGain(double gain);
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>433</width>
-    <height>402</height>
+    <width>449</width>
+    <height>429</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -124,6 +124,9 @@
         <property name="maximum">
          <double>1.000000000000000</double>
         </property>
+        <property name="singleStep">
+         <double>0.100000000000000</double>
+        </property>
         <property name="value">
          <double>0.600000000000000</double>
         </property>
@@ -141,8 +144,31 @@
         <property name="maximum">
          <double>1.000000000000000</double>
         </property>
+        <property name="singleStep">
+         <double>0.100000000000000</double>
+        </property>
         <property name="value">
          <double>0.200000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QDoubleSpinBox" name="hexRelMaxResSpinBox">
+        <property name="maximum">
+         <double>1.000000000000000</double>
+        </property>
+        <property name="singleStep">
+         <double>0.050000000000000</double>
+        </property>
+        <property name="value">
+         <double>0.100000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="hexRelMaxResLabel">
+        <property name="text">
+         <string>Max relative hexagone fit residual</string>
         </property>
        </widget>
       </item>
@@ -170,6 +196,9 @@
       </item>
       <item row="0" column="1">
        <widget class="QDoubleSpinBox" name="redGainSpinBox">
+        <property name="singleStep">
+         <double>0.100000000000000</double>
+        </property>
         <property name="value">
          <double>1.100000000000000</double>
         </property>
@@ -191,6 +220,9 @@
       </item>
       <item row="1" column="1">
        <widget class="QDoubleSpinBox" name="greenGainSpinBox">
+        <property name="singleStep">
+         <double>0.100000000000000</double>
+        </property>
         <property name="value">
          <double>1.100000000000000</double>
         </property>
@@ -198,6 +230,9 @@
       </item>
       <item row="2" column="1">
        <widget class="QDoubleSpinBox" name="blueGainSpinBox">
+        <property name="singleStep">
+         <double>0.100000000000000</double>
+        </property>
         <property name="value">
          <double>1.000000000000000</double>
         </property>
