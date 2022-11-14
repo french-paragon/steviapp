@@ -29,7 +29,7 @@ public:
 
 		virtual ~ItemPropertyDescription();
 
-		enum PropertyEdtior {
+		enum PropertyEditor {
 			ValueEditor = 0x0,
 			TargetItemByClassEditor = 0x1,
 			OptionListEditor = 0x2
@@ -52,13 +52,13 @@ public:
 
 		virtual bool isWritable() const = 0;
 
-		virtual PropertyEdtior editor() const = 0;
+		virtual PropertyEditor editor() const = 0;
 
 		virtual QVariant data(int role = Qt::DisplayRole) const = 0;
 		virtual bool setData(QVariant const& d) = 0;
 
 		virtual bool hasSecondValue() const;
-		virtual QVariant sencondValue() const;
+		virtual QVariant secondValue() const;
 		virtual bool setSecondValue(QVariant const& d);
 
 		DataBlock* block() const;
@@ -134,7 +134,7 @@ protected:
 			return _setter != nullptr;
 		}
 
-		PropertyEdtior editor() const override {
+		PropertyEditor editor() const override {
 			return ValueEditor;
 		}
 
@@ -224,7 +224,7 @@ protected:
 			return _setter != nullptr;
 		}
 
-		PropertyEdtior editor() const override {
+		PropertyEditor editor() const override {
 			return ValueEditor;
 		}
 
@@ -284,7 +284,7 @@ protected:
 		bool hasSecondValue() const {
 			return true;
 		}
-		QVariant sencondValue() const {
+		QVariant secondValue() const {
 			D* block = castedBlock();
 
 			if (block == nullptr) {
@@ -320,7 +320,6 @@ protected:
 		SetterType _setter;
 		GetterType _getter;
 	};
-
 
 	class ItemPropertyDescriptionFactory
 	{

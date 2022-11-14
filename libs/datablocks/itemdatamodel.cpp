@@ -62,7 +62,7 @@ void ItemDataModel::ItemPropertyDescription::setOptions(const QStringList &optio
 bool ItemDataModel::ItemPropertyDescription::hasSecondValue() const {
 	return false;
 }
-QVariant ItemDataModel::ItemPropertyDescription::sencondValue() const {
+QVariant ItemDataModel::ItemPropertyDescription::secondValue() const {
 	return QVariant();
 }
 bool ItemDataModel::ItemPropertyDescription::setSecondValue(QVariant const&) {
@@ -554,7 +554,7 @@ QVariant ItemDataModel::data(const QModelIndex &index, int role) const {
 					return descr->data(role);
 				} else {
 					if (descr->hasSecondValue()) {
-						return descr->sencondValue();
+						return descr->secondValue();
 					} else {
 						return QVariant();
 					}
