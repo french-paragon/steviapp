@@ -363,6 +363,9 @@ bool GraphRoughBundleAdjustementSolver::init() {
 
 				_optimizer->addEdge(e);
 
+			} else if (im->xCoord().isSet() and im->yCoord().isSet() and im->zCoord().isSet() and
+					   im->xRot().isSet() and im->yRot().isSet() and im->zRot().isSet()) {
+				v->setFixed(true); //TODO: add an option to disable this behavior
 			}
 
 			for (qint64 lmId : im->listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
@@ -528,6 +531,45 @@ bool GraphRoughBundleAdjustementSolver::init() {
 			continue;
 		}
 
+		bool hasMeasure = true;
+		hasMeasure = hasMeasure and rig->optPos().isSet();
+		hasMeasure = hasMeasure and rig->optRot().isSet();
+
+		bool hasPrior = hasMeasure;
+
+		if (!hasMeasure and !hasPrior) {
+			continue;
+		}
+
+		Eigen::Vector3d t;
+		Eigen::Matrix3d R;
+
+		if (hasMeasure and _fixedParameters&FixedParameter::StereoRigs) {
+			t.x() = rig->optXCoord();
+			t.y() = rig->optYCoord();
+			t.z() = rig->optZCoord();
+
+			float eX = rig->optXRot();
+			float eY = rig->optYRot();
+			float eZ = rig->optZRot();
+
+			R = StereoVision::Geometry::eulerDegXYZToRotation(eX, eY, eZ).cast<double>();
+		} else if (hasPrior) {
+			t.x() = rig->xCoord().value();
+			t.y() = rig->yCoord().value();
+			t.z() = rig->zCoord().value();
+
+			float eX = rig->xRot().value();
+			float eY = rig->yRot().value();
+			float eZ = rig->zRot().value();
+
+			R = StereoVision::Geometry::rodriguezFormulaD(Eigen::Vector3d(eX, eY, eZ));
+		} else {
+			continue;
+		}
+
+		CameraPose cam2tocam1Prior(R, t);
+
 		QVector<qint64> imgPairs = rig->listTypedSubDataBlocks(ImagePair::staticMetaObject.className());
 
 		for (qint64 pair_id : imgPairs) {
@@ -545,35 +587,22 @@ bool GraphRoughBundleAdjustementSolver::init() {
 
 				if (v1 != nullptr and v2 != nullptr) {
 
-					Eigen::Vector3d t;
-					t.x() = rig->offsetX().value();
-					t.y() = rig->offsetY().value();
-					t.z() = rig->offsetZ().value();
-
-					float eX = rig->offsetRotX().value();
-					float eY = rig->offsetRotY().value();
-					float eZ = rig->offsetRotZ().value();
-
-					Eigen::Matrix3d R = StereoVision::Geometry::eulerDegXYZToRotation(eX, eY, eZ).cast<double>();
-
-					CameraPose cam2tocam1Prior(R, t);
-
 					EdgeCameraSE3LeverArm* e = new EdgeCameraSE3LeverArm();
 					e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(v1));
 					e->setVertex(1, static_cast<g2o::OptimizableGraph::Vertex*>(v2));
 
 					e->setMeasurement(cam2tocam1Prior);
 
-					if (rig->offsetX().isUncertain() and rig->offsetY().isUncertain() and rig->offsetZ().isUncertain() and
-						rig->offsetRotX().isUncertain() and rig->offsetRotY().isUncertain() and rig->offsetRotZ().isUncertain()) {
+					if (rig->xCoord().isUncertain() and rig->yCoord().isUncertain() and rig->zCoord().isUncertain() and
+						rig->xRot().isUncertain() and rig->yRot().isUncertain() and rig->zRot().isUncertain()) {
 
 						EdgeCameraSE3LeverArm::InformationType info = EdgeSE3FullPrior::InformationType::Identity();
-						info(0,0) = 1./(rig->offsetX().stddev()*rig->offsetX().stddev());
-						info(1,1) = 1./(rig->offsetY().stddev()*rig->offsetY().stddev());
-						info(2,2) = 1./(rig->offsetZ().stddev()*rig->offsetZ().stddev());
-						info(3,3) = 1./(rig->offsetRotX().stddev()*rig->offsetRotX().stddev());
-						info(4,4) = 1./(rig->offsetRotY().stddev()*rig->offsetRotY().stddev());
-						info(5,5) = 1./(rig->offsetRotZ().stddev()*rig->offsetRotZ().stddev());
+						info(0,0) = 1./(rig->xCoord().stddev()*rig->xCoord().stddev());
+						info(1,1) = 1./(rig->yCoord().stddev()*rig->yCoord().stddev());
+						info(2,2) = 1./(rig->zCoord().stddev()*rig->zCoord().stddev());
+						info(3,3) = 1./(rig->xRot().stddev()*rig->xRot().stddev());
+						info(4,4) = 1./(rig->yRot().stddev()*rig->yRot().stddev());
+						info(5,5) = 1./(rig->zRot().stddev()*rig->zRot().stddev());
 
 						e->setInformation(info);
 

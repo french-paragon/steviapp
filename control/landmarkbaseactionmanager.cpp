@@ -5,6 +5,7 @@
 #include "datablocks/landmark.h"
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
+#include "datablocks/localcoordinatesystem.h"
 
 #include "gui/landmarkpointdetailseditor.h"
 
@@ -61,6 +62,10 @@ QList<QAction*> LandmarkBaseActionManager::factorizeItemContextActions(QObject* 
 
 		lst << edit;
 	}
+
+	QAction* addToLocalCoordinateSystem = createAddToLocalCoordinateSystemAction(parent, lm->getProject(), {lm});
+
+	lst.append(addToLocalCoordinateSystem);
 
 	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
 	connect(clearOptimized, &QAction::triggered, [lm] () {
@@ -228,6 +233,57 @@ QAction* LandmarkBaseActionManager::createAssignToAngleConstrainAction(QObject* 
 	}
 
 	return nullptr;
+}
+
+QAction* LandmarkBaseActionManager::createAddToLocalCoordinateSystemAction(QObject* parent, Project* p, const QVector<Landmark *> &lms) const {
+
+
+	bool ok = true;
+
+	QAction* assignToLocalReferenceSystem = new QAction(tr("Assign to local coordinate system"), parent);
+
+	if (lms.isEmpty()) {
+		assignToLocalReferenceSystem->deleteLater();
+		return nullptr;
+	}
+
+	QMenu* assignMenu = new QMenu();
+	connect(assignToLocalReferenceSystem, &QObject::destroyed, assignMenu, &QObject::deleteLater);
+
+	QVector<qint64> lmIds;
+	lmIds.reserve(lms.size());
+
+	for (Landmark* lm : lms) {
+		lmIds.push_back(lm->internalId());
+	}
+
+	QVector<qint64> constraintsIds = p->getIdsByClass(LocalCoordinateSystem::staticMetaObject.className());
+
+	for (qint64 constrainId : constraintsIds) {
+
+		LocalCoordinateSystem* constraint = qobject_cast<LocalCoordinateSystem*>(p->getById(constrainId));
+
+		if (constraint != nullptr) {
+
+			QAction* toConstrain = new QAction(constraint->objectName(), assignToLocalReferenceSystem);
+			connect(toConstrain, &QAction::triggered, constraint, [constrainId, lmIds, p] () {
+				attachLandmarkToLocalCoordinateSystem(p, lmIds, constrainId);
+			});
+			assignMenu->addAction(toConstrain);
+		}
+
+	}
+
+	if (ok) {
+		assignToLocalReferenceSystem->setMenu(assignMenu);
+		return assignToLocalReferenceSystem;
+	} else {
+		assignToLocalReferenceSystem->deleteLater();
+		return nullptr;
+	}
+
+	return nullptr;
+
 }
 
 } // namespace StereoVisionApp

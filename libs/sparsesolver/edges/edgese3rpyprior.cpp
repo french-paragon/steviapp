@@ -1,5 +1,7 @@
 #include "edgese3rpyprior.h"
 
+#include <QDebug>
+
 namespace StereoVisionApp {
 
 EdgeSE3rpyPrior::EdgeSE3rpyPrior() : g2o::BaseUnaryEdge<3, Eigen::Matrix3d, VertexCameraPose>()
@@ -41,6 +43,9 @@ void EdgeSE3rpyPrior::computeError()
 	Eigen::AngleAxisd r(pose.rotation().inverse() * _measurement);
 	_error = r.axis();
 
+	if (_error.hasNaN()) {
+		qDebug() << "EdgeSE3rpyPrior";
+	}
 }
 
 } // namespace StereoVisionApp

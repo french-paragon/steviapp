@@ -55,6 +55,7 @@ set(LIB_SRC initialsolution.cpp
             edges/edgecamerase3leverarm.cpp
             edges/edgecamerase3leverarm.h
             helperfunctions.h
+            fixedpreoptimizedparameters.h
 )
 
 add_library(

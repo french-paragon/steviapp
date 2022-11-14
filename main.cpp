@@ -11,6 +11,7 @@
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
 #include "datablocks/cameracalibration.h"
+#include "datablocks/localcoordinatesystem.h"
 
 #include "gui/imageeditor.h"
 #include "gui/imagepointdetailseditor.h"
@@ -27,6 +28,7 @@
 #include "control/angleconstrainactionmanager.h"
 #include "control/distanceconstrainactionmanager.h"
 #include "control/cameracalibrationactionmanager.h"
+#include "control/localcoordinatesystembaseactionmanager.h"
 
 int main(int argc, char *argv[])
 {
@@ -45,6 +47,7 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::ImageFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::StereoRigFactory(&a));
+	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::LocalCoordinateSystemFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::AngleConstrainFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::DistanceConstrainFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraCalibrationFactory(&a));
@@ -55,6 +58,7 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::LandmarkBaseActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::CameraBaseActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::StereoRigActionManager(pF));
+	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::LocalCoordinateSystemBaseActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::AngleConstrainActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::DistanceConstrainActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::CameraCalibrationActionManager(pF));

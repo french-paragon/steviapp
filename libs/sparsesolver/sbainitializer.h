@@ -6,6 +6,7 @@
 #include "geometry/pointcloudalignment.h"
 
 #include "initialsolution.h"
+#include "fixedpreoptimizedparameters.h"
 
 #include <map>
 #include <Eigen/Core>
@@ -14,6 +15,7 @@ namespace StereoVisionApp {
 
 class Project;
 class Image;
+class StereoRig;
 
 class SBAInitializer
 {
@@ -26,9 +28,17 @@ public:
 
 	typedef InitialSolution::CamMap CamMap;
 
+	explicit SBAInitializer();
 	virtual ~SBAInitializer();
 
 	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs) = 0;
+
+	inline FixedParameters getPreOptimizedFixedParameters() const {return _fixedParameters;}
+	inline void setPreOptimizedFixedParameters(FixedParameters parameters) {_fixedParameters = parameters;}
+
+protected:
+
+	FixedParameters _fixedParameters;
 
 };
 
@@ -43,20 +53,22 @@ protected:
 
 	static StereoVision::Geometry::AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
 
-	static bool completeSolution(InitialSolution & solution,
-								 Project* p, QSet<qint64>
-								 const& s_pts, QSet<qint64>
-								 const& s_imgs,
-								 int minNTiePoints = 4,
-								 int minViewingImgs = 2);
+	bool completeSolution(InitialSolution & solution,
+						  Project* p,
+						  QSet<qint64> const& s_pts,
+						  QSet<qint64> const& s_imgs,
+						  int minNTiePoints = 4,
+						  int minViewingImgs = 2);
 
-	static bool alignImage(InitialSolution & solution, Project* p, Image *img, QSet<qint64> &pts);
+	bool alignImage(InitialSolution & solution, Project* p, Image *img, QSet<qint64> &pts);
 
 	static QSet<qint64> pointsInCommon(InitialSolution const& solution, InitialSolution const& toAlign);
 	static int nPointInCommon(const InitialSolution &solution, InitialSolution const& toAlign);
 	static bool alignSolution(InitialSolution & solution, InitialSolution const& toAlign);
 
 	static bool triangulatePoint(InitialSolution & solution, Project* p, qint64 pt, QVector<qint64> const& imgs);
+
+	explicit PhotometricInitializer();
 
 };
 
@@ -147,6 +159,14 @@ public:
 	virtual InitialSolution computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs);
 
 private:
+
+	struct RigPair{
+		StereoRig* rig;
+		Image* img1;
+		Image* img2;
+	};
+
+	std::tuple<StereoVision::Geometry::AffineTransform, bool> getRigPairRelativeTransform(RigPair const& rp) const;
 
 	bool _initial_pair_only;
 	qint64 _f1;

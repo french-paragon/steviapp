@@ -24,6 +24,7 @@ typedef VertexLandmarkPos landMarkVertex;
 class VertexCameraPose;
 
 class Project;
+class Image;
 
 class GraphSBASolver : public SparseSolverBase
 {
@@ -44,6 +45,8 @@ protected:
 	void cleanup() override;
 
 	bool splitOptSteps() const override;
+
+	qint64 setupCameraVertexForImage(Image* img, int &vid);
 
 	bool _sparse;
 	bool _compute_marginals;

@@ -1,5 +1,7 @@
 #include "edgese3fullprior.h"
 
+#include <QDebug>
+
 namespace StereoVisionApp {
 
 EdgeSE3FullPrior::EdgeSE3FullPrior() : g2o::BaseUnaryEdge<6, CameraPose, VertexCameraPose>()
@@ -42,6 +44,9 @@ void EdgeSE3FullPrior::computeError()
 	VertexXiType::EstimateType q = pose.inverse() * _measurement;
 	_error = q.log(); //implementation using Rodriguez formula.
 
+	if (_error.hasNaN()) {
+		qDebug() << "EdgeSE3FullPrior";
+	}
 }
 
 } // namespace StereoVisionApp

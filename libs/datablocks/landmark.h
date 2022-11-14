@@ -2,47 +2,19 @@
 #define STEREOVISIONAPP_LANDMARK_H
 
 #include "./project.h"
+#include "./point3d.h"
 #include "./floatparameter.h"
 
 #include <QSet>
 
 namespace StereoVisionApp {
 
-class Landmark : public DataBlock
+class Landmark : public Point3D
 {
 	Q_OBJECT
 public:
 
-	Q_PROPERTY(floatParameter xCoord READ xCoord WRITE setXCoord NOTIFY xCoordChanged)
-	Q_PROPERTY(floatParameter yCoord READ yCoord WRITE setYCoord NOTIFY yCoordChanged)
-	Q_PROPERTY(floatParameter zCoord READ zCoord WRITE setZCoord NOTIFY zCoordChanged)
-
-	Q_PROPERTY(floatParameterGroup<3> optimizedPos READ optPos WRITE setOptPos NOTIFY optPosChanged)
-
 	explicit Landmark(Project* parent = nullptr);
-
-	floatParameter xCoord() const;
-	void setXCoord(const floatParameter &x);
-
-	floatParameter yCoord() const;
-	void setYCoord(const floatParameter &y);
-
-	floatParameter zCoord() const;
-	void setZCoord(const floatParameter &z);
-
-
-	floatParameterGroup<3> optPos() const;
-	void setOptPos(floatParameterGroup<3> const& o_pos);
-	void clearOptPos();
-
-	float optXCoord() const;
-	void setOptXCoord(const float &x);
-
-	float optYCoord() const;
-	void setOptYCoord(const float &y);
-
-	float optZCoord() const;
-	void setOptZCoord(const float &z);
 
 	QVector<qint64> getImagesRefering() const;
 
@@ -54,29 +26,9 @@ public:
 
 	QSet<qint64> getViewingImgInList(QSet<qint64> const& included) const;
 
-	void clearOptimized() override;
-	bool hasOptimizedParameters() const override;
-
-Q_SIGNALS:
-
-	void xCoordChanged(floatParameter);
-	void yCoordChanged(floatParameter);
-	void zCoordChanged(floatParameter);
-
-	void optPosChanged();
-
 protected:
 
-	QJsonObject encodeJson() const override;
-	void configureFromJson(QJsonObject const& data) override;
-
 	void extendDataModel();
-
-	floatParameter _x;
-	floatParameter _y;
-	floatParameter _z;
-
-	floatParameterGroup<3> _o_pos;
 };
 
 class LandmarkFactory : public DataBlockFactory

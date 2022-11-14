@@ -2,6 +2,8 @@
 
 #include <g2o/types/sba/types_sba.h>
 
+#include <QDebug>
+
 namespace StereoVisionApp {
 
 EdgePointsAngle::EdgePointsAngle()
@@ -56,6 +58,10 @@ void EdgePointsAngle::computeError() {
 		_error[0] = 0;
 	} else {
 		_error[0] = std::sqrt(eCos*eCos + eSin*eSin);
+	}
+
+	if (_error.hasNaN()) {
+		qDebug() << "EdgePointsAngle";
 	}
 
 }

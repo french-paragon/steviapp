@@ -1,5 +1,7 @@
 #include "edgese3xyzprior.h"
 
+#include <QDebug>
+
 namespace StereoVisionApp {
 
 EdgeSE3xyzPrior::EdgeSE3xyzPrior() : g2o::BaseUnaryEdge<3, Eigen::Vector3d, VertexCameraPose>()
@@ -34,6 +36,10 @@ void EdgeSE3xyzPrior::computeError()
   const VertexXiType* v = static_cast<const VertexXiType*>(_vertices[0]);
   VertexXiType::EstimateType pose = v->estimate();
   _error = pose.translation() - _measurement;
+
+  if (_error.hasNaN()) {
+	  qDebug() << "EdgeSE3xyzPrior";
+  }
 
 }
 

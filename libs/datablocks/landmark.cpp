@@ -7,102 +7,9 @@
 
 namespace StereoVisionApp {
 
-Landmark::Landmark(Project *parent) : DataBlock(parent)
+Landmark::Landmark(Project *parent) : Point3D(parent)
 {
 	extendDataModel();
-}
-
-floatParameter Landmark::xCoord() const
-{
-	return _x;
-}
-
-void Landmark::setXCoord(const floatParameter &x)
-{
-	if (!x.isApproximatlyEqual(_x, 1e-4)) {
-		_x = x;
-		emit xCoordChanged(x);
-		isChanged();
-	}
-}
-
-floatParameter Landmark::yCoord() const
-{
-	return _y;
-}
-
-void Landmark::setYCoord(const floatParameter &y)
-{
-	if (!y.isApproximatlyEqual(_y, 1e-4)) {
-		_y = y;
-		emit yCoordChanged(y);
-		isChanged();
-	}
-}
-
-floatParameter Landmark::zCoord() const
-{
-	return _z;
-}
-
-void Landmark::setZCoord(const floatParameter &z)
-{
-	if (!z.isApproximatlyEqual(_z, 1e-4)) {
-		_z = z;
-		emit zCoordChanged(z);
-		isChanged();
-	}
-}
-
-floatParameterGroup<3> Landmark::optPos() const {
-	return _o_pos;
-}
-void Landmark::setOptPos(floatParameterGroup<3> const& o_pos) {
-	floatParameterGroup<3> t = o_pos;
-	t.setIsSet();
-
-	if (!t.isApproximatlyEqual(_o_pos, 1e-4)) {
-		_o_pos = t;
-		emit optPosChanged();
-		isChanged();
-	}
-}
-void Landmark::clearOptPos() {
-	if (_o_pos.isSet()) {
-		_o_pos.clearIsSet();
-		emit optPosChanged();
-		isChanged();
-	}
-}
-
-float Landmark::optXCoord() const {
-	return _o_pos.value(0);
-}
-void Landmark::setOptXCoord(const float &x) {
-	if (_o_pos.value(0) != x) {
-		_o_pos.value(0) = x;
-		emit optPosChanged();
-	}
-}
-
-float Landmark::optYCoord() const {
-	return _o_pos.value(1);
-}
-void Landmark::setOptYCoord(const float &y) {
-	if (_o_pos.value(1) != y) {
-		_o_pos.value(1) = y;
-		emit optPosChanged();
-	}
-}
-
-float Landmark::optZCoord() const {
-	return _o_pos.value(2);
-}
-void Landmark::setOptZCoord(const float &z) {
-	if (_o_pos.value(2) != z) {
-		_o_pos.value(2) = z;
-		emit optPosChanged();
-	}
 }
 
 
@@ -188,82 +95,43 @@ QSet<qint64> Landmark::getViewingImgInList(QSet<qint64> const& included) const {
 
 }
 
-void Landmark::clearOptimized() {
-	clearOptPos();
-}
-
-bool Landmark::hasOptimizedParameters() const {
-	return _o_pos.isSet();
-}
-
-QJsonObject Landmark::encodeJson() const {
-
-	QJsonObject obj;
-
-	obj.insert("x", floatParameter::toJson(xCoord()));
-	obj.insert("y", floatParameter::toJson(yCoord()));
-	obj.insert("z", floatParameter::toJson(zCoord()));
-
-	obj.insert("op", floatParameterGroup<3>::toJson(optPos()));
-
-	return obj;
-}
-
-void Landmark::configureFromJson(QJsonObject const& data) {
-
-	if (data.contains("x")) {
-		_x = floatParameter::fromJson(data.value("x").toObject());
-	}
-	if (data.contains("y")) {
-		_y = floatParameter::fromJson(data.value("y").toObject());
-	}
-	if (data.contains("y")) {
-		_z = floatParameter::fromJson(data.value("z").toObject());
-	}
-
-	if (data.contains("op")) {
-		_o_pos = floatParameterGroup<3>::fromJson(data.value("op").toObject());
-	}
-
-}
-
 void Landmark::extendDataModel() {
 
 	ItemDataModel::Category* g = _dataModel->addCategory(tr("Geometric properties"));
 
-	g->addCatProperty<floatParameter, Landmark, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X pos"),
-																												 &Landmark::xCoord,
-																												 &Landmark::setXCoord,
-																												 &Landmark::xCoordChanged);
+	g->addCatProperty<floatParameter, Point3D, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X pos"),
+																												 &Point3D::xCoord,
+																												 &Point3D::setXCoord,
+																												 &Point3D::xCoordChanged);
 
-	g->addCatProperty<floatParameter, Landmark, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y pos"),
-																												 &Landmark::yCoord,
-																												 &Landmark::setYCoord,
-																												 &Landmark::yCoordChanged);
+	g->addCatProperty<floatParameter, Point3D, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y pos"),
+																												 &Point3D::yCoord,
+																												 &Point3D::setYCoord,
+																												 &Point3D::yCoordChanged);
 
-	g->addCatProperty<floatParameter, Landmark, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z pos"),
-																												 &Landmark::zCoord,
-																												 &Landmark::setZCoord,
-																												 &Landmark::zCoordChanged);
+	g->addCatProperty<floatParameter, Point3D, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z pos"),
+																												 &Point3D::zCoord,
+																												 &Point3D::setZCoord,
+																												 &Point3D::zCoordChanged);
 
 
 	ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));
 
 	//Position
-	og->addCatProperty<float, Landmark, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
-																									 &Landmark::optXCoord,
-																									 &Landmark::setOptXCoord,
-																									 &Landmark::optPosChanged);
+	og->addCatProperty<float, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+																									 &Point3D::optXCoord,
+																									 &Point3D::setOptXCoord,
+																									 &Point3D::optPosChanged);
 
-	og->addCatProperty<float, Landmark, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
-																									 &Landmark::optYCoord,
-																									 &Landmark::setOptYCoord,
-																									 &Landmark::optPosChanged);
+	og->addCatProperty<float, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+																									 &Point3D::optYCoord,
+																									 &Point3D::setOptYCoord,
+																									 &Point3D::optPosChanged);
 
-	og->addCatProperty<float, Landmark, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
-																									 &Landmark::optZCoord,
-																									 &Landmark::setOptZCoord,
-																									 &Landmark::optPosChanged);
+	og->addCatProperty<float, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+																									 &Point3D::optZCoord,
+																									 &Point3D::setOptZCoord,
+																									 &Point3D::optPosChanged);
 }
 
 LandmarkFactory::LandmarkFactory(QObject* parent) : DataBlockFactory(parent)

@@ -1,5 +1,7 @@
 #include "edgecameralandmarkdirectionalalignement.h"
 
+#include <QDebug>
+
 namespace StereoVisionApp {
 
 MinCamDistanceParam::MinCamDistanceParam() {
@@ -86,6 +88,10 @@ void EdgeCameraLandmarkDirectionalAlignement::computeError() {
 	Pbar /= minDist;
 
 	_error = Pbar - _measurement;
+
+	if (_error.hasNaN()) {
+		qDebug() << "EdgeCameraLandmarkDirectionalAlignement";
+	}
 }
 
 } // namespace StereoVisionApp

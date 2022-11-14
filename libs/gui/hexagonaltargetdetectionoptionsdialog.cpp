@@ -99,10 +99,10 @@ void HexagonalTargetDetectionOptionsDialog::setUseHexagoneScale(bool useScale) {
 	ui->hexagoneSidesGroupBox->setChecked(useScale);
 }
 
-bool HexagonalTargetDetectionOptionsDialog::hexagoneSide() const {
+double HexagonalTargetDetectionOptionsDialog::hexagoneSide() const {
 	return ui->hexagoneSideSpinBox->value();
 }
-void HexagonalTargetDetectionOptionsDialog::setHexagoneSide(float sideLen) {
+void HexagonalTargetDetectionOptionsDialog::setHexagoneSide(double sideLen) {
 	ui->hexagoneSideSpinBox->setValue(sideLen);
 }
 

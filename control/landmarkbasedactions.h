@@ -9,6 +9,7 @@ namespace StereoVisionApp {
 class Project;
 
 void exportLandmarksToCsv(Project* p, QVector<qint64> const& landmarks, QString const& file);
+void attachLandmarkToLocalCoordinateSystem(Project* p, QVector<qint64> const& landmarks, qint64 localCoordinateSystem);
 
 } //namespace StereoVisionApp
 

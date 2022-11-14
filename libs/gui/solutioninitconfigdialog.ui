@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>326</width>
-    <height>122</height>
+    <width>390</width>
+    <height>268</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -35,6 +35,65 @@
       </item>
       <item row="0" column="1">
        <widget class="QComboBox" name="imageSelectComboBox"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_2">
+     <property name="title">
+      <string>Fixed solutions</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_2">
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Use optimized solution:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QComboBox" name="comboBox">
+        <item>
+         <property name="text">
+          <string>Never use optimized</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Use optimized when available</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Use optimized only</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="2">
+       <widget class="QCheckBox" name="fixedStereoRigsCheckbox">
+        <property name="text">
+         <string>Stereo rigs calibrations</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="2">
+       <widget class="QCheckBox" name="fixedCameraInternalsCheckbox">
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>Cameras internal parameters</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0" colspan="2">
+       <widget class="QCheckBox" name="fixedCameraExternalsCheckbox">
+        <property name="text">
+         <string>Cameras external parameters</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>

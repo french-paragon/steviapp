@@ -53,6 +53,9 @@ set(LIB_SRC imagewidget.cpp
             hexagonaltargetdetectionoptionsdialog.cpp
             hexagonaltargetdetectionoptionsdialog.h
             hexagonaltargetdetectionoptionsdialog.ui
+            fixedparametersoptionwidget.cpp
+            fixedparametersoptionwidget.h
+            fixedparametersoptionwidget.ui
 )
 
 add_library(

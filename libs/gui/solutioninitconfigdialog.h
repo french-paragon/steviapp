@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+#include "sparsesolver/fixedpreoptimizedparameters.h"
+
 namespace StereoVisionApp {
 
 class Project;
@@ -20,6 +22,9 @@ public:
 	~SolutionInitConfigDialog();
 
 	quint64 selectedStartingImage() const;
+
+	FixedParameters getFixedParameters() const;
+	void setFixedParameters(FixedParameters parameters);
 
 	void setProject(Project *p);
 

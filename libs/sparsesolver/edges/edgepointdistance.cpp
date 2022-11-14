@@ -1,5 +1,7 @@
 #include "edgepointdistance.h"
 
+#include <QDebug>
+
 namespace StereoVisionApp {
 
 EdgePointDistance::EdgePointDistance()
@@ -37,6 +39,10 @@ void EdgePointDistance::computeError() {
 	double dist = (pt1 - pt2).norm();
 
 	_error[0] = dist - _measurement;
+
+	if (_error.hasNaN()) {
+		qDebug() << "EdgePointDistance";
+	}
 
 }
 

@@ -2,6 +2,9 @@
 #define SPARSESOLVERCONFIGDIALOG_H
 
 #include <QDialog>
+
+#include "sparsesolver/fixedpreoptimizedparameters.h"
+
 namespace StereoVisionApp {
 
 namespace Ui {
@@ -26,6 +29,9 @@ public:
 	int numberOfSteps() const;
 
 	void setNumberOfSteps(int nSteps);
+
+	FixedParameters getFixedParameters() const;
+	void setFixedParameters(FixedParameters parameters);
 
 private:
 	Ui::SparseSolverConfigDialog *ui;

@@ -132,6 +132,10 @@ void EdgeParametrizedXYZ2UV::computeError () {
 
 	_error = proj - obs;
 
+	if (_error.hasNaN()) {
+		qDebug() << "EdgeParametrizedXYZ2UV";
+	}
+
 }
 
 void EdgeParametrizedXYZ2UV::linearizeOplus () {

@@ -18,8 +18,7 @@ namespace StereoVisionApp {
 const QString ImageLandmark::ImageLandmarkClassName = "StereoVisionApp::ImageLandmark";
 
 Image::Image(Project *parent) :
-	DataBlock(parent),
-	_isFixed(false)
+	RigidBody(parent)
 {
 	extendDataModel();
 }
@@ -59,202 +58,6 @@ void Image::setImageFile(const QString &imageFile)
 	if (n.canonicalFilePath() != p.canonicalFilePath()) {
 		_imageFile = n.canonicalFilePath();
 		emit imageFileChanged(_imageFile);
-	}
-}
-
-floatParameter Image::xCoord() const
-{
-	return _x;
-}
-
-void Image::setXCoord(const floatParameter &x)
-{
-	if (!x.isApproximatlyEqual(_x, 1e-4)) {
-		_x = x;
-		emit xCoordChanged(x);
-		isChanged();
-	}
-}
-
-floatParameter Image::yCoord() const
-{
-	return _y;
-}
-
-void Image::setYCoord(const floatParameter &y)
-{
-	if (!y.isApproximatlyEqual(_y, 1e-4)) {
-		_y = y;
-		emit yCoordChanged(y);
-		isChanged();
-	}
-}
-
-floatParameter Image::zCoord() const
-{
-	return _z;
-}
-
-void Image::setZCoord(const floatParameter &z)
-{
-	if (!z.isApproximatlyEqual(_z, 1e-4)) {
-		_z = z;
-		emit zCoordChanged(z);
-		isChanged();
-	}
-}
-
-floatParameter Image::xRot() const
-{
-	return _rx;
-}
-
-void Image::setXRot(const floatParameter &rx)
-{
-	if (!rx.isApproximatlyEqual(_rx, 1e-4)) {
-		_rx = rx;
-		emit xRotChanged(rx);
-		isChanged();
-	}
-}
-
-floatParameter Image::yRot() const
-{
-	return _ry;
-}
-
-void Image::setYRot(const floatParameter &ry)
-{
-	if (!ry.isApproximatlyEqual(_ry, 1e-4)) {
-		_ry = ry;
-		emit yRotChanged(ry);
-		isChanged();
-	}
-}
-
-floatParameter Image::zRot() const
-{
-	return _rz;
-}
-
-void Image::setZRot(const floatParameter &rz)
-{
-	if (!rz.isApproximatlyEqual(_rz, 1e-4)) {
-		_rz = rz;
-		emit zRotChanged(rz);
-		isChanged();
-	}
-}
-
-floatParameterGroup<3> Image::optPos() const {
-	return _o_pos;
-}
-void Image::setOptPos(floatParameterGroup<3> const& o_pos) {
-	floatParameterGroup<3> t = o_pos;
-	t.setIsSet();
-
-	if (!t.isApproximatlyEqual(_o_pos, 1e-4)) {
-		_o_pos = t;
-		emit optPosChanged();
-		isChanged();
-	}
-}
-void Image::clearOptPos() {
-	if (_o_pos.isSet()) {
-		_o_pos.clearIsSet();
-		emit optPosChanged();
-		isChanged();
-	}
-}
-
-float Image::optXCoord() const {
-	return _o_pos.value(0);
-}
-void Image::setOptXCoord(const float &x) {
-	if (_o_pos.value(0) != x) {
-		_o_pos.value(0) = x;
-		emit optPosChanged();
-	}
-}
-
-float Image::optYCoord() const {
-	return _o_pos.value(1);
-}
-void Image::setOptYCoord(const float &y) {
-	if (_o_pos.value(1) != y) {
-		_o_pos.value(1) = y;
-		emit optPosChanged();
-	}
-}
-
-float Image::optZCoord() const {
-	return _o_pos.value(2);
-}
-void Image::setOptZCoord(const float &z) {
-	if (_o_pos.value(2) != z) {
-		_o_pos.value(2) = z;
-		emit optPosChanged();
-	}
-}
-
-floatParameterGroup<3> Image::optRot() const {
-	return _o_rot;
-}
-void Image::setOptRot(floatParameterGroup<3> const& o_rot) {
-	floatParameterGroup<3> t = o_rot;
-	t.setIsSet();
-
-	if (!t.isApproximatlyEqual(_o_rot, 1e-4)) {
-		_o_rot = t;
-		emit optRotChanged();
-		isChanged();
-	}
-}
-void Image::clearOptRot() {
-	if (_o_rot.isSet()) {
-		_o_rot.clearIsSet();
-		emit optRotChanged();
-		isChanged();
-	}
-}
-
-float Image::optXRot() const {
-	return _o_rot.value(0);
-}
-void Image::setOptXRot(const float &rx) {
-	if (_o_rot.value(0) != rx) {
-		_o_rot.value(0) = rx;
-		emit optRotChanged();
-	}
-}
-
-float Image::optYRot() const {
-	return _o_rot.value(1);
-}
-void Image::setOptYRot(const float &ry){
-	if (_o_rot.value(1) != ry) {
-		_o_rot.value(1) = ry;
-		emit optRotChanged();
-	}
-}
-
-float Image::optZRot() const {
-	return _o_rot.value(2);
-}
-void Image::setOptZRot(const float &rz) {
-	if (_o_rot.value(2) != rz) {
-		_o_rot.value(2) = rz;
-		emit optRotChanged();
-	}
-}
-
-bool Image::isFixed() const {
-	return _isFixed;
-}
-void Image::setFixed(bool fixed) {
-	if (_isFixed != fixed) {
-		_isFixed = fixed;
-		emit isFixedChanged(fixed);
 	}
 }
 
@@ -455,25 +258,11 @@ bool Image::hasOptimizedParameters() const {
 
 QJsonObject Image::encodeJson() const {
 
-	QJsonObject obj;
+	QJsonObject obj = RigidBody::encodeJson();
 
 	obj.insert("imFile", getImageFile());
 
 	obj.insert("assignedCamera", assignedCamera());
-
-	obj.insert("x", floatParameter::toJson(xCoord()));
-	obj.insert("y", floatParameter::toJson(yCoord()));
-	obj.insert("z", floatParameter::toJson(zCoord()));
-
-	obj.insert("rx", floatParameter::toJson(xRot()));
-	obj.insert("ry", floatParameter::toJson(yRot()));
-	obj.insert("rz", floatParameter::toJson(zRot()));
-
-	obj.insert("op", floatParameterGroup<3>::toJson(optPos()));
-
-	obj.insert("or", floatParameterGroup<3>::toJson(optRot()));
-
-	obj.insert("fixed", (isFixed()) ? "fixed" : "unfixed");
 
 	QJsonArray arr;
 
@@ -488,50 +277,14 @@ QJsonObject Image::encodeJson() const {
 }
 void Image::configureFromJson(QJsonObject const& data) {
 
+	RigidBody::configureFromJson(data);
+
 	if (data.contains("imFile")) {
 		_imageFile = data.value("imFile").toString();
 	}
 
 	if (data.contains("assignedCamera")) {
 		_assignedCamera = data.value("assignedCamera").toInt();
-	}
-
-	if (data.contains("x")) {
-		_x = floatParameter::fromJson(data.value("x").toObject());
-	}
-	if (data.contains("y")) {
-		_y = floatParameter::fromJson(data.value("y").toObject());
-	}
-	if (data.contains("z")) {
-		_z = floatParameter::fromJson(data.value("z").toObject());
-	}
-
-	if (data.contains("rx")) {
-		_rx = floatParameter::fromJson(data.value("rx").toObject());
-	}
-	if (data.contains("ry")) {
-		_ry = floatParameter::fromJson(data.value("ry").toObject());
-	}
-	if (data.contains("rz")) {
-		_rz = floatParameter::fromJson(data.value("rz").toObject());
-	}
-
-	if (data.contains("op")) {
-		_o_pos = floatParameterGroup<3>::fromJson(data.value("op").toObject());
-	}
-
-	if (data.contains("or")) {
-		_o_rot = floatParameterGroup<3>::fromJson(data.value("or").toObject());
-	}
-
-	if (data.contains("fixed")) {
-		QString f = data.value("fixed").toString();
-
-		if (f.trimmed().toLower() == "fixed") {
-			setFixed(true);
-		} else {
-			setFixed(false);
-		}
 	}
 
 	if (data.contains("Landmarks")) {
@@ -836,8 +589,7 @@ QString ImageFactory::itemClassName() const {
 	return imageClassName();
 }
 QString ImageFactory::imageClassName() {
-	Image i;
-	return i.metaObject()->className();
+	return Image::staticMetaObject.className();
 }
 
 } // namespace StereoVisionApp

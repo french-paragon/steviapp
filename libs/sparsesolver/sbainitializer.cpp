@@ -24,7 +24,20 @@
 
 namespace StereoVisionApp {
 
+
+SBAInitializer::SBAInitializer():
+	_fixedParameters(NoFixedParameters)
+{
+
+}
+
 SBAInitializer::~SBAInitializer() {
+
+}
+
+PhotometricInitializer::PhotometricInitializer():
+	SBAInitializer()
+{
 
 }
 
@@ -32,6 +45,7 @@ SBAInitializer::~SBAInitializer() {
 EightPointsSBAMultiviewInitializer::EightPointsSBAMultiviewInitializer(qint64 f1,
 																	   bool preconstrain,
 																	   bool useConstraintsRefinement) :
+	PhotometricInitializer(),
 	_f1(f1),
 	_preconstrain(preconstrain),
 	_useConstraintsRefinement(useConstraintsRefinement)
@@ -276,6 +290,7 @@ EightPointsSBAInitializer::EightPointsSBAInitializer(qint64 f1,
 													 qint64 f2,
 													 bool preconstrain,
 													 bool useConstraintsRefinement) :
+	PhotometricInitializer(),
 	_f1(f1),
 	_f2(f2),
 	_preconstrain(preconstrain),
@@ -843,11 +858,19 @@ bool PhotometricInitializer::alignImage(InitialSolution & solution, Project* p, 
 	Eigen::Array3Xf pts_world = getLandmarksWorldCoordinates(solution, tmp);
 	Eigen::Array2Xf pts_cam = img->getImageLandmarksCoordinates(tmp);
 
-	pts_cam = Image2HomogeneousCoordinates(pts_cam,
-										   cam->fLen().value(),
-										   cam->fLenY(),
-										   Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
-										   StereoVision::Geometry::ImageAnchors::TopLeft);
+	if (getPreOptimizedFixedParameters()&FixedParameter::CameraInternal) {
+		pts_cam = Image2HomogeneousCoordinates(pts_cam,
+											   cam->optimizedFLen().value(),
+											   cam->optimizedFLen().value()*cam->pixelRatio().value(),
+											   Eigen::Vector2f(cam->optimizedOpticalCenterX().value(), cam->optimizedOpticalCenterY().value()),
+											   StereoVision::Geometry::ImageAnchors::TopLeft);
+	} else {
+		pts_cam = Image2HomogeneousCoordinates(pts_cam,
+											   cam->fLen().value(),
+											   cam->fLenY(),
+											   Eigen::Vector2f(cam->opticalCenterX().value(), cam->opticalCenterY().value()),
+											   StereoVision::Geometry::ImageAnchors::TopLeft);
+	}
 
 	StereoVision::Geometry::AffineTransform T = StereoVision::Geometry::pnp(pts_cam, pts_world);
 
@@ -1517,6 +1540,7 @@ StereoRigInitializer::StereoRigInitializer(qint64 f1,
 										   bool initial_pair_only,
 										   bool preconstrain,
 										   bool useConstraintsRefinement) :
+	PhotometricInitializer(),
 	_initial_pair_only(initial_pair_only),
 	_f1(f1),
 	_preconstrain(preconstrain),
@@ -1528,13 +1552,6 @@ StereoRigInitializer::StereoRigInitializer(qint64 f1,
 InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qint64> const& s_pts, QSet<qint64> const& s_imgs) {
 
 	InitialSolution r;
-
-	struct RigPair{
-		StereoRig* rig;
-		Image* img1;
-		Image* img2;
-	};
-
 
 	QMap<int, RigPair> rigPairs;
 	QMap<int, QSet<qint64>> rigPairsPoints;
@@ -1621,16 +1638,8 @@ InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qi
 	RigPair const& start_rp = rigPairs[maxRigPair];
 	RigPair const& rp = start_rp;
 
-	Eigen::Matrix3f R = StereoVision::Geometry::eulerDegXYZToRotation(rp.rig->offsetRotX().value(),
-																	  rp.rig->offsetRotY().value(),
-																	  rp.rig->offsetRotZ().value());
-
-	Eigen::Vector3f t(rp.rig->offsetX().value(),
-					  rp.rig->offsetY().value(),
-					  rp.rig->offsetZ().value());
-
 	StereoVision::Geometry::AffineTransform cam1(Eigen::Matrix3f::Identity(), Eigen::Vector3f::Zero());
-	StereoVision::Geometry::AffineTransform cam2tocam1(R, t);
+	auto [cam2tocam1, alreadyOptimizedRig] = getRigPairRelativeTransform(rp);
 
 
 	r.cams[rp.img1->internalId()] = cam1;
@@ -1645,20 +1654,24 @@ InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qi
 	}
 	//initial solution found
 
-	GraphStereoRigSolver rSolve(p, rp.img1->internalId(), rp.img2->internalId(), false, true);
-	bool ok = rSolve.initialize(&r);
+	bool ok;
 
-	if (!ok) {
-		return r;
+	if (!alreadyOptimizedRig) {
+		GraphStereoRigSolver rSolve(p, rp.img1->internalId(), rp.img2->internalId(), false, true);
+		ok = rSolve.initialize(&r);
+
+		if (!ok) {
+			return r;
+		}
+
+		ok = rSolve.runSteps(5);
+
+		if (!ok) {
+			return r;
+		}
+
+		r = rSolve.resultToSolution();
 	}
-
-	ok = rSolve.runSteps(5);
-
-	if (!ok) {
-		return r;
-	}
-
-	r = rSolve.resultToSolution();
 
 	//match the other rigs
 	QSet<int> processedRigs;
@@ -1697,6 +1710,8 @@ InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qi
 
 		InitialSolution r_tmp;
 
+		auto [cam2tocam1, subRigAlreadyOptimized] = getRigPairRelativeTransform(rp);
+
 		r_tmp.cams[rp.img1->internalId()] = cam1;
 		r_tmp.cams[rp.img2->internalId()] = cam2tocam1;
 
@@ -1704,23 +1719,25 @@ InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qi
 			triangulatePoint(r_tmp, p, ptid, {rp.img1->internalId(), rp.img2->internalId()});
 		}
 
-		GraphStereoRigSolver rSolveTmp(p, rp.img1->internalId(), rp.img2->internalId(), false, true);
+		if (!subRigAlreadyOptimized) {
+			GraphStereoRigSolver rSolveTmp(p, rp.img1->internalId(), rp.img2->internalId(), false, true);
 
-		ok = rSolveTmp.initialize(&r_tmp);
+			ok = rSolveTmp.initialize(&r_tmp);
 
-		if (!ok) {
-			excludedRigs.insert(maxRigIntersect);
-			continue;
+			if (!ok) {
+				excludedRigs.insert(maxRigIntersect);
+				continue;
+			}
+
+			ok = rSolveTmp.runSteps(5);
+
+			if (!ok) {
+				excludedRigs.insert(maxRigIntersect);
+				continue;
+			}
+
+			r_tmp = rSolveTmp.resultToSolution();
 		}
-
-		ok = rSolve.runSteps(5);
-
-		if (!ok) {
-			excludedRigs.insert(maxRigIntersect);
-			continue;
-		}
-
-		r_tmp = rSolve.resultToSolution();
 
 		bool aligned = alignSolution(r, r_tmp);
 
@@ -1752,6 +1769,71 @@ InitialSolution StereoRigInitializer::computeInitialSolution(Project* p, QSet<qi
 	}
 
 	return r;
+
+}
+
+
+
+std::tuple<StereoVision::Geometry::AffineTransform, bool> StereoRigInitializer::getRigPairRelativeTransform(RigPair const& rp) const {
+
+	bool alreadyOptimizedRig = false;
+
+	Eigen::Matrix3f R;
+
+	if (getPreOptimizedFixedParameters() & FixedParameter::StereoRigs) {
+
+		if (rp.rig->optRot().isSet()) {
+			R = StereoVision::Geometry::rodriguezFormula(Eigen::Vector3f(rp.rig->optXRot(),
+																		 rp.rig->optYRot(),
+																		 rp.rig->optZRot()));
+			alreadyOptimizedRig = true;
+
+		} else {
+
+			R = StereoVision::Geometry::eulerDegXYZToRotation(rp.rig->xRot().value(),
+															  rp.rig->yRot().value(),
+															  rp.rig->zRot().value());
+		}
+
+	} else {
+
+		R = StereoVision::Geometry::eulerDegXYZToRotation(rp.rig->xRot().value(),
+														  rp.rig->yRot().value(),
+														  rp.rig->zRot().value());
+	}
+
+	Eigen::Vector3f t;
+
+	if (getPreOptimizedFixedParameters() & FixedParameter::StereoRigs) {
+
+		if (rp.rig->optPos().isSet()) {
+			t = Eigen::Vector3f(rp.rig->optXCoord(),
+								rp.rig->optYCoord(),
+								rp.rig->optZCoord());
+
+		} else {
+
+			t = Eigen::Vector3f(rp.rig->xCoord().value(),
+								rp.rig->yCoord().value(),
+								rp.rig->zCoord().value());
+
+			if (alreadyOptimizedRig) {
+
+				alreadyOptimizedRig = false;
+			}
+		}
+
+
+	} else {
+
+		t = Eigen::Vector3f(rp.rig->xCoord().value(),
+							rp.rig->yCoord().value(),
+							rp.rig->zCoord().value());
+	}
+
+	StereoVision::Geometry::AffineTransform ret(R, t);
+
+	return std::make_tuple(ret, alreadyOptimizedRig);
 
 }
 

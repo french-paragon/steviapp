@@ -60,12 +60,16 @@ void solveCoarse(Project* p, MainWindow* w, int pnStep) {
 	bool initWithCurrentSolution = false;
 	int nSteps = pnStep;
 
+	FixedParameters fixedParameters = FixedParameter::CameraInternal|FixedParameter::StereoRigs;
+
 	if (w != nullptr) {
 
 		SparseSolverConfigDialog d(w);
 		d.setModal(true);
 		d.setWindowTitle(QObject::tr("Sparse optimizer options"));
 		d.enableComputeUncertaintyOption(false);
+
+		d.setFixedParameters(fixedParameters);
 
 		d.exec();
 
@@ -76,6 +80,8 @@ void solveCoarse(Project* p, MainWindow* w, int pnStep) {
 		useSparseOptimizer = d.useSparseOptimizer();
 		nSteps = d.numberOfSteps();
 		initWithCurrentSolution = d.initWithCurrentSol();
+
+		fixedParameters = d.getFixedParameters();
 	}
 
 	if (nSteps <= 0) {
@@ -85,6 +91,7 @@ void solveCoarse(Project* p, MainWindow* w, int pnStep) {
 	GraphRoughBundleAdjustementSolver* solver = new GraphRoughBundleAdjustementSolver(p, useSparseOptimizer, initWithCurrentSolution);
 
 	solver->setOptimizationSteps(nSteps);
+	solver->setFixedParametersFlag(fixedParameters);
 
 	QThread* t = new QThread();
 
@@ -120,6 +127,8 @@ void initSolution(Project* p, MainWindow* w) {
 
 	qint64 initial_frame = -1;
 
+	FixedParameters fixedParameters = FixedParameter::CameraInternal|FixedParameter::StereoRigs;
+
 	if (w != nullptr) {
 
 		SolutionInitConfigDialog d(w);
@@ -128,6 +137,8 @@ void initSolution(Project* p, MainWindow* w) {
 
 		d.setProject(p);
 
+		d.setFixedParameters(fixedParameters);
+
 		d.exec();
 
 		if (d.result() == QDialog::Rejected) {
@@ -135,6 +146,8 @@ void initSolution(Project* p, MainWindow* w) {
 		}
 
 		initial_frame = d.selectedStartingImage();
+
+		fixedParameters = d.getFixedParameters();
 	}
 
 	if (!resetSolution(p, w)) {
@@ -190,6 +203,8 @@ void initSolution(Project* p, MainWindow* w) {
 	} else {
 		initializer = new EightPointsSBAMultiviewInitializer(initial_frame, true, true);
 	}
+
+	initializer->setPreOptimizedFixedParameters(fixedParameters);
 
 	SBAGraphReductor::elementsSet selection = selector(p, false);
 
@@ -259,12 +274,15 @@ void initSolution(Project* p, MainWindow* w) {
 void initMonoStereoRigSolution(Project* p, MainWindow* w) {
 
 	qint64 initial_frame = -1;
+	FixedParameters fixed_parameters = NoFixedParameters;
 
 	if (w != nullptr) {
 
 		SolutionInitConfigDialog d(w);
 		d.setModal(true);
 		d.setWindowTitle(QObject::tr("Init solution options"));
+
+		d.setFixedParameters(fixed_parameters);
 
 		d.setProject(p);
 
@@ -275,6 +293,7 @@ void initMonoStereoRigSolution(Project* p, MainWindow* w) {
 		}
 
 		initial_frame = d.selectedStartingImage();
+		fixed_parameters = d.getFixedParameters();
 	}
 
 	if (!resetSolution(p, w)) {
@@ -359,12 +378,16 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 	bool useSparseOptimizer = true;
 	int nSteps = pnStep;
 
+	FixedParameters fixedParameters = FixedParameter::CameraInternal|FixedParameter::StereoRigs;
+
 	if (w != nullptr) {
 
 		SparseSolverConfigDialog d(w);
 		d.setModal(true);
 		d.setWindowTitle(QObject::tr("Sparse optimizer options"));
 		d.enableUseCurrentSolutionOption(false);
+
+		d.setFixedParameters(fixedParameters);
 
 		d.exec();
 
@@ -375,6 +398,8 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		computeUncertainty = d.computeUncertainty();
 		useSparseOptimizer = d.useSparseOptimizer();
 		nSteps = d.numberOfSteps();
+
+		fixedParameters = d.getFixedParameters();
 	}
 
 	if (nSteps <= 0) {
@@ -384,6 +409,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 	GraphSBASolver* solver = new GraphSBASolver(p, computeUncertainty, useSparseOptimizer);
 
 	solver->setOptimizationSteps(nSteps);
+	solver->setFixedParametersFlag(fixedParameters);
 
 	QThread* t = new QThread();
 

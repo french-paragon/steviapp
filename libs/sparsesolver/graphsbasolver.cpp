@@ -13,6 +13,7 @@
 #include "datablocks/camera.h"
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
+#include "datablocks/stereorig.h"
 
 #include "g2o/types/sba/types_six_dof_expmap.h"
 #include "vertices/vertexcamerapose.h"
@@ -25,6 +26,7 @@
 #include "edges/edgese3xyzprior.h"
 #include "edges/edgepointdistance.h"
 #include "edges/edgepointsangle.h"
+#include "edges/edgecamerase3leverarm.h"
 
 #include "sbagraphreductor.h"
 #include "sbainitializer.h"
@@ -153,73 +155,10 @@ bool GraphSBASolver::init() {
 
 		if (im != nullptr) {
 
-			qint64 cam_id = im->assignedCamera();
-			Camera* c = qobject_cast<Camera*>(_currentProject->getById(cam_id));
+			qint64 cam_id = setupCameraVertexForImage(im, vid);
 
-			if (c == nullptr) {
+			if (cam_id < 0) {
 				continue;
-			}
-
-			if (!_camVertices.contains(cam_id)) {
-
-				VertexCameraParam* cp_v = new VertexCameraParam();
-				VertexCameraRadialDistortion* rd_v = new VertexCameraRadialDistortion();
-				VertexCameraTangentialDistortion* td_v = new VertexCameraTangentialDistortion();
-				VertexCameraSkewDistortion* sd_v = new VertexCameraSkewDistortion();
-
-				cp_v->setId(vid++);
-				rd_v->setId(vid++);
-				td_v->setId(vid++);
-				sd_v->setId(vid++);
-
-				cp_v->setMarginalized(false);
-				rd_v->setMarginalized(false);
-				td_v->setMarginalized(false);
-				sd_v->setMarginalized(false);
-
-				cp_v->setReferedDatablock(c);
-				rd_v->setReferedDatablock(c);
-				td_v->setReferedDatablock(c);
-				sd_v->setReferedDatablock(c);
-
-				Eigen::Vector2d extend;
-				extend.x() = c->imSize().width();
-				extend.y() = c->imSize().height();
-
-				Eigen::Vector2d pp;
-				pp.x() = c->opticalCenterX().value();
-				pp.y() = c->opticalCenterY().value();
-
-				CamParam cp(extend, pp, c->fLen().value());
-
-				cp_v->setEstimate(cp);
-
-				Eigen::Vector3d rs;
-				rs.x() = c->k1().value();
-				rs.y() = c->k2().value();
-				rs.z() = c->k3().value();
-				rd_v->setEstimate(rs);
-				rd_v->setFixed(!c->useRadialDistortionModel());
-
-				Eigen::Vector2d ts;
-				ts.x() = c->p1().value();
-				ts.y() = c->p2().value();
-				td_v->setEstimate(ts);
-				td_v->setFixed(!c->useTangentialDistortionModel());
-
-				Eigen::Vector2d ss;
-				ss.x() = c->B1().value();
-				ss.y() = c->B2().value();
-				sd_v->setEstimate(ss);
-				sd_v->setFixed(!c->useSkewDistortionModel());
-
-				_optimizer->addVertex(cp_v);
-				_optimizer->addVertex(rd_v);
-				_optimizer->addVertex(td_v);
-				_optimizer->addVertex(sd_v);
-
-				_camVertices.insert(cam_id, {cp_v, rd_v, td_v, sd_v});
-
 			}
 
 			VertexCameraPose* v = new VertexCameraPose();
@@ -244,9 +183,14 @@ bool GraphSBASolver::init() {
 
 			v->setEstimate(p);
 
+			if (getFixedParametersFlag()&FixedParameter::CameraExternal) {
+				v->setFixed(true);
+			}
+
 			_optimizer->addVertex(v);
 			_frameVertices.insert(id, v);
 
+			//TODO: check if the use of axis angle representation here is consistent.
 			raxis.x() = im->xRot().value();
 			raxis.y() = im->yRot().value();
 			raxis.z() = im->zRot().value();
@@ -359,6 +303,8 @@ bool GraphSBASolver::init() {
 		}
 	}
 
+	/* distance constraints */
+
 	QVector<qint64> distConsts = _currentProject->getIdsByClass(DistanceConstrain::staticMetaObject.className());
 
 	for (qint64 id : distConsts) {
@@ -407,6 +353,8 @@ bool GraphSBASolver::init() {
 		}
 
 	}
+
+	/* angle constraints */
 
 	QVector<qint64> angleConsts = _currentProject->getIdsByClass(AngleConstrain::staticMetaObject.className());
 
@@ -460,6 +408,159 @@ bool GraphSBASolver::init() {
 		}
 
 	}
+
+	//stereo rigs
+
+	QVector<qint64> rigs = _currentProject->getIdsByClass(StereoRig::staticMetaObject.className());
+
+	/*for (qint64 id : rigs) {
+
+		if (!(_fixedParameters&FixedParameter::StereoRigs)) {
+			break; //not considering stereo rigs for optimization at the moment
+		}
+
+		StereoRig* rg = _currentProject->getDataBlock<StereoRig>(id);
+
+		if (rg == nullptr) {
+			continue;
+		}
+
+		bool hasMeasure = true;
+		hasMeasure = hasMeasure and rg->optOffsetX().isSet();
+		hasMeasure = hasMeasure and rg->optOffsetY().isSet();
+		hasMeasure = hasMeasure and rg->optOffsetZ().isSet();
+		hasMeasure = hasMeasure and rg->optOffsetRotX().isSet();
+		hasMeasure = hasMeasure and rg->optOffsetRotY().isSet();
+		hasMeasure = hasMeasure and rg->optOffsetRotZ().isSet();
+
+		if (!hasMeasure) {
+			continue;
+		}
+
+		Eigen::Vector3d t;
+		t.x() = rg->optOffsetX().value();
+		t.y() = rg->optOffsetY().value();
+		t.z() = rg->optOffsetZ().value();
+
+		float eX = rg->optOffsetRotX().value();
+		float eY = rg->optOffsetRotY().value();
+		float eZ = rg->optOffsetRotZ().value();
+
+		Eigen::Matrix3d R = StereoVision::Geometry::rodriguezFormulaD(Eigen::Vector3d(eX, eY, eZ));
+
+		CameraPose cam2tocam1Prior(R, t);
+
+		QVector<qint64> pairs = rg->listTypedSubDataBlocks(ImagePair::staticMetaObject.className());
+		QVector<ImagePair*> pairsInCalibration;
+		pairsInCalibration.reserve(pairs.size());
+
+		for (qint64 p_id : pairs) {
+			ImagePair* p = qobject_cast<ImagePair*>(rg->getById(p_id));
+
+			if (p == nullptr) {
+				continue;
+			}
+
+			if (_frameVertices.contains(p->idImgCam1()) and _frameVertices.contains(p->idImgCam2())) {
+
+				pairsInCalibration.push_back(p);
+
+			} else if (_frameVertices.contains(p->idImgCam1())) {
+
+				VertexCameraPose* vc1 = _frameVertices.value(p->idImgCam1());
+
+				qint64 idc2 = p->idImgCam2();
+				Image* img2 = _currentProject->getDataBlock<Image>(idc2);
+
+				if (img2 == nullptr) {
+					continue;
+				}
+
+				VertexCameraPose* v = new VertexCameraPose();
+				v->setId(vid++);
+				v->setMarginalized(false);
+				v->setReferedDatablock(img2);
+
+				CameraPose Cam1ToWorld = vc1->estimate();
+				CameraPose Cam2ToWorldPrior = Cam1ToWorld.applySE3(cam2tocam1Prior);
+
+				v->setEstimate(Cam2ToWorldPrior);
+
+				if (getFixedParametersFlag()&FixedParameter::CameraExternal) {
+					v->setFixed(true);
+				}
+
+				_optimizer->addVertex(v);
+				_frameVertices.insert(idc2, v);
+
+			} else if (_frameVertices.contains(p->idImgCam2())) {
+
+				VertexCameraPose* vc2 = _frameVertices.value(p->idImgCam2());
+
+				qint64 idc1 = p->idImgCam1();
+				Image* img1 = _currentProject->getDataBlock<Image>(idc1);
+
+				if (img1 == nullptr) {
+					continue;
+				}
+
+				VertexCameraPose* v = new VertexCameraPose();
+				v->setId(vid++);
+				v->setMarginalized(false);
+				v->setReferedDatablock(img1);
+
+				CameraPose Cam2ToWorld = vc2->estimate();
+				CameraPose Cam1ToWorldPrior = Cam2ToWorld.applySE3(cam2tocam1Prior.inverseSE3());
+
+				v->setEstimate(Cam1ToWorldPrior);
+
+				if (getFixedParametersFlag()&FixedParameter::CameraExternal) {
+					v->setFixed(true);
+				}
+
+				_optimizer->addVertex(v);
+				_frameVertices.insert(idc1, v);
+
+			}
+		}
+
+		if (pairsInCalibration.isEmpty()) {
+			continue;
+		}
+
+		for (ImagePair* imp : pairsInCalibration) {
+
+			VertexCameraPose* vcam1 = _frameVertices.value(imp->idImgCam1());
+			VertexCameraPose* vcam2 = _frameVertices.value(imp->idImgCam2());
+
+			EdgeCameraSE3LeverArm* e = new EdgeCameraSE3LeverArm();
+			e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(vcam1));
+			e->setVertex(1, static_cast<g2o::OptimizableGraph::Vertex*>(vcam2));
+
+			e->setMeasurement(cam2tocam1Prior);
+
+			if (rg->optOffsetX().isUncertain() and rg->optOffsetY().isUncertain() and rg->optOffsetZ().isUncertain() and
+				rg->optOffsetRotX().isUncertain() and rg->optOffsetRotY().isUncertain() and rg->optOffsetRotZ().isUncertain()) {
+
+				EdgeCameraSE3LeverArm::InformationType info = EdgeCameraSE3LeverArm::InformationType::Identity();
+				info(0,0) = 1./(rg->offsetX().stddev()*rg->offsetX().stddev());
+				info(1,1) = 1./(rg->offsetY().stddev()*rg->offsetY().stddev());
+				info(2,2) = 1./(rg->offsetZ().stddev()*rg->offsetZ().stddev());
+				info(3,3) = 1./(rg->offsetRotX().stddev()*rg->offsetRotX().stddev());
+				info(4,4) = 1./(rg->offsetRotY().stddev()*rg->offsetRotY().stddev());
+				info(5,5) = 1./(rg->offsetRotZ().stddev()*rg->offsetRotZ().stddev());
+
+				e->setInformation(info);
+
+			} else {
+				e->setInformation(EdgeCameraSE3LeverArm::InformationType::Identity());
+			}
+
+			_optimizer->addEdge(e);
+
+		}
+
+	}*/
 
 	s = _optimizer->initializeOptimization();
 	_not_first_step = false;
@@ -814,6 +915,157 @@ void GraphSBASolver::cleanup() {
 
 bool GraphSBASolver::splitOptSteps() const {
 	return true;
+}
+
+qint64 GraphSBASolver::setupCameraVertexForImage(Image* im, int & vid) {
+
+	if (im == nullptr) {
+		return -1;
+	}
+
+	qint64 cam_id = im->assignedCamera();
+	Camera* c = qobject_cast<Camera*>(_currentProject->getById(cam_id));
+
+	if (c == nullptr) {
+		return -1;
+	}
+
+	if (!_camVertices.contains(cam_id)) {
+
+		VertexCameraParam* cp_v = new VertexCameraParam();
+		VertexCameraRadialDistortion* rd_v = new VertexCameraRadialDistortion();
+		VertexCameraTangentialDistortion* td_v = new VertexCameraTangentialDistortion();
+		VertexCameraSkewDistortion* sd_v = new VertexCameraSkewDistortion();
+
+		cp_v->setId(vid++);
+		rd_v->setId(vid++);
+		td_v->setId(vid++);
+		sd_v->setId(vid++);
+
+		cp_v->setMarginalized(false);
+		rd_v->setMarginalized(false);
+		td_v->setMarginalized(false);
+		sd_v->setMarginalized(false);
+
+		cp_v->setReferedDatablock(c);
+		rd_v->setReferedDatablock(c);
+		td_v->setReferedDatablock(c);
+		sd_v->setReferedDatablock(c);
+
+		Eigen::Vector2d extend;
+		extend.x() = c->imSize().width();
+		extend.y() = c->imSize().height();
+
+		Eigen::Vector2d pp;
+
+		if (c->optimizedOpticalCenterX().isSet() and
+				c->optimizedOpticalCenterY().isSet() and
+				getFixedParametersFlag()&FixedParameter::CameraInternal) {
+
+			pp.x() = c->optimizedOpticalCenterX().value();
+			pp.y() = c->optimizedOpticalCenterY().value();
+
+		} else {
+
+			pp.x() = c->opticalCenterX().value();
+			pp.y() = c->opticalCenterY().value();
+		}
+
+		float flen = c->fLen().value();
+
+		if (c->optimizedFLen().isSet() and getFixedParametersFlag()&FixedParameter::CameraInternal) {
+			flen = c->optimizedFLen().value();
+		}
+
+		CamParam cp(extend, pp, flen);
+
+		cp_v->setEstimate(cp);
+
+		if (getFixedParametersFlag()&FixedParameter::CameraInternal) {
+			cp_v->setFixed(true);
+		}
+
+		Eigen::Vector3d rs;
+
+		if (c->optimizedK1().isSet() and
+				c->optimizedK2().isSet() and
+				c->optimizedK3().isSet() and
+				getFixedParametersFlag()&FixedParameter::CameraInternal) {
+
+			rs.x() = c->optimizedK1().value();
+			rs.y() = c->optimizedK2().value();
+			rs.z() = c->optimizedK3().value();
+
+		} else {
+
+			rs.x() = c->k1().value();
+			rs.y() = c->k2().value();
+			rs.z() = c->k3().value();
+		}
+
+		if (!c->useRadialDistortionModel()) {
+			rs.setZero();
+		}
+
+		rd_v->setEstimate(rs);
+
+		rd_v->setFixed(!c->useRadialDistortionModel() or getFixedParametersFlag()&FixedParameter::CameraInternal);
+
+		Eigen::Vector2d ts;
+
+		if (c->optimizedP1().isSet() and
+				c->optimizedP2().isSet() and
+				getFixedParametersFlag()&FixedParameter::CameraInternal) {
+
+			ts.x() = c->optimizedP1().value();
+			ts.y() = c->optimizedP2().value();
+
+		} else {
+
+			ts.x() = c->p1().value();
+			ts.y() = c->p2().value();
+		}
+
+		if (!c->useTangentialDistortionModel()) {
+			ts.setZero();
+		}
+
+		td_v->setEstimate(ts);
+
+		td_v->setFixed(!c->useTangentialDistortionModel() or getFixedParametersFlag()&FixedParameter::CameraInternal);
+
+		Eigen::Vector2d ss;
+
+		if (c->optimizedB1().isSet() and
+				c->optimizedB2().isSet() and
+				getFixedParametersFlag()&FixedParameter::CameraInternal) {
+
+			ss.x() = c->optimizedB1().value();
+			ss.y() = c->optimizedB2().value();
+
+		} else {
+
+			ss.x() = c->B1().value();
+			ss.y() = c->B2().value();
+		}
+
+		if (!c->useSkewDistortionModel()) {
+			ss.setZero();
+		}
+		sd_v->setEstimate(ss);
+
+		sd_v->setFixed(!c->useSkewDistortionModel() or getFixedParametersFlag()&FixedParameter::CameraInternal);
+
+		_optimizer->addVertex(cp_v);
+		_optimizer->addVertex(rd_v);
+		_optimizer->addVertex(td_v);
+		_optimizer->addVertex(sd_v);
+
+		_camVertices.insert(cam_id, {cp_v, rd_v, td_v, sd_v});
+
+	}
+
+	return cam_id;
 }
 
 } // namespace StereoVisionApp

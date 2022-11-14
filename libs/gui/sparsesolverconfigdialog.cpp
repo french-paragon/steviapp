@@ -59,4 +59,14 @@ void SparseSolverConfigDialog::setNumberOfSteps(int nSteps) {
 	ui->nStepSpinBoxpinBox->setValue(nSteps);
 }
 
+FixedParameters SparseSolverConfigDialog::getFixedParameters() const {
+
+	return ui->fixedParametersWidget->getFixedParameters();
+}
+
+void SparseSolverConfigDialog::setFixedParameters(FixedParameters parameters) {
+
+	ui->fixedParametersWidget->setFixedParameters(parameters);
+}
+
 } //namespace StereoVisionApp

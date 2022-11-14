@@ -23,6 +23,7 @@ protected:
 
 	QAction* createAssignToDistanceConstrainAction(QObject* parent, Project* p, const QVector<Landmark *> &lms) const;
 	QAction* createAssignToAngleConstrainAction(QObject* parent, Project* p, const QVector<Landmark *> &lms) const;
+	QAction* createAddToLocalCoordinateSystemAction(QObject* parent, Project* p, const QVector<Landmark *> &lms) const;
 
 };
 

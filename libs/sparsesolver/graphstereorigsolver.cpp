@@ -253,16 +253,16 @@ bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 
 			if (!refCam and rig != nullptr) {
 
-				r = (Eigen::AngleAxisd(rig->offsetRotX().value()/180*M_PI, Eigen::Vector3d::UnitX())*
-						Eigen::AngleAxisd(rig->offsetRotY().value()/180*M_PI, Eigen::Vector3d::UnitY())*
-						Eigen::AngleAxisd(rig->offsetRotZ().value()/180*M_PI, Eigen::Vector3d::UnitZ())).toRotationMatrix();
+				r = (Eigen::AngleAxisd(rig->xRot().value()/180*M_PI, Eigen::Vector3d::UnitX())*
+						Eigen::AngleAxisd(rig->yRot().value()/180*M_PI, Eigen::Vector3d::UnitY())*
+						Eigen::AngleAxisd(rig->zRot().value()/180*M_PI, Eigen::Vector3d::UnitZ())).toRotationMatrix();
 
-				t.x() = rig->offsetX().value();
-				t.y() = rig->offsetY().value();
-				t.z() = rig->offsetZ().value();
+				t.x() = rig->xCoord().value();
+				t.y() = rig->yCoord().value();
+				t.z() = rig->zCoord().value();
 
-				if (rig->offsetX().isUncertain() and rig->offsetY().isUncertain() and rig->offsetZ().isUncertain() and
-					rig->offsetRotX().isUncertain() and rig->offsetRotY().isUncertain() and rig->offsetRotZ().isUncertain()) {
+				if (rig->xCoord().isUncertain() and rig->yCoord().isUncertain() and rig->zCoord().isUncertain() and
+					rig->xRot().isUncertain() and rig->yRot().isUncertain() and rig->zRot().isUncertain()) {
 
 					EdgeSE3FullPrior* e = new EdgeSE3FullPrior();
 
@@ -273,12 +273,12 @@ bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 					e->setMeasurement(p_prior);
 
 					EdgeSE3FullPrior::InformationType info = EdgeSE3FullPrior::InformationType::Identity();
-					info(0,0) = 1./(rig->offsetX().stddev()*rig->offsetX().stddev());
-					info(1,1) = 1./(rig->offsetY().stddev()*rig->offsetY().stddev());
-					info(2,2) = 1./(rig->offsetZ().stddev()*rig->offsetZ().stddev());
-					info(3,3) = 1./(rig->offsetRotX().stddev()*rig->offsetRotX().stddev());
-					info(4,4) = 1./(rig->offsetRotY().stddev()*rig->offsetRotY().stddev());
-					info(5,5) = 1./(rig->offsetRotZ().stddev()*rig->offsetRotZ().stddev());
+					info(0,0) = 1./(rig->xCoord().stddev()*rig->xCoord().stddev());
+					info(1,1) = 1./(rig->yCoord().stddev()*rig->yCoord().stddev());
+					info(2,2) = 1./(rig->zCoord().stddev()*rig->zCoord().stddev());
+					info(3,3) = 1./(rig->xRot().stddev()*rig->xRot().stddev());
+					info(4,4) = 1./(rig->yRot().stddev()*rig->yRot().stddev());
+					info(5,5) = 1./(rig->zRot().stddev()*rig->zRot().stddev());
 
 					e->setInformation(info);
 

@@ -7,6 +7,7 @@
 #include "datablocks/cameracalibration.h"
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
+#include "datablocks/localcoordinatesystem.h"
 
 #include "interpolation/interpolation.h"
 #include "interpolation/lensdistortionsmap.h"
@@ -785,31 +786,8 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 				im_lm->setY(pos.x());
 			}
 
-			const QString hexa_angle_constraint_name("HexaTargets_HexagoneAngle");
-
-			AngleConstrain* hexa_angle = p->getDataBlockByName<AngleConstrain>(hexa_angle_constraint_name);
-
-			if (hexa_angle == nullptr) {
-				qint64 id = p->createDataBlock(AngleConstrain::staticMetaObject.className());
-
-				hexa_angle = p->getDataBlock<AngleConstrain>(id);
-				hexa_angle->setObjectName(hexa_angle_constraint_name);
-
-				hexa_angle->setAngleValue(120);
-			}
-
-			for (int i = 0; i < 6; i++) {
-
-				Landmark* lm0 = landmarks[i];
-				Landmark* lm1 = landmarks[(i+1)%6];
-				Landmark* lm2 = landmarks[(i+2)%6];
-
-				hexa_angle->insertLandmarksTriplet(lm0->internalId(), lm1->internalId(), lm2->internalId()); //set constrain if not already existing
-
-			}
-
 			if (useHexScale) {
-				const QString hexa_side_constraint_name("HexaTargets_HexagoneAngle");
+				/*const QString hexa_side_constraint_name("HexaTargets_HexagoneAngle");
 
 				DistanceConstrain* hexa_dist = p->getDataBlockByName<DistanceConstrain>(hexa_side_constraint_name);
 
@@ -829,7 +807,56 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 
 					hexa_dist->insertLandmarksPair(lm0->internalId(), lm1->internalId()); //set constrain if not already existing
 
+				}*/
+
+				QString lcsName = QString("HexaTarget_%1_CoordinateSystem").arg(colorCode);
+
+				LocalCoordinateSystem* lcs = p->getDataBlockByName<LocalCoordinateSystem>(lcsName);
+
+				if (lcs == nullptr) {
+					qint64 id = p->createDataBlock(LocalCoordinateSystem::staticMetaObject.className());
+
+					lcs = p->getDataBlock<LocalCoordinateSystem>(id);
+					lcs->setObjectName(lcsName);
 				}
+
+				for (int i = 0; i < 6; i++) {
+
+					Landmark* lm = landmarks[i];
+
+					float x = hexEdge*std::sin(i*60./180.*M_PI);
+					float y = hexEdge*std::cos(i*60./180.*M_PI);
+					float z = 0;
+
+					lcs->addLandmarkLocalCoordinates(lm->internalId(), x, y, z); //set constrain if not already existing
+
+				}
+
+			} else {
+
+				const QString hexa_angle_constraint_name("HexaTargets_HexagoneAngle");
+
+				AngleConstrain* hexa_angle = p->getDataBlockByName<AngleConstrain>(hexa_angle_constraint_name);
+
+				if (hexa_angle == nullptr) {
+					qint64 id = p->createDataBlock(AngleConstrain::staticMetaObject.className());
+
+					hexa_angle = p->getDataBlock<AngleConstrain>(id);
+					hexa_angle->setObjectName(hexa_angle_constraint_name);
+
+					hexa_angle->setAngleValue(120);
+				}
+
+				for (int i = 0; i < 6; i++) {
+
+					Landmark* lm0 = landmarks[i];
+					Landmark* lm1 = landmarks[(i+1)%6];
+					Landmark* lm2 = landmarks[(i+2)%6];
+
+					hexa_angle->insertLandmarksTriplet(lm0->internalId(), lm1->internalId(), lm2->internalId()); //set constrain if not already existing
+
+				}
+
 			}
 
 		}
@@ -867,7 +894,20 @@ int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p) {
 	Eigen::Matrix3f r = Eigen::Matrix3f::Identity();
 	Eigen::Vector3f t = Eigen::Vector3f::Zero();
 
-	if (img->optPos().isSet() and img->optRot().isSet()) {
+	if (img->isFixed()) {
+
+		Eigen::Vector3f raxis;
+		raxis.x() = img->xRot().value();
+		raxis.y() = img->yRot().value();
+		raxis.z() = img->zRot().value();
+
+		r = StereoVision::Geometry::rodriguezFormula(raxis);
+
+		t.x() = img->xCoord().value();
+		t.y() = img->yCoord().value();
+		t.z() = img->zCoord().value();
+
+	} else if (img->optPos().isSet() and img->optRot().isSet()) {
 
 		Eigen::Vector3f raxis;
 		raxis.x() = img->optRot().value(0);
@@ -968,29 +1008,11 @@ int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p) {
 		Eigen::Array2Xf projCoordinates;
 		projCoordinates.resize(2,6);
 
-		hexCoordinates(0,0) = 105.000;
-		hexCoordinates(1,0) = 61.111;
-		hexCoordinates(2,0) = 0.000;
-
-		hexCoordinates(0,1) = 179.889;
-		hexCoordinates(1,1) = 111.056;
-		hexCoordinates(2,1) = 0.000;
-
-		hexCoordinates(0,2) = 179.889;
-		hexCoordinates(1,2) = 185.945;
-		hexCoordinates(2,2) = 0.000;
-
-		hexCoordinates(0,3) = 105.000;
-		hexCoordinates(1,3) = 235.889;
-		hexCoordinates(2,3) = 0.000;
-
-		hexCoordinates(0,4) = 30.111;
-		hexCoordinates(1,4) = 185.945;
-		hexCoordinates(2,4) = 0.000;
-
-		hexCoordinates(0,5) = 30.111;
-		hexCoordinates(1,5) = 111.056;
-		hexCoordinates(2,5) = 0.000;
+		for (int i = 0; i < 6; i++) {
+			hexCoordinates(0,i) = 90.016*std::sin(i*60./180.*M_PI);
+			hexCoordinates(1,i) = 90.016*std::cos(i*60./180.*M_PI);
+			hexCoordinates(2,i) = 0.000;
+		}
 
 		for (int i = 0; i < 6; i++) {
 
@@ -1003,6 +1025,16 @@ int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p) {
 			coord = StereoVision::Geometry::invertRadialTangentialDistorstion(coord, rp, tp, 15);
 
 			projCoordinates.col(i) = coord;
+		}
+
+		if (!hexCoordinates.allFinite()) {
+			qDebug() << "Problem with the hexagone coordinates";
+			continue;
+		}
+
+		if (!projCoordinates.allFinite()) {
+			qDebug() << "Problem with homogeneous coordinates";
+			continue;
 		}
 
 		StereoVision::Geometry::AffineTransform hexToCam = StereoVision::Geometry::pnp(projCoordinates, hexCoordinates);

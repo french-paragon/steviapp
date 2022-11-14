@@ -53,8 +53,8 @@ public:
 	bool useHexagoneScale() const;
 	void setUseHexagoneScale(bool useScale);
 
-	bool hexagoneSide() const;
-	void setHexagoneSide(float sideLen);
+	double hexagoneSide() const;
+	void setHexagoneSide(double sideLen);
 
 private:
 	Ui::HexagonalTargetDetectionOptionsDialog *ui;

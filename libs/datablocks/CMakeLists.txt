@@ -6,6 +6,10 @@ set(LIB_SRC floatparameter.cpp
             dataexception.h
             project.cpp
             project.h
+            rigidbody.cpp
+            rigidbody.h
+            point3d.cpp
+            point3d.h
             landmark.cpp
             landmark.h
             image.cpp
@@ -24,6 +28,8 @@ set(LIB_SRC floatparameter.cpp
             landmarkscollection.h
             cameracalibration.cpp
             cameracalibration.h
+            localcoordinatesystem.cpp
+            localcoordinatesystem.h
             io/collada_export_filter.cpp
             io/collada_export_filter.h
 )

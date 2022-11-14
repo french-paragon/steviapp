@@ -3,6 +3,8 @@
 
 #include "processing/steppedprocess.h"
 
+#include "fixedpreoptimizedparameters.h"
+
 namespace StereoVisionApp {
 
 class Project;
@@ -24,6 +26,14 @@ public:
 
 	QString currentStepName() override;
 
+        inline FixedParameters getFixedParametersFlag() const {
+            return _fixedParameters;
+        }
+
+        inline void setFixedParametersFlag(FixedParameters fixedParameters) {
+            _fixedParameters = fixedParameters;
+        }
+
 protected:
 
 	bool doNextStep() override;
@@ -36,6 +46,8 @@ protected:
 	virtual bool splitOptSteps() const;
 
 	Project* _currentProject;
+
+        FixedParameters _fixedParameters;
 
 	int _n_step;
 	int _n_step_std;

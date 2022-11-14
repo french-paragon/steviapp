@@ -47,6 +47,10 @@ void EdgeCameraSE3LeverArm::computeError() {
 
 	VertexXiType::EstimateType q = cam1tocam2.applySE3(_measurement);
 	_error = q.log(); //implementation using Rodriguez formula.
+
+	if (_error.hasNaN()) {
+		qDebug() << "EdgeCameraSE3LeverArm";
+	}
 }
 
 EdgeCameraParametrizedSE3LeverArm::EdgeCameraParametrizedSE3LeverArm() {
@@ -98,6 +102,10 @@ void EdgeCameraParametrizedSE3LeverArm::computeError() {
 
 	VertexCameraPose::EstimateType q = cam1tocam2.applySE3(relativePose).applySE3(_measurement);
 	_error = q.log(); //implementation using Rodriguez formula.
+
+	if (_error.hasNaN()) {
+		qDebug() << "EdgeCameraParametrizedSE3LeverArm";
+	}
 
 }
 

@@ -373,23 +373,23 @@ bool GraphCameraCalibrator::activateStereoRigs() {
 			}
 
 			bool hasPrior = true;
-			hasPrior = hasPrior and rg->offsetX().isSet();
-			hasPrior = hasPrior and rg->offsetY().isSet();
-			hasPrior = hasPrior and rg->offsetZ().isSet();
-			hasPrior = hasPrior and rg->offsetRotX().isSet();
-			hasPrior = hasPrior and rg->offsetRotY().isSet();
-			hasPrior = hasPrior and rg->offsetRotZ().isSet();
+			hasPrior = hasPrior and rg->xCoord().isSet();
+			hasPrior = hasPrior and rg->yCoord().isSet();
+			hasPrior = hasPrior and rg->zCoord().isSet();
+			hasPrior = hasPrior and rg->xRot().isSet();
+			hasPrior = hasPrior and rg->yRot().isSet();
+			hasPrior = hasPrior and rg->zRot().isSet();
 
 			if (hasPrior) {
 
 				Eigen::Vector3d t;
-				t.x() = rg->offsetX().value();
-				t.y() = rg->offsetY().value();
-				t.z() = rg->offsetZ().value();
+				t.x() = rg->xCoord().value();
+				t.y() = rg->yCoord().value();
+				t.z() = rg->zCoord().value();
 
-				float eX = rg->offsetRotX().value();
-				float eY = rg->offsetRotY().value();
-				float eZ = rg->offsetRotZ().value();
+				float eX = rg->xRot().value();
+				float eY = rg->yRot().value();
+				float eZ = rg->zRot().value();
 
 				Eigen::Matrix3d R = StereoVision::Geometry::eulerDegXYZToRotation(eX, eY, eZ).cast<double>();
 
@@ -406,16 +406,16 @@ bool GraphCameraCalibrator::activateStereoRigs() {
 
 					e->setMeasurement(cam2tocam1Prior);
 
-					if (rg->offsetX().isUncertain() and rg->offsetY().isUncertain() and rg->offsetZ().isUncertain() and
-						rg->offsetRotX().isUncertain() and rg->offsetRotY().isUncertain() and rg->offsetRotZ().isUncertain()) {
+					if (rg->xCoord().isUncertain() and rg->yCoord().isUncertain() and rg->zCoord().isUncertain() and
+						rg->xRot().isUncertain() and rg->yRot().isUncertain() and rg->zRot().isUncertain()) {
 
 						EdgeCameraSE3LeverArm::InformationType info = EdgeCameraSE3LeverArm::InformationType::Identity();
-						info(0,0) = 1./(rg->offsetX().stddev()*rg->offsetX().stddev());
-						info(1,1) = 1./(rg->offsetY().stddev()*rg->offsetY().stddev());
-						info(2,2) = 1./(rg->offsetZ().stddev()*rg->offsetZ().stddev());
-						info(3,3) = 1./(rg->offsetRotX().stddev()*rg->offsetRotX().stddev());
-						info(4,4) = 1./(rg->offsetRotY().stddev()*rg->offsetRotY().stddev());
-						info(5,5) = 1./(rg->offsetRotZ().stddev()*rg->offsetRotZ().stddev());
+						info(0,0) = 1./(rg->xCoord().stddev()*rg->xCoord().stddev());
+						info(1,1) = 1./(rg->yCoord().stddev()*rg->yCoord().stddev());
+						info(2,2) = 1./(rg->zCoord().stddev()*rg->zCoord().stddev());
+						info(3,3) = 1./(rg->xRot().stddev()*rg->xRot().stddev());
+						info(4,4) = 1./(rg->yRot().stddev()*rg->yRot().stddev());
+						info(5,5) = 1./(rg->zRot().stddev()*rg->zRot().stddev());
 
 						e->setInformation(info);
 
@@ -583,14 +583,14 @@ bool GraphCameraCalibrator::writeResults() {
 		pos.value(1) = static_cast<float>(t.y());
 		pos.value(2) = static_cast<float>(t.z());
 		pos.setIsSet();
-		rig->setOptOffset(pos);
+		rig->setOptPos(pos);
 
 		floatParameterGroup<3> rot;
 		rot.value(0) = static_cast<float>(r.x());
 		rot.value(1) = static_cast<float>(r.y());
 		rot.value(2) = static_cast<float>(r.z());
 		rot.setIsSet();
-		rig->setOptOffsetRot(rot);
+		rig->setOptRot(rot);
 
 	}
 
@@ -612,14 +612,14 @@ bool GraphCameraCalibrator::writeResults() {
 		pos.value(1) = static_cast<float>(t.y());
 		pos.value(2) = static_cast<float>(t.z());
 		pos.setIsSet();
-		rig->setOptOffset(pos);
+		rig->setOptPos(pos);
 
 		floatParameterGroup<3> rot;
 		rot.value(0) = static_cast<float>(r.x());
 		rot.value(1) = static_cast<float>(r.y());
 		rot.value(2) = static_cast<float>(r.z());
 		rot.setIsSet();
-		rig->setOptOffsetRot(rot);
+		rig->setOptRot(rot);
 
 	}
 
