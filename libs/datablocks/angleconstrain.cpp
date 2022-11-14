@@ -63,7 +63,7 @@ qint64 AngleConstrain::insertLandmarksTriplet(qint64 lm1Id, qint64 lm2Id, qint64
 		if (lms3 != nullptr) {
 			if (lms3->getNthLandmarkId(0) == lm1Id and
 					lms3->getNthLandmarkId(1) == lm2Id and
-					lms3->getNthLandmarkId(2) == lm2Id) {
+					lms3->getNthLandmarkId(2) == lm3Id) {
 				return -1;
 			}
 		}
