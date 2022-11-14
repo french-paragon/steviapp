@@ -5,10 +5,17 @@
 #include "datablocks/camera.h"
 #include "datablocks/stereorig.h"
 #include "datablocks/cameracalibration.h"
+#include "datablocks/angleconstrain.h"
+#include "datablocks/distanceconstrain.h"
 
 #include "interpolation/interpolation.h"
 #include "interpolation/lensdistortionsmap.h"
 #include "geometry/stereorigrectifier.h"
+#include "geometry/lensdistortion.h"
+#include "geometry/imagecoordinates.h"
+#include "geometry/alignement.h"
+
+#include "sparsesolver/vertices/camerapose.h"
 
 #include "imageProcessing/hexagonalRGBTargetsDetection.h"
 
@@ -25,6 +32,9 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QPixmap>
+#include <QRegularExpression>
+
+#include <QDebug>
 
 #include <exiv2/exiv2.hpp>
 
@@ -631,6 +641,9 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 
 	bool clearPrevious = false;
 
+	bool useHexScale = false;
+	float hexEdge = 90.016;
+
 	if (mw != nullptr) {
 
 		HexagonalTargetDetectionOptionsDialog od(mw);
@@ -654,6 +667,8 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 
 		od.setReplaceOld(clearPrevious);
 
+		od.setUseHexagoneScale(useHexScale);
+		od.setHexagoneSide(hexEdge);
 
 		int code = od.exec();
 
@@ -676,6 +691,9 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 		blueGain = od.blueGain();
 
 		clearPrevious = od.replaceOld();
+
+		useHexScale = od.useHexagoneScale();
+		hexEdge = od.hexagoneSide();
 
 	}
 
@@ -728,6 +746,8 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 
 			QString lmNameBase = QString("HexaTarget_%1").arg(colorCode);
 
+			std::array<Landmark*, 6> landmarks;
+
 			for (int i = 0; i < 6; i++) {
 				QString lmName = lmNameBase + QString("_%1").arg(i+1);
 
@@ -739,6 +759,8 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 					target_lm = p->getDataBlock<Landmark>(id);
 					target_lm->setObjectName(lmName);
 				}
+
+				landmarks[i] = target_lm;
 
 				Eigen::Vector2f pos;
 
@@ -763,12 +785,375 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 				im_lm->setY(pos.x());
 			}
 
+			const QString hexa_angle_constraint_name("HexaTargets_HexagoneAngle");
+
+			AngleConstrain* hexa_angle = p->getDataBlockByName<AngleConstrain>(hexa_angle_constraint_name);
+
+			if (hexa_angle == nullptr) {
+				qint64 id = p->createDataBlock(AngleConstrain::staticMetaObject.className());
+
+				hexa_angle = p->getDataBlock<AngleConstrain>(id);
+				hexa_angle->setObjectName(hexa_angle_constraint_name);
+
+				hexa_angle->setAngleValue(120);
+			}
+
+			for (int i = 0; i < 6; i++) {
+
+				Landmark* lm0 = landmarks[i];
+				Landmark* lm1 = landmarks[(i+1)%6];
+				Landmark* lm2 = landmarks[(i+2)%6];
+
+				hexa_angle->insertLandmarksTriplet(lm0->internalId(), lm1->internalId(), lm2->internalId()); //set constrain if not already existing
+
+			}
+
+			if (useHexScale) {
+				const QString hexa_side_constraint_name("HexaTargets_HexagoneAngle");
+
+				DistanceConstrain* hexa_dist = p->getDataBlockByName<DistanceConstrain>(hexa_side_constraint_name);
+
+				if (hexa_dist == nullptr) {
+					qint64 id = p->createDataBlock(DistanceConstrain::staticMetaObject.className());
+
+					hexa_dist = p->getDataBlock<DistanceConstrain>(id);
+					hexa_dist->setObjectName(hexa_side_constraint_name);
+
+					hexa_dist->setDistanceValue(hexEdge);
+				}
+
+				for (int i = 0; i < 6; i++) {
+
+					Landmark* lm0 = landmarks[i];
+					Landmark* lm1 = landmarks[(i+1)%6];
+
+					hexa_dist->insertLandmarksPair(lm0->internalId(), lm1->internalId()); //set constrain if not already existing
+
+				}
+			}
+
 		}
 
 	}
 
 	return nImgsProcessed;
 
+}
+
+
+int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p) {
+
+	QRegularExpression hexNamePattern("^(HexaTarget_[RG]{5})_[1-6]$");
+
+	if (p == nullptr) {
+		qDebug() << "missing project";
+		return 1;
+	}
+
+	Image* img = p->getDataBlock<Image>(imgId);
+
+	if (img == nullptr) {
+		qDebug() << "missing image";
+		return 1;
+	}
+
+	Camera* cam = p->getDataBlock<Camera>(img->assignedCamera());
+
+	if (cam == nullptr) {
+		qDebug() << "missing camera";
+		return 1;
+	}
+
+	Eigen::Matrix3f r = Eigen::Matrix3f::Identity();
+	Eigen::Vector3f t = Eigen::Vector3f::Zero();
+
+	if (img->optPos().isSet() and img->optRot().isSet()) {
+
+		Eigen::Vector3f raxis;
+		raxis.x() = img->optRot().value(0);
+		raxis.y() = img->optRot().value(1);
+		raxis.z() = img->optRot().value(2);
+
+		r = StereoVision::Geometry::rodriguezFormula(raxis);
+
+		t.x() = img->optPos().value(0);
+		t.y() = img->optPos().value(1);
+		t.z() = img->optPos().value(2);
+	}
+
+	StereoVision::Geometry::AffineTransform camToWorld(r, t);
+
+	Eigen::Vector2f pp;
+	pp[0] = cam->optimizedOpticalCenterX().value();
+	pp[1] = cam->optimizedOpticalCenterY().value();
+
+
+	bool hasRadialDist = cam->optimizedK1().isSet() and cam->optimizedK2().isSet() and cam->optimizedK3().isSet() and cam->useRadialDistortionModel();
+	Eigen::Vector3f rp = Eigen::Vector3f::Zero();
+
+	if (hasRadialDist) {
+		rp << cam->optimizedK1().value(), cam->optimizedK2().value(), cam->optimizedK3().value();
+	}
+
+	bool hasTangentialDist = cam->optimizedP1().isSet() and cam->optimizedP2().isSet() and cam->useTangentialDistortionModel();
+	Eigen::Vector2f tp = Eigen::Vector2f::Zero();
+
+	if (hasTangentialDist) {
+		rp << cam->optimizedP1().value(), cam->optimizedP2().value();
+	}
+
+	float fLen = cam->optimizedFLen().value();
+
+	QVector<qint64> lmIds = img->getAttachedLandmarksIds();
+
+	QSet<QString> treatedHexagones;
+
+	for (qint64 lmId : lmIds) {
+
+		Landmark* lm = p->getDataBlock<Landmark>(lmId);
+
+		if (lm == nullptr) {
+			continue;
+		}
+
+		QString objName = lm->objectName();
+
+		QRegularExpressionMatch match = hexNamePattern.match(objName);
+
+		if (!match.hasMatch()) {
+			continue;
+		}
+
+		QString hexName = match.capturedView(1).toString();
+
+		if (treatedHexagones.contains(hexName)) {
+			continue; //hexagone already treated.
+		}
+
+		qDebug() << "treating hexagone: " << hexName;
+		treatedHexagones.insert(hexName);
+
+		std::array<Landmark*,6> hexLandmarks;
+		std::array<ImageLandmark*,6> hexImageLandmarks;
+		bool allFound = true;
+
+		for (int i = 0; i < 6; i++) {
+			QString name = QString("%1_%2").arg(hexName).arg(i+1);
+
+			Landmark* lm = p->getDataBlockByName<Landmark>(name);
+
+			if (lm == nullptr) {
+				allFound = false;
+				break;
+			}
+
+			ImageLandmark* imlm = img->getImageLandmarkByLandmarkId(lm->internalId());
+
+			if (imlm == nullptr) {
+				allFound = false;
+				break;
+			}
+
+			hexLandmarks[i] = lm;
+			hexImageLandmarks[i] = imlm;
+		}
+
+		if (!allFound) {
+			continue;
+		}
+
+		Eigen::Array3Xf hexCoordinates;
+		hexCoordinates.resize(3,6);
+
+		Eigen::Array2Xf projCoordinates;
+		projCoordinates.resize(2,6);
+
+		hexCoordinates(0,0) = 105.000;
+		hexCoordinates(1,0) = 61.111;
+		hexCoordinates(2,0) = 0.000;
+
+		hexCoordinates(0,1) = 179.889;
+		hexCoordinates(1,1) = 111.056;
+		hexCoordinates(2,1) = 0.000;
+
+		hexCoordinates(0,2) = 179.889;
+		hexCoordinates(1,2) = 185.945;
+		hexCoordinates(2,2) = 0.000;
+
+		hexCoordinates(0,3) = 105.000;
+		hexCoordinates(1,3) = 235.889;
+		hexCoordinates(2,3) = 0.000;
+
+		hexCoordinates(0,4) = 30.111;
+		hexCoordinates(1,4) = 185.945;
+		hexCoordinates(2,4) = 0.000;
+
+		hexCoordinates(0,5) = 30.111;
+		hexCoordinates(1,5) = 111.056;
+		hexCoordinates(2,5) = 0.000;
+
+		for (int i = 0; i < 6; i++) {
+
+			Eigen::Vector2f coord;
+			coord << hexImageLandmarks[i]->x().value(), hexImageLandmarks[i]->y().value();
+
+			coord -= pp;
+			coord /= fLen;
+
+			coord = StereoVision::Geometry::invertRadialTangentialDistorstion(coord, rp, tp, 15);
+
+			projCoordinates.col(i) = coord;
+		}
+
+		StereoVision::Geometry::AffineTransform hexToCam = StereoVision::Geometry::pnp(projCoordinates, hexCoordinates);
+
+		StereoVision::Geometry::AffineTransform hexToWorld(camToWorld.R*hexToCam.R, camToWorld.t + camToWorld.R*hexToCam.t);
+
+		Eigen::Array3Xf hexWorldCoordinates = hexToWorld*hexCoordinates;
+
+		for (int i = 0; i < 6; i++) {
+
+			floatParameterGroup<3> optPos;
+			optPos.value(0) = hexWorldCoordinates.col(i)[0];
+			optPos.value(1) = hexWorldCoordinates.col(i)[1];
+			optPos.value(2) = hexWorldCoordinates.col(i)[2];
+
+			Landmark* lm = hexLandmarks[i];
+			lm->setOptPos(optPos);
+
+		}
+
+	}
+
+	MainWindow* mw = MainWindow::getActiveMainWindow();
+
+	if (mw != nullptr) {
+		mw->openSparseViewer();
+	}
+
+	return 0;
+
+}
+
+int orientCamerasRelativeToObservedLandmarks(qint64 imgId, Project* p) {
+
+	if (p == nullptr) {
+		qDebug() << "missing project";
+		return 1;
+	}
+
+	Image* img = p->getDataBlock<Image>(imgId);
+
+	if (img == nullptr) {
+		qDebug() << "missing image";
+		return 1;
+	}
+
+	Camera* cam = p->getDataBlock<Camera>(img->assignedCamera());
+
+	if (cam == nullptr) {
+		qDebug() << "missing camera";
+		return 1;
+	}
+
+	Eigen::Vector2f pp;
+	pp[0] = cam->optimizedOpticalCenterX().value();
+	pp[1] = cam->optimizedOpticalCenterY().value();
+
+
+	bool hasRadialDist = cam->optimizedK1().isSet() and cam->optimizedK2().isSet() and cam->optimizedK3().isSet() and cam->useRadialDistortionModel();
+	Eigen::Vector3f rp = Eigen::Vector3f::Zero();
+
+	if (hasRadialDist) {
+		rp << cam->optimizedK1().value(), cam->optimizedK2().value(), cam->optimizedK3().value();
+	}
+
+	bool hasTangentialDist = cam->optimizedP1().isSet() and cam->optimizedP2().isSet() and cam->useTangentialDistortionModel();
+	Eigen::Vector2f tp = Eigen::Vector2f::Zero();
+
+	if (hasTangentialDist) {
+		rp << cam->optimizedP1().value(), cam->optimizedP2().value();
+	}
+
+	float fLen = cam->optimizedFLen().value();
+
+
+	QVector<qint64> lmIds = img->getAttachedLandmarksIds();
+
+	QVector<Landmark*> observedLandmarks;
+	observedLandmarks.reserve(lmIds.size());
+
+	for (qint64 lmId : lmIds) {
+
+		Landmark* lm = p->getDataBlock<Landmark>(lmId);
+
+		if (lm == nullptr) {
+			continue;
+		}
+
+		if (lm->optPos().isSet()) {
+			observedLandmarks.push_back(lm);
+		}
+
+	}
+
+	if (observedLandmarks.size() <= 4) {
+		qDebug() << "Not enough landmarks available";
+		return 1;
+	}
+
+
+	Eigen::Array3Xf pointsCoordinates;
+	pointsCoordinates.resize(3,observedLandmarks.size());
+
+	Eigen::Array2Xf projCoordinates;
+	projCoordinates.resize(2,observedLandmarks.size());
+
+	for (int i = 0; i < observedLandmarks.size(); i++) {
+
+		Landmark* lm = observedLandmarks[i];
+		pointsCoordinates.col(i) = Eigen::Vector3f(lm->optPos().value(0), lm->optPos().value(1), lm->optPos().value(2));
+
+		ImageLandmark* imLm = img->getImageLandmarkByLandmarkId(lm->internalId());
+
+		Eigen::Vector2f coord(imLm->x().value(), imLm->y().value());
+
+		coord -= pp;
+		coord /= fLen;
+
+		coord = StereoVision::Geometry::invertRadialTangentialDistorstion(coord, rp, tp, 15);
+
+		projCoordinates.col(i) = coord;
+
+	}
+
+	StereoVision::Geometry::AffineTransform world2Cam = StereoVision::Geometry::pnp(projCoordinates, pointsCoordinates);
+
+	Eigen::Matrix3f Rcam2World = world2Cam.R.transpose();
+	Eigen::Vector3f raxis = StereoVision::Geometry::inverseRodriguezFormula(Rcam2World);
+
+	Eigen::Vector3f tCam2World = Rcam2World*(-world2Cam.t);
+
+	floatParameterGroup<3> r;
+	r.value(0) = raxis[0];
+	r.value(1) = raxis[1];
+	r.value(2) = raxis[2];
+
+	floatParameterGroup<3> t;
+	t.value(0) = tCam2World[0];
+	t.value(1) = tCam2World[1];
+	t.value(2) = tCam2World[2];
+
+	img->setOptPos(t);
+	img->setOptRot(r);
+
+	MainWindow* mw = MainWindow::getActiveMainWindow();
+
+	if (mw != nullptr) {
+		mw->openSparseViewer();
+	}
+
+	return 0;
 }
 
 QTextStream& printImagesRelativePositions(QTextStream & stream, QVector<qint64> imagesIds, Project* p) {

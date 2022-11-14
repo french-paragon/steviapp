@@ -141,6 +141,18 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 	});
 	lst.append(detectHexaTarget);
 
+	QAction* alignHexaTarget = new QAction(tr("Align hexagonal targets"), parent);
+	connect(alignHexaTarget, &QAction::triggered, [im] () {
+		orientHexagonalTargetsRelativeToCamera(im->internalId(), im->getProject());
+	});
+	lst.append(alignHexaTarget);
+
+	QAction* alignImageOnLandmarks = new QAction(tr("Align image"), parent);
+	connect(alignImageOnLandmarks, &QAction::triggered, [im] () {
+		orientCamerasRelativeToObservedLandmarks(im->internalId(), im->getProject());
+	});
+	lst.append(alignImageOnLandmarks);
+
 	QAction* addToCalibration = createAddToCalibrationAction(parent, im->getProject(), {im});
 
 	lst.append(addToCalibration);
