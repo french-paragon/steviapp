@@ -58,6 +58,7 @@ public:
 	ImagePair* getImagePair(qint64 id) const;
 	qint64 insertImagePair(qint64 cam1ImgId, qint64 cam2ImgId);
 	ImagePair* getPairForImage(qint64 id) const;
+	bool removeImagePair(qint64 id);
 
 	/*!
 	 * \brief getJsonRepresentation return a JsonObject containing the parameters of the stereo rigs (usefull to export a calibrated stereo rigs).
@@ -135,6 +136,7 @@ Q_SIGNALS:
 	void optOffsetRotChanged();
 
 	void imagePairAdded(qint64 id);
+	void imagePairRemoved(qint64 id);
 
 protected:
 

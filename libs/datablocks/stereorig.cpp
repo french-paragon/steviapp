@@ -239,6 +239,26 @@ ImagePair* StereoRig::getPairForImage(qint64 id) const {
 	return nullptr;
 }
 
+bool StereoRig::removeImagePair(qint64 id) {
+
+	ImagePair* imp = getImagePair(id);
+
+	if (imp == nullptr) {
+		return false;
+	}
+
+	clearSubItem(id, ImagePair::ImagePairClassName);
+
+	imp = getImagePair(id);
+
+	if (imp != nullptr) {
+		return false;
+	}
+
+	return true;
+
+}
+
 QJsonObject StereoRig::encodeJson() const {
 
 	QJsonObject obj;
@@ -576,6 +596,12 @@ void ImagePair::referedCleared(QVector<qint64> const& referedId) {
 	} else if (referedId.front() == _id_imgCam2) {
 		_id_imgCam2 = -1;
 		emit attachedCam2Changed(-1);
+	}
+
+	StereoRig* strg = qobject_cast<StereoRig*>(parent());
+
+	if (strg != nullptr) {
+		strg->removeImagePair(this->internalId());
 	}
 }
 

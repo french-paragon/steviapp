@@ -868,7 +868,9 @@ void DataBlock::clear() {
 
 	Project* p = getProject();
 
-	for (QVector<qint64> referer : _referers) {
+	QVector<QVector<qint64>> referers = _referers;
+
+	for (QVector<qint64> referer : referers) {
 		DataBlock* b = p->getByUrl(referer);
 
 		if (b != nullptr) {
