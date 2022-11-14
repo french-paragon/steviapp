@@ -92,5 +92,19 @@ void HexagonalTargetDetectionOptionsDialog::setReplaceOld(bool replace) {
 	ui->removePreviouslyDetectedCheckBox->setChecked(replace);
 }
 
+bool HexagonalTargetDetectionOptionsDialog::useHexagoneScale() const {
+	return ui->hexagoneSidesGroupBox->isChecked();
+}
+void HexagonalTargetDetectionOptionsDialog::setUseHexagoneScale(bool useScale) {
+	ui->hexagoneSidesGroupBox->setChecked(useScale);
+}
+
+bool HexagonalTargetDetectionOptionsDialog::hexagoneSide() const {
+	return ui->hexagoneSideSpinBox->value();
+}
+void HexagonalTargetDetectionOptionsDialog::setHexagoneSide(float sideLen) {
+	ui->hexagoneSideSpinBox->setValue(sideLen);
+}
+
 
 } // namespace StereoVisionApp

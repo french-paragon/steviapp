@@ -50,6 +50,12 @@ public:
 	bool replaceOld() const;
 	void setReplaceOld(bool replace);
 
+	bool useHexagoneScale() const;
+	void setUseHexagoneScale(bool useScale);
+
+	bool hexagoneSide() const;
+	void setHexagoneSide(float sideLen);
+
 private:
 	Ui::HexagonalTargetDetectionOptionsDialog *ui;
 };
