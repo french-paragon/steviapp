@@ -129,6 +129,43 @@ QList<QAction*> StereoRigActionManager::factorizeItemContextActions(QObject* par
 	});
 	actions.append(exportRig);
 
+	QAction* importRig = new QAction(tr("Import parameters"), parent);
+	connect(importRig, &QAction::triggered, [rig] () {
+
+		if (rig == nullptr) {
+			return;
+		}
+
+		MainWindow* mw = MainWindow::getActiveMainWindow();
+
+		if (mw == nullptr) {
+			return;
+		}
+
+		QString rigFile = QFileDialog::getOpenFileName(mw, tr("Import a Stereo Rig"), QString(), tr("Steviap rig files (*.stevrig)"));
+
+		if (rigFile.isEmpty()) {
+			return;
+		}
+
+		QFile infile(rigFile);
+		bool opened = infile.open(QIODevice::ReadOnly | QIODevice::Text);
+
+		if (!opened) {
+			return;
+		}
+
+		QByteArray data = infile.readAll();
+		infile.close();
+
+		QJsonDocument doc = QJsonDocument::fromJson(data);
+		QJsonObject rigRep = doc.object();
+
+		rig->setParametersFromJsonRepresentation(rigRep);
+	});
+
+	actions.push_back(importRig);
+
 	QAction* remove = new QAction(tr("Remove"), parent);
 	connect(remove, &QAction::triggered, [rig] () {
 		Project* p = rig->getProject();

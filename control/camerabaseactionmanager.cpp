@@ -161,6 +161,43 @@ QList<QAction*> CameraBaseActionManager::factorizeItemContextActions(QObject* pa
 	});
 	lst.append(exportCam);
 
+	QAction* importCam = new QAction(tr("Import parameters"), parent);
+	connect(importCam, &QAction::triggered, [cam] () {
+
+		if (cam == nullptr) {
+			return ;
+		}
+
+		MainWindow* mw = MainWindow::getActiveMainWindow();
+
+		if (mw == nullptr) {
+			return;
+		}
+
+		QString cameraFile = QFileDialog::getOpenFileName(mw, tr("Import a camera"), QString(), tr("Steviap camera files (*.stevcam)"));
+
+		if (cameraFile.isEmpty()) {
+			return;
+		}
+
+		QFile infile(cameraFile);
+		bool opened = infile.open(QIODevice::ReadOnly | QIODevice::Text);
+
+		if (!opened) {
+			return;
+		}
+
+		QByteArray data = infile.readAll();
+		infile.close();
+
+		QJsonDocument doc = QJsonDocument::fromJson(data);
+		QJsonObject camRep = doc.object();
+
+		cam->setParametersFromJsonRepresentation(camRep);
+
+	});
+	lst.append(importCam);
+
 	QAction* remove = new QAction(tr("Remove"), parent);
 	connect(remove, &QAction::triggered, [cam] () {
 		Project* p = cam->getProject();
