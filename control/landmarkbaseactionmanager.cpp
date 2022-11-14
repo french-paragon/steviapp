@@ -62,6 +62,12 @@ QList<QAction*> LandmarkBaseActionManager::factorizeItemContextActions(QObject* 
 		lst << edit;
 	}
 
+	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
+	connect(clearOptimized, &QAction::triggered, [lm] () {
+		lm->clearOptimized();
+	});
+	lst.append(clearOptimized);
+
 	return lst;
 }
 
@@ -111,6 +117,14 @@ QList<QAction*> LandmarkBaseActionManager::factorizeMultiItemsContextActions(QOb
 	});
 
 	lst.append(exportLandmarksToCSVAction);
+
+	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
+	connect(clearOptimized, &QAction::triggered, [lms] () {
+		for (Landmark* lm : lms) {
+			lm->clearOptimized();
+		}
+	});
+	lst.append(clearOptimized);
 
 	return lst;
 

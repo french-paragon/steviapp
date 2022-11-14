@@ -145,6 +145,12 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 
 	lst.append(addToCalibration);
 
+	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
+	connect(clearOptimized, &QAction::triggered, [im] () {
+		im->clearOptimized();
+	});
+	lst.append(clearOptimized);
+
 	return lst;
 
 }
@@ -218,6 +224,14 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 	QAction* addToCalibration = createAddToCalibrationAction(parent, p, ims);
 
 	lst.append(addToCalibration);
+
+	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
+	connect(clearOptimized, &QAction::triggered, [ims] () {
+		for (Image* im : ims) {
+			im->clearOptimized();
+		}
+	});
+	lst.append(clearOptimized);
 
 	return lst;
 
