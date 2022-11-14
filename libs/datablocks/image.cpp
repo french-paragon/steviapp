@@ -17,7 +17,9 @@ namespace StereoVisionApp {
 
 const QString ImageLandmark::ImageLandmarkClassName = "StereoVisionApp::ImageLandmark";
 
-Image::Image(Project *parent) : DataBlock(parent)
+Image::Image(Project *parent) :
+	DataBlock(parent),
+	_isFixed(false)
 {
 	extendDataModel();
 }
@@ -246,6 +248,15 @@ void Image::setOptZRot(const float &rz) {
 	}
 }
 
+bool Image::isFixed() const {
+	return _isFixed;
+}
+void Image::setFixed(bool fixed) {
+	if (_isFixed != fixed) {
+		_isFixed = fixed;
+		emit isFixedChanged(fixed);
+	}
+}
 
 
 qint64 Image::addImageLandmark(QPointF const& coordinates, bool uncertain, qreal sigma_pos) {
@@ -462,6 +473,8 @@ QJsonObject Image::encodeJson() const {
 
 	obj.insert("or", floatParameterGroup<3>::toJson(optRot()));
 
+	obj.insert("fixed", (isFixed()) ? "fixed" : "unfixed");
+
 	QJsonArray arr;
 
 	for(qint64 id : listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
@@ -509,6 +522,16 @@ void Image::configureFromJson(QJsonObject const& data) {
 
 	if (data.contains("or")) {
 		_o_rot = floatParameterGroup<3>::fromJson(data.value("or").toObject());
+	}
+
+	if (data.contains("fixed")) {
+		QString f = data.value("fixed").toString();
+
+		if (f.trimmed().toLower() == "fixed") {
+			setFixed(true);
+		} else {
+			setFixed(false);
+		}
 	}
 
 	if (data.contains("Landmarks")) {
@@ -596,6 +619,15 @@ void Image::extendDataModel() {
 																								  &Image::optZRot,
 																								  &Image::setOptZRot,
 																								  &Image::optRotChanged);
+
+
+
+	ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+	optCat->addCatProperty<bool, Image, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Fixed"),
+																										  &Image::isFixed,
+																										  &Image::setFixed,
+																										  &Image::isFixedChanged);
 
 	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Image landmarks"),
 																					  ImageLandmark::ImageLandmarkClassName,

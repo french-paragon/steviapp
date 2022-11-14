@@ -70,6 +70,9 @@ public:
 	float optZRot() const;
 	void setOptZRot(const float &rz);
 
+	bool isFixed() const;
+	void setFixed(bool fixed);
+
 	qint64 addImageLandmark(const QPointF &coordinates, bool uncertain = false, qreal sigma_pos = 1.0);
 	qint64 addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain = false, qreal sigma_pos = 1.0);
 	ImageLandmark* getImageLandmark(qint64 id) const;
@@ -114,6 +117,8 @@ Q_SIGNALS:
 	void optYRotChanged(floatParameter);
 	void optZRotChanged(floatParameter);
 
+	void isFixedChanged(bool fiexed);
+
 
 protected:
 
@@ -136,6 +141,8 @@ protected:
 
 	floatParameterGroup<3> _o_pos;
 	floatParameterGroup<3> _o_rot;
+
+	bool _isFixed;
 };
 
 class ImageLandmark : public DataBlock

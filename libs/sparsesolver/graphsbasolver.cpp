@@ -256,7 +256,13 @@ bool GraphSBASolver::init() {
 			t.y() = im->yCoord().value();
 			t.z() = im->zCoord().value();
 
-			if (im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain() and
+			if (im->isFixed()) {
+
+				CameraPose p_set(r, t);
+				v->setEstimate(p_set);
+				v->setFixed(true);
+
+			} else if (im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain() and
 				im->xRot().isUncertain() and im->yRot().isUncertain() and im->zRot().isUncertain()) {
 
 				EdgeSE3FullPrior* e = new EdgeSE3FullPrior();
