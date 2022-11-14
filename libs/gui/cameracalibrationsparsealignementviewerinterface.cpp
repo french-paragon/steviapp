@@ -132,6 +132,10 @@ void CameraCalibrationSparseAlignementViewerInterface::setGridSize(float grid_si
 	}
 }
 
+void CameraCalibrationSparseAlignementViewerInterface::reload() {
+	//nothing needs to be done, as there is no cache.
+}
+
 void CameraCalibrationSparseAlignementViewerInterface::onPointHoover(int idx) const {
 
 

@@ -24,6 +24,8 @@ public:
 	float getGridSize() const;
 	void setGridSize(float grid_size);
 
+	void reload() override;
+
 Q_SIGNALS:
 
 protected:

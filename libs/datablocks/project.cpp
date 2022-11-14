@@ -78,6 +78,8 @@ Project::Project(QObject* parent) :
 	connect(this, &Project::dataChanged, this, &Project::projectChanged);
 	connect(this, &Project::rowsAboutToBeInserted, this, &Project::projectChanged);
 	connect(this, &Project::rowsAboutToBeMoved, this, &Project::projectChanged);
+
+	connect(this, &Project::projectChanged, this, &Project::projectDataChanged);
 }
 
 bool Project::load(QString const& inFile) {
@@ -119,6 +121,8 @@ bool Project::load(QString const& inFile) {
 			if (block->internalId() >= 0) {
 				_itemCache.insert(block->internalId(), block);
 				_idsByTypes[itemClass].append(block->internalId());
+
+				connect(block, &DataBlock::isChangedStatusChanged, this, &Project::projectDataChanged);
 			}
 		}
 	}
@@ -198,6 +202,7 @@ qint64 Project::createDataBlock(const char* classname) {
 	if (insertImpls(db)) {
 		beginInsertRows(createIndex(_installedTypes.indexOf(cn), 0), countTypeInstances(cn), countTypeInstances(cn));
 		_idsByTypes[cn].append(db->_internalId);
+		connect(db, &DataBlock::isChangedStatusChanged, this, &Project::projectDataChanged);
 		endInsertRows();
 		return db->_internalId;
 	}
@@ -263,6 +268,7 @@ bool Project::clearById(qint64 internalId) {
 	db->clear();
 	_itemCache.remove(internalId);
 	_idsByTypes[blockClass].remove(ItemRow);
+	disconnect(db, &DataBlock::isChangedStatusChanged, this, &Project::projectDataChanged);
 	db->deleteLater();
 
 	endRemoveRows();

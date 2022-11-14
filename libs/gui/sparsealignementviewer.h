@@ -29,6 +29,8 @@ public:
 	virtual QMatrix4x4 getCameraTransform(int idx) const = 0;
 	virtual QVector3D getPointPos(int idx) const = 0;
 
+	virtual void reload() = 0;
+
 Q_SIGNALS:
 
 	void dataChanged();
@@ -61,6 +63,8 @@ public:
 
 	QMatrix4x4 getCameraTransform(int idx) const override;
 	QVector3D getPointPos(int idx) const override;
+
+	void reload() override;
 
 protected:
 

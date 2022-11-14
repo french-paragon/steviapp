@@ -108,8 +108,15 @@ public:
 	bool hasSolution() const;
 
 Q_SIGNALS:
-
+	/*!
+	 * \brief projectChanged is a signal emitted when the general structure of the project change
+	 */
 	void projectChanged();
+
+	/*!
+	 * \brief projectDataChanged is a signal emitted when anything in the project change (either the project structure, or any datablock)
+	 */
+	void projectDataChanged();
 
 protected:
 	void clearImpl();

@@ -28,7 +28,8 @@ AbstractSparseAlignementDataInterface::AbstractSparseAlignementDataInterface(QOb
 }
 
 ProjectSparseAlignementDataInterface::ProjectSparseAlignementDataInterface(QObject* parent) :
-	AbstractSparseAlignementDataInterface(parent)
+	AbstractSparseAlignementDataInterface(parent),
+	_currentProject(nullptr)
 {
 
 }
@@ -42,7 +43,7 @@ void ProjectSparseAlignementDataInterface::setProject(Project* p) {
 	clearProject();
 
 	_currentProject = p;
-	connect(p, &Project::projectChanged, this, &ProjectSparseAlignementDataInterface::reloadCache);
+	connect(p, &Project::projectDataChanged, this, &ProjectSparseAlignementDataInterface::reloadCache);
 
 	reloadCache();
 
@@ -50,7 +51,7 @@ void ProjectSparseAlignementDataInterface::setProject(Project* p) {
 void ProjectSparseAlignementDataInterface::clearProject() {
 
 	if (_currentProject != nullptr) {
-		disconnect(_currentProject, &Project::projectChanged, this, &ProjectSparseAlignementDataInterface::reloadCache);
+		disconnect(_currentProject, &Project::projectDataChanged, this, &ProjectSparseAlignementDataInterface::reloadCache);
 		_currentProject = nullptr;
 	}
 
@@ -126,6 +127,10 @@ QVector3D ProjectSparseAlignementDataInterface::getPointPos(int idx) const {
 
 	return ret;
 
+}
+
+void ProjectSparseAlignementDataInterface::reload() {
+	reloadCache();
 }
 
 void ProjectSparseAlignementDataInterface::reloadCache() {
@@ -403,6 +408,8 @@ void SparseAlignementViewer::reloadLandmarks() {
 
 	_hasToReloadLandmarks = true;
 	_hasToReloadLandmarksIds = true;
+
+	update();
 }
 
 void SparseAlignementViewer::clearLandmarks() {
