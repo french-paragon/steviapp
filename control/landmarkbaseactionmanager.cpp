@@ -73,6 +73,16 @@ QList<QAction*> LandmarkBaseActionManager::factorizeItemContextActions(QObject* 
 	});
 	lst.append(clearOptimized);
 
+	QAction* remove = new QAction(tr("Remove"), parent);
+	connect(remove, &QAction::triggered, [lm] () {
+		Project* p = lm->getProject();
+
+		if (p != nullptr) {
+			p->clearById(lm->internalId());
+		}
+	});
+	lst.append(remove);
+
 	return lst;
 }
 

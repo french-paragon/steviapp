@@ -13,6 +13,8 @@ public:
 
 	QString ActionManagerClassName() const override;
 	QString itemClassName() const override;
+
+	QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* p) const override;
 };
 
 } // namespace StereoVisionApp
