@@ -22,6 +22,7 @@ namespace StereoVisionApp {
 typedef VertexLandmarkPos landMarkVertex;
 
 class VertexCameraPose;
+class VertexRigidBodyPose;
 
 class Project;
 class Image;
@@ -58,6 +59,7 @@ protected:
 
 	QMap<qint64, CameraInnerVertexCollection> _camVertices;
 	QMap<qint64, VertexCameraPose*> _frameVertices;
+	QMap<qint64, VertexRigidBodyPose*> _localCoordinatesVertices;
 
 	g2o::SparseBlockMatrix<Eigen::MatrixXd> _spinv;
 };

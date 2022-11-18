@@ -63,19 +63,6 @@ protected:
 	qint64 _assignedCamera;
 
 	QString _imageFile;
-
-	floatParameter _x;
-	floatParameter _y;
-	floatParameter _z;
-
-	floatParameter _rx;
-	floatParameter _ry;
-	floatParameter _rz;
-
-	floatParameterGroup<3> _o_pos;
-	floatParameterGroup<3> _o_rot;
-
-	bool _isFixed;
 };
 
 class ImageLandmark : public DataBlock

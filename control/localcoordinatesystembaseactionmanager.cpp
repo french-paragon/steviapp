@@ -6,6 +6,10 @@
 #include "mainwindow.h"
 #include "datablocks/localcoordinatesystem.h"
 
+#include "localcoordinatesystemactions.h"
+
+#include "gui/localcoordinatesystempointdetailseditor.h"
+
 namespace StereoVisionApp {
 
 LocalCoordinateSystemBaseActionManager::LocalCoordinateSystemBaseActionManager(QObject *parent) :
@@ -23,9 +27,9 @@ QString LocalCoordinateSystemBaseActionManager::itemClassName() const {
 
 QList<QAction*> LocalCoordinateSystemBaseActionManager::factorizeItemContextActions(QObject* parent, DataBlock* p) const {
 
-	LocalCoordinateSystem* lm = qobject_cast<LocalCoordinateSystem*>(p);
+	LocalCoordinateSystem* lcs = qobject_cast<LocalCoordinateSystem*>(p);
 
-	if (lm == nullptr) {
+	if (lcs == nullptr) {
 		return {};
 	}
 
@@ -39,11 +43,41 @@ QList<QAction*> LocalCoordinateSystemBaseActionManager::factorizeItemContextActi
 
 	QList<QAction*> lst;
 
+	if (mw != nullptr) {
+		QAction* edit = new QAction(tr("Point details"), parent);
+		connect(edit, &QAction::triggered, [mw, lcs] () {
+
+			Editor* e = mw->openEditor(LocalCoordinateSystemPointDetailsEditor::staticMetaObject.className());
+			LocalCoordinateSystemPointDetailsEditor* le = qobject_cast<LocalCoordinateSystemPointDetailsEditor*>(e);
+
+			le->setLocalCoordinateSystem(lcs);
+
+		});
+
+		lst << edit;
+	}
+
+	QAction* alignToPoints = new QAction(tr("Align to points"), parent);
+	connect(alignToPoints, &QAction::triggered, [lcs] () {
+		alignLocalCoordinateSystemToPoints({lcs->internalId()}, lcs->getProject());
+	});
+	lst.append(alignToPoints);
+
 	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
-	connect(clearOptimized, &QAction::triggered, [lm] () {
-		lm->clearOptimized();
+	connect(clearOptimized, &QAction::triggered, [lcs] () {
+		lcs->clearOptimized();
 	});
 	lst.append(clearOptimized);
+
+	QAction* remove = new QAction(tr("Remove"), parent);
+	connect(remove, &QAction::triggered, [lcs] () {
+		Project* p = lcs->getProject();
+
+		if (p != nullptr) {
+			p->clearById(lcs->internalId());
+		}
+	});
+	lst.append(remove);
 
 	return lst;
 }
@@ -74,8 +108,8 @@ QList<QAction*> LocalCoordinateSystemBaseActionManager::factorizeMultiItemsConte
 
 	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
 	connect(clearOptimized, &QAction::triggered, [lcss] () {
-		for (LocalCoordinateSystem* lm : lcss) {
-			lm->clearOptimized();
+		for (LocalCoordinateSystem* lcs : lcss) {
+			lcs->clearOptimized();
 		}
 	});
 	lst.append(clearOptimized);

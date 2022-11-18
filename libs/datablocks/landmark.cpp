@@ -1,5 +1,6 @@
 #include "landmark.h"
 #include "image.h"
+#include "localcoordinatesystem.h"
 
 #include "./itemdatamodel.h"
 
@@ -60,6 +61,48 @@ int Landmark::countImagesRefering(QVector<qint64> const& excluded) const {
 
 }
 
+int Landmark::countLocalCoordinateSystemsRefering(QSet<qint64> const& excluded) const {
+
+	if (!isInProject()) {
+		return 0;
+	}
+
+	QSet<qint64> referingLcsId;
+	for (QVector<qint64> const& path : _referers) {
+		qint64 id = path.first();
+		LocalCoordinateSystem* lcs =getProject()->getDataBlock<LocalCoordinateSystem>(id);
+
+		if (lcs == nullptr) {
+			continue;
+		}
+
+		LandmarkLocalCoordinates* lmlc = lcs->getLandmarkLocalCoordinatesByLandmarkId(internalId());
+
+		if (lmlc == nullptr) {
+			continue;
+		}
+
+		if (!lmlc->xCoord().isSet() and !lmlc->yCoord().isSet() and !lmlc->zCoord().isSet()) {
+			continue;
+		}
+
+		referingLcsId.insert(id);
+	}
+
+	for (qint64 id : excluded) {
+		referingLcsId.remove(id);
+	}
+
+	return referingLcsId.count();
+
+}
+int Landmark::countLocalCoordinateSystemsRefering(QVector<qint64> const& excluded) const {
+
+	QSet<qint64> s(excluded.begin(), excluded.end());
+	return countLocalCoordinateSystemsRefering(s);
+
+}
+
 int Landmark::countImagesReferingInList(QSet<qint64> const& included) const {
 
 	return getViewingImgInList(included).size();
@@ -113,6 +156,20 @@ void Landmark::extendDataModel() {
 																												 &Point3D::zCoord,
 																												 &Point3D::setZCoord,
 																												 &Point3D::zCoordChanged);
+
+
+
+	ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Enabled"),
+																										  &DataBlock::isEnabled,
+																										  &DataBlock::setEnabled,
+																										  &DataBlock::isEnabledChanged);
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Fixed"),
+																										  &DataBlock::isFixed,
+																										  &DataBlock::setFixed,
+																										  &DataBlock::isFixedChanged);
 
 
 	ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));

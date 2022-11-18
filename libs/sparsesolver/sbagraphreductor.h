@@ -15,8 +15,10 @@ public:
 	struct elementsSet {
 		QSet<qint64> imgs;
 		QSet<qint64> pts;
+		QSet<qint64> localcoordsysts;
 		QSet<qint64> e_imgs;
 		QSet<qint64> e_pts;
+		QSet<qint64> e_localcoordsysts;
 	};
 
 	elementsSet reduceGraph(Project* p, bool initializedOnly = true) const;

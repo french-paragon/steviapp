@@ -96,6 +96,8 @@ set(PROJ_SRC  main.cpp
     control/cameracalibrationactions.h
     control/localcoordinatesystembaseactionmanager.cpp
     control/localcoordinatesystembaseactionmanager.h
+    control/localcoordinatesystemactions.cpp
+    control/localcoordinatesystemactions.h
     )
 
 add_executable(steviapp

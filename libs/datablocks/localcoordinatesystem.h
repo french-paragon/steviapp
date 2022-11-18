@@ -25,6 +25,9 @@ public:
 	void clearLandmarkLocalCoordinates(qint64 attacheLandmarkId);
 	QVector<qint64> getAttachedLandmarksIds() const;
 
+	int countPointsRefered(QSet<qint64> const& excluded = {}) const;
+	int countPointsRefered(QVector<qint64> const& excluded) const;
+
 Q_SIGNALS:
 
 	void pointAdded(qint64 pt);
@@ -58,6 +61,9 @@ Q_SIGNALS:
 	void attachedLandmarkidChanged(qint64 id);
 
 protected:
+
+	QJsonObject encodeJson() const override;
+	void configureFromJson(QJsonObject const& data) override;
 
 	void referedCleared(QVector<qint64> const& referedId) override;
 

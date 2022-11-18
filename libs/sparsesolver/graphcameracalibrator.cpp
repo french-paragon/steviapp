@@ -571,7 +571,7 @@ bool GraphCameraCalibrator::writeResults() {
 	for (qint64 id : _StereoRigToEstimate.keys()) {
 
 		StereoRig* rig =_currentProject->getDataBlock<StereoRig>(id);
-		rig->clearOptimized();
+		//rig->clearOptimized();
 
 		CameraPose::Vector6d meanLog = meanLogRigOffset(_StereoRigToEstimate[id]);
 
@@ -598,7 +598,7 @@ bool GraphCameraCalibrator::writeResults() {
 	for (qint64 id : _StereoRigPoseVertices.keys()) {
 
 		StereoRig* rig =_currentProject->getDataBlock<StereoRig>(id);
-		rig->clearOptimized();
+		//rig->clearOptimized();
 
 		VertexCameraPose* rgv = _StereoRigPoseVertices.value(id);
 

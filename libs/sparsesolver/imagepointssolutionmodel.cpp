@@ -138,8 +138,21 @@ QVariant ImagePointsSolutionModel::headerData(int section, Qt::Orientation orien
 
 
 void ImagePointsSolutionModel::setImage(Image* img) {
-	beginResetModel(); // ! Brutal
-	_image = img; // TODO: track the changes in the image properties.
+	beginResetModel();
+
+	if (_image != nullptr) {
+		connect(_image, &Image::datablockChanged, this, &ImagePointsSolutionModel::refreshModel);
+	}
+	_image = img;
+
+	if (_image != nullptr) {
+		connect(_image, &Image::datablockChanged, this, &ImagePointsSolutionModel::refreshModel);
+	}
+	endResetModel();
+}
+
+void ImagePointsSolutionModel::refreshModel() {
+	beginResetModel();
 	endResetModel();
 }
 

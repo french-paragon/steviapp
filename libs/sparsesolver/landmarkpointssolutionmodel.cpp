@@ -165,8 +165,22 @@ QVariant LandmarkPointsSolutionModel::headerData(int section, Qt::Orientation or
 }
 
 void LandmarkPointsSolutionModel::setLandmark(Landmark* lm) {
-	beginResetModel(); // ! Brutal
-	_landmark= lm; // TODO: track the changes in the image properties.
+	beginResetModel();
+
+	if (_landmark != nullptr) {
+		disconnect(_landmark, &Landmark::datablockChanged, this, &LandmarkPointsSolutionModel::refreshModel);
+	}
+	_landmark= lm;
+
+	if (_landmark != nullptr) {
+		connect(_landmark, &Landmark::datablockChanged, this, &LandmarkPointsSolutionModel::refreshModel);
+	}
+
+	endResetModel();
+}
+
+void LandmarkPointsSolutionModel::refreshModel() {
+	beginResetModel();
 	endResetModel();
 }
 

@@ -203,6 +203,20 @@ void StereoRig::extendDataModel() {
 
 
 
+	ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Enabled"),
+																										  &DataBlock::isEnabled,
+																										  &DataBlock::setEnabled,
+																										  &DataBlock::isEnabledChanged);
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Fixed"),
+																										  &DataBlock::isFixed,
+																										  &DataBlock::setFixed,
+																										  &DataBlock::isFixedChanged);
+
+
+
 	ItemDataModel::Category* op = _dataModel->addCategory(tr("Optimized properties"));
 
 	//Optimized Position
@@ -237,15 +251,26 @@ void StereoRig::extendDataModel() {
 																											   nullptr,
 																											   &RigidBody::optRotChanged);
 
+	auto imPairGetName = [] (DataBlock* b) {
+		ImagePair* l = qobject_cast<ImagePair*>(b);
+		if (l != nullptr) {
+			return QString("Rig %1 - %2").arg(l->idImgCam1()).arg(l->idImgCam2());
+		}
+		return tr("Unvalid image landmark");
+	};
+
+	auto stereoRigDeleteImPair = [] (DataBlock* b, qint64 id) {
+		StereoRig* rig = qobject_cast<StereoRig*>(b);
+
+		if (rig != nullptr) {
+			rig->removeImagePair(id);
+		}
+	};
+
 	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Image Pairs"),
 																					  ImagePair::ImagePairClassName,
-																					  [] (DataBlock* b) {
-																							ImagePair* l = qobject_cast<ImagePair*>(b);
-																							if (l != nullptr) {
-																								return QString("Rig %1 - %2").arg(l->idImgCam1()).arg(l->idImgCam2());
-																							}
-																							return tr("Unvalid image landmark");
-																						});
+																					  imPairGetName,
+																					  stereoRigDeleteImPair);
 
 	im_lm->addCatProperty<QString, ImagePair, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Camera 1"),
 																										   &ImagePair::nameCam1,

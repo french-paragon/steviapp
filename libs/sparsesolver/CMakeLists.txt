@@ -20,10 +20,14 @@ set(LIB_SRC initialsolution.cpp
             imagepointssolutionmodel.h
             landmarkpointssolutionmodel.cpp
             landmarkpointssolutionmodel.h
+            localcoordinatespointssolutionmodel.cpp
+            localcoordinatespointssolutionmodel.h
             vertices/camerapose.cpp
             vertices/camerapose.h
             vertices/camparam.cpp
             vertices/camparam.h
+            vertices/vertexrigidbodypose.cpp
+            vertices/vertexrigidbodypose.h
             vertices/vertexcamerapose.cpp
             vertices/vertexcamerapose.h
             vertices/vertexcameraparam.cpp
@@ -54,6 +58,8 @@ set(LIB_SRC initialsolution.cpp
             edges/edgecameralandmarkdirectionalalignement.h
             edges/edgecamerase3leverarm.cpp
             edges/edgecamerase3leverarm.h
+            edges/edgelocalpointcoordinates.cpp
+            edges/edgelocalpointcoordinates.h
             helperfunctions.h
             fixedpreoptimizedparameters.h
 )

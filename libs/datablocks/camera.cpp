@@ -792,6 +792,73 @@ void Camera::extendDataModel() {
 	s->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("B1", &Camera::B1, &Camera::setB1, &Camera::B1Changed);
 	s->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("B2", &Camera::B2, &Camera::setB2, &Camera::B2Changed);
 
+
+
+	ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Fixed"),
+																										  &DataBlock::isFixed,
+																										  &DataBlock::setFixed,
+																										  &DataBlock::isFixedChanged);
+
+
+	ItemDataModel::Category* op = _dataModel->addCategory(tr("Optimized parameters"));
+
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Focal lenght [px]"),
+																												&Camera::optimizedFLen,
+																												nullptr,
+																												&Camera::optimizedFLenChanged);
+
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Optical center X"),
+																												&Camera::optimizedOpticalCenterX,
+																												 nullptr,
+																												&Camera::optimizedOpticalCenterXChanged);
+
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Optical center Y"),
+																												&Camera::optimizedOpticalCenterY,
+																												 nullptr,
+																												&Camera::optimizedOpticalCenterYChanged);
+
+	//radial distortion
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("k1",
+																												&Camera::optimizedK1,
+																												nullptr,
+																												&Camera::optimizedK1Changed);
+
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("k2",
+																												&Camera::optimizedK2,
+																												nullptr,
+																												&Camera::optimizedK2Changed);
+
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("k3",
+																												&Camera::optimizedK3,
+																												nullptr,
+																												&Camera::optimizedK3Changed);
+
+
+	//tangential distortion
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("p1",
+																												&Camera::optimizedP1,
+																												nullptr,
+																												&Camera::optimizedP1Changed);
+
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("p2",
+																												&Camera::optimizedP2,
+																												nullptr,
+																												&Camera::optimizedP2Changed);
+
+
+	//skew distortion
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("B1",
+																												&Camera::optimizedB1,
+																												nullptr,
+																												&Camera::optimizedB1Changed);
+
+	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>("B2",
+																												&Camera::optimizedB2,
+																												nullptr,
+																												&Camera::optimizedB2Changed);
+
 }
 
 CameraFactory::CameraFactory(QObject* parent) : DataBlockFactory(parent)

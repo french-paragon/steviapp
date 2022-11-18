@@ -1,17 +1,17 @@
 #include "rigidbody.h"
 
+#include "geometry/rotations.h"
+
 namespace StereoVisionApp {
 
 RigidBody::RigidBody(Project *parent) :
-	DataBlock(parent),
-	_isFixed(false)
+	DataBlock(parent)
 {
 
 }
 
 RigidBody::RigidBody(DataBlock *parent) :
-	DataBlock(parent),
-	_isFixed(false)
+	DataBlock(parent)
 {
 
 }
@@ -202,14 +202,53 @@ void RigidBody::setOptZRot(const float &rz) {
 	}
 }
 
-bool RigidBody::isFixed() const {
-	return _isFixed;
-}
-void RigidBody::setFixed(bool fixed) {
-	if (_isFixed != fixed) {
-		_isFixed = fixed;
-		emit isFixedChanged(fixed);
+std::optional<StereoVision::Geometry::AffineTransform> RigidBody::getTransform() const {
+
+	if (!_x.isSet() or !_y.isSet() or _z.isSet()) {
+		return std::nullopt;
 	}
+
+	if (!_rx.isSet() or !_ry.isSet() or _rz.isSet()) {
+		return std::nullopt;
+	}
+
+	Eigen::Vector3f t;
+	t.x() = _x.value();
+	t.y() = _y.value();
+	t.z() = _z.value();
+
+	Eigen::Vector3f r;
+	r.x() = _rx.value();
+	r.y() = _ry.value();
+	r.z() = _rz.value();
+	Eigen::Matrix3f R = StereoVision::Geometry::rodriguezFormula(r);
+
+	return StereoVision::Geometry::AffineTransform(R, t);
+
+}
+std::optional<StereoVision::Geometry::AffineTransform> RigidBody::getOptTransform() const {
+
+	if (!_o_pos.isSet()) {
+		return std::nullopt;
+	}
+
+	if (!_o_rot.isSet()) {
+		return std::nullopt;
+	}
+
+	Eigen::Vector3f t;
+	t.x() = _o_pos.value(0);
+	t.y() = _o_pos.value(1);
+	t.z() = _o_pos.value(2);
+
+	Eigen::Vector3f r;
+	r.x() = _o_rot.value(0);
+	r.y() = _o_rot.value(1);
+	r.z() = _o_rot.value(2);
+	Eigen::Matrix3f R = StereoVision::Geometry::rodriguezFormula(r);
+
+	return StereoVision::Geometry::AffineTransform(R, t);
+
 }
 
 QJsonObject RigidBody::encodeJson() const {
@@ -227,8 +266,6 @@ QJsonObject RigidBody::encodeJson() const {
 	obj.insert("op", floatParameterGroup<3>::toJson(optPos()));
 
 	obj.insert("or", floatParameterGroup<3>::toJson(optRot()));
-
-	obj.insert("fixed", (isFixed()) ? "fixed" : "unfixed");
 
 	return obj;
 }
@@ -260,16 +297,6 @@ void RigidBody::configureFromJson(QJsonObject const& data) {
 
 	if (data.contains("or")) {
 		_o_rot = floatParameterGroup<3>::fromJson(data.value("or").toObject());
-	}
-
-	if (data.contains("fixed")) {
-		QString f = data.value("fixed").toString();
-
-		if (f.trimmed().toLower() == "fixed") {
-			setFixed(true);
-		} else {
-			setFixed(false);
-		}
 	}
 
 }

@@ -15,9 +15,11 @@
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
 #include "datablocks/stereorig.h"
+#include "datablocks/localcoordinatesystem.h"
 
 #include "g2o/types/sba/types_six_dof_expmap.h"
 #include "vertices/vertexcamerapose.h"
+#include "vertices/vertexrigidbodypose.h"
 #include "vertices/vertexcameraparam.h"
 
 #include "edges/edgecameralandmarkdirectionalalignement.h"
@@ -28,6 +30,7 @@
 #include "edges/edgepointdistance.h"
 #include "edges/edgepointsangle.h"
 #include "edges/edgecamerase3leverarm.h"
+#include "edges/edgelocalpointcoordinates.h"
 
 #include "sbagraphreductor.h"
 #include "sbainitializer.h"
@@ -110,6 +113,10 @@ bool GraphRoughBundleAdjustementSolver::init() {
 			}
 
 			v->setEstimate(d); //init the landmarks at position 0;
+
+			if (lm->isFixed()) {
+				v->setFixed(true);
+			}
 
 			_optimizer->addVertex(v);
 			_landmarkVertices.insert(id, v);
@@ -291,8 +298,12 @@ bool GraphRoughBundleAdjustementSolver::init() {
 			t.y() = im->yCoord().value();
 			t.z() = im->zCoord().value();
 
-			if (im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain() and
+			if (im->isFixed()) {
+				v->setFixed(true);
+
+			} else if (im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain() and
 				im->xRot().isUncertain() and im->yRot().isUncertain() and im->zRot().isUncertain()) {
+
 
 				EdgeSE3FullPrior* e = new EdgeSE3FullPrior();
 
@@ -363,9 +374,6 @@ bool GraphRoughBundleAdjustementSolver::init() {
 
 				_optimizer->addEdge(e);
 
-			} else if (im->xCoord().isSet() and im->yCoord().isSet() and im->zCoord().isSet() and
-					   im->xRot().isSet() and im->yRot().isSet() and im->zRot().isSet()) {
-				v->setFixed(true); //TODO: add an option to disable this behavior
 			}
 
 			for (qint64 lmId : im->listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
@@ -417,6 +425,10 @@ bool GraphRoughBundleAdjustementSolver::init() {
 		DistanceConstrain* constrain = _currentProject->getDataBlock<DistanceConstrain>(id);
 
 		if (constrain == nullptr) {
+			continue;
+		}
+
+		if (!constrain->isEnabled()) {
 			continue;
 		}
 
@@ -474,6 +486,10 @@ bool GraphRoughBundleAdjustementSolver::init() {
 			continue;
 		}
 
+		if (!constrain->isEnabled()) {
+			continue;
+		}
+
 		QVector<qint64> lmTriplets = constrain->listTypedSubDataBlocks(AngleLandmarksTriplets::staticMetaObject.className());
 
 		for (qint64 pair_id : lmTriplets) {
@@ -528,6 +544,10 @@ bool GraphRoughBundleAdjustementSolver::init() {
 		StereoRig* rig = _currentProject->getDataBlock<StereoRig>(id);
 
 		if (rig == nullptr) {
+			continue;
+		}
+
+		if (!rig->isEnabled()) {
 			continue;
 		}
 
@@ -624,6 +644,91 @@ bool GraphRoughBundleAdjustementSolver::init() {
 
 	}
 
+	for (qint64 id : selection.localcoordsysts) {
+		LocalCoordinateSystem* lcs = _currentProject->getDataBlock<LocalCoordinateSystem>(id);
+
+		if (lcs != nullptr) {
+
+			VertexRigidBodyPose* v = new VertexRigidBodyPose();
+			v->setId(vid++);
+			v->setMarginalized(false);
+			v->setReferedDatablock(lcs);
+
+			Eigen::Matrix3d r;
+			Eigen::Vector3d t;
+			Eigen::Vector3d raxis;
+
+			r = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()).toRotationMatrix();
+
+			t.x() = 0;
+			t.y() = 0;
+			t.z() = 1;
+
+			if (_use_current_solution) {
+
+				raxis.x() = lcs->optRot().value(0);
+				raxis.y() = lcs->optRot().value(1);
+				raxis.z() = lcs->optRot().value(2);
+				r = StereoVision::Geometry::rodriguezFormulaD(raxis);
+
+				t.x() = lcs->optPos().value(0);
+				t.y() = lcs->optPos().value(1);
+				t.z() = lcs->optPos().value(2);
+			}
+
+			CameraPose p(r, t); //assume NADIR hypothesis with camera facing down.
+
+			v->setEstimate(p);
+
+			_optimizer->addVertex(v);
+			_localCoordinatesVertices.insert(id, v);
+
+			if (lcs->isFixed()) {
+				v->setFixed(true);
+
+			}
+
+			for (qint64 lmId : lcs->listTypedSubDataBlocks(LandmarkLocalCoordinates::staticMetaObject.className())) {
+				LandmarkLocalCoordinates* lmlc = lcs->getLandmarkLocalCoordinates(lmId);
+
+				if (lmlc == nullptr) {
+					continue;
+				}
+
+				if (!lmlc->xCoord().isSet() or !lmlc->yCoord().isSet() or !lmlc->zCoord().isSet()) {
+					continue;
+				}
+
+				landMarkVertex* l_v = _landmarkVertices.value(lmlc->attachedLandmarkid(), nullptr);
+
+				if (l_v == nullptr) {
+					continue;
+				}
+
+				EdgeLocalPointCoordinates* e = new EdgeLocalPointCoordinates();
+				e->setVertex(0, static_cast<g2o::OptimizableGraph::Vertex*>(v) );
+				e->setVertex(1, static_cast<g2o::OptimizableGraph::Vertex*>(l_v) );
+
+
+				Eigen::Vector3d localPos;
+				localPos.x() = lmlc->xCoord().value();
+				localPos.y() = lmlc->yCoord().value();
+				localPos.z() = lmlc->zCoord().value();
+				e->setMeasurement(localPos);
+
+				e->setInformation(Eigen::Matrix3d::Identity());
+
+				if (_robust_kernel) {
+					g2o::RobustKernelHuber* rk = new g2o::RobustKernelHuber;
+					e->setRobustKernel(rk);
+				}
+
+					_optimizer->addEdge(e);
+
+			}
+		}
+	}
+
 	s = _optimizer->initializeOptimization();
 	_not_first_step = false;
 
@@ -648,6 +753,10 @@ bool GraphRoughBundleAdjustementSolver::writeResults() {
 
 		Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
 
+		if (lm->isFixed()) {
+			continue;
+		}
+
 		landMarkVertex* lmv = _landmarkVertices.value(id);
 
 		const landMarkVertex::EstimateType & e = lmv->estimate();
@@ -664,6 +773,10 @@ bool GraphRoughBundleAdjustementSolver::writeResults() {
 	for (qint64 id : _frameVertices.keys()) {
 
 		Image* im = qobject_cast<Image*>(_currentProject->getById(id));
+
+		if (im->isFixed()) {
+			continue;
+		}
 
 		VertexCameraPose* imv = _frameVertices.value(id);
 
@@ -685,6 +798,37 @@ bool GraphRoughBundleAdjustementSolver::writeResults() {
 		rot.value(2) = static_cast<float>(r.z());
 		rot.setIsSet();
 		im->setOptRot(rot);
+
+	}
+
+	for (qint64 id : _localCoordinatesVertices.keys()) {
+
+		LocalCoordinateSystem* lcs = _currentProject->getDataBlock<LocalCoordinateSystem>(id);
+
+		if (lcs->isFixed()) {
+			continue;
+		}
+
+		VertexRigidBodyPose* lcrb = _localCoordinatesVertices.value(id);
+
+		const CameraPose & e = lcrb->estimate();
+
+		Eigen::Vector3d t = e.t();
+		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormulaD(e.r());
+
+		floatParameterGroup<3> pos;
+		pos.value(0) = static_cast<float>(t.x());
+		pos.value(1) = static_cast<float>(t.y());
+		pos.value(2) = static_cast<float>(t.z());
+		pos.setIsSet();
+		lcs->setOptPos(pos);
+
+		floatParameterGroup<3> rot;
+		rot.value(0) = static_cast<float>(r.x());
+		rot.value(1) = static_cast<float>(r.y());
+		rot.value(2) = static_cast<float>(r.z());
+		rot.setIsSet();
+		lcs->setOptRot(rot);
 
 	}
 

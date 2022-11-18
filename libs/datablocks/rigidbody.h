@@ -3,6 +3,9 @@
 
 #include "./project.h"
 #include "./floatparameter.h"
+#include "geometry/core.h"
+
+#include <optional>
 
 namespace StereoVisionApp {
 
@@ -57,8 +60,16 @@ public:
 	float optZRot() const;
 	void setOptZRot(const float &rz);
 
-	bool isFixed() const;
-	void setFixed(bool fixed);
+	/*!
+	 * \brief getTransform is an accessor for the transform encoded by the rigid body
+	 * \return the transform from the non optimized parameters, or nullopt if some parameters are missing.
+	 */
+	std::optional<StereoVision::Geometry::AffineTransform> getTransform() const;
+	/*!
+	 * \brief getOptTransform is an accessor for the transform encoded by the rigid body
+	 * \return the transform from the optimized parameters, or nullopt if some parameters are missing.
+	 */
+	std::optional<StereoVision::Geometry::AffineTransform> getOptTransform() const;
 
 Q_SIGNALS:
 
@@ -81,8 +92,6 @@ Q_SIGNALS:
 	void optYRotChanged(floatParameter);
 	void optZRotChanged(floatParameter);
 
-	void isFixedChanged(bool fiexed);
-
 protected:
 
 	QJsonObject encodeJson() const override;
@@ -98,9 +107,6 @@ protected:
 
 	floatParameterGroup<3> _o_pos;
 	floatParameterGroup<3> _o_rot;
-
-	bool _isFixed;
-
 };
 
 } // namespace StereoVisionApp

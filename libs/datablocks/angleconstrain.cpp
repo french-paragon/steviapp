@@ -159,6 +159,15 @@ void AngleConstrain::extendDataModel() {
 																												 &AngleConstrain::setAngleValue,
 																												 &AngleConstrain::angleChanged);
 
+
+
+	ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Enabled"),
+																										  &DataBlock::isEnabled,
+																										  &DataBlock::setEnabled,
+																										  &DataBlock::isEnabledChanged);
+
 	auto lmNameFunc = [] (DataBlock* b) {
 		AngleLandmarksTriplets* l = qobject_cast<AngleLandmarksTriplets*>(b);
 		if (l != nullptr) {

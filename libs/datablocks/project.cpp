@@ -3,6 +3,8 @@
 #include <QUrl>
 #include <QFile>
 
+#include <QColor>
+
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -122,7 +124,7 @@ bool Project::load(QString const& inFile) {
 				_itemCache.insert(block->internalId(), block);
 				_idsByTypes[itemClass].append(block->internalId());
 
-				connect(block, &DataBlock::isChangedStatusChanged, this, &Project::projectDataChanged);
+				connect(block, &DataBlock::datablockChanged, this, &Project::projectDataChanged);
 			}
 		}
 	}
@@ -202,7 +204,7 @@ qint64 Project::createDataBlock(const char* classname) {
 	if (insertImpls(db)) {
 		beginInsertRows(createIndex(_installedTypes.indexOf(cn), 0), countTypeInstances(cn), countTypeInstances(cn));
 		_idsByTypes[cn].append(db->_internalId);
-		connect(db, &DataBlock::isChangedStatusChanged, this, &Project::projectDataChanged);
+		connect(db, &DataBlock::datablockChanged, this, &Project::projectDataChanged);
 		endInsertRows();
 		return db->_internalId;
 	}
@@ -268,7 +270,7 @@ bool Project::clearById(qint64 internalId) {
 	db->clear();
 	_itemCache.remove(internalId);
 	_idsByTypes[blockClass].remove(ItemRow);
-	disconnect(db, &DataBlock::isChangedStatusChanged, this, &Project::projectDataChanged);
+	disconnect(db, &DataBlock::datablockChanged, this, &Project::projectDataChanged);
 	db->deleteLater();
 
 	endRemoveRows();
@@ -424,12 +426,16 @@ QVariant Project::data(const QModelIndex &index, int role) const {
 			return QVariant();
 		}
 
+		DataBlock* datablock = getById(_idsByTypes.value(type).at(index.row()));
+
 		switch (role) {
 		case Qt::DisplayRole:
 		case Qt::EditRole:
-			return getById(_idsByTypes.value(type).at(index.row()))->objectName();
+			return datablock->objectName();
+		case Qt::ForegroundRole:
+			return (datablock->isEnabled()) ? QColor(0,0,0) : QColor(120, 120, 120);
 		case ClassRole:
-			return getById(_idsByTypes.value(type).at(index.row()))->metaObject()->className();
+			return datablock->metaObject()->className();
 		case IdRole:
 			return _idsByTypes.value(type).at(index.row());
 		default:
@@ -630,7 +636,9 @@ DataBlock::DataBlock(Project *parent) :
 	_internalId(-1),
 	_hasChanges(false),
 	_blockChanges(false),
-	_opt_step(Unset)
+	_opt_step(Unset),
+	_isFixed(false),
+	_isEnabled(true)
 {
 	connect(this, &QObject::objectNameChanged, this, &DataBlock::dataBlockNameChanged);
 	buildDataModel();
@@ -641,7 +649,9 @@ DataBlock::DataBlock(DataBlock *parent) :
 	_internalId(-1),
 	_hasChanges(false),
 	_blockChanges(false),
-	_opt_step(Unset)
+	_opt_step(Unset),
+	_isFixed(false),
+	_isEnabled(true)
 {
 	connect(this, &QObject::objectNameChanged, this, &DataBlock::dataBlockNameChanged);
 	_dataModel = nullptr;
@@ -755,6 +765,9 @@ void DataBlock::insertSubItem(DataBlock* sub) {
 		_idBySubTypes[className].append(sub->internalId());
 	}
 
+	connect(sub, &DataBlock::datablockChanged, this, &DataBlock::datablockChanged); //change in the children mean a change in the parent
+	connect(sub, &DataBlock::isChangedStatusChanged, this, &DataBlock::childrenChanged);
+
 	Q_EMIT newSubItem(sub->_internalId);
 
 }
@@ -784,6 +797,8 @@ void DataBlock::clearSubItem(qint64 id, QString className) {
 
 	Q_EMIT subItemAboutToBeRemoved(id);
 	db->clear();
+	disconnect(db, &DataBlock::datablockChanged, this, &DataBlock::datablockChanged); //change in the children mean a change in the parent
+	disconnect(db, &DataBlock::isChangedStatusChanged, this, &DataBlock::childrenChanged);
 	_itemCache.remove(id);
 	_idBySubTypes[cs].removeAll(id);
 
@@ -793,12 +808,21 @@ void DataBlock::stopTrackingChanges(bool lock) {
 	_blockChanges = lock;
 }
 void DataBlock::isChanged() {
+
+	emit datablockChanged();
+
 	if (!hasChanges() and !_blockChanges) {
 		_hasChanges = true;
 		emit isChangedStatusChanged(true);
 		if (isChildItem()) {
 			qobject_cast<DataBlock*>(parent())->isChanged();
 		}
+	}
+}
+
+void DataBlock::childrenChanged(bool changed) {
+	if (changed) {
+		isChanged();
 	}
 }
 
@@ -860,10 +884,34 @@ void DataBlock::setOptimizationStep(OptimizationStep step) {
 
 }
 
+bool DataBlock::isFixed() const {
+	return _isFixed;
+}
+void DataBlock::setFixed(bool fixed) {
+	if (_isFixed != fixed) {
+		_isFixed = fixed;
+		emit isFixedChanged(fixed);
+	}
+}
+
+bool DataBlock::isEnabled() const {
+	return _isEnabled;
+}
+void DataBlock::setEnabled(bool enabled) {
+	if (_isEnabled != enabled) {
+		_isEnabled = enabled;
+		emit isEnabledChanged(enabled);
+	}
+}
+
 void DataBlock::clear() {
 
 	if (!isInProject()) {
 		return;
+	}
+
+	for (DataBlock* child : _itemCache) {
+		child->clear(); //recursively clear childrens
 	}
 
 	Project* p = getProject();
@@ -1002,6 +1050,9 @@ QJsonObject DataBlock::toJson() const {
 	obj.insert("id", internalId());
 	obj.insert("name", objectName());
 
+	obj.insert("fixed", (isFixed()) ? "fixed" : "unfixed");
+	obj.insert("enabled", (isEnabled()) ? "enabled" : "disabled");
+
 	QJsonArray referers = urlList2Json(_referers);
 	QJsonArray referered = urlList2Json(_referered);
 
@@ -1023,6 +1074,26 @@ void DataBlock::setFromJson(QJsonObject const& obj) {
 
 	if (obj.contains("name")) {
 		setObjectName(obj.value("name").toString());
+	}
+
+	if (obj.contains("fixed")) {
+		QString f = obj.value("fixed").toString();
+
+		if (f.trimmed().toLower() == "fixed") {
+			setFixed(true);
+		} else {
+			setFixed(false);
+		}
+	}
+
+	if (obj.contains("enabled")) {
+		QString f = obj.value("enabled").toString();
+
+		if (f.trimmed().toLower() == "enabled") {
+			setEnabled(true);
+		} else {
+			setEnabled(false);
+		}
 	}
 
 	if (obj.contains("referers")) {

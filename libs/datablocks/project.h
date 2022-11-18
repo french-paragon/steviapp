@@ -214,8 +214,21 @@ public:
 	OptimizationStep optimizationStep() const;
 	void setOptimizationStep(OptimizationStep step);
 
+	bool isFixed() const;
+	void setFixed(bool fixed);
+
+	bool isEnabled() const;
+	void setEnabled(bool enabled);
+
 Q_SIGNALS:
 
+	/*!
+	 * \brief the datablockChanged signal is emmited when anything in the datablock changed
+	 */
+	void datablockChanged();
+	/*!
+	 * \brief the isChangedStatusChanged signal is emmited when the changed status of the datablock change
+	 */
 	void isChangedStatusChanged(bool status);
 
 	void newSubItem(qint64 id);
@@ -223,8 +236,12 @@ Q_SIGNALS:
 
 	void dataBlockNameChanged(QString const& name);
 
+	void isFixedChanged(bool fixed);
+	void isEnabledChanged(bool enabled);
+
 protected:
 	void isChanged();
+	void childrenChanged(bool changed);
 	void clear();
 	virtual void referedCleared(QVector<qint64> const& referedId);
 
@@ -260,6 +277,8 @@ protected:
 	bool _blockChanges;
 
 	OptimizationStep _opt_step;
+	bool _isFixed;
+	bool _isEnabled;
 
 	ItemDataModel* _dataModel;
 

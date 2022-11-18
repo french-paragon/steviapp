@@ -146,6 +146,15 @@ void DistanceConstrain::extendDataModel() {
 																												 &DistanceConstrain::setDistanceValue,
 																												 &DistanceConstrain::distanceChanged);
 
+
+
+	ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Enabled"),
+																										  &DataBlock::isEnabled,
+																										  &DataBlock::setEnabled,
+																										  &DataBlock::isEnabledChanged);
+
 	auto lmNameFunc = [] (DataBlock* b) {
 		DistanceLandmarksPair* l = qobject_cast<DistanceLandmarksPair*>(b);
 		if (l != nullptr) {

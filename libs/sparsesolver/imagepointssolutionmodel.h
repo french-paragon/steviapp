@@ -22,6 +22,8 @@ public:
 
 protected:
 
+	void refreshModel();
+
 	enum coordIndex {
 		CoordX = 0,
 		CoordY = 1,

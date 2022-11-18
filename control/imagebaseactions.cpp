@@ -643,7 +643,7 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 	bool clearPrevious = false;
 
 	bool useHexScale = false;
-	float hexEdge = 90.016;
+	float hexEdge = 86.474;
 
 	if (mw != nullptr) {
 
@@ -775,19 +775,19 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 
 				if (im_lm == nullptr) {
 
-					qint64 imlm_id = image->addImageLandmark(QPointF(pos.y(), pos.x()), target_lm->internalId(), true, 3.0);
+					qint64 imlm_id = image->addImageLandmark(QPointF(pos[1]+0.5, pos[0]+0.5), target_lm->internalId(), true, 3.0);
 					im_lm = image->getImageLandmark(imlm_id);
 
 				} else if (!clearPrevious) {
 					continue;
 				}
 
-				im_lm->setX(pos.y());
-				im_lm->setY(pos.x());
+				im_lm->setX(pos[1]+0.5);
+				im_lm->setY(pos[0]+0.5);
 			}
 
 			if (useHexScale) {
-				/*const QString hexa_side_constraint_name("HexaTargets_HexagoneAngle");
+				/*const QString hexa_side_constraint_name("HexaTargets_HexagoneDistance");
 
 				DistanceConstrain* hexa_dist = p->getDataBlockByName<DistanceConstrain>(hexa_side_constraint_name);
 
@@ -939,7 +939,7 @@ int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p) {
 	Eigen::Vector2f tp = Eigen::Vector2f::Zero();
 
 	if (hasTangentialDist) {
-		rp << cam->optimizedP1().value(), cam->optimizedP2().value();
+		tp << cam->optimizedP1().value(), cam->optimizedP2().value();
 	}
 
 	float fLen = cam->optimizedFLen().value();
@@ -1009,8 +1009,8 @@ int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p) {
 		projCoordinates.resize(2,6);
 
 		for (int i = 0; i < 6; i++) {
-			hexCoordinates(0,i) = 90.016*std::sin(i*60./180.*M_PI);
-			hexCoordinates(1,i) = 90.016*std::cos(i*60./180.*M_PI);
+			hexCoordinates(0,i) = 86.474*std::sin(i*60./180.*M_PI);
+			hexCoordinates(1,i) = 86.474*std::cos(i*60./180.*M_PI);
 			hexCoordinates(2,i) = 0.000;
 		}
 
@@ -1089,8 +1089,14 @@ int orientCamerasRelativeToObservedLandmarks(qint64 imgId, Project* p) {
 	}
 
 	Eigen::Vector2f pp;
-	pp[0] = cam->optimizedOpticalCenterX().value();
-	pp[1] = cam->optimizedOpticalCenterY().value();
+
+	if (cam->optimizedOpticalCenterX().isSet() and cam->optimizedOpticalCenterY().isSet()) {
+		pp[0] = cam->optimizedOpticalCenterX().value();
+		pp[1] = cam->optimizedOpticalCenterY().value();
+	} else {
+		pp[0] = cam->opticalCenterX().value();
+		pp[1] = cam->opticalCenterY().value();
+	}
 
 
 	bool hasRadialDist = cam->optimizedK1().isSet() and cam->optimizedK2().isSet() and cam->optimizedK3().isSet() and cam->useRadialDistortionModel();
@@ -1104,11 +1110,16 @@ int orientCamerasRelativeToObservedLandmarks(qint64 imgId, Project* p) {
 	Eigen::Vector2f tp = Eigen::Vector2f::Zero();
 
 	if (hasTangentialDist) {
-		rp << cam->optimizedP1().value(), cam->optimizedP2().value();
+		tp << cam->optimizedP1().value(), cam->optimizedP2().value();
 	}
 
-	float fLen = cam->optimizedFLen().value();
+	float fLen;
 
+	if (cam->optimizedFLen().isSet()) {
+		fLen = cam->optimizedFLen().value();
+	} else {
+		fLen = cam->fLen().value();
+	}
 
 	QVector<qint64> lmIds = img->getAttachedLandmarksIds();
 

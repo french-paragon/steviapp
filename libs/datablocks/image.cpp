@@ -305,6 +305,7 @@ void Image::configureFromJson(QJsonObject const& data) {
 
 void Image::extendDataModel() {
 
+
 	ItemDataModel::Category* g = _dataModel->addCategory(tr("Geometric properties"));
 
 	//Position
@@ -376,6 +377,11 @@ void Image::extendDataModel() {
 
 
 	ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Enabled"),
+																										  &DataBlock::isEnabled,
+																										  &DataBlock::setEnabled,
+																										  &DataBlock::isEnabledChanged);
 
 	optCat->addCatProperty<bool, Image, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Fixed"),
 																										  &Image::isFixed,

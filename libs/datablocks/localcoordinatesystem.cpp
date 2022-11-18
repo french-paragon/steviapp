@@ -108,6 +108,46 @@ QVector<qint64> LocalCoordinateSystem::getAttachedLandmarksIds() const {
 
 }
 
+int LocalCoordinateSystem::countPointsRefered(const QSet<qint64> &excluded) const {
+
+	if (!isInProject()) {
+		return 0;
+	}
+
+	QSet<qint64> referedPtId;
+	for (qint64 id : listTypedSubDataBlocks(LandmarkLocalCoordinates::staticMetaObject.className())) {
+		LandmarkLocalCoordinates* llc = qobject_cast<LandmarkLocalCoordinates*>(getById(id));
+
+		if (llc == nullptr) {
+			continue;
+		}
+
+		if (!llc->xCoord().isSet() and !llc->yCoord().isSet() and !llc->zCoord().isSet()) {
+			continue; //point without observations
+		}
+
+		qint64 lm_id = llc->attachedLandmarkid();
+		Landmark* lm = getProject()->getDataBlock<Landmark>(lm_id);
+
+		if (lm != nullptr) {
+			referedPtId.insert(id);
+		}
+	}
+
+	for (qint64 id : excluded) {
+		referedPtId.remove(id);
+	}
+
+	return referedPtId.count();
+}
+int LocalCoordinateSystem::countPointsRefered(QVector<qint64> const& excluded) const {
+
+	QSet<qint64> s(excluded.begin(), excluded.end());
+	return countPointsRefered(s);
+
+}
+
+
 QJsonObject LocalCoordinateSystem::encodeJson() const {
 
 	QJsonObject obj = RigidBody::encodeJson();
@@ -179,6 +219,20 @@ void LocalCoordinateSystem::extendDataModel() {
 																												 &LocalCoordinateSystem::zRot,
 																												 &LocalCoordinateSystem::setZRot,
 																												 &LocalCoordinateSystem::zRotChanged);
+
+
+
+	ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Enabled"),
+																										  &DataBlock::isEnabled,
+																										  &DataBlock::setEnabled,
+																										  &DataBlock::isEnabledChanged);
+
+	optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Fixed"),
+																										  &DataBlock::isFixed,
+																										  &DataBlock::setFixed,
+																										  &DataBlock::isFixedChanged);
 
 	ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));
 
@@ -322,6 +376,23 @@ Landmark* LandmarkLocalCoordinates::attachedLandmark() const {
 	Landmark* lm = qobject_cast<Landmark*>(p->getById(attachedLandmarkid()));
 
 	return lm;
+}
+
+QJsonObject LandmarkLocalCoordinates::encodeJson() const {
+	QJsonObject obj = Point3D::encodeJson();
+
+	obj.insert("attachedLandmarkId", attachedLandmarkid());
+
+	return obj;
+}
+
+void LandmarkLocalCoordinates::configureFromJson(QJsonObject const& data) {
+
+	Point3D::configureFromJson(data);
+
+	if (data.contains("attachedLandmarkId")) {
+		_attachedLandmarkId = data.value("attachedLandmarkId").toInt(-1);
+	}
 }
 
 void LandmarkLocalCoordinates::referedCleared(QVector<qint64> const& referedId) {

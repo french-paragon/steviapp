@@ -4,6 +4,9 @@
 #include "./project.h"
 #include "./floatparameter.h"
 
+#include <Eigen/Core>
+#include <optional>
+
 namespace StereoVisionApp {
 
 class Point3D : public DataBlock
@@ -42,6 +45,17 @@ public:
 
 	float optZCoord() const;
 	void setOptZCoord(const float &z);
+
+	/*!
+	 * \brief getPointVec is an accessor for the point coordinates
+	 * \return the 3d vector with the non optimized position parameters.
+	 */
+	std::optional<Eigen::Vector3f> getPointVec() const;
+	/*!
+	 * \brief getOptPointVec is an accessor for the point coordinates
+	 * \return the 3d vector with the optimized position parameters.
+	 */
+	std::optional<Eigen::Vector3f> getOptPointVec() const;
 
 	void clearOptimized() override;
 	bool hasOptimizedParameters() const override;

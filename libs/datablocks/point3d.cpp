@@ -105,6 +105,33 @@ void Point3D::setOptZCoord(const float &z) {
 	}
 }
 
+std::optional<Eigen::Vector3f> Point3D::getPointVec() const {
+
+	if (!_x.isSet() or !_y.isSet() or !_z.isSet()) {
+		return std::nullopt;
+	}
+
+	Eigen::Vector3f t;
+	t.x() = _x.value();
+	t.y() = _y.value();
+	t.z() = _z.value();
+
+	return t;
+}
+std::optional<Eigen::Vector3f> Point3D::getOptPointVec() const {
+
+	if (!_o_pos.isSet()) {
+		return std::nullopt;
+	}
+
+	Eigen::Vector3f t;
+	t.x() = _o_pos.value(0);
+	t.y() = _o_pos.value(1);
+	t.z() = _o_pos.value(2);
+
+	return t;
+}
+
 void Point3D::clearOptimized() {
 	clearOptPos();
 }

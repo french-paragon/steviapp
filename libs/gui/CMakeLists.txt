@@ -13,6 +13,9 @@ set(LIB_SRC imagewidget.cpp
             landmarkpointdetailseditor.cpp
             landmarkpointdetailseditor.h
             landmarkpointdetailseditor.ui
+            localcoordinatesystempointdetailseditor.cpp
+            localcoordinatesystempointdetailseditor.h
+            localcoordinatesystempointdetailseditor.ui
             sparsealignementviewer.cpp
             sparsealignementviewer.h
             sparsealignementeditor.cpp
@@ -30,9 +33,9 @@ set(LIB_SRC imagewidget.cpp
             sparsesolverconfigdialog.cpp
             sparsesolverconfigdialog.h
             sparsesolverconfigdialog.ui
-			sparsestereosolverconfigdialog.cpp
-			sparsestereosolverconfigdialog.h
-			sparsestereosolverconfigdialog.ui
+            sparsestereosolverconfigdialog.cpp
+            sparsestereosolverconfigdialog.h
+            sparsestereosolverconfigdialog.ui
             solutioninitconfigdialog.cpp
             solutioninitconfigdialog.h
             solutioninitconfigdialog.ui
