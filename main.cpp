@@ -12,6 +12,8 @@
 #include "datablocks/distanceconstrain.h"
 #include "datablocks/cameracalibration.h"
 #include "datablocks/localcoordinatesystem.h"
+#include "datablocks/fixedcolorstereosequence.h"
+#include "datablocks/fixedstereopluscolorsequence.h"
 
 #include "gui/imageeditor.h"
 #include "gui/imagepointdetailseditor.h"
@@ -21,6 +23,7 @@
 #include "gui/lenseditor.h"
 #include "gui/cameracalibrationeditor.h"
 #include "gui/cameracalibrationsparsealignementeditor.h"
+#include "gui/fixedstereosequenceeditor.h"
 
 #include "control/imagebaseactionmanager.h"
 #include "control/camerabaseactionmanager.h"
@@ -30,6 +33,7 @@
 #include "control/distanceconstrainactionmanager.h"
 #include "control/cameracalibrationactionmanager.h"
 #include "control/localcoordinatesystembaseactionmanager.h"
+#include "control/fixedstereosequenceactionmanager.h"
 
 int main(int argc, char *argv[])
 {
@@ -52,6 +56,9 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::AngleConstrainFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::DistanceConstrainFactory(&a));
 	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraCalibrationFactory(&a));
+	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraCalibrationFactory(&a));
+	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::FixedColorStereoSequenceFactory(&a));
+	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::FixedStereoPlusColorSequenceFactory(&a));
 
 	StereoVisionApp::ProjectFactory* pF = &StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
@@ -63,6 +70,8 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::AngleConstrainActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::DistanceConstrainActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::CameraCalibrationActionManager(pF));
+	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::FixedColorStereoSequenceActionManager(pF));
+	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::FixedStereoPlusColorSequenceActionManager(pF));
 
 	StereoVisionApp::MainWindow w;
 
@@ -74,6 +83,7 @@ int main(int argc, char *argv[])
 	w.installEditor(new StereoVisionApp::LensEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
 	w.installEditor(new StereoVisionApp::CameraCalibrationSparseAlignementEditorFactory(&a));
+	w.installEditor(new StereoVisionApp::FixedStereoSequenceEditorFactory(&a));
 
 	if (argc > 1) {
 		w.openProject(QString(argv[1]));

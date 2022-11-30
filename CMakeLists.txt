@@ -98,6 +98,8 @@ set(PROJ_SRC  main.cpp
     control/localcoordinatesystembaseactionmanager.h
     control/localcoordinatesystemactions.cpp
     control/localcoordinatesystemactions.h
+    control/fixedstereosequenceactionmanager.cpp
+    control/fixedstereosequenceactionmanager.h
     )
 
 add_executable(steviapp

@@ -59,6 +59,9 @@ set(LIB_SRC imagewidget.cpp
             fixedparametersoptionwidget.cpp
             fixedparametersoptionwidget.h
             fixedparametersoptionwidget.ui
+            fixedstereosequenceeditor.cpp
+            fixedstereosequenceeditor.h
+            fixedstereosequenceeditor.ui
 )
 
 add_library(
