@@ -124,26 +124,6 @@ public:
 	floatParameter optimizedB2() const;
 	void setOptimizedB2(const floatParameter &o_B2);
 
-	/*!
-	 * \brief getJsonRepresentation return a JsonObject containing the parameters of the camera (usefull to export a calibrated camera).
-	 * \return a JsonObject containing the camera parameters.
-	 *
-	 * N.B this function is not the one used to save the datablock in a project, it is instead use for import/export of cameras.
-	 */
-	inline QJsonObject getJsonRepresentation() const {
-		return encodeJson();
-	}
-
-	/*!
-	 * \brief setParametersFromJsonRepresenation set the parameters from a json representation
-	 * \param rep the json object with the parameters.
-	 *
-	 * N.B this function is not the one used to load the datablock from a project, it is instead use for import/export of cameras.
-	 */
-	inline void setParametersFromJsonRepresentation(QJsonObject const& rep) {
-		configureFromJson(rep);
-	}
-
 Q_SIGNALS:
 
 	void imSizeChanged();

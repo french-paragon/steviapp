@@ -227,6 +227,33 @@ DataBlock* Project::getById(qint64 internalId) const {
 
 	return nullptr;
 }
+
+DataBlock* Project::getByName(QString const& name, QString const& typeHint) const {
+
+	auto types = _idsByTypes.keys();
+	for (QString const& type : qAsConst(types)) {
+
+		if (!typeHint.isEmpty()) {
+			if (typeHint != type) {
+				continue;
+			}
+		}
+
+		for (qint64 id : _idsByTypes.value(type)) {
+			DataBlock* cand = getById(id);
+
+			if (cand != nullptr) {
+				if (cand->objectName() == name) {
+					return cand;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+
+}
+
 DataBlock* Project::getByUrl(QVector<qint64> const& internalUrl) const {
 	QVector<qint64> url = internalUrl;
 	qint64 base = url.takeFirst();
@@ -910,13 +937,20 @@ void DataBlock::setEnabled(bool enabled) {
 	}
 }
 
+QJsonObject DataBlock::getJsonRepresentation() const {
+	return encodeJson();
+}
+void DataBlock::setParametersFromJsonRepresentation(QJsonObject const& rep) {
+	configureFromJson(rep);
+}
+
 void DataBlock::clear() {
 
 	if (!isInProject()) {
 		return;
 	}
 
-	for (DataBlock* child : _itemCache) {
+	for (DataBlock* child : qAsConst(_itemCache)) {
 		child->clear(); //recursively clear childrens
 	}
 

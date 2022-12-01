@@ -90,6 +90,56 @@ bool StereoRig::removeImagePair(qint64 id) {
 
 }
 
+QJsonObject StereoRig::getJsonRepresentation() const {
+
+	QJsonObject obj;
+
+	obj.insert("ofsx", floatParameter::toJson(xCoord()));
+	obj.insert("ofsy", floatParameter::toJson(yCoord()));
+	obj.insert("ofsz", floatParameter::toJson(zCoord()));
+
+	obj.insert("ofsrx", floatParameter::toJson(xRot()));
+	obj.insert("ofsry", floatParameter::toJson(yRot()));
+	obj.insert("ofsrz", floatParameter::toJson(zRot()));
+
+	obj.insert("oofs", floatParameterGroup<3>::toJson(optPos()));
+
+	obj.insert("oofsr", floatParameterGroup<3>::toJson(optRot()));
+
+	return obj;
+}
+
+void StereoRig::setParametersFromJsonRepresentation(QJsonObject const& rep) {
+
+	if (rep.contains("ofsx")) {
+		setXCoord(floatParameter::fromJson(rep.value("ofsx").toObject()));
+	}
+	if (rep.contains("ofsy")) {
+		setYCoord(floatParameter::fromJson(rep.value("ofsy").toObject()));
+	}
+	if (rep.contains("ofsz")) {
+		setZCoord(floatParameter::fromJson(rep.value("ofsz").toObject()));
+	}
+
+	if (rep.contains("ofsrx")) {
+		setXRot(floatParameter::fromJson(rep.value("ofsrx").toObject()));
+	}
+	if (rep.contains("ofsry")) {
+		setYRot(floatParameter::fromJson(rep.value("ofsry").toObject()));
+	}
+	if (rep.contains("ofsry")) {
+		setZRot(floatParameter::fromJson(rep.value("ofsrz").toObject()));
+	}
+
+	if (rep.contains("oofs")) {
+		setOptPos(floatParameterGroup<3>::fromJson(rep.value("oofs").toObject()));
+	}
+
+	if (rep.contains("oofsr")) {
+		setOptRot(floatParameterGroup<3>::fromJson(rep.value("oofsr").toObject()));
+	}
+}
+
 QJsonObject StereoRig::encodeJson() const {
 
 	QJsonObject obj;

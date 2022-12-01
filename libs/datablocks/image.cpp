@@ -256,6 +256,15 @@ bool Image::hasOptimizedParameters() const {
 	return _o_pos.isSet() or _o_rot.isSet();
 }
 
+QJsonObject Image::getJsonRepresentation() const {
+
+	return RigidBody::encodeJson();
+
+}
+void Image::setParametersFromJsonRepresentation(QJsonObject const& rep) {
+	RigidBody::configureFromJson(rep);
+}
+
 QJsonObject Image::encodeJson() const {
 
 	QJsonObject obj = RigidBody::encodeJson();
@@ -266,7 +275,8 @@ QJsonObject Image::encodeJson() const {
 
 	QJsonArray arr;
 
-	for(qint64 id : listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
+	auto ids = listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName);
+	for(qint64 id : qAsConst(ids)) {
 		arr.push_back(getImageLandmark(id)->toJson());
 	}
 
@@ -290,7 +300,7 @@ void Image::configureFromJson(QJsonObject const& data) {
 	if (data.contains("Landmarks")) {
 		QJsonArray arr = data.value("Landmarks").toArray();
 
-		for (QJsonValue v : arr) {
+		for (QJsonValue const& v : arr) {
 			QJsonObject o = v.toObject();
 
 			ImageLandmark* iml = new ImageLandmark(this);

@@ -442,6 +442,27 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
 }
 
+
+void solveSparseHeadless(Project* p,
+				 bool useCurrentSolutionAtStart,
+				 bool useSparseOptimizer,
+				 bool computeUncertainty,
+				 int nSteps,
+				 FixedParameters fixed) {
+
+	if (nSteps <= 0) {
+		return;
+	}
+
+	GraphSBASolver* solver = new GraphSBASolver(p, computeUncertainty, useSparseOptimizer);
+
+	solver->setOptimizationSteps(nSteps);
+	solver->setFixedParametersFlag(fixed);
+
+	solver->run();
+
+}
+
 void solveSparseStereoRig(Project* p, MainWindow* w, int pnStep) {
 
 	bool computeUncertainty = true;

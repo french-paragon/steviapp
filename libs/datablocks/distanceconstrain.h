@@ -28,9 +28,12 @@ public:
 	DistanceLandmarksPair* getLandmarksPair(qint64 id) const;
 	qint64 insertLandmarksPair(qint64 lm1Id, qint64 lm2Id);
 
+	QJsonObject getJsonRepresentation() const override;
+	void setParametersFromJsonRepresentation(QJsonObject const& rep) override;
+
 Q_SIGNALS:
 
-	void distanceChanged(floatParameter angle);
+	void distanceChanged(StereoVisionApp::floatParameter dist);
 	void optDistanceChanged();
 
 	void landmarksPairAdded(qint64 id);

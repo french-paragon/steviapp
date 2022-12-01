@@ -41,163 +41,174 @@
 
 namespace StereoVisionApp {
 
-QStringList addImages(QStringList images, Project* p) {
+
+qint64 addImage(QString f, Project* p) {
 
 	QString cn = ImageFactory::imageClassName();
 
-	QStringList failed;
+	Exiv2::Image::AutoPtr image = Exiv2::ImageFactory::open(f.toStdString()); //TODO: check if Exiv2 can be updated.
+	QPixmap pixmap(f);
 
-	for (QString const& f : images) {
+	if(image.get() == 0 or pixmap.isNull()) {
+		return -1;
+	}
 
-		Exiv2::Image::AutoPtr image = Exiv2::ImageFactory::open(f.toStdString()); //TODO: check if Exiv2 can be updated.
-		QPixmap pixmap(f);
+	qint64 id = p->createDataBlock(cn.toStdString().c_str());
 
-		if(image.get() == 0 or pixmap.isNull()) {
-			failed << f;
-			continue;
+	if (id >= 0) {
+		Image* im = qobject_cast<Image*>(p->getById(id));
+		im->setImageFile(f);
+
+		QFileInfo inf(f);
+		im->setObjectName(inf.baseName());
+
+		Camera* imgCam = nullptr;
+
+		QString camName;
+
+		image->readMetadata();
+		Exiv2::ExifData &exifData = image->exifData();
+		auto camTag = exifData.findKey(Exiv2::ExifKey("Exif.Image.Model"));
+		if (camTag != exifData.end()) {
+			camName = QString::fromStdString(camTag->toString());
 		}
 
-		qint64 id = p->createDataBlock(cn.toStdString().c_str());
+		if (camName.isEmpty()) {
+			camName = QString("default%1x%2").arg(pixmap.width()).arg(pixmap.height());
+		}
 
-		if (id >= 0) {
-			Image* im = qobject_cast<Image*>(p->getById(id));
-			im->setImageFile(f);
+		QVector<qint64> cam_ids = p->getIdsByClass(CameraFactory::cameraClassName());
 
-			QFileInfo inf(f);
-			im->setObjectName(inf.baseName());
+		for (qint64 cam_id : cam_ids) {
+			Camera* c = qobject_cast<Camera*>(p->getById(cam_id));
 
-			Camera* imgCam = nullptr;
-
-			QString camName;
-
-			image->readMetadata();
-			Exiv2::ExifData &exifData = image->exifData();
-			auto camTag = exifData.findKey(Exiv2::ExifKey("Exif.Image.Model"));
-			if (camTag != exifData.end()) {
-				camName = QString::fromStdString(camTag->toString());
+			if (c->objectName() == camName) {
+				imgCam = c;
+				break;
 			}
+		}
 
-			if (camName.isEmpty()) {
-				camName = QString("default%1x%2").arg(pixmap.width()).arg(pixmap.height());
-			}
+		if (imgCam != nullptr) {
+			im->assignCamera(imgCam->internalId());
+		} else {
 
-			QVector<qint64> cam_ids = p->getIdsByClass(CameraFactory::cameraClassName());
+			qint64 cam_id = p->createDataBlock(CameraFactory::cameraClassName().toStdString().c_str());
 
-			for (qint64 cam_id : cam_ids) {
-				Camera* c = qobject_cast<Camera*>(p->getById(cam_id));
+			if (cam_id >= 0) {
 
-				if (c->objectName() == camName) {
-					imgCam = c;
-					break;
-				}
-			}
+				imgCam = qobject_cast<Camera*>(p->getById(cam_id));
 
-			if (imgCam != nullptr) {
-				im->assignCamera(imgCam->internalId());
-			} else {
+				imgCam->setObjectName(camName);
+				imgCam->setImSize(pixmap.size());
+				imgCam->setOpticalCenterX(floatParameter(pixmap.width()/2.));
+				imgCam->setOpticalCenterY(floatParameter(pixmap.height()/2.));
 
-				qint64 cam_id = p->createDataBlock(CameraFactory::cameraClassName().toStdString().c_str());
+				im->assignCamera(cam_id);
 
-				if (cam_id >= 0) {
+				floatParameter fLen(pixmap.width(), false);
+				floatParameter pixelAspectRatio(1.0, false);
 
-					imgCam = qobject_cast<Camera*>(p->getById(cam_id));
+				auto fLenTag = exifData.findKey(Exiv2::ExifKey("Exif.Image.FocalLength"));
+				auto fLenPhotoTag = exifData.findKey(Exiv2::ExifKey("Exif.Photo.FocalLength"));
+				auto fLenPhoto35mmTag = exifData.findKey(Exiv2::ExifKey("Exif.Photo.FocalLengthIn35mmFilm"));
+				auto fPlanXRes = exifData.findKey(Exiv2::ExifKey("Exif.Image.FocalPlaneXResolution"));
+				auto fPlanYRes = exifData.findKey(Exiv2::ExifKey("Exif.Image.FocalPlaneYResolution"));
+				auto fPlanUnit = exifData.findKey(Exiv2::ExifKey("Exif.Image.FocalPlaneResolutionUnit"));
 
-					imgCam->setObjectName(camName);
-					imgCam->setImSize(pixmap.size());
-					imgCam->setOpticalCenterX(floatParameter(pixmap.width()/2.));
-					imgCam->setOpticalCenterY(floatParameter(pixmap.height()/2.));
+				if ((fLenTag != exifData.end() or fLenPhotoTag != exifData.end() or fLenPhoto35mmTag != exifData.end()) and
+						(fLenPhoto35mmTag != exifData.end() or
+						 ((fPlanXRes != exifData.end() or fPlanYRes != exifData.end()) and fPlanUnit != exifData.end()))) {
 
-					im->assignCamera(cam_id);
+					Exiv2::Rational fPlanRes;
+					Exiv2::Rational pixAspectRatio = {1, 1};
 
-					floatParameter fLen(pixmap.width(), false);
-					floatParameter pixelAspectRatio(1.0, false);
+					if (fPlanXRes != exifData.end() or fPlanYRes != exifData.end()) {
 
-					auto fLenTag = exifData.findKey(Exiv2::ExifKey("Exif.Image.FocalLength"));
-					auto fLenPhotoTag = exifData.findKey(Exiv2::ExifKey("Exif.Photo.FocalLength"));
-					auto fLenPhoto35mmTag = exifData.findKey(Exiv2::ExifKey("Exif.Photo.FocalLengthIn35mmFilm"));
-					auto fPlanXRes = exifData.findKey(Exiv2::ExifKey("Exif.Image.FocalPlaneXResolution"));
-					auto fPlanYRes = exifData.findKey(Exiv2::ExifKey("Exif.Image.FocalPlaneYResolution"));
-					auto fPlanUnit = exifData.findKey(Exiv2::ExifKey("Exif.Image.FocalPlaneResolutionUnit"));
-
-					if ((fLenTag != exifData.end() or fLenPhotoTag != exifData.end() or fLenPhoto35mmTag != exifData.end()) and
-							(fLenPhoto35mmTag != exifData.end() or
-							 ((fPlanXRes != exifData.end() or fPlanYRes != exifData.end()) and fPlanUnit != exifData.end()))) {
-
-						Exiv2::Rational fPlanRes;
-						Exiv2::Rational pixAspectRatio = {1, 1};
-
-						if (fPlanXRes != exifData.end() or fPlanYRes != exifData.end()) {
-
-							if (fPlanXRes != exifData.end()) {
-								fPlanRes = fPlanXRes->toRational();
-							} else {
-								fPlanRes = fPlanYRes->toRational();
-							}
-
-							if (fPlanXRes != exifData.end() and fPlanYRes != exifData.end()) {
-								Exiv2::Rational tmp = fPlanYRes->toRational();
-								pixAspectRatio = {fPlanRes.first*tmp.second, fPlanRes.second*tmp.first};
-							}
-
-							if (pixAspectRatio.first == pixAspectRatio.second) {
-								pixelAspectRatio.setIsSet(1.0);
-							} else {
-								pixelAspectRatio.setIsSet(static_cast<pFloatType>(pixAspectRatio.first)/static_cast<pFloatType>(pixAspectRatio.second));
-							}
-
+						if (fPlanXRes != exifData.end()) {
+							fPlanRes = fPlanXRes->toRational();
+						} else {
+							fPlanRes = fPlanYRes->toRational();
 						}
 
-						Exiv2::Rational fLenRatio;
-						if (fLenPhoto35mmTag != exifData.end()) {
-							fLenRatio = fLenPhoto35mmTag->toRational();
-							fLen.setIsSet(static_cast<pFloatType>(fLenRatio.first)*static_cast<pFloatType>(pixmap.width())/
-										  (static_cast<pFloatType>(fLenRatio.second)*35.));
+						if (fPlanXRes != exifData.end() and fPlanYRes != exifData.end()) {
+							Exiv2::Rational tmp = fPlanYRes->toRational();
+							pixAspectRatio = {fPlanRes.first*tmp.second, fPlanRes.second*tmp.first};
+						}
+
+						if (pixAspectRatio.first == pixAspectRatio.second) {
+							pixelAspectRatio.setIsSet(1.0);
 						} else {
+							pixelAspectRatio.setIsSet(static_cast<pFloatType>(pixAspectRatio.first)/static_cast<pFloatType>(pixAspectRatio.second));
+						}
 
-							if (fLenTag != exifData.end()) {
-								fLenRatio = fLenTag->toRational();
-							} else {
-								fLenRatio = fLenPhotoTag->toRational();
-							}
+					}
 
-							bool hasConversionUnit = true;
-							uint16_t unit = fPlanUnit->toLong();
+					Exiv2::Rational fLenRatio;
+					if (fLenPhoto35mmTag != exifData.end()) {
+						fLenRatio = fLenPhoto35mmTag->toRational();
+						fLen.setIsSet(static_cast<pFloatType>(fLenRatio.first)*static_cast<pFloatType>(pixmap.width())/
+									  (static_cast<pFloatType>(fLenRatio.second)*35.));
+					} else {
 
-							float fPlanUnit2mm = 1.0;
+						if (fLenTag != exifData.end()) {
+							fLenRatio = fLenTag->toRational();
+						} else {
+							fLenRatio = fLenPhotoTag->toRational();
+						}
 
-							if (unit == 2) {//inch
-								fPlanUnit2mm = 25.4;
-							} else if (unit == 3) {//cm
-								fPlanUnit2mm = 10.;
-							} else if (unit == 4) {//mm
-								fPlanUnit2mm = 1.;
-							} else {
-								hasConversionUnit = false;
-							}
+						bool hasConversionUnit = true;
+						uint16_t unit = fPlanUnit->toLong();
 
-							if (hasConversionUnit) {
+						float fPlanUnit2mm = 1.0;
 
-								pFloatType c_flen = pFloatType(fLenRatio.first) / pFloatType(fLenRatio.second)
-										* pFloatType(fPlanRes.first) / pFloatType(fPlanRes.second) / fPlanUnit2mm;
+						if (unit == 2) {//inch
+							fPlanUnit2mm = 25.4;
+						} else if (unit == 3) {//cm
+							fPlanUnit2mm = 10.;
+						} else if (unit == 4) {//mm
+							fPlanUnit2mm = 1.;
+						} else {
+							hasConversionUnit = false;
+						}
 
-								fLen.setIsSet(c_flen);
+						if (hasConversionUnit) {
 
-							}
+							pFloatType c_flen = pFloatType(fLenRatio.first) / pFloatType(fLenRatio.second)
+									* pFloatType(fPlanRes.first) / pFloatType(fPlanRes.second) / fPlanUnit2mm;
+
+							fLen.setIsSet(c_flen);
 
 						}
 
 					}
 
-					imgCam->setFLen(fLen);
-					imgCam->setPixelRatio(pixelAspectRatio);
-
 				}
+
+				imgCam->setFLen(fLen);
+				imgCam->setPixelRatio(pixelAspectRatio);
 
 			}
 
-		} else {
+		}
+
+	}
+
+	return id;
+
+}
+
+QStringList addImages(QStringList images, Project* p) {
+
+	QStringList failed;
+
+	for (QString const& f : images) {
+
+		qint64 id = addImage(f, p);
+
+		if (id < 0) {
 			failed << f;
 		}
+
 	}
 
 	return failed;
@@ -704,158 +715,195 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 
 		Image* image = p->getDataBlock<Image>(id);
 
-		if (image == nullptr) {
-			continue;
+		bool sucess = detectHexagonalTargets(image,
+											 minThreshold,
+											 diffThreshold,
+											 minArea,
+											 maxArea,
+											 minToMaxAxisRatioThreshold,
+											 hexRelMaxDiameter,
+											 hexFirRelMaxRes,
+											 redGain,
+											 greenGain,
+											 blueGain,
+											 clearPrevious,
+											 useHexScale,
+											 hexEdge);
+
+		nImgsProcessed += (sucess) ? 1 : 0;
+
+	}
+
+	return nImgsProcessed;
+
+}
+
+
+bool detectHexagonalTargets(Image* image,
+							double minThreshold,
+							double diffThreshold,
+							int minArea,
+							int maxArea,
+							double minToMaxAxisRatioThreshold,
+							double hexRelMaxDiameter,
+							double hexFirRelMaxRes,
+							double redGain,
+							double greenGain,
+							double blueGain,
+							bool clearPrevious,
+							bool useHexScale,
+							float hexEdge) {
+
+	Project* p = image->getProject();
+
+	if (image == nullptr or p == nullptr) {
+		return false;
+	}
+
+	Multidim::Array<uint8_t, 3> img = StereoVision::IO::readImage<uint8_t>(image->getImageFile().toStdString());
+
+	if (img.empty()) {
+		return false;
+	}
+
+	constexpr StereoVision::Color::RedGreenBlue MC = StereoVision::Color::Blue;
+	constexpr StereoVision::Color::RedGreenBlue PC = StereoVision::Color::Green;
+	constexpr StereoVision::Color::RedGreenBlue NC = StereoVision::Color::Red;
+
+	std::vector<StereoVision::ImageProcessing::HexRgbTarget::HexTargetPosition> targets =
+		StereoVision::ImageProcessing::HexRgbTarget::detectHexTargets<uint8_t, MC, PC, NC>
+			(img,
+			 minThreshold,
+			 diffThreshold,
+			 minArea,
+			 maxArea,
+			 minToMaxAxisRatioThreshold,
+			 hexRelMaxDiameter,
+			 redGain,
+			 greenGain,
+			 blueGain,
+			 hexFirRelMaxRes);
+
+	for (StereoVision::ImageProcessing::HexRgbTarget::HexTargetPosition & target : targets) {
+
+		QString colorCode = "RRRRR";
+
+
+		for (int i = 0; i < 5; i++) {
+			if (target.dotsPositives[i]) {
+				colorCode[i] = 'G';
+			}
 		}
 
-		Multidim::Array<uint8_t, 3> img = StereoVision::IO::readImage<uint8_t>(image->getImageFile().toStdString());
+		QString lmNameBase = QString("HexaTarget_%1").arg(colorCode);
 
-		if (img.empty()) {
-			continue;
-		}
+		std::array<Landmark*, 6> landmarks;
 
-		constexpr StereoVision::Color::RedGreenBlue MC = StereoVision::Color::Blue;
-		constexpr StereoVision::Color::RedGreenBlue PC = StereoVision::Color::Green;
-		constexpr StereoVision::Color::RedGreenBlue NC = StereoVision::Color::Red;
+		for (int i = 0; i < 6; i++) {
+			QString lmName = lmNameBase + QString("_%1").arg(i+1);
 
-		std::vector<StereoVision::ImageProcessing::HexRgbTarget::HexTargetPosition> targets =
-			StereoVision::ImageProcessing::HexRgbTarget::detectHexTargets<uint8_t, MC, PC, NC>
-				(img,
-				 minThreshold,
-				 diffThreshold,
-				 minArea,
-				 maxArea,
-				 minToMaxAxisRatioThreshold,
-				 hexRelMaxDiameter,
-				 redGain,
-				 greenGain,
-				 blueGain,
-				 hexFirRelMaxRes);
+			Landmark* target_lm = p->getDataBlockByName<Landmark>(lmName);
 
-		nImgsProcessed++;
+			if (target_lm == nullptr) { //create the landmark if it does not exist.
+				qint64 id = p->createDataBlock(LandmarkFactory::landmarkClassName().toStdString().c_str());
 
-		for (StereoVision::ImageProcessing::HexRgbTarget::HexTargetPosition & target : targets) {
-
-			QString colorCode = "RRRRR";
-
-
-			for (int i = 0; i < 5; i++) {
-				if (target.dotsPositives[i]) {
-					colorCode[i] = 'G';
-				}
+				target_lm = p->getDataBlock<Landmark>(id);
+				target_lm->setObjectName(lmName);
 			}
 
-			QString lmNameBase = QString("HexaTarget_%1").arg(colorCode);
+			landmarks[i] = target_lm;
 
-			std::array<Landmark*, 6> landmarks;
+			Eigen::Vector2f pos;
+
+			if (i == 0) {
+				pos = target.posRefDot;
+			} else {
+				pos = target.dotsPositions[i-1];
+			}
+
+			ImageLandmark* im_lm = image->getImageLandmarkByLandmarkId(target_lm->internalId());
+
+			if (im_lm == nullptr) {
+
+				qint64 imlm_id = image->addImageLandmark(QPointF(pos[1]+0.5, pos[0]+0.5), target_lm->internalId(), true, 3.0);
+				im_lm = image->getImageLandmark(imlm_id);
+
+			} else if (!clearPrevious) {
+				continue;
+			}
+
+			im_lm->setX(pos[1]+0.5);
+			im_lm->setY(pos[0]+0.5);
+		}
+
+		if (useHexScale) {
+			/*const QString hexa_side_constraint_name("HexaTargets_HexagoneDistance");
+
+			DistanceConstrain* hexa_dist = p->getDataBlockByName<DistanceConstrain>(hexa_side_constraint_name);
+
+			if (hexa_dist == nullptr) {
+				qint64 id = p->createDataBlock(DistanceConstrain::staticMetaObject.className());
+
+				hexa_dist = p->getDataBlock<DistanceConstrain>(id);
+				hexa_dist->setObjectName(hexa_side_constraint_name);
+
+				hexa_dist->setDistanceValue(hexEdge);
+			}
 
 			for (int i = 0; i < 6; i++) {
-				QString lmName = lmNameBase + QString("_%1").arg(i+1);
 
-				Landmark* target_lm = p->getDataBlockByName<Landmark>(lmName);
+				Landmark* lm0 = landmarks[i];
+				Landmark* lm1 = landmarks[(i+1)%6];
 
-				if (target_lm == nullptr) { //create the landmark if it does not exist.
-					qint64 id = p->createDataBlock(LandmarkFactory::landmarkClassName().toStdString().c_str());
+				hexa_dist->insertLandmarksPair(lm0->internalId(), lm1->internalId()); //set constrain if not already existing
 
-					target_lm = p->getDataBlock<Landmark>(id);
-					target_lm->setObjectName(lmName);
-				}
+			}*/
 
-				landmarks[i] = target_lm;
+			QString lcsName = QString("HexaTarget_%1_CoordinateSystem").arg(colorCode);
 
-				Eigen::Vector2f pos;
+			LocalCoordinateSystem* lcs = p->getDataBlockByName<LocalCoordinateSystem>(lcsName);
 
-				if (i == 0) {
-					pos = target.posRefDot;
-				} else {
-					pos = target.dotsPositions[i-1];
-				}
+			if (lcs == nullptr) {
+				qint64 id = p->createDataBlock(LocalCoordinateSystem::staticMetaObject.className());
 
-				ImageLandmark* im_lm = image->getImageLandmarkByLandmarkId(target_lm->internalId());
-
-				if (im_lm == nullptr) {
-
-					qint64 imlm_id = image->addImageLandmark(QPointF(pos[1]+0.5, pos[0]+0.5), target_lm->internalId(), true, 3.0);
-					im_lm = image->getImageLandmark(imlm_id);
-
-				} else if (!clearPrevious) {
-					continue;
-				}
-
-				im_lm->setX(pos[1]+0.5);
-				im_lm->setY(pos[0]+0.5);
+				lcs = p->getDataBlock<LocalCoordinateSystem>(id);
+				lcs->setObjectName(lcsName);
 			}
 
-			if (useHexScale) {
-				/*const QString hexa_side_constraint_name("HexaTargets_HexagoneDistance");
+			for (int i = 0; i < 6; i++) {
 
-				DistanceConstrain* hexa_dist = p->getDataBlockByName<DistanceConstrain>(hexa_side_constraint_name);
+				Landmark* lm = landmarks[i];
 
-				if (hexa_dist == nullptr) {
-					qint64 id = p->createDataBlock(DistanceConstrain::staticMetaObject.className());
+				float x = hexEdge*std::sin(i*60./180.*M_PI);
+				float y = hexEdge*std::cos(i*60./180.*M_PI);
+				float z = 0;
 
-					hexa_dist = p->getDataBlock<DistanceConstrain>(id);
-					hexa_dist->setObjectName(hexa_side_constraint_name);
+				lcs->addLandmarkLocalCoordinates(lm->internalId(), x, y, z); //set constrain if not already existing
 
-					hexa_dist->setDistanceValue(hexEdge);
-				}
+			}
 
-				for (int i = 0; i < 6; i++) {
+		} else {
 
-					Landmark* lm0 = landmarks[i];
-					Landmark* lm1 = landmarks[(i+1)%6];
+			const QString hexa_angle_constraint_name("HexaTargets_HexagoneAngle");
 
-					hexa_dist->insertLandmarksPair(lm0->internalId(), lm1->internalId()); //set constrain if not already existing
+			AngleConstrain* hexa_angle = p->getDataBlockByName<AngleConstrain>(hexa_angle_constraint_name);
 
-				}*/
+			if (hexa_angle == nullptr) {
+				qint64 id = p->createDataBlock(AngleConstrain::staticMetaObject.className());
 
-				QString lcsName = QString("HexaTarget_%1_CoordinateSystem").arg(colorCode);
+				hexa_angle = p->getDataBlock<AngleConstrain>(id);
+				hexa_angle->setObjectName(hexa_angle_constraint_name);
 
-				LocalCoordinateSystem* lcs = p->getDataBlockByName<LocalCoordinateSystem>(lcsName);
+				hexa_angle->setAngleValue(120);
+			}
 
-				if (lcs == nullptr) {
-					qint64 id = p->createDataBlock(LocalCoordinateSystem::staticMetaObject.className());
+			for (int i = 0; i < 6; i++) {
 
-					lcs = p->getDataBlock<LocalCoordinateSystem>(id);
-					lcs->setObjectName(lcsName);
-				}
+				Landmark* lm0 = landmarks[i];
+				Landmark* lm1 = landmarks[(i+1)%6];
+				Landmark* lm2 = landmarks[(i+2)%6];
 
-				for (int i = 0; i < 6; i++) {
-
-					Landmark* lm = landmarks[i];
-
-					float x = hexEdge*std::sin(i*60./180.*M_PI);
-					float y = hexEdge*std::cos(i*60./180.*M_PI);
-					float z = 0;
-
-					lcs->addLandmarkLocalCoordinates(lm->internalId(), x, y, z); //set constrain if not already existing
-
-				}
-
-			} else {
-
-				const QString hexa_angle_constraint_name("HexaTargets_HexagoneAngle");
-
-				AngleConstrain* hexa_angle = p->getDataBlockByName<AngleConstrain>(hexa_angle_constraint_name);
-
-				if (hexa_angle == nullptr) {
-					qint64 id = p->createDataBlock(AngleConstrain::staticMetaObject.className());
-
-					hexa_angle = p->getDataBlock<AngleConstrain>(id);
-					hexa_angle->setObjectName(hexa_angle_constraint_name);
-
-					hexa_angle->setAngleValue(120);
-				}
-
-				for (int i = 0; i < 6; i++) {
-
-					Landmark* lm0 = landmarks[i];
-					Landmark* lm1 = landmarks[(i+1)%6];
-					Landmark* lm2 = landmarks[(i+2)%6];
-
-					hexa_angle->insertLandmarksTriplet(lm0->internalId(), lm1->internalId(), lm2->internalId()); //set constrain if not already existing
-
-				}
+				hexa_angle->insertLandmarksTriplet(lm0->internalId(), lm1->internalId(), lm2->internalId()); //set constrain if not already existing
 
 			}
 
@@ -863,8 +911,7 @@ int detectHexagonalTargets(QList<qint64> imagesIds, Project* p) {
 
 	}
 
-	return nImgsProcessed;
-
+	return true;
 }
 
 

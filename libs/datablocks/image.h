@@ -43,6 +43,9 @@ public:
 	void clearOptimized() override;
 	bool hasOptimizedParameters() const override;
 
+	QJsonObject getJsonRepresentation() const override;
+	void setParametersFromJsonRepresentation(QJsonObject const& rep) override;
+
 Q_SIGNALS:
 
 	void assignedCameraChanged(qint64 id);

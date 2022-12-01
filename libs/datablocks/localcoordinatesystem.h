@@ -28,6 +28,9 @@ public:
 	int countPointsRefered(QSet<qint64> const& excluded = {}) const;
 	int countPointsRefered(QVector<qint64> const& excluded) const;
 
+	QJsonObject getJsonRepresentation() const override;
+	void setParametersFromJsonRepresentation(QJsonObject const& rep) override;
+
 Q_SIGNALS:
 
 	void pointAdded(qint64 pt);

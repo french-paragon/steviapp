@@ -100,6 +100,16 @@ public:
 					   (static_cast<float>(_selected_grid_height-1)/2. - pos.y())*_grid_size);
 	}
 
+	/*!
+	 * \brief getJsonRepresentation do nothing for this class
+	 * \return an empty object
+	 */
+	QJsonObject getJsonRepresentation() const override;
+	/*!
+	 * \brief setParametersFromJsonRepresentation do nothing for this class
+	 */
+	void setParametersFromJsonRepresentation(QJsonObject const& rep) override;
+
 Q_SIGNALS:
 
 	void imageAdded(qint64 id);

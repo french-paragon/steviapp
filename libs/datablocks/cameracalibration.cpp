@@ -253,6 +253,14 @@ void CameraCalibration::clearConfiguredImages() {
 	isChanged();
 }
 
+QJsonObject CameraCalibration::getJsonRepresentation() const {
+	return QJsonObject();
+}
+
+void CameraCalibration::setParametersFromJsonRepresentation(QJsonObject const& rep) {
+	Q_UNUSED(rep);
+}
+
 QJsonObject CameraCalibration::encodeJson() const {
 
 	QJsonObject obj;

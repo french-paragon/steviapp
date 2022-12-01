@@ -91,6 +91,28 @@ qint64 DistanceConstrain::insertLandmarksPair(qint64 lm1Id, qint64 lm2Id) {
 }
 
 
+
+QJsonObject DistanceConstrain::getJsonRepresentation() const {
+	QJsonObject obj;
+
+	obj.insert("distance", floatParameter::toJson(distanceValue()));
+
+	obj.insert("optdistance", floatParameter::toJson(optimizedDistanceValue()));
+
+	return obj;
+}
+void DistanceConstrain::setParametersFromJsonRepresentation(QJsonObject const& rep) {
+
+	if (rep.contains("distance")) {
+		_distanceValue = floatParameter::fromJson(rep.value("distance").toObject());
+	}
+
+	if (rep.contains("optdistance")) {
+		_opt_distanceValue = floatParameter::fromJson(rep.value("optdistance").toObject());
+	}
+
+}
+
 QJsonObject DistanceConstrain::encodeJson() const {
 
 	QJsonObject obj;

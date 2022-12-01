@@ -59,6 +59,8 @@ public:
 	DataBlockFactory* getFactoryForClass(QString cName) const;
 	virtual bool clearById(qint64 internalId);
 
+	DataBlock* getByName(QString const& name, QString const& typeHint = "") const;
+
 	template<class T>
 	T* getDataBlock(qint64 internalId) const {
 		return qobject_cast<T*>(getById(internalId));
@@ -67,7 +69,8 @@ public:
 	template<class T>
 	T* getDataBlockByName(QString name) const {
 
-		for (QString type : _idsByTypes.keys()) {
+		auto types = _idsByTypes.keys();
+		for (QString const& type : qAsConst(types)) {
 			for (qint64 id : _idsByTypes.value(type)) {
 				T* cand = getDataBlock<T>(id);
 
@@ -221,6 +224,26 @@ public:
 
 	bool isEnabled() const;
 	void setEnabled(bool enabled);
+
+
+
+	/*!
+	 * \brief getJsonRepresentation return a JsonObject containing some parameters of the datablock that needs to be reconfigurable from a file.
+	 * \return a JsonObject containing the parameters.
+	 *
+	 * N.B this function is not the one used to save the datablock in a project, it is instead use for import/export of some datablocks.
+	 * Default implementation return the result of the toJsonFunction.
+	 */
+	virtual QJsonObject getJsonRepresentation() const;
+
+	/*!
+	 * \brief setParametersFromJsonRepresenation set the parameters from a json representation
+	 * \param rep the json object with the parameters.
+	 *
+	 * N.B this function is not the one used to load the datablock from a project, it is instead use for import/export of some datablocks.
+	 * Default implementation use the configureFromJson function.
+	 */
+	virtual void setParametersFromJsonRepresentation(QJsonObject const& rep);
 
 Q_SIGNALS:
 

@@ -147,6 +147,13 @@ int LocalCoordinateSystem::countPointsRefered(QVector<qint64> const& excluded) c
 
 }
 
+QJsonObject LocalCoordinateSystem::getJsonRepresentation() const {
+	return RigidBody::encodeJson();
+}
+void LocalCoordinateSystem::setParametersFromJsonRepresentation(QJsonObject const& rep) {
+	RigidBody::configureFromJson(rep);
+}
+
 
 QJsonObject LocalCoordinateSystem::encodeJson() const {
 
@@ -154,7 +161,8 @@ QJsonObject LocalCoordinateSystem::encodeJson() const {
 
 	QJsonArray arr;
 
-	for(qint64 id : listTypedSubDataBlocks(LandmarkLocalCoordinates::staticMetaObject.className())) {
+	auto ids = listTypedSubDataBlocks(LandmarkLocalCoordinates::staticMetaObject.className());
+	for(qint64 id : qAsConst(ids)) {
 		arr.push_back(getLandmarkLocalCoordinates(id)->toJson());
 	}
 
@@ -170,7 +178,7 @@ void LocalCoordinateSystem::configureFromJson(QJsonObject const& data) {
 	if (data.contains("Landmarks")) {
 		QJsonArray arr = data.value("Landmarks").toArray();
 
-		for (QJsonValue v : arr) {
+		for (QJsonValue const& v : arr) {
 			QJsonObject o = v.toObject();
 
 			LandmarkLocalCoordinates* iml = new LandmarkLocalCoordinates(this);
