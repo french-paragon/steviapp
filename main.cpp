@@ -1,3 +1,6 @@
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
+
 #include "control/application.h"
 #include "control/mainwindow.h"
 
@@ -36,9 +39,22 @@
 #include "control/localcoordinatesystembaseactionmanager.h"
 #include "control/fixedstereosequenceactionmanager.h"
 
+namespace py = pybind11;
+
+void runScript(QString const& scriptPath) {
+	py::scoped_interpreter guard{};
+
+	// Evaluate in scope of main module
+	py::object scope = py::module::import("__main__").attr("__dict__");
+
+	py::eval_file(scriptPath.toStdString(), scope);
+}
+
 int main(int argc, char *argv[])
 {
 	StereoVisionApp::StereoVisionApplication a(argc, argv);
+
+	QObject::connect(&a, &StereoVisionApp::StereoVisionApplication::scriptFileExecututionRequested, &runScript);
 
 	//surface setup
 

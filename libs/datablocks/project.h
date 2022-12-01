@@ -107,6 +107,8 @@ public:
 
 	bool hasSolution() const;
 
+	const QVector<QString> &installedTypes() const;
+
 Q_SIGNALS:
 	/*!
 	 * \brief projectChanged is a signal emitted when the general structure of the project change

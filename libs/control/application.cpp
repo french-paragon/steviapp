@@ -12,6 +12,12 @@
 
 namespace StereoVisionApp {
 
+StereoVisionApplication* StereoVisionApplication::CurrentApp = nullptr;
+
+StereoVisionApplication* StereoVisionApplication::GetAppInstance() {
+	return CurrentApp;
+}
+
 StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 	_headLessProject(nullptr),
 	_mw(nullptr)
@@ -19,17 +25,16 @@ StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 
 	_isHeadLess = false;
 
-	QVector<QString> scriptFiles;
 	_openProjectFile = "";
 
 	for (int i = 1; i < argc; i++) {
 		if (!qstrcmp(argv[i], "--headless")) {
 			_isHeadLess = true;
 
-		} else if (!qstrcmp(argv[i], "--batch")) {
+		} else if (!qstrcmp(argv[i], "--script")) {
 			i++;
 			if (i < argc) {
-				scriptFiles.push_back(QString(argv[i]));
+				_scriptFiles.push_back(QString(argv[i]));
 			}
 
 		} else {
@@ -43,6 +48,8 @@ StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 		_QtApp = new QApplication(argc, argv);
 		_mw = new MainWindow();
 	}
+
+	CurrentApp = this;
 
 }
 
@@ -141,6 +148,10 @@ int StereoVisionApplication::exec() {
 
 	if (_mw != nullptr) {
 		_mw->show();
+	}
+
+	for (QString const& scriptpath : qAsConst(_scriptFiles)) {
+		Q_EMIT scriptFileExecututionRequested(scriptpath);
 	}
 
 	return _QtApp->exec();

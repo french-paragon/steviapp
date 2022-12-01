@@ -600,6 +600,11 @@ qint64 Project::nextAvailableId() const {
 	return id;
 }
 
+const QVector<QString> &Project::installedTypes() const
+{
+	return _installedTypes;
+}
+
 
 DataBlockFactory::DataBlockFactory(QObject* parent) : QObject(parent) {
 

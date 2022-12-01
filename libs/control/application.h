@@ -12,9 +12,10 @@ class MainWindow;
 
 class StereoVisionApplication : public QObject
 {
+	Q_OBJECT
 public:
 
-	static StereoVisionApplication* GetCameraApp();
+	static StereoVisionApplication* GetAppInstance();
 
 	StereoVisionApplication(int & argc, char** argv);
 	~StereoVisionApplication();
@@ -33,9 +34,15 @@ public:
 	 */
 	int exec();
 
+Q_SIGNALS:
+
+	void scriptFileExecututionRequested(QString scriptpath);
+
 protected:
 
 	void resetProject();
+
+	static StereoVisionApplication* CurrentApp;
 
 	Project* _headLessProject;
 	MainWindow* _mw;
@@ -44,6 +51,8 @@ protected:
 
 	QCoreApplication* _QtApp;
 
+
+	QVector<QString> _scriptFiles;
 	QString _openProjectFile;
 };
 
