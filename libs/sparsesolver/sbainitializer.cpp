@@ -64,8 +64,12 @@ InitialSolution EightPointsSBAMultiviewInitializer::computeInitialSolution(Proje
 	QMap<qint64, qint64> imagesConnected;
 	qint64 selectedFrame = _f1;
 
+	auto it1 = s_imgs.begin();
+	auto next = it1;
+	next++;
+
 	if (_f1 < 0) {
-		for (auto it1 = s_imgs.begin(); it1+1 != s_imgs.end(); it1++) {
+		for (it1 = it1; next != s_imgs.end(); it1++, next++) {
 
 			Image* img1 = qobject_cast<Image*>(p->getById(*it1));
 
@@ -76,7 +80,9 @@ InitialSolution EightPointsSBAMultiviewInitializer::computeInitialSolution(Proje
 			QVector<qint64> lms = img1->getAttachedLandmarksIds();
 			QSet<qint64> attachedLandmarks1 = QSet<qint64>(lms.begin(), lms.end());
 
-			for (auto it2 = it1+1; it2 != s_imgs.end(); it2++) {
+			auto it2 = it1;
+			it2++;
+			for (it2 = it2; it2 != s_imgs.end(); it2++) {
 
 				Image* img2 = qobject_cast<Image*>(p->getById(*it2));
 
