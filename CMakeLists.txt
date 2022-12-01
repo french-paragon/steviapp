@@ -65,6 +65,8 @@ link_directories(${MODULES_LINK_DIRECTORIES})
 add_subdirectory(libs)
 
 set(PROJ_SRC  main.cpp
+	application.h
+	application.cpp
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui

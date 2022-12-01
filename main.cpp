@@ -1,3 +1,4 @@
+#include "application.h"
 #include "mainwindow.h"
 
 #include <QApplication>
@@ -37,7 +38,7 @@
 
 int main(int argc, char *argv[])
 {
-	QApplication a(argc, argv);
+	StereoVisionApp::StereoVisionApplication a(argc, argv);
 
 	//surface setup
 
@@ -73,22 +74,19 @@ int main(int argc, char *argv[])
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::FixedColorStereoSequenceActionManager(pF));
 	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::FixedStereoPlusColorSequenceActionManager(pF));
 
-	StereoVisionApp::MainWindow w;
+	StereoVisionApp::MainWindow* w = a.mainWindow();
 
-	w.installEditor(new StereoVisionApp::ImageEditorFactory(&a));
-	w.installEditor(new StereoVisionApp::ImagePointDetailsEditorFactory(&a));
-	w.installEditor(new StereoVisionApp::LandmarkPointDetailsEditorFactory(&a));
-	w.installEditor(new StereoVisionApp::LocalCoordinateSystemPointDetailsEditorFactory(&a));
-	w.installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
-	w.installEditor(new StereoVisionApp::LensEditorFactory(&a));
-	w.installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
-	w.installEditor(new StereoVisionApp::CameraCalibrationSparseAlignementEditorFactory(&a));
-	w.installEditor(new StereoVisionApp::FixedStereoSequenceEditorFactory(&a));
-
-	if (argc > 1) {
-		w.openProject(QString(argv[1]));
+	if (w != nullptr) {
+		w->installEditor(new StereoVisionApp::ImageEditorFactory(&a));
+		w->installEditor(new StereoVisionApp::ImagePointDetailsEditorFactory(&a));
+		w->installEditor(new StereoVisionApp::LandmarkPointDetailsEditorFactory(&a));
+		w->installEditor(new StereoVisionApp::LocalCoordinateSystemPointDetailsEditorFactory(&a));
+		w->installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
+		w->installEditor(new StereoVisionApp::LensEditorFactory(&a));
+		w->installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
+		w->installEditor(new StereoVisionApp::CameraCalibrationSparseAlignementEditorFactory(&a));
+		w->installEditor(new StereoVisionApp::FixedStereoSequenceEditorFactory(&a));
 	}
 
-	w.show();
 	return a.exec();
 }

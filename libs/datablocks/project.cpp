@@ -146,7 +146,7 @@ bool Project::save(QString const& outFile) {
 
 	QJsonObject proj;
 
-	for (QString itemClass : _idsByTypes.keys()) {
+	for (const QString &itemClass : _idsByTypes.keys()) {
 
 		QJsonArray items;
 		QVector<qint64> ids = _idsByTypes.value(itemClass);
@@ -185,6 +185,7 @@ bool Project::save(QString const& outFile) {
 		return false;
 	}
 
+	_source = outFile;
 	return true;
 
 }

@@ -52,9 +52,9 @@ MainWindow::MainWindow(QWidget *parent)
 
 	connect(ui->actionnew_Project, &QAction::triggered, this, &MainWindow::newEmptyProject);
 	connect(ui->actionsave_Project, &QAction::triggered, this, &MainWindow::saveProject);
-	connect(ui->actionsave_project_as, &QAction::triggered, this, &MainWindow::saveProjectAs);
+	connect(ui->actionsave_project_as, &QAction::triggered, this, static_cast<void(MainWindow::*)()>(&MainWindow::saveProjectAs));
 	connect(ui->actionopen_Project, &QAction::triggered, this, static_cast<void(MainWindow::*)()>(&MainWindow::openProject));
-	connect(ui->actionexport_optimized_to_collada, &QAction::triggered, [this] () { exportCollada(_activeProject, this); });
+	connect(ui->actionexport_optimized_to_collada, &QAction::triggered, this, [this] () { exportCollada(_activeProject, this); });
 
 	connect(ui->projectView, &QTreeView::customContextMenuRequested, this, &MainWindow::projectContextMenu);
 	connect(ui->projectView, &QTreeView::clicked, this, &MainWindow::onProjectSelectionChanged);
@@ -64,10 +64,10 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->actionclear_solution, &QAction::triggered, this, &MainWindow::clearOptimSolution);
 	connect(ui->actionsolve_coarse, &QAction::triggered, this, &MainWindow::runCoarseOptim);
 	connect(ui->actionsolve_sparse, &QAction::triggered, this, &MainWindow::runSparseOptim);
-	connect(ui->actionsolve_stereo_rig, &QAction::triggered, [this] () {solveSparseStereoRig(_activeProject, this); });
-	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, [this] () {openSparseViewer(); });
-	connect(ui->actionFindInitialSolution, &QAction::triggered, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
-	connect(ui->actionInit_stereo_rig, &QAction::triggered, [this] () {if (_activeProject != nullptr) {initMonoStereoRigSolution(_activeProject, this); } });
+	connect(ui->actionsolve_stereo_rig, &QAction::triggered, this, [this] () {solveSparseStereoRig(_activeProject, this); });
+	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, this, [this] () {openSparseViewer(); });
+	connect(ui->actionFindInitialSolution, &QAction::triggered, this, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
+	connect(ui->actionInit_stereo_rig, &QAction::triggered, this, [this] () {if (_activeProject != nullptr) {initMonoStereoRigSolution(_activeProject, this); } });
 	connect(ui->actionopen_Sparse_solution_editor, &QAction::triggered, this, [this] () {openSparseViewer(); });
 
 }
@@ -116,6 +116,22 @@ void MainWindow::saveProjectAs() {
 	}
 
 }
+
+void MainWindow::saveProjectAs(QString const& fname) {
+
+	if (_activeProject == nullptr) {
+		return;
+	}
+
+	if (!fname.isEmpty()) {
+		bool status = _activeProject->save(fname);
+
+		if (!status) {
+			QMessageBox::warning(this, tr("Error while saving project"), tr("Is the location correct and writtable ?"));
+		}
+	}
+}
+
 void MainWindow::openProject() {
 
 	QString filter = "Projects files (*" + Project::PROJECT_FILE_EXT + ")";
@@ -448,6 +464,11 @@ void MainWindow::runSparseOptim() {
 		QMessageBox::warning(this, tr("Impossible to optimize !"), tr("No project set"));
 	}
 
+}
+
+Project* MainWindow::activeProject() const
+{
+	return _activeProject;
 }
 
 } // namespace StereoVisionApp

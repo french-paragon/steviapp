@@ -30,6 +30,7 @@ public:
 	void openProject();
 	void openProject(QString const& fname);
 	void saveProjectAs();
+	void saveProjectAs(QString const& fname);
 
 	Editor* openEditor(QString editorClassName);
 	bool isEditorAvailable(QString editorClassName) const;
@@ -37,6 +38,8 @@ public:
 	void closeEditor(int index);
 
 	void openSparseViewer();
+
+	Project* activeProject() const;
 
 private:
 
