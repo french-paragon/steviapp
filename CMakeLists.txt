@@ -65,43 +65,6 @@ link_directories(${MODULES_LINK_DIRECTORIES})
 add_subdirectory(libs)
 
 set(PROJ_SRC  main.cpp
-	application.h
-	application.cpp
-    mainwindow.cpp
-    mainwindow.h
-    mainwindow.ui
-    control/actionmanager.cpp
-    control/actionmanager.h
-    control/imagebaseactions.cpp
-    control/imagebaseactions.h
-    control/imagebaseactionmanager.cpp
-    control/imagebaseactionmanager.h
-    control/camerabaseactionmanager.cpp
-    control/camerabaseactionmanager.h
-    control/landmarkbasedactions.cpp
-    control/landmarkbasedactions.h
-    control/landmarkbaseactionmanager.cpp
-    control/landmarkbaseactionmanager.h
-    control/stereorigactionmanager.cpp
-    control/stereorigactionmanager.h
-    control/angleconstrainactionmanager.cpp
-    control/angleconstrainactionmanager.h
-    control/distanceconstrainactionmanager.cpp
-    control/distanceconstrainactionmanager.h
-    control/solversactions.cpp
-    control/solversactions.h
-    control/exportactions.cpp
-    control/exportactions.h
-    control/cameracalibrationactionmanager.cpp
-    control/cameracalibrationactionmanager.h
-    control/cameracalibrationactions.cpp
-    control/cameracalibrationactions.h
-    control/localcoordinatesystembaseactionmanager.cpp
-    control/localcoordinatesystembaseactionmanager.h
-    control/localcoordinatesystemactions.cpp
-    control/localcoordinatesystemactions.h
-    control/fixedstereosequenceactionmanager.cpp
-    control/fixedstereosequenceactionmanager.h
     )
 
 add_executable(steviapp
@@ -109,6 +72,5 @@ add_executable(steviapp
 )
 
 target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(steviapp PRIVATE exiv2)
 
-target_link_libraries(steviapp PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} Threads::Threads)
+target_link_libraries(steviapp PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)

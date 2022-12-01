@@ -1,5 +1,5 @@
-#include "application.h"
-#include "mainwindow.h"
+#include "control/application.h"
+#include "control/mainwindow.h"
 
 #include <QApplication>
 #include <QSurfaceFormat>
