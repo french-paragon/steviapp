@@ -161,6 +161,43 @@ public:
 
 	}
 
+	DataBlockReference addImageWithCam(std::string const& filename, std::string const& name, DataBlockReference camera) {
+
+		StereoVisionApp::StereoVisionApplication* app = getApp();
+
+		if (app == nullptr) {
+			py::print("Ho no, cannot access a valid app instance !");
+			return DataBlockReference();
+		}
+
+		StereoVisionApp::Project* proj = app->getCurrentProject();
+
+		if (proj == nullptr) {
+			py::print("No open project !");
+			return DataBlockReference();
+		}
+
+		StereoVisionApp::Camera* cam = qobject_cast<StereoVisionApp::Camera*>(camera.datablock());
+
+		if (cam == nullptr) {
+			py::print("Invalid camera provided !");
+			return DataBlockReference();
+		}
+
+		qint64 id = StereoVisionApp::addImage(QString::fromStdString(filename), proj, cam);
+
+		if (id < 0) {
+			return DataBlockReference();
+		}
+
+		StereoVisionApp::Image* img = proj->getDataBlock<StereoVisionApp::Image>(id);
+
+		img->setObjectName(QString::fromStdString(name));
+
+		return DataBlockReference(img);
+
+	}
+
 	std::vector<DataBlockReference> addImages(std::vector<std::string> const& filenames) {
 
 		std::vector<DataBlockReference> ret;
@@ -215,10 +252,16 @@ public:
 	template<typename T>
 	void configureDatablockDataFromJson(DataBlockReference datablock, std::string const& jsonFilePath) {
 
+		if (!datablock.isValid()) {
+			py::print("Invalid datablock reference provided !");
+			return;
+		}
+
 		T* block = qobject_cast<T*>(datablock.datablock());
 
 		if (block == nullptr) {
 			py::print("Provided datablock reference is not of the correct class !");
+			return;
 		}
 
 		QString inFilePath = QString::fromStdString(jsonFilePath);
@@ -405,7 +448,9 @@ private:
 
 };
 
-PythonStereoVisionApp::PythonStereoVisionApp(std::string const& appLocation, bool headless) {
+PythonStereoVisionApp::PythonStereoVisionApp(std::string const& appLocation, bool headless):
+	_instancedApp(nullptr)
+{
 
 	_app_argv = appLocation + ((headless) ? "\0 --headless" : "");
 	_argv_ptrs[0] = const_cast<char*>(_app_argv.c_str());
@@ -506,12 +551,18 @@ void PythonStereoVisionApp::printDataBlocks() const {
 PYBIND11_MODULE(pysteviapp, m) {
 	m.doc() = "Stereovision app python interface";
 
+	py::class_<DataBlockReference>(m, "DatablockReference")
+			.def_property_readonly("isValid", &DataBlockReference::isValid)
+			.def_property("fixed", &DataBlockReference::isFixed, &DataBlockReference::setFixed)
+			.def_property("name", &DataBlockReference::name, &DataBlockReference::setObjectName);
+
 	py::class_<PythonStereoVisionApp>(m, "AppInstance")
 			.def(py::init<const std::string &, bool>(), py::arg("appLocation") = "", py::arg("headless") = true)
 			.def("openProject", &PythonStereoVisionApp::openProject, py::arg("path"))
 			.def("saveProject", &PythonStereoVisionApp::saveProject)
 			.def("saveProjectAs", &PythonStereoVisionApp::saveProjectAs, py::arg("path"))
 			.def("addImage", &PythonStereoVisionApp::addImage, py::arg("filename"), py::arg("imgname"))
+			.def("addImage", &PythonStereoVisionApp::addImageWithCam, py::arg("filename"), py::arg("imgname"), py::arg("cam"))
 			.def("addImages", &PythonStereoVisionApp::addImages, py::arg("filenames"))
 			.def("addLandmark", &PythonStereoVisionApp::addDatablock<StereoVisionApp::Landmark>, py::arg("name"))
 			.def("addCamera", &PythonStereoVisionApp::addDatablock<StereoVisionApp::Camera>, py::arg("name"))
@@ -519,7 +570,7 @@ PYBIND11_MODULE(pysteviapp, m) {
 			.def("importCameraData", &PythonStereoVisionApp::configureDatablockDataFromJson<StereoVisionApp::Camera>, py::arg("datablock"), py::arg("filepath"))
 			.def("importStereoRigData", &PythonStereoVisionApp::configureDatablockDataFromJson<StereoVisionApp::StereoRig>, py::arg("datablock"), py::arg("filepath"))
 			.def("assignImagesToCamera", &PythonStereoVisionApp::assignImagesToCamera, py::arg("images"), py::arg("camera"))
-			.def("assignImagesToStereoRig", &PythonStereoVisionApp::assignImagesToStereoRig, py::arg("stereorig"), py::arg("imageLeft"), py::arg("imageRight"))
+			.def("assignImagesToStereoRig", &PythonStereoVisionApp::assignImagesToStereoRig, py::arg("stereorig"), py::arg("image1"), py::arg("image2"))
 			.def("detectHexagonalTargets", &PythonStereoVisionApp::detectHexagonalTargets,
 				 py::arg("image"),
 				 py::arg("minThreshold") = 80,

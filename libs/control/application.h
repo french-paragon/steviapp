@@ -36,7 +36,7 @@ public:
 
 Q_SIGNALS:
 
-	void scriptFileExecututionRequested(QString scriptpath);
+	void scriptFileExecututionRequested(QString scriptpath, QStringList argv);
 
 protected:
 
@@ -53,6 +53,7 @@ protected:
 
 
 	QVector<QString> _scriptFiles;
+	QStringList _scriptsargs;
 	QString _openProjectFile;
 };
 

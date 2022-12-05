@@ -5,6 +5,7 @@
 
 #include <QVector>
 #include <QString>
+#include <QDebug>
 
 #include "mainwindow.h"
 
@@ -36,6 +37,13 @@ StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 			if (i < argc) {
 				_scriptFiles.push_back(QString(argv[i]));
 			}
+
+		} else if (!qstrcmp(argv[i], "--")) {
+
+			for (i=i+1; i < argc; i++) {
+				_scriptsargs.push_back(argv[i]);
+			}
+			break;
 
 		} else {
 			_openProjectFile = QString(argv[i]);
@@ -151,7 +159,7 @@ int StereoVisionApplication::exec() {
 	}
 
 	for (QString const& scriptpath : qAsConst(_scriptFiles)) {
-		Q_EMIT scriptFileExecututionRequested(scriptpath);
+		Q_EMIT scriptFileExecututionRequested(scriptpath, _scriptsargs);
 	}
 
 	return _QtApp->exec();

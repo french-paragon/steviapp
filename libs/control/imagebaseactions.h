@@ -10,7 +10,7 @@ namespace StereoVisionApp {
 
 class Project;
 class Image;
-
+class Camera;
 
 /*!
  * \brief addImage add a single image to the project.
@@ -18,7 +18,7 @@ class Image;
  * \param p the project to add the image to.
  * \return the id of the image, or -1 on failure.
  */
-qint64 addImage(QString filename, Project* p);
+qint64 addImage(QString filename, Project* p, Camera *cam = nullptr);
 
 /*!
  * \brief addImages add a series of images to a project

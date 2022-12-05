@@ -42,7 +42,7 @@
 namespace StereoVisionApp {
 
 
-qint64 addImage(QString f, Project* p) {
+qint64 addImage(QString f, Project* p, Camera* cam) {
 
 	QString cn = ImageFactory::imageClassName();
 
@@ -62,29 +62,43 @@ qint64 addImage(QString f, Project* p) {
 		QFileInfo inf(f);
 		im->setObjectName(inf.baseName());
 
-		Camera* imgCam = nullptr;
+		Camera* imgCam = cam;
+
+		bool needCam = imgCam == nullptr;
+
+		if (imgCam != nullptr) {
+			needCam = imgCam->getProject() == p;
+
+			if ( imgCam->getProject() != p) {
+				imgCam = nullptr;
+			}
+		}
 
 		QString camName;
 
 		image->readMetadata();
 		Exiv2::ExifData &exifData = image->exifData();
-		auto camTag = exifData.findKey(Exiv2::ExifKey("Exif.Image.Model"));
-		if (camTag != exifData.end()) {
-			camName = QString::fromStdString(camTag->toString());
-		}
 
-		if (camName.isEmpty()) {
-			camName = QString("default%1x%2").arg(pixmap.width()).arg(pixmap.height());
-		}
+		if (needCam) {
 
-		QVector<qint64> cam_ids = p->getIdsByClass(CameraFactory::cameraClassName());
+			auto camTag = exifData.findKey(Exiv2::ExifKey("Exif.Image.Model"));
+			if (camTag != exifData.end()) {
+				camName = QString::fromStdString(camTag->toString());
+			}
 
-		for (qint64 cam_id : cam_ids) {
-			Camera* c = qobject_cast<Camera*>(p->getById(cam_id));
+			if (camName.isEmpty()) {
+				camName = QString("default%1x%2").arg(pixmap.width()).arg(pixmap.height());
+			}
 
-			if (c->objectName() == camName) {
-				imgCam = c;
-				break;
+			QVector<qint64> cam_ids = p->getIdsByClass(CameraFactory::cameraClassName());
+
+			for (qint64 cam_id : cam_ids) {
+				Camera* c = qobject_cast<Camera*>(p->getById(cam_id));
+
+				if (c->objectName() == camName) {
+					imgCam = c;
+					break;
+				}
 			}
 		}
 
