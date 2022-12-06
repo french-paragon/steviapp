@@ -1,17 +1,21 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include <array>
 
 #include "control/application.h"
 
+#include "datablocks/floatparameter.h"
 #include "datablocks/project.h"
 #include "datablocks/camera.h"
 #include "datablocks/image.h"
 #include "datablocks/landmark.h"
 #include "datablocks/stereorig.h"
+#include "datablocks/localcoordinatesystem.h"
 
 #include "control/imagebaseactions.h"
 #include "control/solversactions.h"
+#include "control/localcoordinatesystemactions.h"
 
 #include <QString>
 #include <QVector>
@@ -311,6 +315,26 @@ public:
 		return DataBlockReference(block);
 	}
 
+	void setImageAsReference(DataBlockReference image) {
+
+		StereoVisionApp::Image* img = qobject_cast<StereoVisionApp::Image*>(image.datablock());
+
+		if (img == nullptr) {
+			py::print("Camera datablock is not a reference to a camera !");
+			return;
+		}
+
+		StereoVisionApp::floatParameterGroup<3> zero;
+		zero.value(0) = 0;
+		zero.value(1) = 0;
+		zero.value(2) = 0;
+		zero.setIsSet();
+
+		img->setOptPos(zero);
+		img->setOptRot(zero);
+
+	}
+
 	void assignImagesToCamera(std::vector<DataBlockReference> const& images, DataBlockReference camera) {
 
 		StereoVisionApp::Camera* cam = qobject_cast<StereoVisionApp::Camera*>(camera.datablock());
@@ -440,6 +464,18 @@ public:
 
 	}
 
+	void alignLocalCoordinateSystems(std::vector<DataBlockReference> references) {
+
+		for (DataBlockReference & datablock: references) {
+			StereoVisionApp::LocalCoordinateSystem* lcs = qobject_cast<StereoVisionApp::LocalCoordinateSystem*>(datablock.datablock());
+
+			if (lcs != nullptr) {
+				StereoVisionApp::alignLocalCoordinateSystemToPoints({lcs->internalId()}, lcs->getProject());
+			}
+		}
+
+	}
+
 	void printDataBlocks() const;
 
 private:
@@ -563,6 +599,7 @@ PYBIND11_MODULE(pysteviapp, m) {
 			.def("openProject", &PythonStereoVisionApp::openProject, py::arg("path"))
 			.def("saveProject", &PythonStereoVisionApp::saveProject)
 			.def("saveProjectAs", &PythonStereoVisionApp::saveProjectAs, py::arg("path"))
+			.def("getDatablockByName", &PythonStereoVisionApp::getDataBlockByName, py::arg("name"), py::arg("typeHint") = "")
 			.def("addImage", &PythonStereoVisionApp::addImage, py::arg("filename"), py::arg("imgname"))
 			.def("addImage", &PythonStereoVisionApp::addImageWithCam, py::arg("filename"), py::arg("imgname"), py::arg("cam"))
 			.def("addImages", &PythonStereoVisionApp::addImages, py::arg("filenames"))
@@ -571,6 +608,7 @@ PYBIND11_MODULE(pysteviapp, m) {
 			.def("addStereoRig", &PythonStereoVisionApp::addDatablock<StereoVisionApp::StereoRig>, py::arg("name"))
 			.def("importCameraData", &PythonStereoVisionApp::configureDatablockDataFromJson<StereoVisionApp::Camera>, py::arg("datablock"), py::arg("filepath"))
 			.def("importStereoRigData", &PythonStereoVisionApp::configureDatablockDataFromJson<StereoVisionApp::StereoRig>, py::arg("datablock"), py::arg("filepath"))
+			.def("setImageAsReference", &PythonStereoVisionApp::setImageAsReference, py::arg("image"))
 			.def("assignImagesToCamera", &PythonStereoVisionApp::assignImagesToCamera, py::arg("images"), py::arg("camera"))
 			.def("assignImagesToStereoRig", &PythonStereoVisionApp::assignImagesToStereoRig, py::arg("stereorig"), py::arg("image1"), py::arg("image2"))
 			.def("detectHexagonalTargets", &PythonStereoVisionApp::detectHexagonalTargets,
@@ -595,6 +633,7 @@ PYBIND11_MODULE(pysteviapp, m) {
 				 py::arg("useCurrentSolutionAtStart") = true,
 				 py::arg("useSparseOptimizer") = true,
 				 py::arg("predictUncertainty") = false)
+			.def("alignLocalCoordinateSystems", &PythonStereoVisionApp::alignLocalCoordinateSystems, py::arg("localCoordinateSystems"))
 			.def("printDatablocks", &PythonStereoVisionApp::printDataBlocks);
 
 }
