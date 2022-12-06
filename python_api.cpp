@@ -27,7 +27,9 @@ class Watcher : public QObject {
 	Q_OBJECT
 public:
 	explicit Watcher(QObject* watchedObject = nullptr, QObject* parent = nullptr) :
-		_watchedIsAlive(watchedObject != nullptr) {
+		QObject(parent),
+		_watchedIsAlive(watchedObject != nullptr)
+	{
 		if (watchedObject != nullptr) {
 			connect(watchedObject, &QObject::destroyed, this, [this] () {_watchedIsAlive = false;});
 		}
