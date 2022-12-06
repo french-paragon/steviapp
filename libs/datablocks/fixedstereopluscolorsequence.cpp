@@ -7,7 +7,10 @@
 namespace StereoVisionApp {
 
 FixedStereoPlusColorSequence::FixedStereoPlusColorSequence(Project *parent) :
-	DataBlock(parent)
+	DataBlock(parent),
+	_leftViewId(-1),
+	_rgbViewId(-1),
+	_rightViewId(-1)
 {
 	_imgList = new FixedStereoPlusColorSequenceImageList(this);
 }
@@ -32,6 +35,103 @@ void FixedStereoPlusColorSequence::setImgsLists(const QString &baseFolder, const
 
 QAbstractItemModel* FixedStereoPlusColorSequence::getImageList() const {
 	return _imgList;
+}
+
+void FixedStereoPlusColorSequence::setLeftViewId(qint64 id) {
+
+	if (id < 0 and _leftViewId >= 0) {
+		removeRefered({_leftViewId});
+		_leftViewId = -1;
+		emit leftViewIdChanged(-1);
+		return;
+	} else if (id < 0) {
+		return;
+	}
+
+	if (id == _leftViewId) {
+		return;
+	}
+
+	if (_leftViewId >= 0) {
+		removeRefered({_leftViewId});
+	}
+
+	_leftViewId = id;
+
+	if (_leftViewId >= 0) {
+		addRefered({_leftViewId});
+	}
+
+	emit leftViewIdChanged(_leftViewId);
+
+}
+
+void FixedStereoPlusColorSequence::setRgbViewId(qint64 id) {
+
+	if (id < 0 and _rgbViewId >= 0) {
+		removeRefered({_rgbViewId});
+		_rgbViewId = -1;
+		emit rgbViewIdChanged(-1);
+		return;
+	} else if (id < 0) {
+		return;
+	}
+
+	if (id == _rgbViewId) {
+		return;
+	}
+
+	if (_rgbViewId >= 0) {
+		removeRefered({_rgbViewId});
+	}
+
+	_rgbViewId = id;
+
+	if (_rgbViewId >= 0) {
+		addRefered({_rgbViewId});
+	}
+
+	emit rgbViewIdChanged(_rgbViewId);
+
+}
+
+void FixedStereoPlusColorSequence::setRightViewId(qint64 id) {
+
+	if (id < 0 and _rightViewId >= 0) {
+		removeRefered({_rightViewId});
+		_rightViewId = -1;
+		emit rightViewIdChanged(-1);
+		return;
+	} else if (id < 0) {
+		return;
+	}
+
+	if (id == _rightViewId) {
+		return;
+	}
+
+	if (_rightViewId >= 0) {
+		removeRefered({_rightViewId});
+	}
+
+	_rightViewId = id;
+
+	if (_rightViewId >= 0) {
+		addRefered({_rightViewId});
+	}
+
+	emit rightViewIdChanged(_rightViewId);
+
+}
+
+qint64 FixedStereoPlusColorSequence::leftViewId() const {
+	return _leftViewId;
+}
+qint64 FixedStereoPlusColorSequence::rgbViewId() const {
+	return _rgbViewId;
+}
+qint64 FixedStereoPlusColorSequence::rightViewId() const {
+	return _rightViewId;
 }
 
 QJsonObject FixedStereoPlusColorSequence::encodeJson() const {
@@ -89,6 +189,42 @@ void FixedStereoPlusColorSequence::configureFromJson(QJsonObject const& data) {
 	}
 
 	setImgsLists(folder, triplets);
+
+	if (data.contains("imgLeftId")) {
+		_leftViewId = data.value("imgLeftId").toInt(-1);
+	}
+
+	if (data.contains("imgRgbId")) {
+		_rgbViewId = data.value("imgRgbId").toInt(-1);
+	}
+
+	if (data.contains("imgRightId")) {
+		_rightViewId = data.value("imgRightId").toInt(-1);
+	}
+}
+
+void FixedStereoPlusColorSequence::referedCleared(QVector<qint64> const& referedId) {
+
+	if (referedId.size() != 1) {
+		return;
+	}
+
+	qint64 id = referedId[0];
+
+	if (id == _leftViewId) {
+		_leftViewId = -1;
+		Q_EMIT leftViewIdChanged(-1);
+	}
+
+	if (id == _rgbViewId) {
+		_rgbViewId = -1;
+		Q_EMIT rgbViewIdChanged(-1);
+	}
+
+	if (id == _rightViewId) {
+		_rightViewId = -1;
+		Q_EMIT rightViewIdChanged(-1);
+	}
 }
 
 

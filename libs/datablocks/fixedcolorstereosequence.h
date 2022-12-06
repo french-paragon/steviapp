@@ -23,19 +23,34 @@ public:
 	void setImgsLists(const QString &baseFolder, QVector<ImagePair> const& images);
 
 	QAbstractItemModel* getImageList() const;
+
+	void setLeftViewId(qint64 id);
+	void setRightViewId(qint64 id);
+
+	qint64 leftViewId() const;
+	qint64 rightViewId() const;
+
 Q_SIGNALS:
 
 	void imgListChanged();
+
+	void leftViewIdChanged(qint64 id);
+	void rightViewIdChanged(qint64 id);
 
 protected:
 
 	QJsonObject encodeJson() const override;
 	void configureFromJson(QJsonObject const& data) override;
 
+	void referedCleared(QVector<qint64> const& referedId) override;
+
 	QString _baseFolder;
 	QVector<ImagePair> _imgsPairs;
 
 	QAbstractItemModel* _imgList;
+
+	qint64 _leftViewId;
+	qint64 _rightViewId;
 };
 
 class FixedColorStereoSequenceImageList : public QAbstractTableModel

@@ -1,12 +1,16 @@
 #include "fixedcolorstereosequence.h"
 
+#include "datablocks/image.h"
+
 #include <QJsonObject>
 #include <QJsonArray>
 
 namespace StereoVisionApp {
 
 FixedColorStereoSequence::FixedColorStereoSequence(Project *parent) :
-	DataBlock(parent)
+	DataBlock(parent),
+	_leftViewId(-1),
+	_rightViewId(-1)
 {
 	_imgList = new FixedColorStereoSequenceImageList(this);
 }
@@ -31,11 +35,78 @@ QAbstractItemModel* FixedColorStereoSequence::getImageList() const {
 	return _imgList;
 }
 
+void FixedColorStereoSequence::setLeftViewId(qint64 id) {
+
+	if (id < 0 and _leftViewId >= 0) {
+		removeRefered({_leftViewId});
+		_leftViewId = -1;
+		emit leftViewIdChanged(-1);
+		return;
+	} else if (id < 0) {
+		return;
+	}
+
+	if (id == _leftViewId) {
+		return;
+	}
+
+	if (_leftViewId >= 0) {
+		removeRefered({_leftViewId});
+	}
+
+	_leftViewId = id;
+
+	if (_leftViewId >= 0) {
+		addRefered({_leftViewId});
+	}
+
+	emit leftViewIdChanged(_leftViewId);
+
+}
+void FixedColorStereoSequence::setRightViewId(qint64 id) {
+
+	if (id < 0 and _rightViewId >= 0) {
+		removeRefered({_rightViewId});
+		_rightViewId = -1;
+		emit rightViewIdChanged(-1);
+		return;
+	} else if (id < 0) {
+		return;
+	}
+
+	if (id == _rightViewId) {
+		return;
+	}
+
+	if (_rightViewId >= 0) {
+		removeRefered({_rightViewId});
+	}
+
+	_rightViewId = id;
+
+	if (_rightViewId >= 0) {
+		addRefered({_rightViewId});
+	}
+
+	emit rightViewIdChanged(_rightViewId);
+
+}
+
+qint64 FixedColorStereoSequence::leftViewId() const {
+	return _leftViewId;
+}
+
+qint64 FixedColorStereoSequence::rightViewId() const {
+	return _rightViewId;
+}
+
 QJsonObject FixedColorStereoSequence::encodeJson() const {
 
 	QJsonObject obj;
 
 	obj.insert("folder", _baseFolder);
+	obj.insert("imgLeftId", _leftViewId);
+	obj.insert("imgRightId", _rightViewId);
 
 	QJsonArray imgs;
 
@@ -85,6 +156,33 @@ void FixedColorStereoSequence::configureFromJson(QJsonObject const& data) {
 
 	setImgsLists(folder, pairs);
 
+	if (data.contains("imgLeftId")) {
+		_leftViewId = data.value("imgLeftId").toInt(-1);
+	}
+
+	if (data.contains("imgRightId")) {
+		_rightViewId = data.value("imgRightId").toInt(-1);
+	}
+
+}
+
+void FixedColorStereoSequence::referedCleared(QVector<qint64> const& referedId) {
+
+	if (referedId.size() != 1) {
+		return;
+	}
+
+	qint64 id = referedId[0];
+
+	if (id == _leftViewId) {
+		_leftViewId = -1;
+		Q_EMIT leftViewIdChanged(-1);
+	}
+
+	if (id == _rightViewId) {
+		_rightViewId = -1;
+		Q_EMIT rightViewIdChanged(-1);
+	}
 }
 
 

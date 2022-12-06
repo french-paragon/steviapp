@@ -7,6 +7,8 @@
 namespace StereoVisionApp {
 
 class DataBlock;
+class FixedColorStereoSequence;
+class FixedStereoPlusColorSequence;
 
 namespace Ui {
 class FixedStereoSequenceEditor;
@@ -22,10 +24,19 @@ public:
 
 	void setSequence(DataBlock* sequence);
 
+Q_SIGNALS:
+
+	void rgbImagesExportTriggered(FixedColorStereoSequence* sequence, QVector<int> rows);
+	void imagesWithRGBExportTriggered(FixedStereoPlusColorSequence* sequence, QVector<int> rows);
+
 private:
 
 	void refreshDisplay();
 	void loadImages(QString directory);
+
+	void leftViewSelectionChanged(int row);
+	void rgbViewSelectionChanged(int row);
+	void rightViewSelectionChanged(int row);
 
 	Ui::FixedStereoSequenceEditor *ui;
 

@@ -2,6 +2,9 @@
 #include "ui_fixedstereosequenceeditor.h"
 
 #include "datablocks/project.h"
+
+#include "datablocks/image.h"
+
 #include "datablocks/fixedcolorstereosequence.h"
 #include "datablocks/fixedstereopluscolorsequence.h"
 
@@ -30,6 +33,15 @@ FixedStereoSequenceEditor::FixedStereoSequenceEditor(QWidget *parent) :
 		}
 
 	});
+
+	connect(ui->leftViewSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+			this, static_cast<void(FixedStereoSequenceEditor::*)(int)>(&FixedStereoSequenceEditor::leftViewSelectionChanged));
+
+	connect(ui->rgbViewSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+			this, static_cast<void(FixedStereoSequenceEditor::*)(int)>(&FixedStereoSequenceEditor::rgbViewSelectionChanged));
+
+	connect(ui->rightViewSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+			this, static_cast<void(FixedStereoSequenceEditor::*)(int)>(&FixedStereoSequenceEditor::rightViewSelectionChanged));
 }
 
 FixedStereoSequenceEditor::~FixedStereoSequenceEditor()
@@ -67,6 +79,35 @@ void FixedStereoSequenceEditor::setSequence(DataBlock* sequence) {
 		ui->rgb_suffix_edit->setVisible(false);
 		ui->rgb_suffix_label->setVisible(false);
 
+		ui->rgbViewSelect->setVisible(false);
+		ui->rgbViewSelectLabel->setVisible(false);
+
+		Project* p = fixedColor->getProject();
+
+		ui->leftViewSelect->setModel(p);
+		ui->leftViewSelect->setRootModelIndex(p->indexOfClass(Image::staticMetaObject.className()));
+
+		qint64 leftViewId = fixedColor->leftViewId();
+
+		if (leftViewId != -1) {
+			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			ui->leftViewSelect->setCurrentIndex(ids.indexOf(leftViewId));
+		} else {
+			ui->leftViewSelect->setCurrentIndex(-1);
+		}
+
+		ui->rightViewSelect->setModel(p);
+		ui->rightViewSelect->setRootModelIndex(p->indexOfClass(Image::staticMetaObject.className()));
+
+		qint64 rightViewId = fixedColor->rightViewId();
+
+		if (rightViewId != -1) {
+			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			ui->rightViewSelect->setCurrentIndex(ids.indexOf(rightViewId));
+		} else {
+			ui->rightViewSelect->setCurrentIndex(-1);
+		}
+
 		_sequence = sequence;
 	}
 
@@ -77,6 +118,47 @@ void FixedStereoSequenceEditor::setSequence(DataBlock* sequence) {
 
 		ui->rgb_suffix_edit->setVisible(true);
 		ui->rgb_suffix_label->setVisible(true);
+
+		ui->rgbViewSelect->setVisible(true);
+		ui->rgbViewSelectLabel->setVisible(true);
+
+		Project* p = fixedStereoPlusColor->getProject();
+
+		ui->leftViewSelect->setModel(p);
+		ui->leftViewSelect->setRootModelIndex(p->indexOfClass(Image::staticMetaObject.className()));
+
+		qint64 leftViewId = fixedStereoPlusColor->leftViewId();
+
+		if (leftViewId != -1) {
+			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			ui->leftViewSelect->setCurrentIndex(ids.indexOf(leftViewId));
+		} else {
+			ui->leftViewSelect->setCurrentIndex(-1);
+		}
+
+		ui->rgbViewSelect->setModel(p);
+		ui->rgbViewSelect->setRootModelIndex(p->indexOfClass(Image::staticMetaObject.className()));
+
+		qint64 rgbViewId = fixedStereoPlusColor->rgbViewId();
+
+		if (rgbViewId != -1) {
+			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			ui->rgbViewSelect->setCurrentIndex(ids.indexOf(rgbViewId));
+		} else {
+			ui->rgbViewSelect->setCurrentIndex(-1);
+		}
+
+		ui->rightViewSelect->setModel(p);
+		ui->rightViewSelect->setRootModelIndex(p->indexOfClass(Image::staticMetaObject.className()));
+
+		qint64 rightViewId = fixedStereoPlusColor->rightViewId();
+
+		if (rightViewId != -1) {
+			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			ui->rightViewSelect->setCurrentIndex(ids.indexOf(rightViewId));
+		} else {
+			ui->rightViewSelect->setCurrentIndex(-1);
+		}
 
 		_sequence = sequence;
 	}
@@ -239,6 +321,107 @@ void FixedStereoSequenceEditor::loadImages(QString dirPath) {
 }
 
 
+
+void FixedStereoSequenceEditor::leftViewSelectionChanged(int row) {
+
+	QModelIndex parent = ui->leftViewSelect->rootModelIndex();
+	QModelIndex selection = ui->leftViewSelect->model()->index(row, 0, parent);
+
+	if (!selection.isValid()) {
+		return;
+	}
+
+	QVariant cand = selection.data(Project::IdRole);
+
+	if (!cand.isValid()) {
+		return;
+	}
+
+	if (!cand.canConvert<qint64>()) {
+		return;
+	}
+
+	qint64 id = qvariant_cast<qint64>(cand);
+
+	FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+	FixedStereoPlusColorSequence* fixedStereoPlusColor = qobject_cast<FixedStereoPlusColorSequence*>(_sequence);
+
+	if (fixedColor != nullptr) {
+		fixedColor->setLeftViewId(id);
+	}
+
+	if (fixedStereoPlusColor != nullptr) {
+		fixedStereoPlusColor->setLeftViewId(id);
+	}
+
+}
+void FixedStereoSequenceEditor::rgbViewSelectionChanged(int row) {
+
+
+	QModelIndex parent = ui->rgbViewSelect->rootModelIndex();
+	QModelIndex selection = ui->rgbViewSelect->model()->index(row, 0, parent);
+
+	if (!selection.isValid()) {
+		return;
+	}
+
+	QVariant cand = selection.data(Project::IdRole);
+
+	if (!cand.isValid()) {
+		return;
+	}
+
+	if (!cand.canConvert<qint64>()) {
+		return;
+	}
+
+	qint64 id = qvariant_cast<qint64>(cand);
+
+	FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+	FixedStereoPlusColorSequence* fixedStereoPlusColor = qobject_cast<FixedStereoPlusColorSequence*>(_sequence);
+
+	if (fixedColor != nullptr) {
+		return;
+	}
+
+	if (fixedStereoPlusColor != nullptr) {
+		fixedStereoPlusColor->setRgbViewId(id);
+	}
+
+}
+void FixedStereoSequenceEditor::rightViewSelectionChanged(int row) {
+
+	QModelIndex parent = ui->rightViewSelect->rootModelIndex();
+	QModelIndex selection = ui->rightViewSelect->model()->index(row, 0, parent);
+
+	if (!selection.isValid()) {
+		return;
+	}
+
+	QVariant cand = selection.data(Project::IdRole);
+
+	if (!cand.isValid()) {
+		return;
+	}
+
+	if (!cand.canConvert<qint64>()) {
+		return;
+	}
+
+	qint64 id = qvariant_cast<qint64>(cand);
+
+	FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+	FixedStereoPlusColorSequence* fixedStereoPlusColor = qobject_cast<FixedStereoPlusColorSequence*>(_sequence);
+
+	if (fixedColor != nullptr) {
+		fixedColor->setRightViewId(id);
+	}
+
+	if (fixedStereoPlusColor != nullptr) {
+		fixedStereoPlusColor->setRightViewId(id);
+	}
+
+}
 
 FixedStereoSequenceEditorFactory::FixedStereoSequenceEditorFactory(QObject* parent) :
 	EditorFactory(parent)
