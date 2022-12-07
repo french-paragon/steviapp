@@ -90,7 +90,7 @@ void FixedStereoSequenceEditor::setSequence(DataBlock* sequence) {
 		qint64 leftViewId = fixedColor->leftViewId();
 
 		if (leftViewId != -1) {
-			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			QVector<qint64> ids = fixedColor->getProject()->getIdsByClass(Image::staticMetaObject.className());
 			ui->leftViewSelect->setCurrentIndex(ids.indexOf(leftViewId));
 		} else {
 			ui->leftViewSelect->setCurrentIndex(-1);
@@ -102,7 +102,7 @@ void FixedStereoSequenceEditor::setSequence(DataBlock* sequence) {
 		qint64 rightViewId = fixedColor->rightViewId();
 
 		if (rightViewId != -1) {
-			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			QVector<qint64> ids = fixedColor->getProject()->getIdsByClass(Image::staticMetaObject.className());
 			ui->rightViewSelect->setCurrentIndex(ids.indexOf(rightViewId));
 		} else {
 			ui->rightViewSelect->setCurrentIndex(-1);
@@ -130,7 +130,7 @@ void FixedStereoSequenceEditor::setSequence(DataBlock* sequence) {
 		qint64 leftViewId = fixedStereoPlusColor->leftViewId();
 
 		if (leftViewId != -1) {
-			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			QVector<qint64> ids = fixedStereoPlusColor->getProject()->getIdsByClass(Image::staticMetaObject.className());
 			ui->leftViewSelect->setCurrentIndex(ids.indexOf(leftViewId));
 		} else {
 			ui->leftViewSelect->setCurrentIndex(-1);
@@ -142,7 +142,7 @@ void FixedStereoSequenceEditor::setSequence(DataBlock* sequence) {
 		qint64 rgbViewId = fixedStereoPlusColor->rgbViewId();
 
 		if (rgbViewId != -1) {
-			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			QVector<qint64> ids = fixedStereoPlusColor->getProject()->getIdsByClass(Image::staticMetaObject.className());
 			ui->rgbViewSelect->setCurrentIndex(ids.indexOf(rgbViewId));
 		} else {
 			ui->rgbViewSelect->setCurrentIndex(-1);
@@ -154,7 +154,7 @@ void FixedStereoSequenceEditor::setSequence(DataBlock* sequence) {
 		qint64 rightViewId = fixedStereoPlusColor->rightViewId();
 
 		if (rightViewId != -1) {
-			QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
+			QVector<qint64> ids = fixedStereoPlusColor->getProject()->getIdsByClass(Image::staticMetaObject.className());
 			ui->rightViewSelect->setCurrentIndex(ids.indexOf(rightViewId));
 		} else {
 			ui->rightViewSelect->setCurrentIndex(-1);

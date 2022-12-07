@@ -140,6 +140,11 @@ QJsonObject FixedStereoPlusColorSequence::encodeJson() const {
 
 	obj.insert("folder", _baseFolder);
 
+	obj.insert("imgLeftId", _leftViewId);
+	obj.insert("imgRgbId", _rgbViewId);
+	obj.insert("imgRightId", _rightViewId);
+
+
 	QJsonArray imgs;
 
 	for (ImageTriplet const& trpl : _imgsTriplets) {
