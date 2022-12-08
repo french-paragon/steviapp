@@ -9,6 +9,39 @@ namespace StereoVisionApp {
 const QString StereoRig::StereoRigClassName = "StereoVisionApp::StereoRig";
 const QString ImagePair::ImagePairClassName = "StereoVisionApp::ImagePair";
 
+
+
+ImagePair* ImagePair::getImagePairInProject(Project* project, qint64 cam1ImgId, qint64 cam2ImgId) {
+
+	QVector<qint64> idxs = project->getIdsByClass(StereoRig::staticMetaObject.className());
+
+	for (qint64 id : idxs) {
+
+		StereoRig* rig = project->getDataBlock<StereoRig>(id);
+
+		if (rig == nullptr) {
+			continue;
+		}
+
+		ImagePair* pair = rig->getPairForImage(cam1ImgId);
+
+		if (pair == nullptr) {
+			continue;
+		}
+
+		if (pair->idImgCam1() == cam1ImgId and pair->idImgCam2() == cam2ImgId) {
+			return pair;
+		}
+
+		if (pair->idImgCam1() == cam2ImgId and pair->idImgCam2() == cam1ImgId) {
+			return pair;
+		}
+	}
+
+	return nullptr;
+
+}
+
 StereoRig::StereoRig(Project *parent) :
 	RigidBody(parent)
 {
@@ -471,6 +504,10 @@ void ImagePair::setIdImgCam2(const qint64 &id_imgCam2)
 		emit attachedCam2Changed(_id_imgCam2);
 		isChanged();
 	}
+}
+
+StereoRig* ImagePair::getStereoRig() const {
+	return qobject_cast<StereoRig*>(parent());
 }
 
 QJsonObject ImagePair::encodeJson() const {

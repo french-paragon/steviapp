@@ -251,6 +251,59 @@ std::optional<StereoVision::Geometry::AffineTransform> RigidBody::getOptTransfor
 
 }
 
+void RigidBody::setTransform(StereoVision::Geometry::AffineTransform const& transform) {
+
+	floatParameter x = _x;
+	floatParameter y = _y;
+	floatParameter z = _z;
+
+	x.value() = transform.t.x();
+	y.value() = transform.t.y();
+	z.value() = transform.t.z();
+
+	setXCoord(x);
+	setYCoord(y);
+	setZCoord(z);
+
+	Eigen::Vector3f r = StereoVision::Geometry::inverseRodriguezFormula(transform.R);
+
+	floatParameter rx = _rx;
+	floatParameter ry = _ry;
+	floatParameter rz = _rz;
+
+	rx.value() = r.x();
+	ry.value() = r.y();
+	rz.value() = r.z();
+
+	setXRot(rx);
+	setYRot(ry);
+	setZRot(rz);
+}
+
+void RigidBody::setOptTransform(StereoVision::Geometry::AffineTransform const& transform) {
+
+	floatParameterGroup<3> o_pos = _o_pos;
+
+	o_pos.clearUncertain();
+	o_pos.value(0) = transform.t[0];
+	o_pos.value(1) = transform.t[1];
+	o_pos.value(2) = transform.t[2];
+
+	setOptPos(o_pos);
+
+	Eigen::Vector3f r = StereoVision::Geometry::inverseRodriguezFormula(transform.R);
+
+	floatParameterGroup<3> o_rot = _o_rot;
+
+	o_rot.clearUncertain();
+	o_rot.value(0) = r[0];
+	o_rot.value(1) = r[1];
+	o_rot.value(2) = r[2];
+
+	setOptRot(o_rot);
+
+}
+
 QJsonObject RigidBody::encodeJson() const {
 
 	QJsonObject obj;

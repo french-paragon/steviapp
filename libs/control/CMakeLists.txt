@@ -18,6 +18,8 @@ set(LIB_SRC
 	landmarkbasedactions.h
 	landmarkbaseactionmanager.cpp
 	landmarkbaseactionmanager.h
+        stereorigactions.cpp
+        stereorigactions.h
 	stereorigactionmanager.cpp
 	stereorigactionmanager.h
 	angleconstrainactionmanager.cpp

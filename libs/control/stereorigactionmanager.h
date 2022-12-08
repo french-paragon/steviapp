@@ -5,6 +5,8 @@
 
 namespace StereoVisionApp {
 
+class StereoRig;
+
 class StereoRigActionManager : public DatablockActionManager
 {
 	Q_OBJECT
@@ -16,6 +18,10 @@ public:
 
 	QString ActionManagerClassName() const override;
 	QString itemClassName() const override;
+
+protected:
+
+	QAction* createAlignImageActions(QObject* parent, Project* p, StereoRig* rig) const;
 };
 
 } // namespace StereoVisionApp

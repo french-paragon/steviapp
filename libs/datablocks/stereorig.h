@@ -12,6 +12,13 @@ namespace StereoVisionApp {
 
 class ImagePair;
 
+/*!
+ * \brief The StereoRig class stores the rigid body transform between two cameras in a stereo rig
+ *
+ * The class can store multiple image pairs, which were acquired with the rig.
+ * Since the rig is rigid, all these images pairs should have the same relative transform between the images in the pair.
+ * The transform represent the position of the second image, relative to the first or, in term of coordinate system transform, cam2tocam1.
+ */
 class StereoRig : public RigidBody
 {
 	Q_OBJECT
@@ -63,6 +70,8 @@ public:
 
 	static const QString ImagePairClassName;
 
+	static ImagePair* getImagePairInProject(Project* project, qint64 cam1ImgId, qint64 cam2ImgId);
+
 	explicit ImagePair(StereoRig* parent = nullptr);
 
 	QString nameCam1() const;
@@ -72,6 +81,8 @@ public:
 	QString nameCam2() const;
 	qint64 idImgCam2() const;
 	void setIdImgCam2(const qint64 &id_imgCam2);
+
+	StereoRig* getStereoRig() const;
 
 Q_SIGNALS:
 

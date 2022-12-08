@@ -58,18 +58,34 @@ public:
 	void setOptYRot(const float &ry);
 
 	float optZRot() const;
-	void setOptZRot(const float &rz);
+        void setOptZRot(const float &rz);
 
-	/*!
-	 * \brief getTransform is an accessor for the transform encoded by the rigid body
-	 * \return the transform from the non optimized parameters, or nullopt if some parameters are missing.
-	 */
-	std::optional<StereoVision::Geometry::AffineTransform> getTransform() const;
-	/*!
-	 * \brief getOptTransform is an accessor for the transform encoded by the rigid body
-	 * \return the transform from the optimized parameters, or nullopt if some parameters are missing.
-	 */
-	std::optional<StereoVision::Geometry::AffineTransform> getOptTransform() const;
+        /*!
+         * \brief getTransform is an accessor for the transform encoded by the rigid body
+         * \return the transform from the non optimized parameters, or nullopt if some parameters are missing.
+         */
+        std::optional<StereoVision::Geometry::AffineTransform> getTransform() const;
+        /*!
+         * \brief getOptTransform is an accessor for the transform encoded by the rigid body
+         * \return the transform from the optimized parameters, or nullopt if some parameters are missing.
+         */
+        std::optional<StereoVision::Geometry::AffineTransform> getOptTransform() const;
+
+
+        /*!
+         * \brief setTransform set the non optimized transform of the rigid body
+         * \param transform the transform to use.
+         *
+         * Note that this function do not change the uncertainty of the parameters.
+         */
+        void setTransform(StereoVision::Geometry::AffineTransform const& transform);
+        /*!
+         * \brief setOptTransform set the optimized transform of the rigid body
+         * \param transform the transform to use.
+         *
+         * Note that this function reset the uncertainty of the parameters.
+         */
+        void setOptTransform(StereoVision::Geometry::AffineTransform const& transform);
 
 Q_SIGNALS:
 
