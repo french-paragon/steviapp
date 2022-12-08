@@ -5,6 +5,8 @@ set(LIB_SRC vision_global.h
             imageio.h
             checkboarddetector.cpp
             checkboarddetector.h
+            pointcloudio.cpp
+            pointcloudio.h
 )
 
 add_library(

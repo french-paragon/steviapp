@@ -1,6 +1,8 @@
 define_stereovisionapp_lib(CONTROL Control)
 
 set(LIB_SRC
+        utils_functions.cpp
+        utils_functions.h
 	application.h
 	application.cpp
 	mainwindow.cpp
@@ -38,6 +40,8 @@ set(LIB_SRC
 	localcoordinatesystembaseactionmanager.h
 	localcoordinatesystemactions.cpp
 	localcoordinatesystemactions.h
+        fixedstereosequenceactions.cpp
+        fixedstereosequenceactions.h
 	fixedstereosequenceactionmanager.cpp
 	fixedstereosequenceactionmanager.h
 )

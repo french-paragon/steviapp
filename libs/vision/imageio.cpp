@@ -10,7 +10,7 @@ ImageArray getImageData(QString const& imFile, float gamma, int *originalFormat)
 	QImage img(imFile);
 
 	if (img.isNull()) {
-		return ImageArray(0,0,0);
+		return ImageArray();
 	}
 
 	if (originalFormat != nullptr) {

@@ -7,6 +7,8 @@
 
 #include "mainwindow.h"
 
+#include "fixedstereosequenceactions.h"
+
 #include <QAction>
 
 namespace StereoVisionApp {
@@ -42,6 +44,9 @@ QList<QAction*> FixedStereoPlusColorSequenceActionManager::factorizeItemContextA
 
 			Editor* e = mw->openEditor(FixedStereoSequenceEditor::staticMetaObject.className());
 			FixedStereoSequenceEditor* se = qobject_cast<FixedStereoSequenceEditor*>(e);
+
+			QObject::connect(se, &FixedStereoSequenceEditor::rgbImagesExportTriggered, exportColoredStereoImagesPointCloud);
+			QObject::connect(se, &FixedStereoSequenceEditor::imagesWithRGBExportTriggered, exportStereoImagesPlusColorPointCloud);
 
 			se->setSequence(seq);
 

@@ -38,6 +38,8 @@ private:
 	void rgbViewSelectionChanged(int row);
 	void rightViewSelectionChanged(int row);
 
+	void treeViewContextMenuRequested(const QPoint &pos);
+
 	Ui::FixedStereoSequenceEditor *ui;
 
 	DataBlock* _sequence;

@@ -12,6 +12,8 @@
 #include <QDirIterator>
 #include <QFileInfo>
 
+#include <QMenu>
+
 #include <QDebug>
 #include <QFileDialog>
 
@@ -34,6 +36,10 @@ FixedStereoSequenceEditor::FixedStereoSequenceEditor(QWidget *parent) :
 
 	});
 
+	ui->imgListView->setContextMenuPolicy(Qt::CustomContextMenu);
+
+	connect(ui->imgListView, &QWidget::customContextMenuRequested, this, &FixedStereoSequenceEditor::treeViewContextMenuRequested);
+
 	connect(ui->leftViewSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
 			this, static_cast<void(FixedStereoSequenceEditor::*)(int)>(&FixedStereoSequenceEditor::leftViewSelectionChanged));
 
@@ -42,6 +48,8 @@ FixedStereoSequenceEditor::FixedStereoSequenceEditor(QWidget *parent) :
 
 	connect(ui->rightViewSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
 			this, static_cast<void(FixedStereoSequenceEditor::*)(int)>(&FixedStereoSequenceEditor::rightViewSelectionChanged));
+
+
 }
 
 FixedStereoSequenceEditor::~FixedStereoSequenceEditor()
@@ -419,6 +427,95 @@ void FixedStereoSequenceEditor::rightViewSelectionChanged(int row) {
 
 	if (fixedStereoPlusColor != nullptr) {
 		fixedStereoPlusColor->setRightViewId(id);
+	}
+
+}
+
+void FixedStereoSequenceEditor::treeViewContextMenuRequested(const QPoint &pos) {
+
+	QModelIndex idx = ui->imgListView->indexAt(pos);
+
+	QMenu menu(ui->imgListView);
+
+	QList<QAction*> acts;
+
+	if (idx != QModelIndex()) {
+
+		int row = idx.row();
+
+		QAction* exportOne = new QAction("Export one");
+
+		connect(exportOne, &QAction::triggered, this, [this, row] () {
+
+			if (_sequence == nullptr) {
+				return;
+			}
+
+			FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+			FixedStereoPlusColorSequence* fixedStereoPlusColor = qobject_cast<FixedStereoPlusColorSequence*>(_sequence);
+
+			if (fixedColor != nullptr) {
+
+				Q_EMIT rgbImagesExportTriggered(fixedColor, {row});
+			}
+
+			if (fixedStereoPlusColor != nullptr) {
+
+				Q_EMIT imagesWithRGBExportTriggered(fixedStereoPlusColor, {row});
+			}
+
+		});
+
+		acts.push_back(exportOne);
+	}
+
+	QAction* exportAll = new QAction("Export all");
+
+	connect(exportAll, &QAction::triggered, this, [this] () {
+
+		if (_sequence == nullptr) {
+			return;
+		}
+
+		FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+		FixedStereoPlusColorSequence* fixedStereoPlusColor = qobject_cast<FixedStereoPlusColorSequence*>(_sequence);
+
+		if (fixedColor != nullptr) {
+			int nRows = fixedColor->getImageList()->rowCount();
+			QVector<int> allRows(nRows);
+
+			for (int i = 0; i < nRows; i++) {
+				allRows[i] = i;
+			}
+
+			Q_EMIT rgbImagesExportTriggered(fixedColor, allRows);
+		}
+
+		if (fixedStereoPlusColor != nullptr) {
+			int nRows = fixedColor->getImageList()->rowCount();
+			QVector<int> allRows(nRows);
+
+			for (int i = 0; i < nRows; i++) {
+				allRows[i] = i;
+			}
+
+			Q_EMIT imagesWithRGBExportTriggered(fixedStereoPlusColor, allRows);
+		}
+
+	});
+
+	acts.push_back(exportAll);
+
+	for (QAction* a : acts) {
+		menu.addAction(a);
+	}
+
+	if (acts.count() > 0) {
+		menu.exec(ui->imgListView->mapToGlobal(pos));
+	}
+
+	for (QAction* a : acts) {
+		a->deleteLater();
 	}
 
 }
