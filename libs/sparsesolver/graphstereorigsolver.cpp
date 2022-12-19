@@ -233,7 +233,7 @@ bool GraphStereoRigSolver::initialize(const InitialSolution *sol) {
 				raxis.x() = im->optRot().value(0);
 				raxis.y() = im->optRot().value(1);
 				raxis.z() = im->optRot().value(2);
-				r = StereoVision::Geometry::rodriguezFormulaD(raxis);
+				r = StereoVision::Geometry::rodriguezFormula(raxis);
 
 				t.x() = im->optPos().value(0);
 				t.y() = im->optPos().value(1);
@@ -572,7 +572,7 @@ bool GraphStereoRigSolver::writeResults() {
 		const CameraPose & e = imv->estimate();
 
 		Eigen::Vector3d t = e.t();
-		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormulaD(e.r());
+		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormula(e.r());
 
 		floatParameterGroup<3> pos;
 		pos.value(0) = static_cast<float>(t.x());

@@ -492,7 +492,7 @@ void CheckboardPtsReprojDrawable::paintItemImpl(QPainter* painter) const {
 		logR.y() = pose.value(4);
 		logR.z() = pose.value(5);
 
-		Eigen::Matrix3d R = StereoVision::Geometry::rodriguezFormulaD(logR);
+		Eigen::Matrix3d R = StereoVision::Geometry::rodriguezFormula(logR);
 		float f = camera->optimizedFLen().value();
 
 		Eigen::Vector2d pp = Eigen::Vector2d::Zero();
@@ -548,11 +548,11 @@ void CheckboardPtsReprojDrawable::paintItemImpl(QPainter* painter) const {
 			pt(1,0) = Pbar.y();
 			pt(2,0) = Pbar.z();
 
-			Eigen::Array2Xd projtmp = StereoVision::Geometry::projectPointsD(pt);
+			Eigen::Array2Xd projtmp = StereoVision::Geometry::projectPoints(pt);
 			Eigen::Vector2d proj(projtmp(0,0),projtmp(1,0));
 
-			Eigen::Vector2d dRadial = StereoVision::Geometry::radialDistortionD(proj, k123);
-			Eigen::Vector2d dTangential = StereoVision::Geometry::tangentialDistortionD(proj, p12);
+			Eigen::Vector2d dRadial = StereoVision::Geometry::radialDistortion(proj, k123);
+			Eigen::Vector2d dTangential = StereoVision::Geometry::tangentialDistortion(proj, p12);
 
 			proj += dRadial + dTangential;
 

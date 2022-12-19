@@ -202,7 +202,7 @@ void RigidBody::setOptZRot(const float &rz) {
 	}
 }
 
-std::optional<StereoVision::Geometry::AffineTransform> RigidBody::getTransform() const {
+std::optional<StereoVision::Geometry::AffineTransform<float> > RigidBody::getTransform() const {
 
 	if (!_x.isSet() or !_y.isSet() or _z.isSet()) {
 		return std::nullopt;
@@ -226,7 +226,7 @@ std::optional<StereoVision::Geometry::AffineTransform> RigidBody::getTransform()
 	return StereoVision::Geometry::AffineTransform(R, t);
 
 }
-std::optional<StereoVision::Geometry::AffineTransform> RigidBody::getOptTransform() const {
+std::optional<StereoVision::Geometry::AffineTransform<float> > RigidBody::getOptTransform() const {
 
 	if (!_o_pos.isSet()) {
 		return std::nullopt;
@@ -251,7 +251,7 @@ std::optional<StereoVision::Geometry::AffineTransform> RigidBody::getOptTransfor
 
 }
 
-void RigidBody::setTransform(StereoVision::Geometry::AffineTransform const& transform) {
+void RigidBody::setTransform(const StereoVision::Geometry::AffineTransform<float> &transform) {
 
 	floatParameter x = _x;
 	floatParameter y = _y;
@@ -280,7 +280,7 @@ void RigidBody::setTransform(StereoVision::Geometry::AffineTransform const& tran
 	setZRot(rz);
 }
 
-void RigidBody::setOptTransform(StereoVision::Geometry::AffineTransform const& transform) {
+void RigidBody::setOptTransform(const StereoVision::Geometry::AffineTransform<float> &transform) {
 
 	floatParameterGroup<3> o_pos = _o_pos;
 

@@ -45,6 +45,9 @@ QList<QAction*> FixedStereoPlusColorSequenceActionManager::factorizeItemContextA
 			Editor* e = mw->openEditor(FixedStereoSequenceEditor::staticMetaObject.className());
 			FixedStereoSequenceEditor* se = qobject_cast<FixedStereoSequenceEditor*>(e);
 
+			QObject::connect(se, &FixedStereoSequenceEditor::rgbImagesRectifiedExportTriggered, exportColoredStereoImagesRectifiedImages);
+			QObject::connect(se, &FixedStereoSequenceEditor::imagesWithRGBRectifiedExportTriggered, exportStereoImagesPlusColorRectifiedImages);
+
 			QObject::connect(se, &FixedStereoSequenceEditor::rgbImagesExportTriggered, exportColoredStereoImagesPointCloud);
 			QObject::connect(se, &FixedStereoSequenceEditor::imagesWithRGBExportTriggered, exportStereoImagesPlusColorPointCloud);
 

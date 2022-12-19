@@ -36,24 +36,24 @@ Eigen::Vector2d project(const CameraPose & pose,
 	pt(1,0) = Pbar.y();
 	pt(2,0) = Pbar.z();
 
-	Eigen::Array2Xd projtmp = StereoVision::Geometry::projectPointsD(pt);
+	Eigen::Array2Xd projtmp = StereoVision::Geometry::projectPoints(pt);
 	Eigen::Vector2d proj(projtmp(0,0),projtmp(1,0));
 
 	Eigen::Vector2d dRadial = Eigen::Vector2d::Zero();
 	Eigen::Vector2d dTangential = Eigen::Vector2d::Zero();
 
 	if (r_dist.has_value()) {
-		dRadial = StereoVision::Geometry::radialDistortionD(proj, r_dist.value());
+		dRadial = StereoVision::Geometry::radialDistortion(proj, r_dist.value());
 	}
 
 	if (t_dist.has_value()) {
-		dTangential = StereoVision::Geometry::tangentialDistortionD(proj, t_dist.value());
+		dTangential = StereoVision::Geometry::tangentialDistortion(proj, t_dist.value());
 	}
 
 	proj += dRadial + dTangential;
 
 	if (s_dist.has_value()) {
-		Eigen::Vector2d final = StereoVision::Geometry::skewDistortionD(proj, s_dist.value(), cam.f(), cam.pp());
+		Eigen::Vector2d final = StereoVision::Geometry::skewDistortion(proj, s_dist.value(), cam.f(), cam.pp());
 		return final;
 	}
 

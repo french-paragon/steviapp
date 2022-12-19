@@ -176,7 +176,7 @@ bool GraphSBASolver::init() {
 			raxis.x() = im->optRot().value(0);
 			raxis.y() = im->optRot().value(1);
 			raxis.z() = im->optRot().value(2);
-			r = StereoVision::Geometry::rodriguezFormulaD(raxis);
+			r = StereoVision::Geometry::rodriguezFormula(raxis);
 
 			t.x() = im->optPos().value(0);
 			t.y() = im->optPos().value(1);
@@ -198,7 +198,7 @@ bool GraphSBASolver::init() {
 				raxis.x() = im->xRot().value();
 				raxis.y() = im->yRot().value();
 				raxis.z() = im->zRot().value();
-				r = StereoVision::Geometry::rodriguezFormulaD(raxis);
+				r = StereoVision::Geometry::rodriguezFormula(raxis);
 			}
 
 			if (im->xCoord().isSet() and im->yCoord().isSet() and im->zCoord().isSet()) {
@@ -603,7 +603,7 @@ bool GraphSBASolver::init() {
 				raxis.x() = lcs->optRot().value(0);
 				raxis.y() = lcs->optRot().value(1);
 				raxis.z() = lcs->optRot().value(2);
-				r = StereoVision::Geometry::rodriguezFormulaD(raxis);
+				r = StereoVision::Geometry::rodriguezFormula(raxis);
 
 				t.x() = lcs->optPos().value(0);
 				t.y() = lcs->optPos().value(1);
@@ -759,7 +759,7 @@ bool GraphSBASolver::writeResults() {
 		const CameraPose & e = imv->estimate();
 
 		Eigen::Vector3d t = e.t();
-		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormulaD(e.r());
+		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormula(e.r());
 
 		floatParameterGroup<3> pos;
 		pos.value(0) = static_cast<float>(t.x());
@@ -832,7 +832,7 @@ bool GraphSBASolver::writeResults() {
 		const CameraPose & e = lcrb->estimate();
 
 		Eigen::Vector3d t = e.t();
-		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormulaD(e.r());
+		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormula(e.r());
 
 		floatParameterGroup<3> pos;
 		pos.value(0) = static_cast<float>(t.x());

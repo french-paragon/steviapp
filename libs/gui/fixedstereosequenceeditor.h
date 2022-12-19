@@ -26,6 +26,9 @@ public:
 
 Q_SIGNALS:
 
+	void rgbImagesRectifiedExportTriggered(FixedColorStereoSequence* sequence, QVector<int> rows);
+	void imagesWithRGBRectifiedExportTriggered(FixedStereoPlusColorSequence* sequence, QVector<int> rows);
+
 	void rgbImagesExportTriggered(FixedColorStereoSequence* sequence, QVector<int> rows);
 	void imagesWithRGBExportTriggered(FixedStereoPlusColorSequence* sequence, QVector<int> rows);
 

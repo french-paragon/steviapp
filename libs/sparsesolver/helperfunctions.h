@@ -15,7 +15,7 @@
 
 namespace StereoVisionApp {
 
-inline std::optional<StereoVision::Geometry::ShapePreservingTransform> getImageToWorldTransform(Image* img) {
+inline std::optional<StereoVision::Geometry::ShapePreservingTransform<float>> getImageToWorldTransform(Image* img) {
 
 	if (img == nullptr) {
 		return std::nullopt;
@@ -35,7 +35,7 @@ inline std::optional<StereoVision::Geometry::ShapePreservingTransform> getImageT
 						  pos.value(1),
 						  pos.value(2));
 
-		StereoVision::Geometry::ShapePreservingTransform imgToWorld(r, t, 1.);
+		StereoVision::Geometry::ShapePreservingTransform<float> imgToWorld(r, t, 1.);
 
 		return imgToWorld;
 
@@ -44,12 +44,12 @@ inline std::optional<StereoVision::Geometry::ShapePreservingTransform> getImageT
 	return std::nullopt;
 }
 
-inline std::optional<StereoVision::Geometry::ShapePreservingTransform> getWorldToImageTransform(Image* img) {
+inline std::optional<StereoVision::Geometry::ShapePreservingTransform<float>> getWorldToImageTransform(Image* img) {
 
-	std::optional<StereoVision::Geometry::ShapePreservingTransform> res = getImageToWorldTransform(img);
+	std::optional<StereoVision::Geometry::ShapePreservingTransform<float>> res = getImageToWorldTransform(img);
 
 	if (res.has_value()) {
-		StereoVision::Geometry::ShapePreservingTransform inv = res.value().inverse();
+		StereoVision::Geometry::ShapePreservingTransform<float> inv = res.value().inverse();
 		return inv;
 	}
 

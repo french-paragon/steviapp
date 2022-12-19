@@ -443,7 +443,32 @@ void FixedStereoSequenceEditor::treeViewContextMenuRequested(const QPoint &pos) 
 
 		int row = idx.row();
 
-		QAction* exportOne = new QAction("Export one");
+		QAction* exportOneRectified = new QAction("Export one rectified image set");
+
+		connect(exportOneRectified, &QAction::triggered, this, [this, row] () {
+
+			if (_sequence == nullptr) {
+				return;
+			}
+
+			FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+			FixedStereoPlusColorSequence* fixedStereoPlusColor = qobject_cast<FixedStereoPlusColorSequence*>(_sequence);
+
+			if (fixedColor != nullptr) {
+
+				Q_EMIT rgbImagesRectifiedExportTriggered(fixedColor, {row});
+			}
+
+			if (fixedStereoPlusColor != nullptr) {
+
+				Q_EMIT imagesWithRGBRectifiedExportTriggered(fixedStereoPlusColor, {row});
+			}
+
+		});
+
+		acts.push_back(exportOneRectified);
+
+		QAction* exportOne = new QAction("Export one point cloud");
 
 		connect(exportOne, &QAction::triggered, this, [this, row] () {
 
@@ -469,7 +494,44 @@ void FixedStereoSequenceEditor::treeViewContextMenuRequested(const QPoint &pos) 
 		acts.push_back(exportOne);
 	}
 
-	QAction* exportAll = new QAction("Export all");
+	QAction* exportAllRectified = new QAction("Export all rectified image set");
+
+	connect(exportAllRectified, &QAction::triggered, this, [this] () {
+
+		if (_sequence == nullptr) {
+			return;
+		}
+
+		FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+		FixedStereoPlusColorSequence* fixedStereoPlusColor = qobject_cast<FixedStereoPlusColorSequence*>(_sequence);
+
+		if (fixedColor != nullptr) {
+			int nRows = fixedColor->getImageList()->rowCount();
+			QVector<int> allRows(nRows);
+
+			for (int i = 0; i < nRows; i++) {
+				allRows[i] = i;
+			}
+
+			Q_EMIT rgbImagesRectifiedExportTriggered(fixedColor, allRows);
+		}
+
+		if (fixedStereoPlusColor != nullptr) {
+			int nRows = fixedStereoPlusColor->getImageList()->rowCount();
+			QVector<int> allRows(nRows);
+
+			for (int i = 0; i < nRows; i++) {
+				allRows[i] = i;
+			}
+
+			Q_EMIT imagesWithRGBRectifiedExportTriggered(fixedStereoPlusColor, allRows);
+		}
+
+	});
+
+	acts.push_back(exportAllRectified);
+
+	QAction* exportAll = new QAction("Export all point cloud");
 
 	connect(exportAll, &QAction::triggered, this, [this] () {
 
@@ -492,7 +554,7 @@ void FixedStereoSequenceEditor::treeViewContextMenuRequested(const QPoint &pos) 
 		}
 
 		if (fixedStereoPlusColor != nullptr) {
-			int nRows = fixedColor->getImageList()->rowCount();
+			int nRows = fixedStereoPlusColor->getImageList()->rowCount();
 			QVector<int> allRows(nRows);
 
 			for (int i = 0; i < nRows; i++) {

@@ -1,5 +1,6 @@
 #include "utils_functions.h"
 
+#include "geometry/lensdistortion.h"
 #include "geometry/stereorigrectifier.h"
 
 #include "datablocks/stereorig.h"
@@ -9,6 +10,119 @@
 #include "sparsesolver/helperfunctions.h"
 
 namespace StereoVisionApp {
+
+std::unique_ptr<StereoVision::Geometry::ImageRectifier<float>> configureRectifierForSingleCamera(Camera* cam, bool useOptimizedParametersSet) {
+
+	if (cam == nullptr) {
+		return nullptr;
+	}
+
+	Eigen::Vector2f f;
+
+	if (useOptimizedParametersSet) {
+
+		if (!cam->optimizedFLen().isSet()) {
+			return nullptr;
+		}
+
+		f << cam->optimizedFLen().value(), cam->optimizedFLen().value();
+	} else {
+
+		if (!cam->fLen().isSet()) {
+			return nullptr;
+		}
+
+		f << cam->fLen().value(), cam->fLen().value();
+	}
+
+	Eigen::Vector2f pp;
+
+	if (useOptimizedParametersSet) {
+
+		if (!cam->optimizedOpticalCenterX().isSet() or !cam->optimizedOpticalCenterY().isSet()) {
+			return nullptr;
+		}
+
+		pp << cam->optimizedOpticalCenterX().value(), cam->optimizedOpticalCenterY().value();
+	} else {
+
+		if (!cam->opticalCenterX().isSet() or !cam->opticalCenterY().isSet()) {
+			return nullptr;
+		}
+
+		pp << cam->opticalCenterX().value(), cam->opticalCenterY().value();
+	}
+
+	Eigen::Vector2i size(cam->imHeight(), cam->imWidth());
+
+	std::optional<Eigen::Vector3f> k123 = std::nullopt;
+	std::optional<Eigen::Vector2f> t12 = std::nullopt;
+	std::optional<Eigen::Vector2f> B12 = std::nullopt;
+
+	if (useOptimizedParametersSet) {
+
+		if (cam->useRadialDistortionModel() and
+				cam->optimizedK1().isSet() and
+				cam->optimizedK2().isSet() and
+				cam->optimizedK3().isSet()) {
+			Eigen::Vector3f k;
+			k << cam->optimizedK1().value(),cam->optimizedK2().value(), cam->optimizedK3().value();
+			k123 = k;
+		}
+
+		if (cam->useTangentialDistortionModel() and
+				cam->optimizedP1().isSet() and
+				cam->optimizedP2().isSet()) {
+			Eigen::Vector2f t;
+			t << cam->optimizedP1().value(),cam->optimizedP2().value();
+			t12 = t;
+		}
+
+		if (cam->useSkewDistortionModel() and
+				cam->optimizedB1().isSet() and
+				cam->optimizedB2().isSet()) {
+			Eigen::Vector2f B;
+			B << cam->optimizedB1().value(),cam->optimizedB2().value();
+			B12 = B;
+		}
+	} else {
+
+		if (cam->useRadialDistortionModel() and
+				cam->k1().isSet() and
+				cam->k2().isSet() and
+				cam->k3().isSet()) {
+			Eigen::Vector3f k;
+			k << cam->k1().value(),cam->k2().value(), cam->k3().value();
+			k123 = k;
+		}
+
+		if (cam->useTangentialDistortionModel() and
+				cam->p1().isSet() and
+				cam->p2().isSet()) {
+			Eigen::Vector2f t;
+			t << cam->p1().value(),cam->p2().value();
+			t12 = t;
+		}
+
+		if (cam->useSkewDistortionModel() and
+				cam->B1().isSet() and
+				cam->B2().isSet()) {
+			Eigen::Vector2f B;
+			B << cam->B1().value(),cam->B2().value();
+			B12 = B;
+		}
+
+	}
+
+	return std::make_unique<StereoVision::Geometry::ImageRectifier<float>>
+			(f,
+			 pp,
+			 size,
+			 k123,
+			 t12,
+			 B12);
+
+}
 
 std::unique_ptr<StereoVision::Geometry::StereoRigRectifier> configureRectifierForStereoPair(ImagePair* pair, bool useOptimizedParametersSet) {
 

@@ -51,7 +51,7 @@ protected:
 	static Eigen::Matrix3f ApproximateEssentialMatrix(Image* im1, Image* im2, QSet<qint64> const& intersection);
 	static Eigen::Array2Xf getHomogeneousImageCoordinates(Image* im, QVector<qint64> ids);
 
-	static StereoVision::Geometry::AffineTransform estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
+	static StereoVision::Geometry::AffineTransform<float> estimateTransform(InitialSolution const& solution, Project* p, bool useConstraintsRefinement = false);
 
 	bool completeSolution(InitialSolution & solution,
 						  Project* p,
@@ -166,7 +166,7 @@ private:
 		Image* img2;
 	};
 
-	std::tuple<StereoVision::Geometry::AffineTransform, bool> getRigPairRelativeTransform(RigPair const& rp) const;
+	std::tuple<StereoVision::Geometry::AffineTransform<float>, bool> getRigPairRelativeTransform(RigPair const& rp) const;
 
 	bool _initial_pair_only;
 	qint64 _f1;

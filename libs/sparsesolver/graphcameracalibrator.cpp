@@ -512,7 +512,7 @@ bool GraphCameraCalibrator::writeResults() {
 		const CameraPose & e = imv->estimate();
 
 		Eigen::Vector3d t = e.t();
-		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormulaD(e.r());
+		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormula(e.r());
 
 		floatParameterGroup<6> poseEstimate;
 		poseEstimate.value(0) = t[0];
@@ -605,7 +605,7 @@ bool GraphCameraCalibrator::writeResults() {
 		const CameraPose & e = rgv->estimate();
 
 		Eigen::Vector3d t = e.t();
-		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormulaD(e.r());
+		Eigen::Vector3d r = StereoVision::Geometry::inverseRodriguezFormula(e.r());
 
 		floatParameterGroup<3> pos;
 		pos.value(0) = static_cast<float>(t.x());

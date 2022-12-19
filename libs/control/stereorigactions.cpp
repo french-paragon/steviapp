@@ -30,12 +30,12 @@ void alignImagesInRig(Project* p, qint64 rig_id, qint64 ref_image_id, qint64 una
 		return;
 	}
 
-	StereoVision::Geometry::AffineTransform cam2tocam1 = cam2tocam1cand.value();
+	StereoVision::Geometry::AffineTransform<float> cam2tocam1 = cam2tocam1cand.value();
 
-	StereoVision::Geometry::AffineTransform ImgUnalignedToRefImg = cam2tocam1;
+	StereoVision::Geometry::AffineTransform<float> ImgUnalignedToRefImg = cam2tocam1;
 
 	if (pair->idImgCam1() == unaligned_image_id) { //we need cam1tocam2 instead
-		ImgUnalignedToRefImg = StereoVision::Geometry::AffineTransform(cam2tocam1.R.transpose(), -cam2tocam1.R.transpose()*cam2tocam1.t);
+		ImgUnalignedToRefImg = StereoVision::Geometry::AffineTransform<float>(cam2tocam1.R.transpose(), -cam2tocam1.R.transpose()*cam2tocam1.t);
 	}
 
 	Image* refImage = p->getDataBlock<Image>(ref_image_id);

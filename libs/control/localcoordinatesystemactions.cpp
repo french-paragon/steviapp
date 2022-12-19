@@ -94,8 +94,8 @@ int StereoVisionApp::alignLocalCoordinateSystemToPoints(QList<qint64> lcsIds, Pr
 			coordinates[3*i+2] = StereoVision::Geometry::Axis::Z;
 		}
 
-		StereoVision::Geometry::AffineTransform localToWorldRaw;
-		StereoVision::Geometry::ShapePreservingTransform localToWorld;
+		StereoVision::Geometry::AffineTransform<float> localToWorldRaw;
+		StereoVision::Geometry::ShapePreservingTransform<float> localToWorld;
 
 		int iterationLimit = 500;
 		float damping = 2e-1;

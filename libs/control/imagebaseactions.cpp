@@ -985,9 +985,9 @@ int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p) {
 			continue;
 		}
 
-		StereoVision::Geometry::AffineTransform hexToCam = StereoVision::Geometry::pnp(projCoordinates, hexCoordinates);
+		StereoVision::Geometry::AffineTransform<float> hexToCam = StereoVision::Geometry::pnp(projCoordinates, hexCoordinates);
 
-		StereoVision::Geometry::AffineTransform hexToWorld(camToWorld.R*hexToCam.R, camToWorld.t + camToWorld.R*hexToCam.t);
+		StereoVision::Geometry::AffineTransform<float> hexToWorld(camToWorld.R*hexToCam.R, camToWorld.t + camToWorld.R*hexToCam.t);
 
 		Eigen::Array3Xf hexWorldCoordinates = hexToWorld*hexCoordinates;
 
