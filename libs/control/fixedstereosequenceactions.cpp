@@ -18,8 +18,8 @@
 #include "correlation/unfold.h"
 #include "correlation/correlation_base.h"
 #include "correlation/cross_correlations.h"
-#include "correlation/dynamic_programing_stereo.h"
 #include "correlation/cost_based_refinement.h"
+#include "correlation/disparity_plus_background_segmentation.h"
 
 #include "vision/imageio.h"
 #include "vision/pointcloudio.h"
@@ -907,12 +907,13 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 	float gamma = 1;
 
 	uint8_t search_radius = 5;
-	uint8_t search_width = 150;
+	StereoVision::Correlation::disp_t search_width = 150;
 	float max_dist = 3000;
 
 	constexpr StereoVision::Correlation::matchingFunctions matchFunc = StereoVision::Correlation::matchingFunctions::NCC;
-	using T_L = float;
-	using T_R = float;
+	using T_F = float;
+	using T_L = T_F;
+	using T_R = T_F;
 	constexpr int nImDim = 3;
 	constexpr StereoVision::Correlation::dispDirection dDir = StereoVision::Correlation::dispDirection::RightToLeft;
 	using T_CV = float;
@@ -953,6 +954,50 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 			 rgbFlen,
 			 color_rectifier->targetPP(),
 			 cw_2_rgb*cr_2_w);
+
+	using MatcherT = StereoVision::Correlation::DisparityEstimatorWithBackgroundRemoval<matchFunc, T_CV, T_F>;
+
+	constexpr float relative_threshold = 1.0;
+	constexpr disp_t disp_threshold = 2;
+	MatcherT matcher(relative_threshold, disp_threshold);
+
+
+	int originalFormatBgLeft;
+	StereoVision::ImageArray bgImLeft = getImageData(inDir.absoluteFilePath(leftImg->getImageFile()), gamma, &originalFormatBgLeft);
+	int originalFormatBgRight;
+	StereoVision::ImageArray bgImRight = getImageData(inDir.absoluteFilePath(rightImg->getImageFile()), gamma, &originalFormatBgRight);
+	int originalFormatBgRgb;
+	StereoVision::ImageArray bgImRgb = getImageData(inDir.absoluteFilePath(rgbImg->getImageFile()), gamma, &originalFormatBgRgb);
+
+	if (bgImLeft.empty() or bgImRight.empty() or bgImRgb.empty()) {
+		qDebug() << functionName << "could not load the background images";
+		return;
+	}
+
+	StereoVision::ImageArray transformedBgLeft;
+	if (stereoPair->idImgCam1() == leftImgId) {
+		transformedBgLeft = StereoVision::Interpolation::interpolateImage(bgImLeft, stereo_rectifier->backWardMapCam1());
+	} else {
+		transformedBgLeft = StereoVision::Interpolation::interpolateImage(bgImLeft, stereo_rectifier->backWardMapCam2());
+	}
+
+	StereoVision::ImageArray transformedBgRight;
+	if (stereoPair->idImgCam1() == rightImgId) {
+		transformedBgRight = StereoVision::Interpolation::interpolateImage(bgImRight, stereo_rectifier->backWardMapCam1());
+	} else {
+		transformedBgRight = StereoVision::Interpolation::interpolateImage(bgImRight, stereo_rectifier->backWardMapCam2());
+	}
+
+	Multidim::Array<T_F, 3> fLeftBg = StereoVision::Correlation::unfold(search_radius, search_radius, transformedBgLeft);
+	Multidim::Array<T_F, 3> fRightBg = StereoVision::Correlation::unfold(search_radius, search_radius, transformedBgRight);
+
+	StereoVision::Correlation::searchOffset<1> search_offset(0, search_width);
+	bool computed = matcher.computeBackgroundDisp(fRightBg, fLeftBg, search_offset);
+
+	if (!computed) {
+		qDebug() << functionName << "could not compute the background disp";
+		return;
+	}
 
 
 	for (int row : rows) {
@@ -1029,29 +1074,35 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 
 		StereoVision::ImageArray rectifiedImRgb = StereoVision::Interpolation::interpolateImage(arrayImRgb, color_rectifier->backWardMap());
 
-		Multidim::Array<T_CV, 3> cost_volume =
-		StereoVision::Correlation::unfoldBasedCostVolume<matchFunc, T_L, T_R, nImDim, dDir, T_CV>
-				(transformedCamLeft, transformedCamRight, search_radius, search_radius, search_width);
 
 
-		constexpr StereoVision::Correlation::dispExtractionStartegy extractionStrategy =
-				StereoVision::Correlation::MatchingFunctionTraits<matchFunc>::extractionStrategy;
+		Multidim::Array<T_F, 3> fLeft = StereoVision::Correlation::unfold(search_radius, search_radius, transformedCamLeft);
+		Multidim::Array<T_F, 3> fRight = StereoVision::Correlation::unfold(search_radius, search_radius, transformedCamRight);
 
-		float jumpBaseCost = 0.000001*(2*search_radius+1)*(2*search_radius+1);
-		float jumpNextCost = 0.00002*(2*search_radius+1)*(2*search_radius+1);
-		StereoVision::Correlation::DynamicProgramming::SGMLikeJumpCostPolicy<extractionStrategy, T_CV> jumpCostPolicy(jumpBaseCost, jumpNextCost);
+		using searchSpaceType = MatcherT::template OnDemandCVT<Multidim::NonConstView, Multidim::NonConstView>::SearchSpaceType;
+		searchSpaceType searchSpace(StereoVision::Correlation::SearchSpaceBase::IgnoredDim(),
+									StereoVision::Correlation::SearchSpaceBase::SearchDim(0, search_width),
+									StereoVision::Correlation::SearchSpaceBase::FeatureDim());
 
-		Multidim::Array<disp_t, 2> raw_disp =
-				StereoVision::Correlation::DynamicProgramming::extractOptimalIndex<extractionStrategy, T_CV>(cost_volume, jumpCostPolicy);
+		MatcherT::template OnDemandCVT<Multidim::NonConstView, Multidim::NonConstView> onDemandCv(fRight, fLeft, searchSpace);
 
-		Multidim::Array<T_CV, 3> truncated_cost_volume = StereoVision::Correlation::truncatedCostVolume(cost_volume, raw_disp, search_radius, search_radius, 1);
+
+		constexpr StereoVision::Correlation::StereoDispWithBgMask::MaskInfo Foreground =  StereoVision::Correlation::StereoDispWithBgMask::Foreground;
+		constexpr StereoVision::Correlation::StereoDispWithBgMask::MaskInfo Background =  StereoVision::Correlation::StereoDispWithBgMask::Background;
+
+		auto computed = matcher.computeDispAndForegroundMask(onDemandCv);
+		Multidim::Array<disp_t, 2>const& raw_disp = computed.disp;
+		Multidim::Array<StereoVision::Correlation::StereoDispWithBgMask::MaskInfo, 2>const& mask_info = computed.fg_mask;
+
+		Multidim::Array<T_CV, 3> truncated_cost_volume = onDemandCv.truncatedCostVolume(raw_disp);
+
+
+		auto shape = raw_disp.shape();
 
 		constexpr StereoVision::Correlation::InterpolationKernel kernel =
 				StereoVision::Correlation::InterpolationKernel::Equiangular;
 
 		Multidim::Array<float, 2> refined_disp = StereoVision::Correlation::refineDispCostInterpolation<kernel>(truncated_cost_volume, raw_disp);
-
-		auto shape = raw_disp.shape();
 
 		Multidim::Array<float, 3> Points(shape[0], shape[1], 3);
 		Multidim::Array<float, 3> PointsColor(shape[0], shape[1], 3);
@@ -1064,7 +1115,7 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 
 				float z = normalizedBasline/(d - dispDelta);
 
-				if (z > max_dist or r_d < 0) {
+				if (z > max_dist or z < 0 or r_d < 0) {
 					z = std::nanf("");
 				}
 
@@ -1084,9 +1135,17 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 				float g = rectifiedImRgb.valueOrAlt({col_i,col_j,1}, std::nanf(""));
 				float b = rectifiedImRgb.valueOrAlt({col_i,col_j,2}, std::nanf(""));
 
-				Points.at<Nc>(i,j,0) = worldCoord.x();
-				Points.at<Nc>(i,j,1) = worldCoord.y();
-				Points.at<Nc>(i,j,2) = worldCoord.z();
+				auto m = mask_info.value<Nc>(i,j);
+
+				if (m == Foreground) {
+					Points.at<Nc>(i,j,0) = worldCoord.x();
+					Points.at<Nc>(i,j,1) = worldCoord.y();
+					Points.at<Nc>(i,j,2) = worldCoord.z();
+				} else {
+					Points.at<Nc>(i,j,0) = std::nanf("");
+					Points.at<Nc>(i,j,1) = std::nanf("");
+					Points.at<Nc>(i,j,2) = std::nanf("");
+				}
 
 				PointsColor.at<Nc>(i,j,0) = r;
 				PointsColor.at<Nc>(i,j,1) = g;
