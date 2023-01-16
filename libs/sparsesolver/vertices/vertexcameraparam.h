@@ -10,6 +10,8 @@
 
 #include "../../datablocks/project.h"
 
+#include <optional>
+
 namespace StereoVisionApp {
 
 /*!
