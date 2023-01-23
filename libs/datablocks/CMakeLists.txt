@@ -30,6 +30,8 @@ set(LIB_SRC floatparameter.cpp
             cameracalibration.h
             localcoordinatesystem.cpp
             localcoordinatesystem.h
+            exportablestereosequence.cpp
+            exportablestereosequence.h
             fixedstereopluscolorsequence.cpp
             fixedstereopluscolorsequence.h
             fixedcolorstereosequence.cpp

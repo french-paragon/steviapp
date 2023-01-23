@@ -21,10 +21,14 @@
 #include "correlation/cost_based_refinement.h"
 #include "correlation/disparity_plus_background_segmentation.h"
 
+#include "imageProcessing/morphologicalOperators.h"
+
 #include "vision/imageio.h"
 #include "vision/pointcloudio.h"
 
 #include "sparsesolver/helperfunctions.h"
+
+#include "gui/stereosequenceexportoptiondialog.h"
 
 #include "mainwindow.h"
 #include "utils_functions.h"
@@ -787,7 +791,22 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 		return;
 	}
 
-	QString outFolder = QFileDialog::getExistingDirectory(mw, QObject::tr("Export directory"));
+	StereoSequenceExportOptionDialog exportDialog(mw);
+
+	exportDialog.setSearchRadius(5);
+	exportDialog.setSearchWidth(150);
+	exportDialog.setMaxDist(3000);
+	exportDialog.setErodingDistance(0);
+	exportDialog.setOpeningDistance(0);
+
+	int code = exportDialog.exec();
+
+	if (code != QDialog::Accepted) {
+		qDebug() << functionName << "export cancelled";
+		return;
+	}
+
+	QString outFolder = exportDialog.exportDir();
 
 	if (outFolder.isEmpty()) {
 		qDebug() << functionName << "Not output folder";
@@ -906,9 +925,9 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 	QVector<FixedStereoPlusColorSequence::ImageTriplet> triplets = sequence->imgsTriplets();
 	float gamma = 1;
 
-	uint8_t search_radius = 5;
-	StereoVision::Correlation::disp_t search_width = 150;
-	float max_dist = 3000;
+	uint8_t search_radius = exportDialog.searchRadius();
+	StereoVision::Correlation::disp_t search_width = exportDialog.searchWidth();
+	float max_dist = exportDialog.maxDist();
 
 	constexpr StereoVision::Correlation::matchingFunctions matchFunc = StereoVision::Correlation::matchingFunctions::NCC;
 	using T_F = float;
@@ -1092,7 +1111,30 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 
 		auto computed = matcher.computeDispAndForegroundMask(onDemandCv);
 		Multidim::Array<disp_t, 2>const& raw_disp = computed.disp;
-		Multidim::Array<StereoVision::Correlation::StereoDispWithBgMask::MaskInfo, 2>const& mask_info = computed.fg_mask;
+		Multidim::Array<StereoVision::Correlation::StereoDispWithBgMask::MaskInfo, 2>const& m_info = computed.fg_mask;
+		Multidim::Array<uint8_t, 2> mask_info = m_info.cast<uint8_t>();
+
+		int openDistance = exportDialog.openingDistance();
+		int erodeDistance = exportDialog.erodingDistance();
+
+		Multidim::Array<uint8_t, 2> filtered;
+		const Multidim::Array<uint8_t, 2>* sMask;
+
+		if (openDistance > 0 and erodeDistance > 0) {
+			filtered = StereoVision::ImageProcessing::erosion(erodeDistance, erodeDistance,
+															  StereoVision::ImageProcessing::dilation(openDistance, openDistance,
+																									  StereoVision::ImageProcessing::erosion(openDistance, openDistance, mask_info)));
+			sMask = &filtered;
+		} else if (openDistance > 0) {
+			filtered = StereoVision::ImageProcessing::dilation(openDistance, openDistance,
+															   StereoVision::ImageProcessing::erosion(openDistance, openDistance, mask_info));
+			sMask = &filtered;
+		} else if (erodeDistance > 0) {
+			filtered = StereoVision::ImageProcessing::erosion(erodeDistance, erodeDistance, mask_info);
+			sMask = &filtered;
+		} else {
+			sMask = &mask_info;
+		}
 
 		Multidim::Array<T_CV, 3> truncated_cost_volume = onDemandCv.truncatedCostVolume(raw_disp);
 
@@ -1135,7 +1177,7 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 				float g = rectifiedImRgb.valueOrAlt({col_i,col_j,1}, std::nanf(""));
 				float b = rectifiedImRgb.valueOrAlt({col_i,col_j,2}, std::nanf(""));
 
-				auto m = mask_info.value<Nc>(i,j);
+				auto m = sMask->value<Nc>(i,j);
 
 				if (m == Foreground) {
 					Points.at<Nc>(i,j,0) = worldCoord.x();

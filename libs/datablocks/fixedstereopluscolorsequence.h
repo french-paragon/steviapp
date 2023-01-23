@@ -3,12 +3,13 @@
 
 
 #include "./project.h"
+#include "./exportablestereosequence.h"
 
 #include <QAbstractTableModel>
 
 namespace StereoVisionApp {
 
-class FixedStereoPlusColorSequence : public DataBlock
+class FixedStereoPlusColorSequence : public ExportableStereoSequence
 {
 	Q_OBJECT
 public:

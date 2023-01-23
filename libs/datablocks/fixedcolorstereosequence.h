@@ -2,10 +2,11 @@
 #define STEREOVISIONAPP_FIXEDCOLORSTEREOSEQUENCE_H
 
 #include "./project.h"
+#include "./exportablestereosequence.h"
 
 namespace StereoVisionApp {
 
-class FixedColorStereoSequence : public DataBlock
+class FixedColorStereoSequence : public ExportableStereoSequence
 {
 	Q_OBJECT
 public:

@@ -8,7 +8,7 @@
 namespace StereoVisionApp {
 
 FixedColorStereoSequence::FixedColorStereoSequence(Project *parent) :
-	DataBlock(parent),
+	ExportableStereoSequence(parent),
 	_leftViewId(-1),
 	_rightViewId(-1)
 {

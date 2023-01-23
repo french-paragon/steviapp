@@ -62,6 +62,9 @@ set(LIB_SRC imagewidget.cpp
             fixedstereosequenceeditor.cpp
             fixedstereosequenceeditor.h
             fixedstereosequenceeditor.ui
+            stereosequenceexportoptiondialog.cpp
+            stereosequenceexportoptiondialog.h
+            stereosequenceexportoptiondialog.ui
 )
 
 add_library(
