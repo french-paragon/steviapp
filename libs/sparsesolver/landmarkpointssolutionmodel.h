@@ -3,6 +3,8 @@
 
 #include <QAbstractTableModel>
 
+#include <optional>
+
 namespace StereoVisionApp {
 
 class Landmark;

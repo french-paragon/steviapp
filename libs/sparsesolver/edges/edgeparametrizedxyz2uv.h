@@ -7,6 +7,8 @@
 #include "vertices/camerapose.h"
 #include "vertices/camparam.h"
 
+#include <optional>
+
 namespace g2o {
 	class VertexPointXYZ;
 }
