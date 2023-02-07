@@ -20,8 +20,12 @@
 #include "correlation/cross_correlations.h"
 #include "correlation/cost_based_refinement.h"
 #include "correlation/disparity_plus_background_segmentation.h"
+#include "correlation/hierarchical.h"
 
 #include "imageProcessing/morphologicalOperators.h"
+#include "imageProcessing/foregroundSegmentation.h"
+
+#include "io/image_io.h"
 
 #include "vision/imageio.h"
 #include "vision/pointcloudio.h"
@@ -29,6 +33,7 @@
 #include "sparsesolver/helperfunctions.h"
 
 #include "gui/stereosequenceexportoptiondialog.h"
+#include "gui/stereosequenceimageexportoptiondialog.h"
 
 #include "mainwindow.h"
 #include "utils_functions.h"
@@ -38,6 +43,35 @@
 #include <QDebug>
 
 namespace StereoVisionApp {
+
+
+bool writePointCloudAsStevimgs(QString folderName,
+							   QString fileBaseName,
+							   Multidim::Array<float, 3> const& coloredImg,
+							   Multidim::Array<float, 2> const& disparityMap,
+							   Multidim::Array<uint8_t, 2> const& mask) {
+
+	QDir path(folderName);
+
+	bool status = path.mkpath(".");
+
+	if (!status) {
+		qDebug() << Q_FUNC_INFO << "Failed to create output directory";
+		return false;
+	}
+
+	QString colorImageFilename = path.filePath(fileBaseName + ((fileBaseName.endsWith("_")) ? "" : "_") + "color.stevimg");
+	status &= StereoVision::IO::writeStevimg<float, float, 3>(colorImageFilename.toStdString(), coloredImg);
+
+	QString disparityMapFilename = path.filePath(fileBaseName + ((fileBaseName.endsWith("_")) ? "" : "_") + "disp.stevimg");
+	status &= StereoVision::IO::writeStevimg<float, float, 2>(disparityMapFilename.toStdString(), disparityMap);
+
+	QString maskFilename = path.filePath(fileBaseName + ((fileBaseName.endsWith("_")) ? "" : "_") + "mask.stevimg");
+	status &= StereoVision::IO::writeStevimg<uint8_t, uint8_t, 2>(maskFilename.toStdString(), mask);
+
+	return status;
+
+}
 
 void exportColoredStereoImagesRectifiedImages(FixedColorStereoSequence* sequence, QVector<int> rows) {
 
@@ -796,6 +830,7 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 	exportDialog.setSearchRadius(5);
 	exportDialog.setSearchWidth(150);
 	exportDialog.setMaxDist(3000);
+	exportDialog.setMaxDispDelta(15);
 	exportDialog.setErodingDistance(0);
 	exportDialog.setOpeningDistance(0);
 
@@ -1106,12 +1141,33 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 		MatcherT::template OnDemandCVT<Multidim::NonConstView, Multidim::NonConstView> onDemandCv(fRight, fLeft, searchSpace);
 
 
-		constexpr StereoVision::Correlation::StereoDispWithBgMask::MaskInfo Foreground =  StereoVision::Correlation::StereoDispWithBgMask::Foreground;
-		constexpr StereoVision::Correlation::StereoDispWithBgMask::MaskInfo Background =  StereoVision::Correlation::StereoDispWithBgMask::Background;
+		constexpr StereoVision::Correlation::StereoDispWithBgMask::MaskInfo Foreground =  StereoVision::ImageProcessing::FgBgSegmentation::Foreground;
+		constexpr StereoVision::Correlation::StereoDispWithBgMask::MaskInfo Background =  StereoVision::ImageProcessing::FgBgSegmentation::Background;
 
 		auto computed = matcher.computeDispAndForegroundMask(onDemandCv);
 		Multidim::Array<disp_t, 2>const& raw_disp = computed.disp;
-		Multidim::Array<StereoVision::Correlation::StereoDispWithBgMask::MaskInfo, 2>const& m_info = computed.fg_mask;
+		Multidim::Array<StereoVision::Correlation::StereoDispWithBgMask::MaskInfo, 2>& m_info = computed.fg_mask;
+
+		auto shape = raw_disp.shape();
+
+		//remove sharp disparity edges to isolate small edge artifacts.
+		if (exportDialog.maxDispDelta() > 0) {
+
+			int maxDispDelta = exportDialog.maxDispDelta();
+
+			for (int i = 1; i < shape[0]-1; i++) {
+				for (int j = 1; j < shape[1]-1; j++) {
+					if (std::fabs(raw_disp.valueUnchecked(i-1,j) - raw_disp.valueUnchecked(i,j)) > maxDispDelta or
+							std::fabs(raw_disp.valueUnchecked(i+1,j) - raw_disp.valueUnchecked(i,j)) > maxDispDelta or
+							std::fabs(raw_disp.valueUnchecked(i,j-1) - raw_disp.valueUnchecked(i,j)) > maxDispDelta or
+							std::fabs(raw_disp.valueUnchecked(i,j+1) - raw_disp.valueUnchecked(i,j)) > maxDispDelta) {
+						m_info.atUnchecked(i,j) = Background;
+					}
+				}
+			}
+
+		}
+
 		Multidim::Array<uint8_t, 2> mask_info = m_info.cast<uint8_t>();
 
 		int openDistance = exportDialog.openingDistance();
@@ -1121,9 +1177,8 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 		const Multidim::Array<uint8_t, 2>* sMask;
 
 		if (openDistance > 0 and erodeDistance > 0) {
-			filtered = StereoVision::ImageProcessing::erosion(erodeDistance, erodeDistance,
-															  StereoVision::ImageProcessing::dilation(openDistance, openDistance,
-																									  StereoVision::ImageProcessing::erosion(openDistance, openDistance, mask_info)));
+			filtered = StereoVision::ImageProcessing::dilation(openDistance, openDistance,
+													StereoVision::ImageProcessing::erosion(openDistance+erodeDistance, openDistance+erodeDistance, mask_info));
 			sMask = &filtered;
 		} else if (openDistance > 0) {
 			filtered = StereoVision::ImageProcessing::dilation(openDistance, openDistance,
@@ -1137,9 +1192,6 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 		}
 
 		Multidim::Array<T_CV, 3> truncated_cost_volume = onDemandCv.truncatedCostVolume(raw_disp);
-
-
-		auto shape = raw_disp.shape();
 
 		constexpr StereoVision::Correlation::InterpolationKernel kernel =
 				StereoVision::Correlation::InterpolationKernel::Equiangular;
@@ -1198,12 +1250,458 @@ void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequenc
 		float colorScale = 255.0;
 		bool correctgamma = false;
 
-		saveXYZRGBpointcloud(filePath, Points, PointsColor, colorScale, correctgamma);
+		if (exportDialog.exportImages()) {
+			writePointCloudAsStevimgs(outDir.absolutePath(), fileName, PointsColor, refined_disp, *sMask);
+		} else {
+			saveXYZRGBpointcloud(filePath, Points, PointsColor, colorScale, correctgamma);
+		}
 	}
 
 	qDebug() << functionName << "finished task";
 
 
+}
+
+void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVector<int> rows) {
+
+	constexpr Multidim::AccessCheck Nc = Multidim::AccessCheck::Nocheck;
+
+	QString functionName = "exportSegmentedColoredStereoImages: ";
+
+	if (sequence == nullptr) {
+		qDebug() << functionName << "missing sequence";
+		return;
+	}
+
+	MainWindow* mw = MainWindow::getActiveMainWindow();
+
+	if (mw == nullptr) {
+		qDebug() << functionName << "missing main windows";
+		return;
+	}
+
+	Project* p = sequence->getProject();
+
+	StereoSequenceImageExportOptionDialog exportDialog(mw);
+
+	int seqLeftBgId = sequence->leftViewId();
+	int seqRightBgId = sequence->rightViewId();
+
+	Image* seqImgLeft = p->getDataBlock<Image>(seqLeftBgId);
+	Image* seqImgRight = p->getDataBlock<Image>(seqRightBgId);
+
+	if (seqImgLeft != nullptr) {
+		exportDialog.setLeftBackgroundImage(seqImgLeft->getImageFile());
+	}
+
+	if (seqImgRight != nullptr) {
+		exportDialog.setRightBackgroundImage(seqImgRight->getImageFile());
+	}
+
+	exportDialog.setSearchRadius(5);
+	exportDialog.setSearchWidth(150);
+
+	exportDialog.setHiearchicalLevel(4);
+	exportDialog.setTransitionCostWeight(2);
+
+	exportDialog.setVisualWeight(3);
+	exportDialog.setVisualPatchRadius(1);
+	exportDialog.setVisualThreshold(2.0);
+
+	exportDialog.setDepthWeight(5);
+	exportDialog.setDepthThreshold(2);
+
+	int code = exportDialog.exec();
+
+	if (code != QDialog::Accepted) {
+		qDebug() << functionName << "export cancelled";
+		return;
+	}
+
+	QString outFolder = exportDialog.exportDir();
+
+	if (outFolder.isEmpty()) {
+		qDebug() << functionName << "Not output folder";
+		return;
+	}
+
+	QDir outDir(outFolder);
+	QDir inDir(sequence->baseFolder());
+
+	int dispSearchRadius = exportDialog.searchRadius();
+	int dispSearchWidth = exportDialog.searchWidth();
+
+	int nLevels = exportDialog.hiearchicalLevel();
+	int globalSwitchCost = exportDialog.transitionCostWeight();
+	int scaleStep = 2;
+
+	int visualCost = exportDialog.visualWeight();
+	int visualPatchRadius = exportDialog.visualPatchRadius();
+	int visualThreshold = exportDialog.visualThreshold();
+
+	int depthCost = exportDialog.depthThreshold();
+	int dispThreshold = exportDialog.depthThreshold();
+
+
+
+	ImagePair* stereoPair = ImagePair::getImagePairInProject(p, seqLeftBgId, seqRightBgId);
+
+	if (stereoPair == nullptr) {
+		qDebug() << functionName << "cannot find stereo pair in project";
+		return;
+	}
+
+	bool useOptimizedParametersSet = true;
+
+	auto stereo_rectifier = configureRectifierForStereoPair(stereoPair, useOptimizedParametersSet);
+
+	if (stereo_rectifier == nullptr) {
+		qDebug() << functionName << "Cannot configure stereo rectifier";
+		return;
+	}
+
+
+	//compute the rectification such that no part of the images are missing and the resolution is maximal.
+
+	auto roiSetMethod = StereoVision::Geometry::StereoRigRectifier::TargetRangeSetMethod::Minimal;
+	auto resolutionSetMethod = StereoVision::Geometry::StereoRigRectifier::TargetRangeSetMethod::Maximal;
+
+	bool ok = stereo_rectifier->compute(roiSetMethod,
+								 resolutionSetMethod);
+
+	if (!ok) {
+		qDebug() << functionName << "Cannot compute stereo rectifier";
+		return;
+	}
+
+	int dispDelta = stereo_rectifier->dispDelta(); //new principal point cam2 x - new principal point cam1 x
+
+	if (stereoPair->idImgCam1() == seqLeftBgId and stereoPair->idImgCam2() == seqRightBgId) {
+		dispDelta = -dispDelta;
+	}
+	// now disp delta is garanteed to be = new principal point cam_left x - new principal point cam_right x
+
+
+	QVector<FixedColorStereoSequence::ImagePair> pairs = sequence->imgsPairs();
+	float gamma = 1;
+
+	using SegmentationValue = StereoVision::ImageProcessing::FgBgSegmentation::MaskInfo;
+
+	constexpr StereoVision::ImageProcessing::FgBgSegmentation::MaskInfo Foreground =  StereoVision::ImageProcessing::FgBgSegmentation::Foreground;
+	constexpr StereoVision::ImageProcessing::FgBgSegmentation::MaskInfo Background =  StereoVision::ImageProcessing::FgBgSegmentation::Background;
+
+	constexpr StereoVision::Correlation::matchingFunctions stereoMatchFunc = StereoVision::Correlation::matchingFunctions::ZNCC;
+	constexpr StereoVision::Correlation::dispExtractionStartegy stereoDispExtractionStartegy =
+			StereoVision::Correlation::MatchingFunctionTraits<stereoMatchFunc>::extractionStrategy;
+
+
+	constexpr StereoVision::Correlation::matchingFunctions comparisonMatchFunc = StereoVision::Correlation::matchingFunctions::SAD;
+
+	using T_F = float;
+	using T_L = T_F;
+	using T_R = T_F;
+	constexpr int nImDim = 3;
+	constexpr StereoVision::Correlation::dispDirection dDirL2R = StereoVision::Correlation::dispDirection::LeftToRight;
+	constexpr StereoVision::Correlation::dispDirection dDirR2L = StereoVision::Correlation::dispDirection::RightToLeft;
+	using T_CV = float;
+	using T_CV_Seg = int;
+
+	using disp_t = StereoVision::Correlation::disp_t;
+
+
+	int originalFormatBgLeft;
+	StereoVision::ImageArray bgImLeft = getImageData(exportDialog.leftBackgroundImage(), gamma, &originalFormatBgLeft);
+	int originalFormatBgRight;
+	StereoVision::ImageArray bgImRight = getImageData(exportDialog.rightBackgroundImage(), gamma, &originalFormatBgRight);
+
+	if (bgImLeft.empty() or bgImRight.empty()) {
+		qDebug() << functionName << "could not load the background images";
+		return;
+	}
+
+
+
+	StereoVision::ImageArray transformedBgCamLeft;
+	if (stereoPair->idImgCam1() == seqLeftBgId) {
+		transformedBgCamLeft = StereoVision::Interpolation::interpolateImage(bgImLeft, stereo_rectifier->backWardMapCam1());
+	} else {
+		transformedBgCamLeft = StereoVision::Interpolation::interpolateImage(bgImLeft, stereo_rectifier->backWardMapCam2());
+	}
+
+	StereoVision::ImageArray transformedBgCamRight;
+	if (stereoPair->idImgCam1() == seqRightBgId) {
+		transformedBgCamRight = StereoVision::Interpolation::interpolateImage(bgImRight, stereo_rectifier->backWardMapCam1());
+	} else {
+		transformedBgCamRight = StereoVision::Interpolation::interpolateImage(bgImRight, stereo_rectifier->backWardMapCam2());
+	}
+
+
+	auto matchingFeaturePyramidLeftDispBg = StereoVision::Correlation::buildFeaturePyramid(transformedBgCamLeft, dispSearchRadius, dispSearchRadius, nLevels);
+	auto matchingFeaturePyramidRightDispBg = StereoVision::Correlation::buildFeaturePyramid(transformedBgCamRight, dispSearchRadius, dispSearchRadius,nLevels);
+
+	std::vector<Multidim::Array<disp_t,2>> dispPyramidBgL2R;
+	std::vector<Multidim::Array<disp_t,2>> dispPyramidBgR2L;
+
+	for (int i = 0; i < nLevels; i++) {
+
+		int scale = 1;
+		for (int s = 0; s < i; s++) {
+			scale *= scaleStep;
+		}
+
+		disp_t search_width = dispSearchWidth/scale;
+		disp_t delta = dispDelta/scale;
+
+		StereoVision::Correlation::searchOffset<1> search_offset(delta-1, search_width+delta+1);
+
+		Multidim::Array<T_CV,3> cvL2R =
+				StereoVision::Correlation::featureVolume2CostVolume<stereoMatchFunc,T_L,T_R,StereoVision::Correlation::searchOffset<1>,dDirL2R,T_CV>
+				(matchingFeaturePyramidLeftDispBg[i], matchingFeaturePyramidRightDispBg[i], search_offset);
+
+		dispPyramidBgL2R.emplace_back(StereoVision::Correlation::extractSelectedIndex<stereoDispExtractionStartegy>(cvL2R));
+
+		Multidim::Array<T_CV,3> cvR2L =
+				StereoVision::Correlation::featureVolume2CostVolume<stereoMatchFunc,T_L,T_R,StereoVision::Correlation::searchOffset<1>,dDirR2L,T_CV>
+				(matchingFeaturePyramidLeftDispBg[i], matchingFeaturePyramidRightDispBg[i], search_offset);
+
+		dispPyramidBgR2L.emplace_back(StereoVision::Correlation::extractSelectedIndex<stereoDispExtractionStartegy>(cvR2L));
+
+	}
+
+	auto visualFeaturePyramidLeftDispBg = StereoVision::Correlation::buildFeaturePyramid(bgImLeft, visualPatchRadius, visualPatchRadius, nLevels);
+	auto visualFeaturePyramidRightDispBg = StereoVision::Correlation::buildFeaturePyramid(bgImRight, visualPatchRadius, visualPatchRadius, nLevels);
+
+	for (int row : rows) {
+
+		if (row < 0) {
+			continue;
+		}
+
+		if (row >= pairs.size()) {
+			continue;
+		}
+
+		FixedColorStereoSequence::ImagePair& pair = pairs[row];
+
+		QString fileBaseName;
+		QString filePath;
+
+		QFileInfo leftImgFileInfos(pair.StereoLeftImgPath);
+		QFileInfo rightImgFileInfos(pair.StereoRightImgPath);
+
+		QString leftBasename = leftImgFileInfos.baseName();
+		QString rightBasename = rightImgFileInfos.baseName();
+
+		int maxSize = std::max(leftBasename.size(), rightBasename.size());
+		int minSize = std::min(leftBasename.size(), rightBasename.size());
+
+		fileBaseName.reserve(maxSize);
+
+		for (int i = 0; i < maxSize; i++) {
+
+			if (i >= minSize) {
+				break;
+			}
+
+			if (leftBasename[i] != rightBasename[i]) {
+				break;
+			}
+
+			fileBaseName += leftBasename[i];
+		}
+
+
+		int originalFormatLeft;
+		StereoVision::ImageArray imLeft = getImageData(inDir.absoluteFilePath(pair.StereoLeftImgPath), gamma, &originalFormatLeft);
+		int originalFormatRight;
+		StereoVision::ImageArray imRight = getImageData(inDir.absoluteFilePath(pair.StereoRightImgPath), gamma, &originalFormatRight);
+
+		if (imLeft.empty() or imRight.empty()) {
+			continue;
+		}
+
+		StereoVision::ImageArray transformedCamLeft;
+		if (stereoPair->idImgCam1() == seqLeftBgId) {
+			transformedCamLeft = StereoVision::Interpolation::interpolateImage(imLeft, stereo_rectifier->backWardMapCam1());
+		} else {
+			transformedCamLeft = StereoVision::Interpolation::interpolateImage(imLeft, stereo_rectifier->backWardMapCam2());
+		}
+
+		StereoVision::ImageArray transformedCamRight;
+		if (stereoPair->idImgCam1() == seqRightBgId) {
+			transformedCamRight = StereoVision::Interpolation::interpolateImage(imRight, stereo_rectifier->backWardMapCam1());
+		} else {
+			transformedCamRight = StereoVision::Interpolation::interpolateImage(imRight, stereo_rectifier->backWardMapCam2());
+		}
+
+
+		auto featurePyramidLeftDisp = StereoVision::Correlation::buildFeaturePyramid(transformedCamLeft, dispSearchRadius, dispSearchRadius, nLevels);
+		auto featurePyramidRightDisp = StereoVision::Correlation::buildFeaturePyramid(transformedCamRight, dispSearchRadius, dispSearchRadius, nLevels);
+
+		std::vector<Multidim::Array<disp_t,2>> dispPyramidL2R;
+		std::vector<Multidim::Array<disp_t,2>> dispPyramidR2L;
+
+		for (int i = 0; i < nLevels; i++) {
+
+			int scale = scaleStep;
+			for (int s = 0; s < i; s++) {
+				scale *= scaleStep;
+			}
+
+			disp_t search_width = dispSearchWidth/scale;
+			disp_t delta = dispDelta/scale;
+
+			StereoVision::Correlation::searchOffset<1> search_offset(delta-1, search_width+delta+1);
+
+			Multidim::Array<T_CV,3> cvL2R =
+					StereoVision::Correlation::featureVolume2CostVolume<stereoMatchFunc,T_L,T_R,StereoVision::Correlation::searchOffset<1>,dDirL2R,T_CV>
+					(featurePyramidLeftDisp[i], featurePyramidRightDisp[i], search_offset);
+
+			dispPyramidL2R.emplace_back(StereoVision::Correlation::extractSelectedIndex<stereoDispExtractionStartegy>(cvL2R));
+
+			Multidim::Array<T_CV,3> cvR2L =
+					StereoVision::Correlation::featureVolume2CostVolume<stereoMatchFunc,T_L,T_R,StereoVision::Correlation::searchOffset<1>,dDirR2L,T_CV>
+					(featurePyramidLeftDisp[i], featurePyramidRightDisp[i], search_offset);
+
+			dispPyramidR2L.emplace_back(StereoVision::Correlation::extractSelectedIndex<stereoDispExtractionStartegy>(cvR2L));
+
+		}
+
+		auto visualFeaturePyramidLeftDisp = StereoVision::Correlation::buildFeaturePyramid(bgImLeft, visualPatchRadius, visualPatchRadius, nLevels);
+		auto visualFeaturePyramidRightDisp = StereoVision::Correlation::buildFeaturePyramid(bgImRight, visualPatchRadius, visualPatchRadius, nLevels);
+
+		std::vector<Multidim::Array<T_CV_Seg, 3>> seg_costs_L(nLevels);
+		std::vector<Multidim::Array<T_CV_Seg, 3>> seg_costs_R(nLevels);
+
+		std::vector<Multidim::Array<T_CV_Seg, 3> const*> seg_costs_ptr_L(nLevels);
+		std::vector<Multidim::Array<T_CV_Seg, 3> const*> seg_costs_ptr_R(nLevels);
+
+		std::vector<StereoVision::ImageProcessing::MaskCostPolicy<T_CV_Seg> const*> costs_policies_L(nLevels);
+		std::vector<StereoVision::ImageProcessing::MaskCostPolicy<T_CV_Seg> const*> costs_policies_R(nLevels);
+
+		for (int i = 0; i < nLevels; i++) {
+			int level = nLevels - i - 1; //go from coarse to fine
+
+			std::array<int,2> shapeL = dispPyramidL2R[level].shape();
+			std::array<int,2> shapeR = dispPyramidR2L[level].shape();
+
+			Multidim::Array<T_CV_Seg, 3> seg_cost_L(shapeL[0], shapeL[1], 2);
+			Multidim::Array<T_CV_Seg, 3> seg_cost_R(shapeR[0], shapeR[1], 2);
+
+
+			int nChannels = visualFeaturePyramidLeftDisp[level].shape()[2];
+
+			Multidim::Array<T_CV,3> compCostL =
+					StereoVision::Correlation::featureVolume2CostVolume<comparisonMatchFunc,T_L,T_R,disp_t,dDirR2L,T_CV>
+					(visualFeaturePyramidLeftDisp[level], visualFeaturePyramidLeftDispBg[level], 1);
+
+			Multidim::Array<T_CV,3> compCostR =
+					StereoVision::Correlation::featureVolume2CostVolume<comparisonMatchFunc,T_L,T_R,disp_t,dDirR2L,T_CV>
+					(visualFeaturePyramidRightDisp[level], visualFeaturePyramidRightDispBg[level], 1);
+
+			for (int i = 0; i < shapeL[0]; i++) {
+				for (int j = 0; j < shapeL[1]; j++) {
+
+					int delta = dispPyramidL2R[level].valueUnchecked(i,j) - dispPyramidBgL2R[level].valueUnchecked(i,j);
+
+					int FgCost = 0;
+					int BgCost = 0;
+
+					if (std::abs(delta) < dispThreshold) {
+						BgCost += depthCost;
+					} else {
+						FgCost += depthCost;
+					}
+
+					if (compCostL.valueUnchecked(i,j,0)/nChannels < visualThreshold) {
+						BgCost += visualCost;
+					} else {
+						FgCost += visualCost;
+					}
+
+					seg_cost_L.atUnchecked(i,j,Foreground) = FgCost;
+					seg_cost_L.atUnchecked(i,j,Background) = BgCost;
+				}
+			}
+
+			for (int i = 0; i < shapeR[0]; i++) {
+				for (int j = 0; j < shapeR[1]; j++) {
+
+					int delta = dispPyramidR2L[level].valueUnchecked(i,j) - dispPyramidBgR2L[level].valueUnchecked(i,j);
+
+					int FgCost = 0;
+					int BgCost = 0;
+
+					if (std::abs(delta) < dispThreshold) {
+						BgCost += depthCost;
+					} else {
+						FgCost += depthCost;
+					}
+
+					if (compCostR.valueUnchecked(i,j,0)/nChannels < visualThreshold) {
+						BgCost += visualCost;
+					} else {
+						FgCost += visualCost;
+					}
+
+					seg_cost_R.atUnchecked(i,j,Foreground) = FgCost;
+					seg_cost_R.atUnchecked(i,j,Background) = BgCost;
+				}
+			}
+
+			seg_costs_L[level] = std::move(seg_cost_L);
+			seg_costs_R[level] = std::move(seg_cost_R);
+
+			seg_costs_ptr_L[level] = &seg_costs_L[level];
+			seg_costs_ptr_R[level] = &seg_costs_R[level];
+
+
+
+			costs_policies_L[level] = new StereoVision::ImageProcessing::GuidedMaskCostPolicy<T_CV_Seg, T_L>(globalSwitchCost, visualFeaturePyramidLeftDisp[level]);
+			costs_policies_R[level] = new StereoVision::ImageProcessing::GuidedMaskCostPolicy<T_CV_Seg, T_R>(globalSwitchCost, visualFeaturePyramidLeftDisp[level]);
+
+		}
+
+
+
+		Multidim::Array<SegmentationValue, 2> maskL = StereoVision::ImageProcessing::hierarchicalGlobalRefinedMask(seg_costs_ptr_L, costs_policies_L);
+		Multidim::Array<SegmentationValue, 2> maskR = StereoVision::ImageProcessing::hierarchicalGlobalRefinedMask(seg_costs_ptr_R, costs_policies_R);
+
+
+		QString leftPath = outDir.absoluteFilePath(fileBaseName + "rectified_left.png");
+		QString rightPath = outDir.absoluteFilePath(fileBaseName + "rectified_right.png");
+
+		QString leftMaskPath = outDir.absoluteFilePath(fileBaseName + "rectified_left_mask.png");
+		QString rightMaskPath = outDir.absoluteFilePath(fileBaseName + "rectified_right_mask.png");
+
+		saveImageData(leftPath, transformedCamLeft, gamma);
+		saveImageData(rightPath, transformedCamRight, gamma);
+
+		ImageArray maskLImg(maskL.shape()[0], maskL.shape()[1], 1);
+		ImageArray maskRImg(maskR.shape()[0], maskR.shape()[1], 1);
+
+		for (int i = 0; i < maskL.shape()[0]; i++) {
+			for (int j = 0; j < maskL.shape()[1]; j++) {
+				maskLImg.atUnchecked(i,j,0) = (maskL.valueUnchecked(i,j) == Foreground) ? 1.0 : 0.0;
+			}
+		}
+
+		for (int i = 0; i < maskR.shape()[0]; i++) {
+			for (int j = 0; j < maskR.shape()[1]; j++) {
+				maskRImg.atUnchecked(i,j,0) = (maskR.valueUnchecked(i,j) == Foreground) ? 1.0 : 0.0;
+			}
+		}
+
+		saveImageData(leftMaskPath, maskLImg, gamma);
+		saveImageData(rightMaskPath, maskRImg, gamma);
+
+		for (int i = 0; i < nLevels; i++) {
+			delete costs_policies_L[i];
+			delete costs_policies_R[i];
+		}
+
+		//end row loop
+	}
 }
 
 } //namespace StereoVisionApp

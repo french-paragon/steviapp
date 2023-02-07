@@ -568,6 +568,61 @@ void FixedStereoSequenceEditor::treeViewContextMenuRequested(const QPoint &pos) 
 
 	acts.push_back(exportAll);
 
+	FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+
+	if (fixedColor != nullptr) {
+
+		if (idx != QModelIndex()) {
+
+			int row = idx.row();
+
+			QAction* exportOneMaskedImage = new QAction("Export one masked image");
+
+			connect(exportOneMaskedImage, &QAction::triggered, this, [this, row] () {
+
+				if (_sequence == nullptr) {
+					return;
+				}
+
+				FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+
+				if (fixedColor != nullptr) {
+
+					Q_EMIT maskedRgbImagesExportTriggered(fixedColor, {row});
+				}
+
+			});
+
+			acts.push_back(exportOneMaskedImage);
+		}
+
+		QAction* exportAllMaskedImage = new QAction("Export all masked image");
+
+		connect(exportAllMaskedImage, &QAction::triggered, this, [this] () {
+
+			if (_sequence == nullptr) {
+				return;
+			}
+
+			FixedColorStereoSequence* fixedColor = qobject_cast<FixedColorStereoSequence*>(_sequence);
+
+			if (fixedColor != nullptr) {
+				int nRows = fixedColor->getImageList()->rowCount();
+				QVector<int> allRows(nRows);
+
+				for (int i = 0; i < nRows; i++) {
+					allRows[i] = i;
+				}
+
+				Q_EMIT maskedRgbImagesExportTriggered(fixedColor, allRows);
+			}
+
+		});
+
+		acts.push_back(exportAllMaskedImage);
+
+	}
+
 	for (QAction* a : acts) {
 		menu.addAction(a);
 	}

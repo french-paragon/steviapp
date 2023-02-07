@@ -32,6 +32,8 @@ Q_SIGNALS:
 	void rgbImagesExportTriggered(FixedColorStereoSequence* sequence, QVector<int> rows);
 	void imagesWithRGBExportTriggered(FixedStereoPlusColorSequence* sequence, QVector<int> rows);
 
+	void maskedRgbImagesExportTriggered(FixedColorStereoSequence* sequence, QVector<int> rows);
+
 private:
 
 	void refreshDisplay();

@@ -14,6 +14,7 @@ void exportStereoImagesPlusColorRectifiedImages(FixedStereoPlusColorSequence* se
 void exportColoredStereoImagesPointCloud(FixedColorStereoSequence* sequence, QVector<int> rows);
 void exportStereoImagesPlusColorPointCloud(FixedStereoPlusColorSequence* sequence, QVector<int> rows);
 
+void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVector<int> rows);
 
 } //namespace StereoVisionApp
 

@@ -65,6 +65,9 @@ set(LIB_SRC imagewidget.cpp
             stereosequenceexportoptiondialog.cpp
             stereosequenceexportoptiondialog.h
             stereosequenceexportoptiondialog.ui
+            stereosequenceimageexportoptiondialog.cpp
+            stereosequenceimageexportoptiondialog.h
+            stereosequenceimageexportoptiondialog.ui
 )
 
 add_library(

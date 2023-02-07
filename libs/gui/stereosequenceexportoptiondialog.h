@@ -26,16 +26,21 @@ public:
 	void setSearchWidth(int width);
 
 	int searchRadius() const;
-	void setSearchRadius(int radius) const;
+	void setSearchRadius(int radius);
 
 	float maxDist() const;
 	void setMaxDist(float dist);
 
+	int maxDispDelta() const;
+	void setMaxDispDelta(int disp_delta);
+
 	int erodingDistance() const;
-	void setErodingDistance(int dist) const;
+	void setErodingDistance(int dist);
 
 	int openingDistance() const;
-	void setOpeningDistance(int dist) const;
+	void setOpeningDistance(int dist);
+
+	bool exportImages() const;
 
 private:
 
