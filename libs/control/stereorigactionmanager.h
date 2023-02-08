@@ -22,6 +22,7 @@ public:
 protected:
 
 	QAction* createAlignImageActions(QObject* parent, Project* p, StereoRig* rig) const;
+	QAction* createExportImageActions(QObject* parent, Project* p, StereoRig* rig) const;
 };
 
 } // namespace StereoVisionApp

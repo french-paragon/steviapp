@@ -9,5 +9,7 @@ class Project;
 
 void alignImagesInRig(Project* p, qint64 rig_id, qint64 ref_image_id, qint64 unaligned_image_id);
 
+void exportRectifiedImages(Project* p, qint64 rig_id, qint64 image_pair_id);
+
 } //namespace StereoVisionApp
 #endif // STEREOVISIONAPP_STEREORIGACTIONS_H

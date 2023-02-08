@@ -176,6 +176,12 @@ QList<QAction*> StereoRigActionManager::factorizeItemContextActions(QObject* par
 		actions.push_back(alignImage);
 	}
 
+	QAction* exportRectifiedImages = createExportImageActions(parent, rig->getProject(), rig);
+
+	if (alignImage != nullptr) {
+		actions.push_back(exportRectifiedImages);
+	}
+
 	QAction* remove = new QAction(tr("Remove"), parent);
 	connect(remove, &QAction::triggered, [rig] () {
 		Project* p = rig->getProject();
@@ -266,6 +272,50 @@ QAction* StereoRigActionManager::createAlignImageActions(QObject* parent, Projec
 
 	return alignImage;
 
+}
+
+
+QAction* StereoRigActionManager::createExportImageActions(QObject* parent, Project* p, StereoRig* rig) const {
+
+
+	int countActions = 0;
+
+
+	qint64 rig_id = rig->internalId();
+
+	QAction* exportRectifiedImagesAction = new QAction(tr("Export rectified images for pair"), parent);
+
+	QMenu* pairsMenu = new QMenu();
+	connect(exportRectifiedImagesAction, &QObject::destroyed, pairsMenu, &QObject::deleteLater);
+
+	QVector<qint64> pairsidxs = rig->listTypedSubDataBlocks(ImagePair::staticMetaObject.className());
+
+	for (qint64 id : pairsidxs) {
+
+		ImagePair* pair = rig->getImagePair(id);
+
+		if (pair == nullptr) {
+			continue;
+		}
+
+		QAction* forPair = pairsMenu->addAction(QString("Rig %1 - %2").arg(pair->idImgCam1()).arg(pair->idImgCam2()));
+
+		connect(forPair, &QAction::triggered, p, [p, rig_id, id] () {
+			exportRectifiedImages(p, rig_id, id);
+		});
+
+		countActions++;
+
+	}
+
+	exportRectifiedImagesAction->setMenu(pairsMenu);
+
+	if (countActions <= 0) {
+		exportRectifiedImagesAction->deleteLater();
+		return nullptr;
+	}
+
+	return exportRectifiedImagesAction;
 }
 
 } // namespace StereoVisionApp
