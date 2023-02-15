@@ -172,4 +172,47 @@ bool saveImageData(QString const& imFile,
 	return img.save(imFile);
 }
 
+bool saveImageData(QString const& imFile,
+				   GrayImageArray const& imageData,
+				   float gamma,
+				   std::optional<int> imgFormat)
+{
+
+	auto shape = imageData.shape();
+
+	int& height = shape[0];
+	int& width = shape[1];
+
+	QImage::Format f = QImage::Format_Grayscale8;
+
+	if (imgFormat.has_value()) {
+		int v = imgFormat.value();
+
+		if (v == QImage::Format_Grayscale8 or v == QImage::Format_Grayscale16) {
+			f = static_cast<QImage::Format>(v);
+		}
+	}
+
+	QImage img(QSize(width, height), f);
+
+	for (int i = 0; i < img.height(); i++) {
+		uchar* line = img.scanLine(i);
+		quint16* line16 = reinterpret_cast<quint16*>(img.bits() + i*img.bytesPerLine());
+
+		for(int j = 0; j < img.width(); j++) {
+
+			if (f == QImage::Format_Grayscale8) {
+				uchar g = floatToBitColor(imageData.value(i,j), gamma);
+				line[j] = g;
+			} else if (f == QImage::Format_Grayscale16) {
+				uint16_t g = floatToUInt16Color(imageData.value(i,j), gamma);
+				line16[j] = g;
+			}
+
+		}
+	}
+
+	return img.save(imFile);
+}
+
 } // namespace StereoVisionApp

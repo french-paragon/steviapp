@@ -38,6 +38,10 @@
 #include "mainwindow.h"
 #include "utils_functions.h"
 
+#include <array>
+#include <vector>
+#include <algorithm>
+
 #include <QFileDialog>
 
 #include <QDebug>
@@ -1328,20 +1332,18 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 	QDir outDir(outFolder);
 	QDir inDir(sequence->baseFolder());
 
-	int dispSearchRadius = exportDialog.searchRadius();
-	int dispSearchWidth = exportDialog.searchWidth();
-
 	int nLevels = exportDialog.hiearchicalLevel();
-	int globalSwitchCost = exportDialog.transitionCostWeight();
+	float globalSwitchCost = 1.5;
 	int scaleStep = 2;
 
-	int visualCost = exportDialog.visualWeight();
-	int visualPatchRadius = exportDialog.visualPatchRadius();
-	int visualThreshold = exportDialog.visualThreshold();
+	int visualPatchRadius = 0;
 
-	int depthCost = exportDialog.depthThreshold();
-	int dispThreshold = exportDialog.depthThreshold();
+	int erosion_rad = 2;
+	int dilation_rad = 50;
+	int extension_rad = 4;
 
+	int histBins = 50;
+	int cutOffHistBins = 15;
 
 
 	ImagePair* stereoPair = ImagePair::getImagePairInProject(p, seqLeftBgId, seqRightBgId);
@@ -1390,24 +1392,16 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 	constexpr StereoVision::ImageProcessing::FgBgSegmentation::MaskInfo Foreground =  StereoVision::ImageProcessing::FgBgSegmentation::Foreground;
 	constexpr StereoVision::ImageProcessing::FgBgSegmentation::MaskInfo Background =  StereoVision::ImageProcessing::FgBgSegmentation::Background;
 
-	constexpr StereoVision::Correlation::matchingFunctions stereoMatchFunc = StereoVision::Correlation::matchingFunctions::ZNCC;
-	constexpr StereoVision::Correlation::dispExtractionStartegy stereoDispExtractionStartegy =
-			StereoVision::Correlation::MatchingFunctionTraits<stereoMatchFunc>::extractionStrategy;
-
-
 	constexpr StereoVision::Correlation::matchingFunctions comparisonMatchFunc = StereoVision::Correlation::matchingFunctions::SAD;
 
 	using T_F = float;
 	using T_L = T_F;
 	using T_R = T_F;
-	constexpr int nImDim = 3;
-	constexpr StereoVision::Correlation::dispDirection dDirL2R = StereoVision::Correlation::dispDirection::LeftToRight;
-	constexpr StereoVision::Correlation::dispDirection dDirR2L = StereoVision::Correlation::dispDirection::RightToLeft;
 	using T_CV = float;
-	using T_CV_Seg = int;
 
 	using disp_t = StereoVision::Correlation::disp_t;
 
+	constexpr StereoVision::Correlation::dispDirection dDir = StereoVision::Correlation::dispDirection::RightToLeft;
 
 	int originalFormatBgLeft;
 	StereoVision::ImageArray bgImLeft = getImageData(exportDialog.leftBackgroundImage(), gamma, &originalFormatBgLeft);
@@ -1436,40 +1430,8 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 	}
 
 
-	auto matchingFeaturePyramidLeftDispBg = StereoVision::Correlation::buildFeaturePyramid(transformedBgCamLeft, dispSearchRadius, dispSearchRadius, nLevels);
-	auto matchingFeaturePyramidRightDispBg = StereoVision::Correlation::buildFeaturePyramid(transformedBgCamRight, dispSearchRadius, dispSearchRadius,nLevels);
-
-	std::vector<Multidim::Array<disp_t,2>> dispPyramidBgL2R;
-	std::vector<Multidim::Array<disp_t,2>> dispPyramidBgR2L;
-
-	for (int i = 0; i < nLevels; i++) {
-
-		int scale = 1;
-		for (int s = 0; s < i; s++) {
-			scale *= scaleStep;
-		}
-
-		disp_t search_width = dispSearchWidth/scale;
-		disp_t delta = dispDelta/scale;
-
-		StereoVision::Correlation::searchOffset<1> search_offset(delta-1, search_width+delta+1);
-
-		Multidim::Array<T_CV,3> cvL2R =
-				StereoVision::Correlation::featureVolume2CostVolume<stereoMatchFunc,T_L,T_R,StereoVision::Correlation::searchOffset<1>,dDirL2R,T_CV>
-				(matchingFeaturePyramidLeftDispBg[i], matchingFeaturePyramidRightDispBg[i], search_offset);
-
-		dispPyramidBgL2R.emplace_back(StereoVision::Correlation::extractSelectedIndex<stereoDispExtractionStartegy>(cvL2R));
-
-		Multidim::Array<T_CV,3> cvR2L =
-				StereoVision::Correlation::featureVolume2CostVolume<stereoMatchFunc,T_L,T_R,StereoVision::Correlation::searchOffset<1>,dDirR2L,T_CV>
-				(matchingFeaturePyramidLeftDispBg[i], matchingFeaturePyramidRightDispBg[i], search_offset);
-
-		dispPyramidBgR2L.emplace_back(StereoVision::Correlation::extractSelectedIndex<stereoDispExtractionStartegy>(cvR2L));
-
-	}
-
-	auto visualFeaturePyramidLeftDispBg = StereoVision::Correlation::buildFeaturePyramid(bgImLeft, visualPatchRadius, visualPatchRadius, nLevels);
-	auto visualFeaturePyramidRightDispBg = StereoVision::Correlation::buildFeaturePyramid(bgImRight, visualPatchRadius, visualPatchRadius, nLevels);
+	auto visualFeaturePyramidLeftDispBg = StereoVision::Correlation::buildFeaturePyramid(transformedBgCamLeft, visualPatchRadius, visualPatchRadius, nLevels);
+	auto visualFeaturePyramidRightDispBg = StereoVision::Correlation::buildFeaturePyramid(transformedBgCamRight, visualPatchRadius, visualPatchRadius, nLevels);
 
 	for (int row : rows) {
 
@@ -1535,89 +1497,104 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 		}
 
 
-		auto featurePyramidLeftDisp = StereoVision::Correlation::buildFeaturePyramid(transformedCamLeft, dispSearchRadius, dispSearchRadius, nLevels);
-		auto featurePyramidRightDisp = StereoVision::Correlation::buildFeaturePyramid(transformedCamRight, dispSearchRadius, dispSearchRadius, nLevels);
+		auto visualFeaturePyramidLeftDisp = StereoVision::Correlation::buildFeaturePyramid(transformedCamLeft, visualPatchRadius, visualPatchRadius, nLevels);
+		auto visualFeaturePyramidRightDisp = StereoVision::Correlation::buildFeaturePyramid(transformedCamRight, visualPatchRadius, visualPatchRadius, nLevels);
 
-		std::vector<Multidim::Array<disp_t,2>> dispPyramidL2R;
-		std::vector<Multidim::Array<disp_t,2>> dispPyramidR2L;
+		std::vector<Multidim::Array<T_CV, 3>> seg_costs_L(nLevels);
+		std::vector<Multidim::Array<T_CV, 3>> seg_costs_R(nLevels);
 
-		for (int i = 0; i < nLevels; i++) {
+		std::vector<StereoVision::ImageProcessing::MaskCostPolicy<T_CV> const*> costs_policies_L(nLevels);
+		std::vector<StereoVision::ImageProcessing::MaskCostPolicy<T_CV> const*> costs_policies_R(nLevels);
 
-			int scale = scaleStep;
-			for (int s = 0; s < i; s++) {
-				scale *= scaleStep;
-			}
+		std::vector<Multidim::Array<T_CV,2>> logCompCostsL(nLevels);
+		std::vector<Multidim::Array<T_CV,2>> logCompCostsR(nLevels);
 
-			disp_t search_width = dispSearchWidth/scale;
-			disp_t delta = dispDelta/scale;
+		for (int l = 0; l < nLevels; l++) {
 
-			StereoVision::Correlation::searchOffset<1> search_offset(delta-1, search_width+delta+1);
-
-			Multidim::Array<T_CV,3> cvL2R =
-					StereoVision::Correlation::featureVolume2CostVolume<stereoMatchFunc,T_L,T_R,StereoVision::Correlation::searchOffset<1>,dDirL2R,T_CV>
-					(featurePyramidLeftDisp[i], featurePyramidRightDisp[i], search_offset);
-
-			dispPyramidL2R.emplace_back(StereoVision::Correlation::extractSelectedIndex<stereoDispExtractionStartegy>(cvL2R));
-
-			Multidim::Array<T_CV,3> cvR2L =
-					StereoVision::Correlation::featureVolume2CostVolume<stereoMatchFunc,T_L,T_R,StereoVision::Correlation::searchOffset<1>,dDirR2L,T_CV>
-					(featurePyramidLeftDisp[i], featurePyramidRightDisp[i], search_offset);
-
-			dispPyramidR2L.emplace_back(StereoVision::Correlation::extractSelectedIndex<stereoDispExtractionStartegy>(cvR2L));
-
-		}
-
-		auto visualFeaturePyramidLeftDisp = StereoVision::Correlation::buildFeaturePyramid(bgImLeft, visualPatchRadius, visualPatchRadius, nLevels);
-		auto visualFeaturePyramidRightDisp = StereoVision::Correlation::buildFeaturePyramid(bgImRight, visualPatchRadius, visualPatchRadius, nLevels);
-
-		std::vector<Multidim::Array<T_CV_Seg, 3>> seg_costs_L(nLevels);
-		std::vector<Multidim::Array<T_CV_Seg, 3>> seg_costs_R(nLevels);
-
-		std::vector<Multidim::Array<T_CV_Seg, 3> const*> seg_costs_ptr_L(nLevels);
-		std::vector<Multidim::Array<T_CV_Seg, 3> const*> seg_costs_ptr_R(nLevels);
-
-		std::vector<StereoVision::ImageProcessing::MaskCostPolicy<T_CV_Seg> const*> costs_policies_L(nLevels);
-		std::vector<StereoVision::ImageProcessing::MaskCostPolicy<T_CV_Seg> const*> costs_policies_R(nLevels);
-
-		for (int i = 0; i < nLevels; i++) {
-			int level = nLevels - i - 1; //go from coarse to fine
-
-			std::array<int,2> shapeL = dispPyramidL2R[level].shape();
-			std::array<int,2> shapeR = dispPyramidR2L[level].shape();
-
-			Multidim::Array<T_CV_Seg, 3> seg_cost_L(shapeL[0], shapeL[1], 2);
-			Multidim::Array<T_CV_Seg, 3> seg_cost_R(shapeR[0], shapeR[1], 2);
-
-
-			int nChannels = visualFeaturePyramidLeftDisp[level].shape()[2];
+			std::array<int,3> shapeL = visualFeaturePyramidLeftDisp[l].shape();
+			std::array<int,3> shapeR = visualFeaturePyramidRightDisp[l].shape();
 
 			Multidim::Array<T_CV,3> compCostL =
-					StereoVision::Correlation::featureVolume2CostVolume<comparisonMatchFunc,T_L,T_R,disp_t,dDirR2L,T_CV>
-					(visualFeaturePyramidLeftDisp[level], visualFeaturePyramidLeftDispBg[level], 1);
+					StereoVision::Correlation::featureVolume2CostVolume<comparisonMatchFunc,T_L,T_R,disp_t,dDir,T_CV>
+					(visualFeaturePyramidLeftDisp[l], visualFeaturePyramidLeftDispBg[l], 1);
 
 			Multidim::Array<T_CV,3> compCostR =
-					StereoVision::Correlation::featureVolume2CostVolume<comparisonMatchFunc,T_L,T_R,disp_t,dDirR2L,T_CV>
-					(visualFeaturePyramidRightDisp[level], visualFeaturePyramidRightDispBg[level], 1);
+					StereoVision::Correlation::featureVolume2CostVolume<comparisonMatchFunc,T_L,T_R,disp_t,dDir,T_CV>
+					(visualFeaturePyramidRightDisp[l], visualFeaturePyramidRightDispBg[l], 1);
+
+			logCompCostsL[l] = Multidim::Array<T_CV,2>(shapeL[0], shapeL[1]);
+			logCompCostsR[l] = Multidim::Array<T_CV,2>(shapeR[0], shapeR[1]);
+
+			T_CV maxLogCostL = 0.0;
+			T_CV maxLogCostR = 0.0;
 
 			for (int i = 0; i < shapeL[0]; i++) {
 				for (int j = 0; j < shapeL[1]; j++) {
 
-					int delta = dispPyramidL2R[level].valueUnchecked(i,j) - dispPyramidBgL2R[level].valueUnchecked(i,j);
+					T_CV diffL = compCostL.valueUnchecked(i,j,0);
 
-					int FgCost = 0;
-					int BgCost = 0;
+					T_CV logDiffL = std::log(1.0 + diffL);
 
-					if (std::abs(delta) < dispThreshold) {
-						BgCost += depthCost;
-					} else {
-						FgCost += depthCost;
+					if (logDiffL > maxLogCostL) {
+						maxLogCostL = logDiffL;
 					}
 
-					if (compCostL.valueUnchecked(i,j,0)/nChannels < visualThreshold) {
-						BgCost += visualCost;
-					} else {
-						FgCost += visualCost;
+					logCompCostsL[l].atUnchecked(i,j) = logDiffL;
+				}
+			}
+
+			for (int i = 0; i < shapeR[0]; i++) {
+				for (int j = 0; j < shapeR[1]; j++) {
+
+					T_CV diffR = compCostR.valueUnchecked(i,j,0);
+
+					T_CV logDiffR = std::log(1.0 + diffR);
+
+					if (logDiffR > maxLogCostR) {
+						maxLogCostR = logDiffR;
 					}
+
+					logCompCostsR[l].atUnchecked(i,j) = logDiffR;
+				}
+			}
+
+		}
+
+		StereoVision::ImageProcessing::Histogram<T_CV> costHistogramL =
+				StereoVision::ImageProcessing::Histogram<T_CV>::getHistogramWithNBins(logCompCostsL.back(), histBins);
+		StereoVision::ImageProcessing::Histogram<T_CV> costHistogramR =
+				StereoVision::ImageProcessing::Histogram<T_CV>::getHistogramWithNBins(logCompCostsR.back(), histBins);
+
+		std::optional<T_CV> autoThresholdL = costHistogramL.getBinLowerBound(cutOffHistBins);
+		std::optional<T_CV> autoThresholdR = costHistogramR.getBinLowerBound(cutOffHistBins);
+		//std::optional<T_CV> otsuThresholdL = StereoVision::ImageProcessing::computeBalancedHistogramThreshold(costHistogramL);
+		//std::optional<T_CV> otsuThresholdR = StereoVision::ImageProcessing::computeBalancedHistogramThreshold(costHistogramR);
+
+		if (!autoThresholdL.has_value() or !autoThresholdR.has_value()) {
+
+			for (int i = 0; i < nLevels; i++) {
+				delete costs_policies_L[i];
+				delete costs_policies_R[i];
+			}
+
+			qDebug() << functionName << "otsu threshold could not be computed";
+
+			continue;
+		}
+
+		for (int l = 0; l < nLevels; l++) {
+
+			std::array<int,3> shapeL = visualFeaturePyramidLeftDisp[l].shape();
+			std::array<int,3> shapeR = visualFeaturePyramidRightDisp[l].shape();
+
+			Multidim::Array<T_CV, 3> seg_cost_L(shapeL[0], shapeL[1], 2);
+			Multidim::Array<T_CV, 3> seg_cost_R(shapeR[0], shapeR[1], 2);
+
+			for (int i = 0; i < shapeL[0]; i++) {
+				for (int j = 0; j < shapeL[1]; j++) {
+
+					T_CV FgCost = std::max(autoThresholdL.value() - logCompCostsL[l].valueUnchecked(i,j), T_CV(0));
+					T_CV BgCost = std::max(logCompCostsL[l].valueUnchecked(i,j) - autoThresholdL.value(), T_CV(0));
 
 					seg_cost_L.atUnchecked(i,j,Foreground) = FgCost;
 					seg_cost_L.atUnchecked(i,j,Background) = BgCost;
@@ -1627,46 +1604,153 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 			for (int i = 0; i < shapeR[0]; i++) {
 				for (int j = 0; j < shapeR[1]; j++) {
 
-					int delta = dispPyramidR2L[level].valueUnchecked(i,j) - dispPyramidBgR2L[level].valueUnchecked(i,j);
-
-					int FgCost = 0;
-					int BgCost = 0;
-
-					if (std::abs(delta) < dispThreshold) {
-						BgCost += depthCost;
-					} else {
-						FgCost += depthCost;
-					}
-
-					if (compCostR.valueUnchecked(i,j,0)/nChannels < visualThreshold) {
-						BgCost += visualCost;
-					} else {
-						FgCost += visualCost;
-					}
+					T_CV FgCost = std::max(autoThresholdR.value() - logCompCostsR[l].valueUnchecked(i,j), T_CV(0));
+					T_CV BgCost = std::max(logCompCostsR[l].valueUnchecked(i,j) - autoThresholdR.value(), T_CV(0));
 
 					seg_cost_R.atUnchecked(i,j,Foreground) = FgCost;
 					seg_cost_R.atUnchecked(i,j,Background) = BgCost;
 				}
 			}
 
-			seg_costs_L[level] = std::move(seg_cost_L);
-			seg_costs_R[level] = std::move(seg_cost_R);
+			seg_costs_L[l] = std::move(seg_cost_L);
+			seg_costs_R[l] = std::move(seg_cost_R);
 
-			seg_costs_ptr_L[level] = &seg_costs_L[level];
-			seg_costs_ptr_R[level] = &seg_costs_R[level];
-
-
-
-			costs_policies_L[level] = new StereoVision::ImageProcessing::GuidedMaskCostPolicy<T_CV_Seg, T_L>(globalSwitchCost, visualFeaturePyramidLeftDisp[level]);
-			costs_policies_R[level] = new StereoVision::ImageProcessing::GuidedMaskCostPolicy<T_CV_Seg, T_R>(globalSwitchCost, visualFeaturePyramidLeftDisp[level]);
+			costs_policies_L[l] = new StereoVision::ImageProcessing::GuidedMaskCostPolicy<T_CV, T_L>(globalSwitchCost, visualFeaturePyramidLeftDisp[l]);
+			costs_policies_R[l] = new StereoVision::ImageProcessing::GuidedMaskCostPolicy<T_CV, T_R>(globalSwitchCost, visualFeaturePyramidRightDisp[l]);
 
 		}
 
+		auto smallShapeL = logCompCostsL.back().shape();
+		auto smallShapeR = logCompCostsR.back().shape();
+
+		Multidim::Array<SegmentationValue, 2> initialMaskL(smallShapeL[0], smallShapeL[1]);
+		Multidim::Array<SegmentationValue, 2> initialMaskR(smallShapeR[0], smallShapeR[1]);
+
+		for (int i = 0; i < smallShapeL[0]; i++) {
+			for (int j = 0; j < smallShapeL[1]; j++) {
+
+				initialMaskL.atUnchecked(i,j) = (logCompCostsL.back().valueUnchecked(i,j) > autoThresholdL.value()) ? Foreground : Background;
+			}
+		}
+
+		for (int i = 0; i < smallShapeR[0]; i++) {
+			for (int j = 0; j < smallShapeR[1]; j++) {
+
+				initialMaskR.atUnchecked(i,j) = (logCompCostsR.back().valueUnchecked(i,j) > autoThresholdR.value()) ? Foreground : Background;
+			}
+		}
 
 
-		Multidim::Array<SegmentationValue, 2> maskL = StereoVision::ImageProcessing::hierarchicalGlobalRefinedMask(seg_costs_ptr_L, costs_policies_L);
-		Multidim::Array<SegmentationValue, 2> maskR = StereoVision::ImageProcessing::hierarchicalGlobalRefinedMask(seg_costs_ptr_R, costs_policies_R);
+		QString costPathL = outDir.absoluteFilePath(fileBaseName + "nCostL.png");
 
+		T_CV max = costHistogramL.getBinLowerBound(histBins);
+		Multidim::Array<float, 2> nCost(smallShapeL);
+
+		for (int i = 0; i < smallShapeL[0]; i++) {
+			for (int j = 0; j < smallShapeL[1]; j++) {
+				nCost.atUnchecked(i,j) = logCompCostsL.back().valueUnchecked(i,j)/max;
+			}
+		}
+
+		saveImageData(costPathL, nCost, gamma);
+
+
+		QString initialMaskPathL = outDir.absoluteFilePath(fileBaseName + "initial_mask_l.png");
+		QString initialMaskPathR = outDir.absoluteFilePath(fileBaseName + "initial_mask_r.png");
+
+		saveImageData(initialMaskPathL, initialMaskL.cast<float>(), gamma);
+		saveImageData(initialMaskPathR, initialMaskR.cast<float>(), gamma);
+
+		int div = 1;
+		for (int l = 1; l < nLevels; l++) {
+			div *= scaleStep;
+		}
+
+		int eRad = erosion_rad/div;
+		int dRad = dilation_rad/div;
+
+		StereoVision::ImageProcessing::StructuralElement erodeElement1 = StereoVision::ImageProcessing::buildCircularStructuralElement(eRad);
+		StereoVision::ImageProcessing::StructuralElement dilateElement = StereoVision::ImageProcessing::buildCircularStructuralElement(dRad + eRad);
+		StereoVision::ImageProcessing::StructuralElement erodeElement2 = StereoVision::ImageProcessing::buildCircularStructuralElement(dRad + eRad);
+
+		QString erodedPathL = outDir.absoluteFilePath(fileBaseName + "eroded_mask.png");
+		QString dilatedPathL = outDir.absoluteFilePath(fileBaseName + "dilated_mask.png");
+
+		Multidim::Array<SegmentationValue, 2> post_processed_smallMaskL =
+				StereoVision::ImageProcessing::erosion(erodeElement1, initialMaskL);
+
+
+		saveImageData(erodedPathL, post_processed_smallMaskL.cast<float>(), gamma);
+
+		post_processed_smallMaskL = StereoVision::ImageProcessing::dilation(dilateElement, post_processed_smallMaskL);
+
+		saveImageData(dilatedPathL, post_processed_smallMaskL.cast<float>(), gamma);
+
+		post_processed_smallMaskL = StereoVision::ImageProcessing::erosion(erodeElement2, post_processed_smallMaskL);
+
+		Multidim::Array<SegmentationValue, 2> post_processed_smallMaskR =
+				StereoVision::ImageProcessing::erosion(erodeElement1, initialMaskR);
+
+		post_processed_smallMaskR = StereoVision::ImageProcessing::dilation(dilateElement, post_processed_smallMaskR);
+		post_processed_smallMaskR = StereoVision::ImageProcessing::erosion(erodeElement2, post_processed_smallMaskR);
+
+		Multidim::Array<SegmentationValue, 2> maskL = post_processed_smallMaskL;
+		Multidim::Array<SegmentationValue, 2> maskR = post_processed_smallMaskR;
+
+
+		QString smallMaskPathL = outDir.absoluteFilePath(fileBaseName + "small_mask_l.png");
+		QString smallMaskPathR = outDir.absoluteFilePath(fileBaseName + "small_mask_r.png");
+
+		saveImageData(smallMaskPathL, maskL.cast<float>(), gamma);
+		saveImageData(smallMaskPathR, maskR.cast<float>(), gamma);
+
+		for (int l = 0; l < nLevels; l++) {
+			int level = nLevels-l-1;
+
+			std::array<int,3> shapeL = visualFeaturePyramidLeftDisp[level].shape();
+			std::array<int,3> shapeR = visualFeaturePyramidRightDisp[level].shape();
+
+			Multidim::Array<bool, 2> erodedL = StereoVision::ImageProcessing::erosion<SegmentationValue, bool>(extension_rad, extension_rad, maskL);
+			Multidim::Array<bool, 2> dilatedL = StereoVision::ImageProcessing::dilation<SegmentationValue, bool>(extension_rad, extension_rad, maskL);
+
+			Multidim::Array<bool, 2> erodedR = StereoVision::ImageProcessing::erosion<SegmentationValue, bool>(extension_rad, extension_rad, maskR);
+			Multidim::Array<bool, 2> dilatedR = StereoVision::ImageProcessing::dilation<SegmentationValue, bool>(extension_rad, extension_rad, maskR);
+
+			Multidim::Array<bool, 2> optimizablesL(shapeL[0], shapeL[1]);
+			Multidim::Array<bool, 2> optimizablesR(shapeR[0], shapeR[1]);
+
+			for (int i = 0; i < shapeL[0]; i++) {
+				for (int j = 0; j < shapeL[1]; j++) {
+
+					optimizablesL.atUnchecked(i,j) = erodedL.valueUnchecked(i,j) != dilatedL.valueUnchecked(i,j);
+				}
+			}
+
+			for (int i = 0; i < shapeR[0]; i++) {
+				for (int j = 0; j < shapeR[1]; j++) {
+
+					optimizablesR.atUnchecked(i,j) = erodedR.valueUnchecked(i,j) != dilatedR.valueUnchecked(i,j);
+				}
+			}
+
+			maskL = StereoVision::ImageProcessing::getPartialGlobalRefinedMask(seg_costs_L[level], *costs_policies_L[level], optimizablesL, maskL);
+			maskR = StereoVision::ImageProcessing::getPartialGlobalRefinedMask(seg_costs_R[level], *costs_policies_R[level], optimizablesR, maskR);
+
+			QString lvlMaskPathL = outDir.absoluteFilePath(fileBaseName + QString("mask_lvl%1_l.png").arg(level));
+			QString lvlMaskPathR = outDir.absoluteFilePath(fileBaseName + QString("mask_lvl%1_r.png").arg(level));
+
+			saveImageData(lvlMaskPathL, maskL.cast<float>(), gamma);
+			saveImageData(lvlMaskPathR, maskR.cast<float>(), gamma);
+
+			if (l != nLevels-1) {
+
+				std::array<int,3> nextShapeL = visualFeaturePyramidLeftDisp[level-1].shape();
+				std::array<int,3> nextShapeR = visualFeaturePyramidRightDisp[level-1].shape();
+
+				maskL = StereoVision::ImageProcessing::FgBgSegmentation::upscaleMask(maskL, {nextShapeL[0], nextShapeL[1]}).upscaled_mask;
+				maskR = StereoVision::ImageProcessing::FgBgSegmentation::upscaleMask(maskR, {nextShapeR[0], nextShapeR[1]}).upscaled_mask;
+			}
+		}
 
 		QString leftPath = outDir.absoluteFilePath(fileBaseName + "rectified_left.png");
 		QString rightPath = outDir.absoluteFilePath(fileBaseName + "rectified_right.png");
