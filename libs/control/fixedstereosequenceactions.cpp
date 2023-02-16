@@ -1302,18 +1302,15 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 		exportDialog.setRightBackgroundImage(seqImgRight->getImageFile());
 	}
 
-	exportDialog.setSearchRadius(5);
-	exportDialog.setSearchWidth(150);
-
 	exportDialog.setHiearchicalLevel(4);
 	exportDialog.setTransitionCostWeight(2);
 
-	exportDialog.setVisualWeight(3);
-	exportDialog.setVisualPatchRadius(1);
-	exportDialog.setVisualThreshold(2.0);
+	exportDialog.setErosionRadius(2);
+	exportDialog.setDilationRadius(50);
+	exportDialog.setErosionRadius(4);
 
-	exportDialog.setDepthWeight(5);
-	exportDialog.setDepthThreshold(2);
+	exportDialog.setNHistogramBins(50);
+	exportDialog.setCutoffHistogramBins(15);
 
 	int code = exportDialog.exec();
 
@@ -1338,12 +1335,17 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 
 	int visualPatchRadius = 0;
 
-	int erosion_rad = 2;
-	int dilation_rad = 50;
-	int extension_rad = 4;
+	int erosion_rad = exportDialog.erosionRadius();
+	int dilation_rad = exportDialog.dilationRadius();
+	int extension_rad = exportDialog.extensionRadius();
 
-	int histBins = 50;
-	int cutOffHistBins = 15;
+	int histBins = exportDialog.nHistogramBins();
+	int cutOffHistBins = exportDialog.cutoffHistogramBin();
+
+	if (cutOffHistBins >= histBins) {
+		qDebug() << functionName << "invalid cutoff bin provided";
+		return;
+	}
 
 
 	ImagePair* stereoPair = ImagePair::getImagePairInProject(p, seqLeftBgId, seqRightBgId);
@@ -1652,14 +1654,14 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 			}
 		}
 
-		saveImageData(costPathL, nCost, gamma);
+		//saveImageData(costPathL, nCost, gamma);
 
 
 		QString initialMaskPathL = outDir.absoluteFilePath(fileBaseName + "initial_mask_l.png");
 		QString initialMaskPathR = outDir.absoluteFilePath(fileBaseName + "initial_mask_r.png");
 
-		saveImageData(initialMaskPathL, initialMaskL.cast<float>(), gamma);
-		saveImageData(initialMaskPathR, initialMaskR.cast<float>(), gamma);
+		//saveImageData(initialMaskPathL, initialMaskL.cast<float>(), gamma);
+		//saveImageData(initialMaskPathR, initialMaskR.cast<float>(), gamma);
 
 		int div = 1;
 		for (int l = 1; l < nLevels; l++) {
@@ -1680,11 +1682,11 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 				StereoVision::ImageProcessing::erosion(erodeElement1, initialMaskL);
 
 
-		saveImageData(erodedPathL, post_processed_smallMaskL.cast<float>(), gamma);
+		//saveImageData(erodedPathL, post_processed_smallMaskL.cast<float>(), gamma);
 
 		post_processed_smallMaskL = StereoVision::ImageProcessing::dilation(dilateElement, post_processed_smallMaskL);
 
-		saveImageData(dilatedPathL, post_processed_smallMaskL.cast<float>(), gamma);
+		//saveImageData(dilatedPathL, post_processed_smallMaskL.cast<float>(), gamma);
 
 		post_processed_smallMaskL = StereoVision::ImageProcessing::erosion(erodeElement2, post_processed_smallMaskL);
 
@@ -1701,8 +1703,8 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 		QString smallMaskPathL = outDir.absoluteFilePath(fileBaseName + "small_mask_l.png");
 		QString smallMaskPathR = outDir.absoluteFilePath(fileBaseName + "small_mask_r.png");
 
-		saveImageData(smallMaskPathL, maskL.cast<float>(), gamma);
-		saveImageData(smallMaskPathR, maskR.cast<float>(), gamma);
+		//saveImageData(smallMaskPathL, maskL.cast<float>(), gamma);
+		//saveImageData(smallMaskPathR, maskR.cast<float>(), gamma);
 
 		for (int l = 0; l < nLevels; l++) {
 			int level = nLevels-l-1;
@@ -1739,8 +1741,8 @@ void exportSegmentedColoredStereoImages(FixedColorStereoSequence* sequence, QVec
 			QString lvlMaskPathL = outDir.absoluteFilePath(fileBaseName + QString("mask_lvl%1_l.png").arg(level));
 			QString lvlMaskPathR = outDir.absoluteFilePath(fileBaseName + QString("mask_lvl%1_r.png").arg(level));
 
-			saveImageData(lvlMaskPathL, maskL.cast<float>(), gamma);
-			saveImageData(lvlMaskPathR, maskR.cast<float>(), gamma);
+			//saveImageData(lvlMaskPathL, maskL.cast<float>(), gamma);
+			//saveImageData(lvlMaskPathR, maskR.cast<float>(), gamma);
 
 			if (l != nLevels-1) {
 

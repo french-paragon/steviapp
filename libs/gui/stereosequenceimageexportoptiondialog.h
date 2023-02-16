@@ -27,32 +27,26 @@ public:
 	QString rightBackgroundImage() const;
 	void setRightBackgroundImage(QString const& dir);
 
-	int searchWidth() const;
-	void setSearchWidth(int width);
-
-	int searchRadius() const;
-	void setSearchRadius(int radius);
-
 	int hiearchicalLevel() const;
 	void setHiearchicalLevel(int level);
 
 	int transitionCostWeight() const;
 	void setTransitionCostWeight(int weight);
 
-	int visualWeight() const;
-	void setVisualWeight(int weight);
+	int erosionRadius() const;
+	void setErosionRadius(int radius);
 
-	int visualPatchRadius() const;
-	void setVisualPatchRadius(int radius);
+	int dilationRadius() const;
+	void setDilationRadius(int radius);
 
-	float visualThreshold() const;
-	void setVisualThreshold(float threshold);
+	int extensionRadius() const;
+	void setExtensionRadius(int radius);
 
-	int depthWeight() const;
-	void setDepthWeight(int weight);
+	int nHistogramBins() const;
+	void setNHistogramBins(int nBins);
 
-	int depthThreshold() const;
-	void setDepthThreshold(int threshold);
+	int cutoffHistogramBin() const;
+	void setCutoffHistogramBins(int cutoff);
 
 
 private:

@@ -42,20 +42,6 @@ void StereoSequenceImageExportOptionDialog::setRightBackgroundImage(QString cons
 	ui->backgroundImageRightLineEdit->setText(dir);
 }
 
-int StereoSequenceImageExportOptionDialog::searchWidth() const {
-	return ui->searchWidthSpinBox->value();
-}
-void StereoSequenceImageExportOptionDialog::setSearchWidth(int width) {
-	ui->searchWidthSpinBox->setValue(width);
-}
-
-int StereoSequenceImageExportOptionDialog::searchRadius() const {
-	return ui->searchRadiusSpinBox->value();
-}
-void StereoSequenceImageExportOptionDialog::setSearchRadius(int radius) {
-	ui->searchRadiusSpinBox->setValue(radius);
-}
-
 int StereoSequenceImageExportOptionDialog::hiearchicalLevel() const {
 	return ui->hierarchicalLevelSpinBox->value();
 }
@@ -70,40 +56,42 @@ void StereoSequenceImageExportOptionDialog::setTransitionCostWeight(int weight) 
 	ui->transitionWeightSpinBox->setValue(weight);
 }
 
-int StereoSequenceImageExportOptionDialog::visualWeight() const {
-	return ui->visualWeightSpinBox->value();
+
+int StereoSequenceImageExportOptionDialog::erosionRadius() const {
+	return ui->erosionRadiusSpinBox->value();
 }
-void StereoSequenceImageExportOptionDialog::setVisualWeight(int weight) {
-	ui->visualWeightSpinBox->setValue(weight);
+void StereoSequenceImageExportOptionDialog::setErosionRadius(int radius) {
+	ui->erosionRadiusSpinBox->setValue(radius);
 }
 
-int StereoSequenceImageExportOptionDialog::visualPatchRadius() const {
-	return ui->visualPatchRadiusSpinBox->value();
+int StereoSequenceImageExportOptionDialog::dilationRadius() const {
+	return ui->dilationRadiusSpinBox->value();
 }
-void StereoSequenceImageExportOptionDialog::setVisualPatchRadius(int radius) {
-	ui->visualPatchRadiusSpinBox->setValue(radius);
-}
-
-float StereoSequenceImageExportOptionDialog::visualThreshold() const {
-	return ui->visualThresholdSpinBox->value();
-}
-void StereoSequenceImageExportOptionDialog::setVisualThreshold(float threshold) {
-	ui->visualThresholdSpinBox->setValue(threshold);
+void StereoSequenceImageExportOptionDialog::setDilationRadius(int radius) {
+	ui->dilationRadiusSpinBox->setValue(radius);
 }
 
-int StereoSequenceImageExportOptionDialog::depthWeight() const {
-	return ui->depthWeightSpinBox->value();
+int StereoSequenceImageExportOptionDialog::extensionRadius() const {
+	return ui->extensionRadiusSpinBox->value();
 }
-void StereoSequenceImageExportOptionDialog::setDepthWeight(int weight) {
-	ui->depthWeightSpinBox->setValue(weight);
+void StereoSequenceImageExportOptionDialog::setExtensionRadius(int radius) {
+	ui->extensionRadiusSpinBox->setValue(radius);
 }
 
-int StereoSequenceImageExportOptionDialog::depthThreshold() const {
-	return ui->depthDisparityThresholdSpinBox->value();
+int StereoSequenceImageExportOptionDialog::nHistogramBins() const {
+	return ui->nHistogramBinsSpinBox->value();
 }
-void StereoSequenceImageExportOptionDialog::setDepthThreshold(int threshold) {
-	ui->depthDisparityThresholdSpinBox->setValue(threshold);
+void StereoSequenceImageExportOptionDialog::setNHistogramBins(int nBins) {
+	ui->nHistogramBinsSpinBox->setValue(nBins);
 }
+
+int StereoSequenceImageExportOptionDialog::cutoffHistogramBin() const {
+	return ui->histogramBinThresholdSpinBox->value();
+}
+void StereoSequenceImageExportOptionDialog::setCutoffHistogramBins(int cutoff) {
+	ui->histogramBinThresholdSpinBox->setValue(cutoff);
+}
+
 
 void StereoSequenceImageExportOptionDialog::openExportDirectory() {
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>505</width>
-    <height>589</height>
+    <width>523</width>
+    <height>490</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -123,46 +123,6 @@
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="groupBox">
-     <property name="title">
-      <string>Stereo matching options:</string>
-     </property>
-     <layout class="QFormLayout" name="formLayout">
-      <item row="0" column="0">
-       <widget class="QLabel" name="searchWidthLabel">
-        <property name="text">
-         <string>Search width:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QSpinBox" name="searchWidthSpinBox">
-        <property name="suffix">
-         <string>px</string>
-        </property>
-        <property name="maximum">
-         <number>9999</number>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="searchRadiusLabel">
-        <property name="text">
-         <string>Search radius:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QSpinBox" name="searchRadiusSpinBox">
-        <property name="suffix">
-         <string>px</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
     <widget class="QGroupBox" name="groupBox_5">
      <property name="title">
       <string>Segmentation options:</string>
@@ -193,14 +153,7 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QSpinBox" name="transitionWeightSpinBox">
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The maximal cost of a transition &lt;br&gt;for global segmentation optimization.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="minimum">
-         <number>1</number>
-        </property>
-       </widget>
+       <widget class="QDoubleSpinBox" name="transitionWeightSpinBox"/>
       </item>
      </layout>
     </widget>
@@ -208,20 +161,23 @@
    <item>
     <widget class="QGroupBox" name="groupBox_2">
      <property name="title">
-      <string>Visual segmentation options:</string>
+      <string>Morphological operators options:</string>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
       <item row="0" column="0">
        <widget class="QLabel" name="visualWeightLabel">
         <property name="text">
-         <string>Visual weight:</string>
+         <string>Erosion radius:</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QSpinBox" name="visualWeightSpinBox">
+       <widget class="QSpinBox" name="erosionRadiusSpinBox">
         <property name="toolTip">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The cost of mislabelling a pixel&lt;br/&gt;compared to the visual segmentation&lt;br/&gt;in the final segmentation.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="suffix">
+         <string>px</string>
         </property>
         <property name="minimum">
          <number>1</number>
@@ -231,31 +187,37 @@
       <item row="1" column="0">
        <widget class="QLabel" name="visualPatchRadiusLabel">
         <property name="text">
-         <string>Visual patch radius:</string>
+         <string>Dilation radius:</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QSpinBox" name="visualPatchRadiusSpinBox">
+       <widget class="QSpinBox" name="dilationRadiusSpinBox">
         <property name="toolTip">
          <string>The patch radius for visual comparison</string>
         </property>
         <property name="suffix">
          <string>px</string>
         </property>
+        <property name="minimum">
+         <number>1</number>
+        </property>
        </widget>
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="visualThresholdLabel">
         <property name="text">
-         <string>Visual threshold:</string>
+         <string>Extension radius:</string>
         </property>
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QDoubleSpinBox" name="visualThresholdSpinBox">
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The minimal mean absolute visual &lt;br&gt;error to label a pixel in the background&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       <widget class="QSpinBox" name="extensionRadiusSpinBox">
+        <property name="suffix">
+         <string>px</string>
+        </property>
+        <property name="minimum">
+         <number>1</number>
         </property>
        </widget>
       </item>
@@ -265,20 +227,20 @@
    <item>
     <widget class="QGroupBox" name="groupBox_3">
      <property name="title">
-      <string>Depth segmentation options:</string>
+      <string>Histogram options:</string>
      </property>
      <layout class="QFormLayout" name="formLayout_3">
       <item row="0" column="0">
        <widget class="QLabel" name="depthWeightLabel">
         <property name="text">
-         <string>Depth weight:</string>
+         <string>#Bins</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QSpinBox" name="depthWeightSpinBox">
+       <widget class="QSpinBox" name="nHistogramBinsSpinBox">
         <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The cost of mislabelling a pixel&lt;br&gt;compared to the depth segmentation&lt;br&gt;in the final segmentation.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The number of bins in the histogram.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="minimum">
          <number>1</number>
@@ -288,17 +250,14 @@
       <item row="1" column="0">
        <widget class="QLabel" name="disparityThresholdLabel">
         <property name="text">
-         <string>Disparity threshold:</string>
+         <string>Bin cut</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QSpinBox" name="depthDisparityThresholdSpinBox">
+       <widget class="QSpinBox" name="histogramBinThresholdSpinBox">
         <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The threshold for disparity error &lt;br&gt;above which a pixel will be set&lt;br&gt;in the background.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="suffix">
-         <string>px</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The threshold bin for segmentation.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="minimum">
          <number>1</number>
