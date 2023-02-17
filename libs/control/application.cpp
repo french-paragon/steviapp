@@ -162,6 +162,10 @@ int StereoVisionApplication::exec() {
 		Q_EMIT scriptFileExecututionRequested(scriptpath, _scriptsargs);
 	}
 
+	if (_isHeadLess) {
+		return 0;
+	}
+
 	return _QtApp->exec();
 
 }

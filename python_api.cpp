@@ -16,6 +16,7 @@
 #include "control/imagebaseactions.h"
 #include "control/solversactions.h"
 #include "control/localcoordinatesystemactions.h"
+#include "control/stereorigactions.h"
 
 #include <QString>
 #include <QVector>
@@ -436,6 +437,36 @@ public:
 
 	}
 
+	void alignImageUsingStereoRig(DataBlockReference img, DataBlockReference stereoRig) {
+
+		StereoVisionApp::Image* image = qobject_cast<StereoVisionApp::Image*>(img.datablock());
+
+		if (image == nullptr) {
+			py::print("Invalid image reference provided!");
+			return;
+		}
+
+		StereoVisionApp::StereoRig* rig = qobject_cast<StereoVisionApp::StereoRig*>(stereoRig.datablock());
+
+		if (rig == nullptr) {
+			py::print("Invalid stereo rig reference provided!");
+			return;
+		}
+
+		StereoVisionApp::ImagePair* pair = rig->getPairForImage(image->internalId());
+
+		if (pair == nullptr) {
+			py::print("Provided image is not in provided stereo rig!");
+			return;
+		}
+
+		qint64 ref_image_id = (pair->idImgCam1() == image->internalId()) ? pair->idImgCam2() : pair->idImgCam1();
+		qint64 unaligned_image_id = image->internalId();
+
+		StereoVisionApp::alignImagesInRig(rig->getProject(), rig->internalId(), ref_image_id, unaligned_image_id);
+
+	}
+
 	void refineGlobalSolution(int nIterations,
 							  bool useCurrentSolutionAtStart = true,
 							  bool useSparseOptimizer = true,
@@ -628,6 +659,7 @@ PYBIND11_MODULE(pysteviapp, m) {
 				 py::arg("hexEdge") = 90.016)
 			.def("alignHexagonalTargetsToImage", &PythonStereoVisionApp::alignHexagonalTargetsToImage, py::arg("image"))
 			.def("alignImageToObservedLandmarks", &PythonStereoVisionApp::alignImageToObservedLandmarks, py::arg("image"))
+			.def("alignImageUsingStereoRig", &PythonStereoVisionApp::alignImageUsingStereoRig, py::arg("image"), py::arg("rig"))
 			.def("refineGlobalSolution", &PythonStereoVisionApp::refineGlobalSolution,
 				 py::arg("nIterations") = 5,
 				 py::arg("useCurrentSolutionAtStart") = true,
