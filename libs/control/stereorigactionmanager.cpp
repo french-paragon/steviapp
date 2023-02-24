@@ -30,7 +30,7 @@ QList<QAction*> StereoRigActionManager::factorizeClassContextActions(QObject* pa
 	QString classname = itemClassName();
 
 	QAction* import = new QAction(tr("Import a Stereo Rig"), parent);
-	connect(import, &QAction::triggered, [classname, p] () {
+	connect(import, &QAction::triggered, p, [classname, p] () {
 
 		MainWindow* mw = MainWindow::getActiveMainWindow();
 
@@ -132,6 +132,12 @@ QList<QAction*> StereoRigActionManager::factorizeItemContextActions(QObject* par
 
 	});
 	actions.append(exportRig);
+
+	QAction* exportDetails = new QAction(tr("Export Stereo Rig details"), parent);
+	connect(exportDetails, &QAction::triggered, rig, [rig] () {
+		exportRigDetails(rig->getProject(), rig->internalId());
+	});
+	actions.append(exportDetails);
 
 	QAction* importRig = new QAction(tr("Import parameters"), parent);
 	connect(importRig, &QAction::triggered, [rig] () {

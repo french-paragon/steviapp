@@ -436,7 +436,7 @@ void exportStereoImagesPlusColorRectifiedImages(FixedStereoPlusColorSequence* se
 	Eigen::Vector2f ppLeft = (stereoPair->idImgCam1() == leftImgId) ? stereo_rectifier->newPrincipalPointCam1() : stereo_rectifier->newPrincipalPointCam2();
 	Eigen::Vector2f ppRight = (stereoPair->idImgCam1() == rightImgId) ? stereo_rectifier->newPrincipalPointCam1() : stereo_rectifier->newPrincipalPointCam2();
 
-	QString infoPath = outDir.absoluteFilePath("infos.txt");
+	QString infoPath = outDir.absoluteFilePath("infos.json");
 
 	QFile infos(infoPath);
 
@@ -446,53 +446,56 @@ void exportStereoImagesPlusColorRectifiedImages(FixedStereoPlusColorSequence* se
 
 	QTextStream infos_strm(&infos);
 
-	infos_strm << "left2world:" << "\n";
+	infos_strm << "{\n";
+
+	infos_strm << "\t\"left2world\": [" << "\n";
 	for (int i = 0; i < 3; i++) {
+		infos_strm << "\t\t[";
 		for (int j = 0; j < 3; j++) {
-			infos_strm << nRleft(i,j) << ' ';
+			infos_strm << nRleft(i,j) << ", ";
 		}
-		infos_strm << cl_2_w.t[i] << '\n';
+		infos_strm << cl_2_w.t[i] << "]" << ((i == 2) ? "" : ",") << "\n";
 	}
-	infos_strm << "f_left:" << stereo_rectifier->reprojectionFLen() << "\n";
-	infos_strm << "pp_left:" << "\n";
-	for (int i = 0; i < 2; i++) {
-		infos_strm << ppLeft[i] << ' ';
-	}
-	infos_strm << '\n';
+	infos_strm << "\t],\n";
+
+	infos_strm << "\t\"f_left\":" << stereo_rectifier->reprojectionFLen() << ",\n";
+	infos_strm << "\t\"pp_left\": [" << ppLeft[0] << "," << ppLeft[1] << "],\n";
 	infos_strm << '\n';
 
-	infos_strm << "right2world:" << "\n";
+	infos_strm << "\t\"right2world\": [" << "\n";
 	for (int i = 0; i < 3; i++) {
+		infos_strm << "\t\t[";
 		for (int j = 0; j < 3; j++) {
-			infos_strm << nRright(i,j) << ' ';
+			infos_strm << nRright(i,j) << ", ";
 		}
-		infos_strm << cr_2_w.t[i] << '\n';
+		infos_strm << cr_2_w.t[i] << "]" << ((i == 2) ? "" : ",") << "\n";
 	}
-	infos_strm << "f_right:" << stereo_rectifier->reprojectionFLen() << "\n";
-	infos_strm << "pp_right:" << "\n";
-	for (int i = 0; i < 2; i++) {
-		infos_strm << ppRight[i] << ' ';
-	}
-	infos_strm << '\n';
+	infos_strm << "\t],\n";
+
+	infos_strm << "\t\"f_right\":" << stereo_rectifier->reprojectionFLen() << ",\n";
+	infos_strm << "\t\"pp_right\": [" << ppRight[0] << "," << ppRight[1] << "],\n";
 	infos_strm << '\n';
 
-	infos_strm << "rgb2world:" << "\n";
+	infos_strm << "\t\"rgb2world\": [" << "\n";
 	for (int i = 0; i < 3; i++) {
+		infos_strm << "\t\t[";
 		for (int j = 0; j < 3; j++) {
-			infos_strm << crgb_2_w.R(i,j) << ' ';
+			infos_strm << crgb_2_w.R(i,j) << ", ";
 		}
-		infos_strm << crgb_2_w.t[i] << '\n';
+		infos_strm << crgb_2_w.t[i] << "]" << ((i == 2) ? "" : ",") << "\n";
 	}
-	infos_strm << "f_rgb:" << rgbFlen << "\n";
-	infos_strm << "pp_rgb:" << "\n";
-	for (int i = 0; i < 2; i++) {
-		infos_strm << rgbPP[i] << ' ';
-	}
-	infos_strm << '\n';
+	infos_strm << "\t],\n";
+
+	infos_strm << "\t\"f_rgb\":" << rgbFlen << ",\n";
+	infos_strm << "\t\"pp_rgb\": [" << rgbPP[0] << "," << rgbPP[1] << "],\n";
 	infos_strm << '\n';
 
-	infos_strm << "nbaseline:" << stereo_rectifier->normalizedBasline() << "\n";
-	infos_strm << "disp_delta:" << stereo_rectifier->dispDelta() << "\n";
+	infos_strm << "\t\"nbaseline\":" << stereo_rectifier->normalizedBasline() << ",\n";
+	infos_strm << "\t\"disp_delta\":" << stereo_rectifier->dispDelta() << "\n";
+	infos_strm << "}";
+
+	infos_strm.flush();
+	infos.close();
 
 	for (int row : rows) {
 
