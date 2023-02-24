@@ -15,6 +15,8 @@
 #include <QOffscreenSurface>
 #include <QOpenGLFramebufferObjectFormat>
 
+#include <QFileDialog>
+
 #include <QWheelEvent>
 #include <QGuiApplication>
 
@@ -228,7 +230,7 @@ SparseAlignementViewer::SparseAlignementViewer(QWidget *parent) :
 	_max_view_distance = 100.;
 
 	_sceneScale = 1.0;
-	_camScale = 0.2;
+	_camScale = 2.0;
 
 	setFocusPolicy(Qt::StrongFocus);
 	setMouseTracking(true);
@@ -281,8 +283,11 @@ SparseAlignementViewer::~SparseAlignementViewer() {
 		_cam_indices.destroy();
 	}
 
+	_grid_vao.bind();
 	_grid_vao.destroy();
+	_grid_vao.bind();
 	_scene_vao.destroy();
+	_grid_vao.bind();
 	_cam_vao.destroy();
 
 	doneCurrent();
@@ -379,6 +384,14 @@ void SparseAlignementViewer::rotateAzimuth(float degrees) {
 		update();
 	}
 
+}
+
+void SparseAlignementViewer::translateView(float deltaX, float deltaY) {
+
+	_x_delta += deltaX;
+	_y_delta += deltaY;
+
+	update();
 }
 
 void SparseAlignementViewer::reloadLandmarks() {
@@ -975,6 +988,9 @@ void SparseAlignementViewer::resetView(int w, int h) {
 	_zenith_angle = 0;
 	_azimuth_angle = 0;
 
+	_x_delta = 0;
+	_y_delta = 0;
+
 	setView(w,h);
 }
 
@@ -991,6 +1007,7 @@ void SparseAlignementViewer::setView(int w, int h) {
 				QVector3D(0,1.0,0));
 
 	proj.perspective(70., w/static_cast<float>(h), 0.1f, 1000.0f);
+	proj.translate(_x_delta*w/12, _y_delta*h/12);
 
 	_modelView = view*model;
 	_projectionView = proj;
@@ -1060,7 +1077,16 @@ void SparseAlignementViewer::keyPressEvent(QKeyEvent *e) {
 		zoomIn(1.);
 	} else if (k == Qt::Key_Minus and m & Qt::KeypadModifier) {
 		zoomOut(1.);
-	} else {
+	}
+
+	else if (k == Qt::Key_E and m & Qt::ControlModifier) {
+		saveViewpoint();
+	}
+	else if (k == Qt::Key_R and m & Qt::ControlModifier) {
+		loadViewpoint();
+	}
+
+	else {
 		QWidget::keyPressEvent(e);
 	}
 
@@ -1069,10 +1095,11 @@ void SparseAlignementViewer::mousePressEvent(QMouseEvent *e) {
 
 	_previously_pressed = e->buttons();
 
-	if (_previously_pressed == Qt::MiddleButton or
-			_previously_pressed == Qt::LeftButton) {
+	_motion_origin_pos = e->pos();
 
-		_motion_origin_pos = e->pos();
+	if (_previously_pressed == Qt::MiddleButton or
+			_previously_pressed == Qt::LeftButton or
+			_previously_pressed == Qt::RightButton) {
 
 		e->accept();
 	} else {
@@ -1119,6 +1146,20 @@ void SparseAlignementViewer::mouseMoveEvent(QMouseEvent *e) {
 
 		rotateZenith(-t.y()/3.);
 		rotateAzimuth(t.x()/3.);
+
+		e->accept();
+
+	} else if (b == Qt::RightButton) {
+
+		QPoint nP = e->pos();
+
+		QPoint t = nP - _motion_origin_pos;
+		_motion_origin_pos = nP;
+
+		translateView(qreal(t.x())/width(), -qreal(t.y())/height());
+
+		e->accept();
+
 	} else if (b == Qt::NoButton) {
 
 		int x = e->pos().x();
@@ -1280,6 +1321,78 @@ void SparseAlignementViewer::setCamScale(float camScale)
 {
 	_camScale = fabs(camScale);
 	update();
+}
+
+void SparseAlignementViewer::saveViewpoint() {
+	QString saveFile = QFileDialog::getSaveFileName(this, tr("Save viewpoint"), QString(), {tr("text file (*.txt)")});
+
+	if (saveFile.isEmpty()) {
+		return;
+	}
+
+	saveViewpoint(saveFile);
+}
+void SparseAlignementViewer::saveViewpoint(QString file) {
+
+	QFile out(file);
+
+	if (!out.open(QFile::WriteOnly)) {
+		return;
+	}
+
+	QTextStream stream(&out);
+
+	stream << _view_distance << ' ';
+
+	stream << _zenith_angle << ' ';
+	stream << _azimuth_angle << ' ';
+
+	stream << _x_delta << ' ';
+	stream << _y_delta << ' ';
+
+	stream << _sceneScale << ' ';
+	stream << _camScale;
+
+	stream.flush();
+
+	out.close();
+
+}
+
+void SparseAlignementViewer::loadViewpoint() {
+	QString loadFile = QFileDialog::getOpenFileName(this, tr("Load viewpoint"), QString(), {tr("text file (*.txt)")});
+
+	if (loadFile.isEmpty()) {
+		return;
+	}
+
+	loadViewpoint(loadFile);
+}
+void SparseAlignementViewer::loadViewpoint(QString file) {
+
+	QFile in(file);
+
+	if (!in.open(QFile::ReadOnly)) {
+		return;
+	}
+
+	QTextStream stream(&in);
+
+	stream >> _view_distance;
+
+	stream >> _zenith_angle;
+	stream >> _azimuth_angle;
+
+	stream >> _x_delta;
+	stream >> _y_delta;
+
+	stream >> _sceneScale;
+	stream >> _camScale;
+
+	in.close();
+
+	update();
+
 }
 
 } // namespace StereoVisionApp

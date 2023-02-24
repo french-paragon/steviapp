@@ -106,11 +106,19 @@ public:
 	void rotateZenith(float degrees);
 	void rotateAzimuth(float degrees);
 
+	void translateView(float deltaX, float deltaY);
+
 	void reloadLandmarks();
 	void clearLandmarks();
 
 	void setCamScale(float camScale);
 	void setSceneScale(float sceneScale);
+
+	void saveViewpoint();
+	void saveViewpoint(QString file);
+
+	void loadViewpoint();
+	void loadViewpoint(QString file);
 
 Q_SIGNALS:
 
@@ -176,6 +184,9 @@ private:
 
 	float _zenith_angle;
 	float _azimuth_angle;
+
+	float _x_delta;
+	float _y_delta;
 
 	float _gridDistance;
 	int _gridSplits;
