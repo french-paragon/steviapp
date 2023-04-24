@@ -63,13 +63,13 @@ StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 
 StereoVisionApplication::~StereoVisionApplication() {
 
-	if (_QtApp != nullptr) {
-		delete _QtApp;
-	}
-
 	if (_mw != nullptr) {
 		delete _mw;
 	}
+
+    if (_QtApp != nullptr) {
+        delete _QtApp;
+    }
 }
 
 Project* StereoVisionApplication::getCurrentProject() const {
