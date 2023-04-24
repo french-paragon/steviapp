@@ -4,6 +4,8 @@
 #include <QtCore/qglobal.h>
 #include <QString>
 
+#include <optional>
+
 namespace StereoVisionApp {
 
 class Project;

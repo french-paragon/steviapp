@@ -281,10 +281,10 @@ protected:
 			return qobject_cast<D*>(b);
 		}
 
-		bool hasSecondValue() const {
+        bool hasSecondValue() const override {
 			return true;
 		}
-		QVariant secondValue() const {
+        QVariant secondValue() const override {
 			D* block = castedBlock();
 
 			if (block == nullptr) {
@@ -299,7 +299,7 @@ protected:
 
 			return QVariant::fromValue(fp.stddev());
 		}
-		bool setSecondValue(QVariant const& d) {
+        bool setSecondValue(QVariant const& d) override {
 			if (!d.canConvert(qMetaTypeId<qreal>())) {
 				return false;
 			}
@@ -464,7 +464,7 @@ public:
 		QVector<qint64> subItemsIds() const;
 		QString getSubItemTitleById(qint64 id);
 
-		virtual NodeType type() const;
+        virtual NodeType type() const override;
 
 		template<typename T, class D, bool refS, ItemPropertyDescription::SignalType signalT>
 		void addCatProperty(QString name,
