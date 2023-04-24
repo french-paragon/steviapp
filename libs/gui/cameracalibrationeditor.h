@@ -6,6 +6,8 @@
 #include "./editor.h"
 #include "./imagewidget.h"
 
+#include <qImageDisplayWidget/overlay.h>
+
 class QSortFilterProxyModel;
 
 namespace StereoVisionApp {
@@ -13,6 +15,7 @@ namespace StereoVisionApp {
 class CameraCalibration;
 class CheckboardPtsDrawable;
 class CheckboardPtsReprojDrawable;
+class ImageDatablockDisplayAdapter;
 
 namespace Ui {
 class CameraCalibrationEditor;
@@ -59,13 +62,15 @@ private:
 	int _currentId;
 	CameraCalibration* _currentCalib;
 
+    ImageDatablockDisplayAdapter* _img_display_adapter;
+
 	CheckboardPtsDrawable* _checkBoardDrawer;
 	CheckboardPtsReprojDrawable* _reprojectionDrawer;
 
 	QSortFilterProxyModel* _proxyModel;
 };
 
-class CheckboardPtsDrawable : public ImageWidgetDrawable
+class CheckboardPtsDrawable : public QImageDisplay::Overlay
 {
 	Q_OBJECT
 public:
@@ -84,7 +89,7 @@ protected:
 };
 
 
-class CheckboardPtsReprojDrawable : public ImageWidgetDrawable
+class CheckboardPtsReprojDrawable : public QImageDisplay::Overlay
 {
 	Q_OBJECT
 public:

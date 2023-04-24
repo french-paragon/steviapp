@@ -4,3 +4,6 @@
 [submodule "modules/LibStevi"]
 	path = modules/LibStevi
 	url = https://github.com/french-paragon/LibStevi.git
+[submodule "modules/qImageDisplayWidget"]
+	path = modules/qImageDisplayWidget
+	url = https://github.com/french-paragon/qImageDisplayWidget.git

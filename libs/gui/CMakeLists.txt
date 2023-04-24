@@ -4,6 +4,10 @@ set(LIB_SRC imagewidget.cpp
             imagewidget.h
             editor.cpp
             editor.h
+            imageadapters/imagedatablockdisplayadapter.h
+            imageadapters/imagedatablockdisplayadapter.cpp
+            imagedisplayoverlays/imagelandmarksoverlay.h
+            imagedisplayoverlays/imagelandmarksoverlay.cpp
             imageeditor.cpp
             imageeditor.h
             imageeditor.ui
@@ -77,4 +81,4 @@ add_library(
 
 
 target_link_libraries(${GUI_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${SOLVING_LIB})
+target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${QIMAGEDISPLAYWIDGET_LIB})

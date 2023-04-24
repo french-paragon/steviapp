@@ -1,6 +1,8 @@
 #include "cameracalibrationeditor.h"
 #include "ui_cameracalibrationeditor.h"
 
+#include "./imageadapters/imagedatablockdisplayadapter.h"
+
 #include "geometry/rotations.h"
 #include "geometry/alignement.h"
 #include "geometry/lensdistortion.h"
@@ -31,18 +33,20 @@ CameraCalibrationEditor::CameraCalibrationEditor(QWidget *parent) :
 {
 	ui->setupUi(this);
 
+    _img_display_adapter = new ImageDatablockDisplayAdapter(ui->imageView);
+
+    ui->imageView->setImage(_img_display_adapter);
+
 	_checkBoardDrawer = new CheckboardPtsDrawable(this);
 	_reprojectionDrawer = new CheckboardPtsReprojDrawable(this);
-	ui->imageView->addDrawable(_checkBoardDrawer);
-	ui->imageView->addDrawable(_reprojectionDrawer);
+    ui->imageView->addOverlay(_checkBoardDrawer);
+    ui->imageView->addOverlay(_reprojectionDrawer);
 
 	_moveToNextImg = new QAction(tr("Next image"), this);
 	_moveToPrevImg = new QAction(tr("Previous image"), this);
 
 	_moveToNextImg->setShortcut(Qt::CTRL + Qt::Key_Tab);
-	_moveToPrevImg->setShortcut(Qt::CTRL + Qt::Key_Shift + Qt::Key_Tab);
-
-	ui->imageView->displayPoints(false);
+    _moveToPrevImg->setShortcut(Qt::CTRL + Qt::Key_Shift + Qt::Key_Tab);
 
 	connect(ui->imageView, &ImageWidget::menuNonPointClick, this, &CameraCalibrationEditor::openContextMenu);
 	connect(ui->imgsListView, &QListView::clicked, this, static_cast<void(CameraCalibrationEditor::*)(QModelIndex)>(&CameraCalibrationEditor::moveToImage));
@@ -164,7 +168,7 @@ void CameraCalibrationEditor::moveToImage(int row) {
 				Image* img = proj->getDataBlock<Image>(id);
 
 				if (img != nullptr) {
-					ui->imageView->setImage(img);
+                    _img_display_adapter->setImageDatablock(img);
 					_checkBoardDrawer->setImgId(id);
 					_reprojectionDrawer->setImgId(id);
 					_currentId = row;
@@ -174,23 +178,25 @@ void CameraCalibrationEditor::moveToImage(int row) {
 				ui->labelNSelected->setText("");
 				ui->labelGridSize->setText("");
 
-				auto candidates = _currentCalib->getDetectedCandidates(img->internalId());
+                if (img != nullptr) {
+                    auto candidates = _currentCalib->getDetectedCandidates(img->internalId());
 
-				if (candidates.has_value()) {
-					ui->labelNCandidates->setText(QString("%0").arg(candidates.value().size()));
-				}
+                    if (candidates.has_value()) {
+                        ui->labelNCandidates->setText(QString("%0").arg(candidates.value().size()));
+                    }
 
-				auto filtered = _currentCalib->getFilteredCandidates(img->internalId());
+                    auto filtered = _currentCalib->getFilteredCandidates(img->internalId());
 
-				if (filtered.has_value()) {
-					ui->labelNSelected->setText(QString("%0").arg(filtered.value().size()));
-				}
+                    if (filtered.has_value()) {
+                        ui->labelNSelected->setText(QString("%0").arg(filtered.value().size()));
+                    }
 
-				auto grid = _currentCalib->getImageCorners(img->internalId());
+                    auto grid = _currentCalib->getImageCorners(img->internalId());
 
-				if (grid.has_value()) {
-					ui->labelGridSize->setText(QString("%0").arg(grid.value().size()));
-				}
+                    if (grid.has_value()) {
+                        ui->labelGridSize->setText(QString("%0").arg(grid.value().size()));
+                    }
+                }
 			}
 		}
 	}
@@ -301,7 +307,7 @@ void  CameraCalibrationEditor::imgsListContextMenu(QPoint const& position) {
 
 
 CheckboardPtsDrawable::CheckboardPtsDrawable(QWidget *parent):
-	ImageWidgetDrawable(parent),
+    QImageDisplay::Overlay(parent),
 	_id(-1),
 	_calib(nullptr)
 {
@@ -412,7 +418,7 @@ void CheckboardPtsDrawable::paintItemImpl(QPainter* painter) const {
 
 
 CheckboardPtsReprojDrawable::CheckboardPtsReprojDrawable(QWidget *parent) :
-	ImageWidgetDrawable(parent),
+    QImageDisplay::Overlay(parent),
 	_id(-1),
 	_calib(nullptr)
 {

@@ -5,9 +5,15 @@
 
 #include "./editor.h"
 
+namespace QImageDisplay {
+class ImageWidget;
+}
+
 namespace StereoVisionApp {
 
 class Image;
+class ImageDatablockDisplayAdapter;
+class ImageLandmarksOverlay;
 
 namespace Ui {
 class ImageEditor;
@@ -31,7 +37,7 @@ protected:
 	void afterProjectChange(Project* op);
 
 	void addPoint(QPointF const& imageCoordinates);
-	void openPointMenu(qint64 id, QPoint const& pos);
+    void openPointMenu(qint64 id, QImageDisplay::ImageWidget *widget, QPoint const& pos);
 	void openNonPointMenu(QPoint const& pos);
 
 	void moveToNextImage();
@@ -59,6 +65,9 @@ private:
 
 	qint64 _current_image_id;
 	qint64 _current_landmark_id;
+
+    ImageDatablockDisplayAdapter* _img_display_adapter;
+    ImageLandmarksOverlay* _img_landmark_overlay;
 };
 
 class ImageEditorFactory : public EditorFactory

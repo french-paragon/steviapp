@@ -10,6 +10,9 @@
 #include "datablocks/image.h"
 #include "datablocks/landmark.h"
 
+#include "imageadapters/imagedatablockdisplayadapter.h"
+#include "imagedisplayoverlays/imagelandmarksoverlay.h"
+
 namespace StereoVisionApp {
 
 const QString ImageEditor::ImageEditorClassName = "StereoVisionApp::ImageEditor";
@@ -21,6 +24,13 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	_current_landmark_id(-1)
 {
 	ui->setupUi(this);
+
+    _img_display_adapter = new ImageDatablockDisplayAdapter(ui->imageDisplay);
+    _img_landmark_overlay = new ImageLandmarksOverlay(ui->imageDisplay);
+
+    ui->imageDisplay->setImage(_img_display_adapter);
+    ui->imageDisplay->addOverlay(_img_landmark_overlay);
+    ui->imageDisplay->installEventFilter(_img_landmark_overlay);
 
 	QSettings s;
 
@@ -45,8 +55,8 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	_moveToNextLandmark->setShortcut(Qt::CTRL + Qt::Key_Right);
 	_moveToPrevLandmark->setShortcut(Qt::CTRL + Qt::Key_Left);
 
-	connect(ui->imageDisplay, &ImageWidget::newPointClick, this, &ImageEditor::addPoint);
-	connect(ui->imageDisplay, &ImageWidget::menuPointClick, this, &ImageEditor::openPointMenu);
+    connect(_img_landmark_overlay, &ImageLandmarksOverlay::newPointClick, this, &ImageEditor::addPoint);
+    connect(_img_landmark_overlay, &ImageLandmarksOverlay::menuPointClick, this, &ImageEditor::openPointMenu);
 	connect(ui->imageDisplay, &ImageWidget::menuNonPointClick, this, &ImageEditor::openNonPointMenu);
 
 	connect(ui->imageComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ImageEditor::onCurrentImageIndexChanged);
@@ -79,7 +89,8 @@ ImageEditor::~ImageEditor()
 }
 
 void ImageEditor::setImage(Image* img) {
-	ui->imageDisplay->setImage(img);
+    _img_display_adapter->setImageDatablock(img);
+    _img_landmark_overlay->setImageDatablock(img);
 
 	Project* ap = activeProject();
 
@@ -172,9 +183,9 @@ void ImageEditor::onViewSingleStateChanged() {
 	bool check = ui->viewSingleLandmarkButton->isChecked();
 
 	if (check) {
-		ui->imageDisplay->drawOnlyPoint(_current_landmark_id);
+        _img_landmark_overlay->displaySinglePoint(_current_landmark_id);
 	} else {
-		ui->imageDisplay->drawOnlyPoint(-1);
+        _img_landmark_overlay->displaySinglePoint(-1);
 	}
 
 }
@@ -187,7 +198,7 @@ void ImageEditor::addPoint(QPointF const& imageCoordinates) {
 		return;
 	}
 
-	Image* im = ui->imageDisplay->currentImage();
+    Image* im = _img_display_adapter->currentImageDatablock();
 
 	if (im == nullptr) {
 		return;
@@ -226,15 +237,19 @@ void ImageEditor::addPoint(QPointF const& imageCoordinates) {
 
 	if (lm == nullptr) {
 		bool isUncertain = ui->imageLandmarkSigmaSpinBox->value() >= 0.01;
-		lm = im->getImageLandmark(im->addImageLandmark(imageCoordinates, lmId, isUncertain, ui->imageLandmarkSigmaSpinBox->value()));
+        im->addImageLandmark(imageCoordinates, lmId, isUncertain, ui->imageLandmarkSigmaSpinBox->value());
 	} else {
 		lm->setImageCoordinates(imageCoordinates);
 	}
 }
 
-void ImageEditor::openPointMenu(qint64 id, QPoint const& pos) {
+void ImageEditor::openPointMenu(qint64 id, QImageDisplay::ImageWidget* widget, QPoint const& pos) {
 
-	Image* im = ui->imageDisplay->currentImage();
+    if (widget != ui->imageDisplay) {
+        return;
+    }
+
+    Image* im = _img_display_adapter->currentImageDatablock();
 
 	QMenu cMenu;
 
@@ -353,16 +368,16 @@ void ImageEditor::onCurrentLandmarkIndexChanged() {
 	QModelIndex itemIndex = p->index(ui->landmarkComboBox->currentIndex(), 0, rootLm);
 
 	if (itemIndex == QModelIndex()) {
-		ui->imageDisplay->drawOnlyPoint(-1);
+        _img_landmark_overlay->displaySinglePoint(-1);
 		return;
 	} else {
 		_current_landmark_id = itemIndex.data(Project::IdRole).toInt();
 	}
 
 	if (ui->viewSingleLandmarkButton->isChecked()) {
-		ui->imageDisplay->drawOnlyPoint(_current_landmark_id);
+        _img_landmark_overlay->displaySinglePoint(_current_landmark_id);
 	} else {
-		ui->imageDisplay->drawOnlyPoint(-1);
+        _img_landmark_overlay->displaySinglePoint(-1);
 	}
 }
 
