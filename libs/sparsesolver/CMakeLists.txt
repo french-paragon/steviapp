@@ -1,74 +1,102 @@
 define_stereovisionapp_lib(SOLVING Solving)
 
 set(LIB_SRC initialsolution.cpp
-            initialsolution.h
             sbagraphreductor.cpp
-            sbagraphreductor.h
             sbainitializer.cpp
-            sbainitializer.h
             sparsesolverbase.cpp
-            sparsesolverbase.h
             graphroughbundleadjustementsolver.cpp
-            graphroughbundleadjustementsolver.h
             graphsbasolver.cpp
-            graphsbasolver.h
             graphstereorigsolver.cpp
-            graphstereorigsolver.h
             graphcameracalibrator.cpp
-            graphcameracalibrator.h
             imagepointssolutionmodel.cpp
-            imagepointssolutionmodel.h
             landmarkpointssolutionmodel.cpp
-            landmarkpointssolutionmodel.h
             localcoordinatespointssolutionmodel.cpp
-            localcoordinatespointssolutionmodel.h
             vertices/camerapose.cpp
-            vertices/camerapose.h
             vertices/camparam.cpp
-            vertices/camparam.h
             vertices/vertexrigidbodypose.cpp
-            vertices/vertexrigidbodypose.h
             vertices/vertexcamerapose.cpp
-            vertices/vertexcamerapose.h
             vertices/vertexcameraparam.cpp
-            vertices/vertexcameraparam.h
             vertices/vertexcameraradialdistortion.cpp
-            vertices/vertexcameraradialdistortion.h
             vertices/vertexcameraskewdistortion.cpp
-            vertices/vertexcameraskewdistortion.h
             vertices/vertexcameratangentialdistortion.cpp
-            vertices/vertexcameratangentialdistortion.h
             vertices/vertexlandmarkpos.cpp
-            vertices/vertexlandmarkpos.h
             edges/edgeparametrizedxyz2uv.cpp
-            edges/edgeparametrizedxyz2uv.h
             edges/edgese3fullprior.cpp
-            edges/edgese3fullprior.h
             edges/edgese3rpyprior.cpp
-            edges/edgese3rpyprior.h
             edges/edgese3xyzprior.cpp
-            edges/edgese3xyzprior.h
             edges/edgexyzprior.cpp
-            edges/edgexyzprior.h
             edges/edgepointdistance.cpp
-            edges/edgepointdistance.h
             edges/edgepointsangle.cpp
-            edges/edgepointsangle.h
             edges/edgecameralandmarkdirectionalalignement.cpp
-            edges/edgecameralandmarkdirectionalalignement.h
             edges/edgecamerase3leverarm.cpp
-            edges/edgecamerase3leverarm.h
             edges/edgelocalpointcoordinates.cpp
-            edges/edgelocalpointcoordinates.h
-            helperfunctions.h
-            fixedpreoptimizedparameters.h
+)
+
+set(LIB_HEADERS
+    initialsolution.h
+    sbagraphreductor.h
+    sbainitializer.h
+    graphsbasolver.h
+    fixedpreoptimizedparameters.h
+    landmarkpointssolutionmodel.h
+    localcoordinatespointssolutionmodel.h
+    graphroughbundleadjustementsolver.h
+    sparsesolverbase.h
+    graphcameracalibrator.h
+    graphstereorigsolver.h
+    imagepointssolutionmodel.h
+    helperfunctions.h
+)
+
+set(LIB_HEADERS_EDGES
+    edges/edgelocalpointcoordinates.h
+    edges/edgecamerase3leverarm.h
+    edges/edgecameralandmarkdirectionalalignement.h
+    edges/edgepointsangle.h
+    edges/edgepointdistance.h
+    edges/edgexyzprior.h
+    edges/edgese3xyzprior.h
+    edges/edgese3rpyprior.h
+    edges/edgese3fullprior.h
+    edges/edgeparametrizedxyz2uv.h
+)
+
+set(LIB_HEADERS_VERTICES
+    vertices/vertexlandmarkpos.h
+    vertices/vertexcameratangentialdistortion.h
+    vertices/vertexcameraskewdistortion.h
+    vertices/vertexcameraradialdistortion.h
+    vertices/vertexcameraparam.h
+    vertices/vertexcamerapose.h
+    vertices/vertexrigidbodypose.h
+    vertices/camparam.h
+    vertices/camerapose.h
 )
 
 add_library(
     ${SOLVING_LIB}
     ${LIB_SRC}
+    ${LIB_HEADERS}
+    ${LIB_HEADERS_EDGES}
+    ${LIB_HEADERS_VERTICES}
 )
 
 target_link_libraries(${SOLVING_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(${SOLVING_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${STEREOVISION_LIB})
 target_link_libraries(${SOLVING_LIB} PRIVATE ${G2O_LIBS} ${CSPARSE_LIBRARY})
+
+install_stereovisionapp_sdklib(${SOLVING_LIB})
+
+get_filename_component(LibDirName ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+
+install(FILES ${LIB_HEADERS}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}
+  )
+
+install(FILES ${LIB_HEADERS_EDGES}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/edges
+  )
+
+install(FILES ${LIB_HEADERS_VERTICES}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/vertices
+  )

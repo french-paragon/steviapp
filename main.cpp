@@ -74,30 +74,31 @@ int main(int argc, char *argv[])
 	format.setSamples(4);
 	QSurfaceFormat::setDefaultFormat(format);
 
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::LandmarkFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::ImageFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::StereoRigFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::LocalCoordinateSystemFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::AngleConstrainFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::DistanceConstrainFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraCalibrationFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::CameraCalibrationFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::FixedColorStereoSequenceFactory(&a));
-	StereoVisionApp::ProjectFactory::defaultProjectFactory().addType(new StereoVisionApp::FixedStereoPlusColorSequenceFactory(&a));
+    StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
+    StereoVisionApp::ActionManagersLibrary& aml = StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary();
 
-	StereoVisionApp::ProjectFactory* pF = &StereoVisionApp::ProjectFactory::defaultProjectFactory();
+    pF.addType(new StereoVisionApp::LandmarkFactory(&a));
+    pF.addType(new StereoVisionApp::ImageFactory(&a));
+    pF.addType(new StereoVisionApp::CameraFactory(&a));
+    pF.addType(new StereoVisionApp::StereoRigFactory(&a));
+    pF.addType(new StereoVisionApp::LocalCoordinateSystemFactory(&a));
+    pF.addType(new StereoVisionApp::AngleConstrainFactory(&a));
+    pF.addType(new StereoVisionApp::DistanceConstrainFactory(&a));
+    pF.addType(new StereoVisionApp::CameraCalibrationFactory(&a));
+    pF.addType(new StereoVisionApp::CameraCalibrationFactory(&a));
+    pF.addType(new StereoVisionApp::FixedColorStereoSequenceFactory(&a));
+    pF.addType(new StereoVisionApp::FixedStereoPlusColorSequenceFactory(&a));
 
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::ImageBaseActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::LandmarkBaseActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::CameraBaseActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::StereoRigActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::LocalCoordinateSystemBaseActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::AngleConstrainActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::DistanceConstrainActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::CameraCalibrationActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::FixedColorStereoSequenceActionManager(pF));
-	StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary().registerDatablockActionManager(new StereoVisionApp::FixedStereoPlusColorSequenceActionManager(pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::ImageBaseActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::LandmarkBaseActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::CameraBaseActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::StereoRigActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::LocalCoordinateSystemBaseActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::AngleConstrainActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::DistanceConstrainActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::CameraCalibrationActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::FixedColorStereoSequenceActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::FixedStereoPlusColorSequenceActionManager(&pF));
 
 	StereoVisionApp::MainWindow* w = a.mainWindow();
 

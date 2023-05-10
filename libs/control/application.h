@@ -42,6 +42,13 @@ protected:
 
 	void resetProject();
 
+    /*!
+     * \brief loadApplicationPlugins load the plugins for the application
+     *
+     * Plugins are usually requested via the command line argument
+     */
+    void loadApplicationPlugins(); //TODO: also list permanent plugins in the config file.
+
 	static StereoVisionApplication* CurrentApp;
 
 	Project* _headLessProject;
@@ -55,6 +62,7 @@ protected:
 	QVector<QString> _scriptFiles;
 	QStringList _scriptsargs;
 	QString _openProjectFile;
+    QVector<QString> _requestedPlugins;
 };
 
 } // namespace StereoVisionApp

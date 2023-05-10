@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+cmake_policy(SET CMP0095 NEW)
 
 include(CheckCXXCompilerFlag)
 project(steviapp LANGUAGES CXX)
@@ -14,6 +15,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp -march=native -ftree-vectorize")
+
+#some global variables
+
+include(GNUInstallDirs)
+
+set(CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
+set(CMAKE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR})
+set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME})
+set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
+
+message("Lib install dir: ${CMAKE_INSTALL_LIBDIR}")
+
+set(STEVIAPP_SDK_NAME "SteviapSdk")
+set(STEVIAPP_SDK_EXPORTNAME "SteviapSdkTargets")
+
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:$ORIGIN/../../${CMAKE_INSTALL_LIBDIR}")
 
 #SIMD for x86
 check_cxx_compiler_flag("-mavx" AVXSUPPORTED)
@@ -84,3 +101,28 @@ set_target_properties(pysteviapp PROPERTIES DEBUG_POSTFIX "")
 
 target_link_libraries(pysteviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(pysteviapp PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
+
+#installing
+install(
+  EXPORT ${STEVIAPP_SDK_EXPORTNAME}
+  DESTINATION ${CMAKE_INSTALL_CMAKEDIR}/cmake/${STEVIAPP_SDK_NAME}
+  NAMESPACE ${STEVIAPP_SDK_NAME}::
+  FILE SteviappSDKTargets.cmake # ensure the name is different than the SteviappSDKConfig.cmake file
+  )
+
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+  "cmake/Config.cmake.in"
+  "${STEVIAPP_SDK_NAME}Config.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_CMAKEDIR}/cmake/${STEVIAPP_SDK_NAME}
+  PATH_VARS
+    CMAKE_INSTALL_LIBDIR
+  )
+
+install (
+    TARGETS steviapp
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)

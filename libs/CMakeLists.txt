@@ -13,6 +13,26 @@ macro(define_stereovisionapp_lib varname name)
     set(${varname}_LIB ${STEVIAPP_LIB_PREFIX}${name})
 endmacro()
 
+macro(install_stereovisionapp_sdklib target)
+    add_library(${STEVIAPP_SDK_NAME}::${target} ALIAS ${target})
+
+    install(TARGETS ${target}
+      EXPORT ${STEVIAPP_SDK_EXPORTNAME}
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      )
+endmacro()
+
+macro(install_stereovisionapp_lib target)
+    install(
+      TARGETS ${target}
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      )
+endmacro()
+
 add_stereovisionapp_libdirectory(datablocks)
 add_stereovisionapp_libdirectory(processing)
 add_stereovisionapp_libdirectory(sparsesolver)

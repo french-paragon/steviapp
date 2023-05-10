@@ -3,11 +3,14 @@
 #include <QCoreApplication>
 #include <QApplication>
 
+#include <QPluginLoader>
+
 #include <QVector>
 #include <QString>
 #include <QDebug>
 
 #include "mainwindow.h"
+#include "stereoappplugininterface.h"
 
 #include "datablocks/project.h"
 
@@ -179,6 +182,33 @@ void StereoVisionApplication::resetProject() {
 	if (_isHeadLess) {
 		_headLessProject = StereoVisionApp::ProjectFactory::defaultProjectFactory().createProject(this);
 	}
+}
+
+void StereoVisionApplication::loadApplicationPlugins() {
+
+    QVector<QString> pluginsToLoad = _requestedPlugins;
+
+    for (QString pluginPath : pluginsToLoad) {
+
+        QPluginLoader* plugin = new QPluginLoader(pluginPath, this);
+        plugin->load();
+
+        if (plugin->instance() == nullptr) {
+            delete plugin;
+            continue;
+        }
+
+        StereoAppPluginInterface* stereoappplugin = qobject_cast<StereoAppPluginInterface*>(plugin->instance());
+
+        if (stereoappplugin != nullptr) {
+            stereoappplugin->loadModule(this);
+        } else {
+            delete plugin;
+            continue;
+        }
+
+    }
+
 }
 
 } // namespace StereoVisionApp

@@ -1,49 +1,60 @@
 define_stereovisionapp_lib(DATA Data)
 
 set(LIB_SRC floatparameter.cpp
-            floatparameter.h
             dataexception.cpp
-            dataexception.h
             project.cpp
-            project.h
             rigidbody.cpp
-            rigidbody.h
             point3d.cpp
-            point3d.h
             landmark.cpp
-            landmark.h
             image.cpp
-            image.h
             camera.cpp
-            camera.h
             itemdatamodel.cpp
-            itemdatamodel.h
             stereorig.cpp
-            stereorig.h
             angleconstrain.cpp
-            angleconstrain.h
             distanceconstrain.cpp
-            distanceconstrain.h
             landmarkscollection.cpp
-            landmarkscollection.h
             cameracalibration.cpp
-            cameracalibration.h
             localcoordinatesystem.cpp
-            localcoordinatesystem.h
             exportablestereosequence.cpp
-            exportablestereosequence.h
             fixedstereopluscolorsequence.cpp
-            fixedstereopluscolorsequence.h
             fixedcolorstereosequence.cpp
-            fixedcolorstereosequence.h
             io/collada_export_filter.cpp
             io/collada_export_filter.h
+)
+
+set(LIB_HEADERS
+    floatparameter.h
+    dataexception.h
+    project.h
+    rigidbody.h
+    point3d.h
+    landmark.h
+    image.h
+    camera.h
+    itemdatamodel.h
+    stereorig.h
+    angleconstrain.h
+    distanceconstrain.h
+    landmarkscollection.h
+    cameracalibration.h
+    localcoordinatesystem.h
+    exportablestereosequence.h
+    fixedstereopluscolorsequence.h
+    fixedcolorstereosequence.h
 )
 
 add_library(
     ${DATA_LIB}
     ${LIB_SRC}
+    ${LIB_HEADERS}
 )
 
-
 target_link_libraries(${DATA_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets)
+
+install_stereovisionapp_sdklib(${DATA_LIB})
+
+get_filename_component(LibDirName ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+
+install(FILES ${LIB_HEADERS}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}
+  )

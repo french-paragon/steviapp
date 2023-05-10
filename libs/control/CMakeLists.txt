@@ -2,57 +2,70 @@ define_stereovisionapp_lib(CONTROL Control)
 
 set(LIB_SRC
         utils_functions.cpp
-        utils_functions.h
-	application.h
-	application.cpp
-	mainwindow.cpp
-	mainwindow.h
+        application.cpp
+        stereoappplugininterface.cpp
+        mainwindow.cpp
 	mainwindow.ui
-	actionmanager.cpp
-	actionmanager.h
-	imagebaseactions.cpp
-	imagebaseactions.h
-	imagebaseactionmanager.cpp
-	imagebaseactionmanager.h
-	camerabaseactionmanager.cpp
-	camerabaseactionmanager.h
-	landmarkbasedactions.cpp
-	landmarkbasedactions.h
-	landmarkbaseactionmanager.cpp
-	landmarkbaseactionmanager.h
+        actionmanager.cpp
+        imagebaseactions.cpp
+        imagebaseactionmanager.cpp
+        camerabaseactionmanager.cpp
+        landmarkbasedactions.cpp
+        landmarkbaseactionmanager.cpp
         stereorigactions.cpp
-        stereorigactions.h
-	stereorigactionmanager.cpp
-	stereorigactionmanager.h
-	angleconstrainactionmanager.cpp
-	angleconstrainactionmanager.h
-	distanceconstrainactionmanager.cpp
-	distanceconstrainactionmanager.h
-	solversactions.cpp
-	solversactions.h
-	exportactions.cpp
-	exportactions.h
-	cameracalibrationactionmanager.cpp
-	cameracalibrationactionmanager.h
-	cameracalibrationactions.cpp
-	cameracalibrationactions.h
-	localcoordinatesystembaseactionmanager.cpp
-	localcoordinatesystembaseactionmanager.h
-	localcoordinatesystemactions.cpp
-	localcoordinatesystemactions.h
+        stereorigactionmanager.cpp
+        angleconstrainactionmanager.cpp
+        distanceconstrainactionmanager.cpp
+        solversactions.cpp
+        exportactions.cpp
+        cameracalibrationactionmanager.cpp
+        cameracalibrationactions.cpp
+        localcoordinatesystembaseactionmanager.cpp
+        localcoordinatesystemactions.cpp
         fixedstereosequenceactions.cpp
-        fixedstereosequenceactions.h
-	fixedstereosequenceactionmanager.cpp
-	fixedstereosequenceactionmanager.h
+        fixedstereosequenceactionmanager.cpp
+)
+
+set(LIB_HEADERS
+    utils_functions.h
+    application.h
+    stereoappplugininterface.h
+    mainwindow.h
+    actionmanager.h
+    imagebaseactions.h
+    imagebaseactionmanager.h
+    camerabaseactionmanager.h
+    landmarkbasedactions.h
+    landmarkbaseactionmanager.h
+    stereorigactions.h
+    stereorigactionmanager.h
+    angleconstrainactionmanager.h
+    distanceconstrainactionmanager.h
+    solversactions.h
+    exportactions.h
+    cameracalibrationactionmanager.h
+    cameracalibrationactions.h
+    localcoordinatesystembaseactionmanager.h
+    localcoordinatesystemactions.h
+    fixedstereosequenceactions.h
+    fixedstereosequenceactionmanager.h
 )
 
 add_library(
 ${CONTROL_LIB}
 ${LIB_SRC}
+${LIB_HEADERS}
 )
-
 
 target_link_libraries(${CONTROL_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(${CONTROL_LIB} PRIVATE exiv2)
 
 target_link_libraries(${CONTROL_LIB} PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} Threads::Threads)
+
+install_stereovisionapp_sdklib(${CONTROL_LIB})
+
+get_filename_component(LibDirName ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+
+install(FILES ${LIB_HEADERS}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}
+  )
