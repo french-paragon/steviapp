@@ -16,6 +16,10 @@ endmacro()
 macro(install_stereovisionapp_sdklib target)
     add_library(${STEVIAPP_SDK_NAME}::${target} ALIAS ${target})
 
+    target_include_directories(${target} PUBLIC
+      $<INSTALL_INTERFACE:include>
+    )
+
     install(TARGETS ${target}
       EXPORT ${STEVIAPP_SDK_EXPORTNAME}
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

@@ -24,7 +24,8 @@ StereoVisionApplication* StereoVisionApplication::GetAppInstance() {
 
 StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 	_headLessProject(nullptr),
-	_mw(nullptr)
+    _mw(nullptr),
+    _ressource_load_flag(false)
 {
 
 	_isHeadLess = false;
@@ -41,7 +42,13 @@ StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 				_scriptFiles.push_back(QString(argv[i]));
 			}
 
-		} else if (!qstrcmp(argv[i], "--")) {
+        } else if (!qstrcmp(argv[i], "--module")) {
+            i++;
+            if (i < argc) {
+                _requestedPlugins.push_back(QString(argv[i]));
+            }
+
+        } else if (!qstrcmp(argv[i], "--")) {
 
 			for (i=i+1; i < argc; i++) {
 				_scriptsargs.push_back(argv[i]);
@@ -147,6 +154,17 @@ void StereoVisionApplication::saveProjectAs(QString const& fname) {
 
 }
 
+void StereoVisionApplication::loadRessources() {
+
+    if (_ressource_load_flag) {
+        return; //load the ressources only once
+    }
+
+    _ressource_load_flag = true;
+
+    //load the plugins
+    loadApplicationPlugins();
+}
 int StereoVisionApplication::exec() {
 
 	if (_QtApp == nullptr) {

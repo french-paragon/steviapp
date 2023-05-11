@@ -27,8 +27,8 @@ set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
 message("Lib install dir: ${CMAKE_INSTALL_LIBDIR}")
 
-set(STEVIAPP_SDK_NAME "SteviapSdk")
-set(STEVIAPP_SDK_EXPORTNAME "SteviapSdkTargets")
+set(STEVIAPP_SDK_NAME "SteviappSdk")
+set(STEVIAPP_SDK_EXPORTNAME "SteviappSdkTargets")
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:$ORIGIN/../../${CMAKE_INSTALL_LIBDIR}")
 
@@ -119,6 +119,17 @@ configure_package_config_file(
   PATH_VARS
     CMAKE_INSTALL_LIBDIR
   )
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/${STEVIAPP_SDK_NAME}ConfigVersion.cmake"
+  VERSION "0.0"
+  COMPATIBILITY AnyNewerVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/${STEVIAPP_SDK_NAME}Config.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/${STEVIAPP_SDK_NAME}ConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_CMAKEDIR}/cmake/${STEVIAPP_SDK_NAME} )
 
 install (
     TARGETS steviapp

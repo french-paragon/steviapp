@@ -100,6 +100,8 @@ int main(int argc, char *argv[])
     aml.registerDatablockActionManager(new StereoVisionApp::FixedColorStereoSequenceActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::FixedStereoPlusColorSequenceActionManager(&pF));
 
+    a.loadRessources();
+
 	StereoVisionApp::MainWindow* w = a.mainWindow();
 
 	if (w != nullptr) {
@@ -115,7 +117,7 @@ int main(int argc, char *argv[])
 	}
 
 	//create an empty project to start
-	w->newEmptyProject();
+    a.newEmptyProject();
 
 	return a.exec();
 }

@@ -28,6 +28,11 @@ public:
 	void openProject(QString const& fname);
 	void saveProjectAs(QString const& fname);
 
+    /*!
+     * \brief loadRessources load some ressources, like application plugins.
+     */
+    void loadRessources();
+
 	/*!
 	 * \brief exec start the application event loop
 	 * \return the final status code of the application.
@@ -63,6 +68,8 @@ protected:
 	QStringList _scriptsargs;
 	QString _openProjectFile;
     QVector<QString> _requestedPlugins;
+
+    bool _ressource_load_flag;
 };
 
 } // namespace StereoVisionApp
