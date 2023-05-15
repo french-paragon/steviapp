@@ -128,6 +128,7 @@ void RigidBody::setOptXCoord(const float &x) {
 	if (_o_pos.value(0) != x) {
 		_o_pos.value(0) = x;
 		emit optPosChanged();
+        isChanged();
 	}
 }
 
@@ -138,6 +139,7 @@ void RigidBody::setOptYCoord(const float &y) {
 	if (_o_pos.value(1) != y) {
 		_o_pos.value(1) = y;
 		emit optPosChanged();
+        isChanged();
 	}
 }
 
@@ -148,6 +150,7 @@ void RigidBody::setOptZCoord(const float &z) {
 	if (_o_pos.value(2) != z) {
 		_o_pos.value(2) = z;
 		emit optPosChanged();
+        isChanged();
 	}
 }
 
@@ -179,6 +182,7 @@ void RigidBody::setOptXRot(const float &rx) {
 	if (_o_rot.value(0) != rx) {
 		_o_rot.value(0) = rx;
 		emit optRotChanged();
+        isChanged();
 	}
 }
 
@@ -189,6 +193,7 @@ void RigidBody::setOptYRot(const float &ry){
 	if (_o_rot.value(1) != ry) {
 		_o_rot.value(1) = ry;
 		emit optRotChanged();
+        isChanged();
 	}
 }
 
@@ -199,6 +204,7 @@ void RigidBody::setOptZRot(const float &rz) {
 	if (_o_rot.value(2) != rz) {
 		_o_rot.value(2) = rz;
 		emit optRotChanged();
+        isChanged();
 	}
 }
 
