@@ -136,7 +136,7 @@ void CameraCalibrationSparseAlignementViewerInterface::reload() {
 	//nothing needs to be done, as there is no cache.
 }
 
-void CameraCalibrationSparseAlignementViewerInterface::onPointHoover(int idx) const {
+void CameraCalibrationSparseAlignementViewerInterface::hooverPoint(int idx) const {
 
 
 	if (_currentCalibration != nullptr) {
@@ -150,7 +150,7 @@ void CameraCalibrationSparseAlignementViewerInterface::onPointHoover(int idx) co
 	}
 
 }
-void CameraCalibrationSparseAlignementViewerInterface::onCamHoover(int idx) const {
+void CameraCalibrationSparseAlignementViewerInterface::hooverCam(int idx) const {
 
 	if (_currentCalibration != nullptr) {
 
@@ -166,11 +166,11 @@ void CameraCalibrationSparseAlignementViewerInterface::onCamHoover(int idx) cons
 
 }
 
-void CameraCalibrationSparseAlignementViewerInterface::onPointClick(int idx) const {
-	return onPointHoover(idx);
+void CameraCalibrationSparseAlignementViewerInterface::clickPoint(int idx) const {
+	return hooverPoint(idx);
 }
-void CameraCalibrationSparseAlignementViewerInterface::onCamClick(int idx) const {
-	return onCamHoover(idx);
+void CameraCalibrationSparseAlignementViewerInterface::clickCam(int idx) const {
+	return hooverCam(idx);
 }
 
 } // namespace StereoVisionApp

@@ -30,11 +30,11 @@ Q_SIGNALS:
 
 protected:
 
-	void onPointHoover(int idx) const override;
-	void onCamHoover(int idx) const override;
+	void hooverPoint(int idx) const override;
+	void hooverCam(int idx) const override;
 
-	void onPointClick(int idx) const override;
-	void onCamClick(int idx) const override;
+	void clickPoint(int idx) const override;
+	void clickCam(int idx) const override;
 
 	CameraCalibration* _currentCalibration;
 	float _grid_size;

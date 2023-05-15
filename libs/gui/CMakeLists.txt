@@ -4,6 +4,9 @@ set(LIB_SRC imagewidget.cpp
             editor.cpp
             imageadapters/imagedatablockdisplayadapter.cpp
             imagedisplayoverlays/imagelandmarksoverlay.cpp
+            openGlDrawables/opengldrawablescenegrid.cpp
+            openGlDrawables/opengldrawablelandmarkset.cpp
+            openGlDrawables/opengldrawablecamerasset.cpp
             imageeditor.cpp
             imageeditor.ui
             imagepointdetailseditor.cpp
@@ -12,6 +15,7 @@ set(LIB_SRC imagewidget.cpp
             landmarkpointdetailseditor.ui
             localcoordinatesystempointdetailseditor.cpp
             localcoordinatesystempointdetailseditor.ui
+            opengl3dsceneviewwidget.cpp
             sparsealignementviewer.cpp
             sparsealignementeditor.cpp
             sparsealignementeditor.ui
@@ -55,6 +59,7 @@ set(LIB_HEADERS
     imagepointdetailseditor.h
     landmarkpointdetailseditor.h
     localcoordinatesystempointdetailseditor.h
+    opengl3dsceneviewwidget.h
     sparsealignementviewer.h
     sparsealignementeditor.h
     lensdistortionviewer.h
@@ -82,6 +87,12 @@ set(LIB_HEADERS_IMGADAPTERS
 set(LIB_HEADERS_IMGDISPOVERLAYS
     imagedisplayoverlays/imagelandmarksoverlay.h
 )
+
+set(LIB_HEADERS_OPENGLDRAWABLES
+    openGlDrawables/opengldrawablescenegrid.h
+    openGlDrawables/opengldrawablelandmarkset.h
+    openGlDrawables/opengldrawablecamerasset.h
+)
 list (APPEND files ${files2})
 
 add_library(
@@ -90,6 +101,7 @@ add_library(
     ${LIB_HEADERS}
     ${LIB_HEADERS_IMGADAPTERS}
     ${LIB_HEADERS_IMGDISPOVERLAYS}
+    ${LIB_HEADERS_OPENGLDRAWABLES}
 )
 
 
@@ -110,4 +122,8 @@ install(FILES ${LIB_HEADERS_IMGADAPTERS}
 
 install(FILES ${LIB_HEADERS_IMGDISPOVERLAYS}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/imagedisplayoverlays
+  )
+
+install(FILES ${LIB_HEADERS_OPENGLDRAWABLES}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/openGlDrawables
   )

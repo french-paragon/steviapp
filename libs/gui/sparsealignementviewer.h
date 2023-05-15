@@ -9,6 +9,8 @@
 
 #include <MultidimArrays/MultidimArrays.h>
 
+#include "./opengl3dsceneviewwidget.h"
+
 class QOpenGLShaderProgram;
 class QOffscreenSurface;
 class QOpenGLFramebufferObject;
@@ -31,6 +33,12 @@ public:
 
 	virtual void reload() = 0;
 
+    virtual void hooverPoint(int idx) const = 0;
+    virtual void hooverCam(int idx) const = 0;
+
+    virtual void clickPoint(int idx) const = 0;
+    virtual void clickCam(int idx) const = 0;
+
 Q_SIGNALS:
 
 	void dataChanged();
@@ -38,12 +46,6 @@ Q_SIGNALS:
 	void sendStatusMessage(QString msg) const;
 
 protected:
-
-	virtual void onPointHoover(int idx) const = 0;
-	virtual void onCamHoover(int idx) const = 0;
-
-	virtual void onPointClick(int idx) const = 0;
-	virtual void onCamClick(int idx) const = 0;
 
 	friend class SparseAlignementViewer;
 
@@ -66,22 +68,26 @@ public:
 
 	void reload() override;
 
+    void hooverPoint(int idx) const override;
+    void hooverCam(int idx) const override;
+
+    void clickPoint(int idx) const override;
+    void clickCam(int idx) const override;
+
 protected:
 
-	void reloadCache();
-
-	void onPointHoover(int idx) const override;
-	void onCamHoover(int idx) const override;
-
-	void onPointClick(int idx) const override;
-	void onCamClick(int idx) const override;
+    void reloadCache();
 
 	Project* _currentProject;
 	QVector<qint64> _loadedLandmarks;
 	QVector<qint64> _loadedFrames;
 };
 
-class SparseAlignementViewer : public QOpenGLWidget
+class OpenGlDrawableSceneGrid;
+class OpenGlDrawableLandmarkSet;
+class OpenGlDrawableCamerasSet;
+
+class SparseAlignementViewer : public OpenGl3DSceneViewWidget
 {
 	Q_OBJECT
 public:
@@ -90,35 +96,25 @@ public:
 	~SparseAlignementViewer();
 
 	void setInterface(AbstractSparseAlignementDataInterface* i);
-	void clearInterface();
+    void clearInterface();
 
-	void resetView();
+    void setSceneScale(float sceneScale);
+    void setCamScale(float camScale);
 
-	void zoomIn(float steps = 1);
-	void zoomOut(float steps = 1);
+    void scaleCamerasIn(float steps = 1);
+    void scaleCamerasOut(float steps = 1);
 
-	void scaleCamerasIn(float steps = 1);
-	void scaleCamerasOut(float steps = 1);
+    void scaleSceneIn(float steps = 1);
+    void scaleSceneOut(float steps = 1);
 
-	void scaleSceneIn(float steps = 1);
-	void scaleSceneOut(float steps = 1);
+    void saveViewpoint();
+    void saveViewpoint(QString file);
 
-	void rotateZenith(float degrees);
-	void rotateAzimuth(float degrees);
+    void loadViewpoint();
+    void loadViewpoint(QString file);
 
-	void translateView(float deltaX, float deltaY);
-
-	void reloadLandmarks();
-	void clearLandmarks();
-
-	void setCamScale(float camScale);
-	void setSceneScale(float sceneScale);
-
-	void saveViewpoint();
-	void saveViewpoint(QString file);
-
-	void loadViewpoint();
-	void loadViewpoint(QString file);
+    void reloadLandmarks();
+    void clearLandmarks();
 
 Q_SIGNALS:
 
@@ -126,112 +122,20 @@ Q_SIGNALS:
 
 protected:
 
-	void loadLandmarkImpl();
+    void processVoidClick() override;
 
-	void initializeGL() override;
-	void paintGL() override;
-	void resizeGL(int w, int h) override;
+    AbstractSparseAlignementDataInterface* _currentInterface;
 
-	void initializeObjectIdMaskPart();
-	void paintObjectIdMask();
+    OpenGlDrawableSceneGrid* _drawableGrid;
+    OpenGlDrawableLandmarkSet* _drawableLandmarks;
+    OpenGlDrawableCamerasSet* _drawableCameras;
 
-	void generateGrid();
-	void generateFullSurfaceGrid();
-	void generateCamModel();
-	void setView(int w, int h);
-	void resetView(int w, int h);
+    float _sceneScale;
+    float _camScale;
 
-	void wheelEvent(QWheelEvent *event) override;
-	void keyPressEvent(QKeyEvent *event) override;
-	void mousePressEvent(QMouseEvent *event) override;
-	void mouseReleaseEvent(QMouseEvent *event) override;
-	void mouseMoveEvent(QMouseEvent *event) override;
-
-	enum class ItemTypeInfo {
-		Unknown,
-		Landmark,
-		Camera
-	};
-
-	struct IdPassInfos {
-		qint64 itemId;
-		ItemTypeInfo itemType;
-	};
-
-	constexpr static float LandmarkColorCode = 1.0f;
-	constexpr static float CameraColorCode = 2.0f;
-
-	IdPassInfos idPassAtPos(int x, int y);
-
-	void landmarkHover(int landMarkId);
-	void frameHover(int frameId);
-	void voidHover();
-
-	void landmarkClick(int landMarkId);
-	void frameClick(int frameId);
-	void voidClick();
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
-
-	bool _has_been_initialised;
-
-	Qt::MouseButtons _previously_pressed;
-	QPoint _motion_origin_pos;
-
-	float _view_distance;
-	float _min_view_distance;
-	float _max_view_distance;
-
-	float _zenith_angle;
-	float _azimuth_angle;
-
-	float _x_delta;
-	float _y_delta;
-
-	float _gridDistance;
-	int _gridSplits;
-
-	float _landMarkPtRadius;
-
-	float _sceneScale;
-	float _camScale;
-
-	QMatrix4x4 _modelView;
-	QMatrix4x4 _projectionView;
-
-	QOpenGLVertexArrayObject _grid_vao;
-	QOpenGLVertexArrayObject _scene_vao;
-	QOpenGLVertexArrayObject _cam_vao;
-
-	QOpenGLBuffer _grid_buffer;
-	QOpenGLBuffer _lm_pos_buffer;
-	QOpenGLBuffer _lm_pos_id_buffer;
-	QOpenGLBuffer _cam_buffer;
-	QOpenGLBuffer _cam_indices;
-
-	QOpenGLShaderProgram* _gridProgram;
-	QOpenGLShaderProgram* _landMarkPointProgram;
-	QOpenGLShaderProgram* _camProgram;
-	QOpenGLShaderProgram* _objIdProgram;
-	QOpenGLShaderProgram* _objFixedIdProgram;
-
-	AbstractSparseAlignementDataInterface* _currentInterface;
-	std::vector<GLfloat> _llm_pos;
-	std::vector<qint64> _llm_id;
-	bool _hasToReloadLandmarks;
-	bool _hasToReloadLandmarksIds;
-
-	//object id raycasting variables
-	//those values are used to render (offscreen) an object id pass and other informations for mouse based interactions
-	Multidim::Array<float, 3>* _id_img;
-
-	QOpenGLContext* _obj_raycasting_context;
-	QOffscreenSurface* _obj_raycasting_surface;
-	QOpenGLFramebufferObject* _obj_raycasting_fbo;
-
-	QOpenGLVertexArrayObject _scene_ids_vao;
-
-	bool _has_objectid_parts_initialised;
 
 };
 
