@@ -32,8 +32,12 @@ public:
 	void saveProjectAs();
 	void saveProjectAs(QString const& fname);
 
-	Editor* openEditor(QString editorClassName);
+    Editor* openEditor(QString editorClassName);
 	bool isEditorAvailable(QString editorClassName) const;
+    Editor* openedEditor(QString editorClassName);
+    void jumpToEditor(Editor* editor);
+
+
 	void installEditor(EditorFactory* factory);
 	void closeEditor(int index);
 

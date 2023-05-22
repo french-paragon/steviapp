@@ -211,6 +211,25 @@ Editor* MainWindow::openEditor(QString editorClassName) {
 	return e;
 
 }
+Editor* MainWindow::openedEditor(QString editorClassName) {
+
+    if (!_openedEditors.contains(editorClassName)) {
+        return nullptr;
+    }
+
+    return _openedEditors.value(editorClassName);
+
+}
+void MainWindow::jumpToEditor(Editor* editor) {
+
+    int id = ui->editorPanel->indexOf(editor);
+
+    if (id < 0) {
+        return;
+    }
+    ui->editorPanel->setCurrentIndex(id);
+}
+
 bool MainWindow::isEditorAvailable(QString editorClassName) const {
 	return _installedEditors.contains(editorClassName);
 }
