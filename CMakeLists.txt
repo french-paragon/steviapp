@@ -70,6 +70,13 @@ find_package(exiv2 REQUIRED CONFIG NAMES exiv2)
 find_package(Eigen3 3.3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PROJ REQUIRED IMPORTED_TARGET proj)
+
+add_library(PROJ::proj ALIAS PkgConfig::PROJ)
+#TODO: check when the ubuntu repos update to the PROJ 9 release, which should include a cmake package
+
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 

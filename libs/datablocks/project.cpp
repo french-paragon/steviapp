@@ -75,7 +75,8 @@ QVector<QString> ProjectFactory::installedTypes() const
 
 Project::Project(QObject* parent) :
 	QAbstractItemModel(parent),
-	_source("")
+    _source(""),
+    _hasLocalCrs(false)
 {
 	connect(this, &Project::dataChanged, this, &Project::projectChanged);
 	connect(this, &Project::rowsAboutToBeInserted, this, &Project::projectChanged);

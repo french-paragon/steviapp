@@ -5,6 +5,8 @@
 #include <QSet>
 #include <QAbstractItemModel>
 
+#include "LibStevi/geometry/rotations.h"
+
 class QAction;
 
 namespace StereoVisionApp {
@@ -112,6 +114,22 @@ public:
 
 	const QVector<QString> &installedTypes() const;
 
+    inline bool hasLocalCoordinateFrame() const {
+        return _hasLocalCrs;
+    }
+
+    inline StereoVision::Geometry::AffineTransform<float> ecef2local() const {
+        return _ecef2local;
+    }
+
+    inline void setLocalCoordinateFrame(StereoVision::Geometry::AffineTransform<float> const& reference2local) {
+        _hasLocalCrs = true;
+        _ecef2local = reference2local;
+
+        Q_EMIT projectDataChanged();
+        Q_EMIT localCooordinateFrameChanged();
+    }
+
 Q_SIGNALS:
 	/*!
 	 * \brief projectChanged is a signal emitted when the general structure of the project change
@@ -122,6 +140,15 @@ Q_SIGNALS:
 	 * \brief projectDataChanged is a signal emitted when anything in the project change (either the project structure, or any datablock)
 	 */
 	void projectDataChanged();
+
+    /*!
+     * \brief localCooordinateFrameChanged signal indicate that the local frame of the project change.
+     *
+     * The local frame represent the frame in which geometric reconstruction occurs, and is encoded as the transform from a reference frame.
+     * In the case of georeferenced data, the reference frame will be ECEF.
+     * Else, it is an implicit frame in which the landmarks, images and other datablocks are positioned.
+     */
+    void localCooordinateFrameChanged();
 
 protected:
 	void clearImpl();
@@ -140,6 +167,9 @@ protected:
 	QMap<QString, DataBlockFactory*> _dataBlocksFactory;
 
 	QString _source;
+
+    bool _hasLocalCrs; //indicate if the project has a local crs
+    StereoVision::Geometry::AffineTransform<float> _ecef2local; //represent the transformation from world (ECEF) and local coordinate system
 
 	friend class ProjectFactory;
 
@@ -243,7 +273,7 @@ public:
 	 * N.B this function is not the one used to load the datablock from a project, it is instead use for import/export of some datablocks.
 	 * Default implementation use the configureFromJson function.
 	 */
-	virtual void setParametersFromJsonRepresentation(QJsonObject const& rep);
+    virtual void setParametersFromJsonRepresentation(QJsonObject const& rep);
 
 Q_SIGNALS:
 

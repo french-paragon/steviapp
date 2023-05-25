@@ -4,6 +4,7 @@
 #include "control/actionmanager.h"
 #include "control/solversactions.h"
 #include "control/exportactions.h"
+#include "control/projectactions.h"
 
 #include "gui/imagewidget.h"
 #include "gui/editor.h"
@@ -69,6 +70,9 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->actionFindInitialSolution, &QAction::triggered, this, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
 	connect(ui->actionInit_stereo_rig, &QAction::triggered, this, [this] () {if (_activeProject != nullptr) {initMonoStereoRigSolution(_activeProject, this); } });
 	connect(ui->actionopen_Sparse_solution_editor, &QAction::triggered, this, [this] () {openSparseViewer(); });
+
+    connect(ui->actioncompute_local_frame, &QAction::triggered,
+            this, [this] () { if (_activeProject != nullptr) {estimateLocalCoordinateSystem(_activeProject); } });
 
 }
 

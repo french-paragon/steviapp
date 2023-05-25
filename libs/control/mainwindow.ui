@@ -45,7 +45,7 @@
      <x>0</x>
      <y>0</y>
      <width>1035</width>
-     <height>22</height>
+     <height>30</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
@@ -85,6 +85,7 @@
     <addaction name="actionsolve_coarse"/>
     <addaction name="actionsolve_sparse"/>
     <addaction name="actionsolve_stereo_rig"/>
+    <addaction name="actioncompute_local_frame"/>
    </widget>
    <widget class="QMenu" name="menueditors">
     <property name="title">
@@ -234,6 +235,11 @@
   <action name="actionopen_Sparse_solution_editor">
    <property name="text">
     <string>open Sparse solution editor</string>
+   </property>
+  </action>
+  <action name="actioncompute_local_frame">
+   <property name="text">
+    <string>compute local frame</string>
    </property>
   </action>
  </widget>

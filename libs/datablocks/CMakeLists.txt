@@ -25,6 +25,7 @@ set(LIB_SRC floatparameter.cpp
 set(LIB_HEADERS
     floatparameter.h
     dataexception.h
+    georeferenceddatablockinterface.h
     project.h
     rigidbody.h
     point3d.h
@@ -49,7 +50,7 @@ add_library(
     ${LIB_HEADERS}
 )
 
-target_link_libraries(${DATA_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(${DATA_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets PROJ::proj)
 
 install_stereovisionapp_sdklib(${DATA_LIB})
 

@@ -4,14 +4,17 @@
 #include "./project.h"
 #include "./point3d.h"
 #include "./floatparameter.h"
+#include "./georeferenceddatablockinterface.h"
 
 #include <QSet>
 
 namespace StereoVisionApp {
 
-class Landmark : public Point3D
+class Landmark : public Point3D, public GeoReferencedDataBlockInterface
 {
 	Q_OBJECT
+    Q_INTERFACES(StereoVisionApp::GeoReferencedDataBlockInterface)
+
 public:
 
 	explicit Landmark(Project* parent = nullptr);
@@ -29,9 +32,20 @@ public:
 
 	QSet<qint64> getViewingImgInList(QSet<qint64> const& included) const;
 
+    bool geoReferenceSupportActive() const override;
+    Eigen::Array<float,3, Eigen::Dynamic> getLocalPointsEcef() const override;
+    QString getCoordinateReferenceSystemDescr(int role = DefaultCRSRole) const override;
+
+    Eigen::Vector3f getEcefCoordinates() const;
+
 protected:
 
+    QJsonObject encodeJson() const override;
+    void configureFromJson(QJsonObject const& data) override;
+
 	void extendDataModel();
+
+    QString _coordinatesReferenceSystem;
 };
 
 class LandmarkFactory : public DataBlockFactory

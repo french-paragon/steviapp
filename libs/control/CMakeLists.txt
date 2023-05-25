@@ -24,6 +24,7 @@ set(LIB_SRC
         localcoordinatesystemactions.cpp
         fixedstereosequenceactions.cpp
         fixedstereosequenceactionmanager.cpp
+        projectactions.cpp
 )
 
 set(LIB_HEADERS
@@ -49,6 +50,7 @@ set(LIB_HEADERS
     localcoordinatesystemactions.h
     fixedstereosequenceactions.h
     fixedstereosequenceactionmanager.h
+    projectactions.h
 )
 
 add_library(

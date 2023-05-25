@@ -6,6 +6,8 @@
 
 #include <QSet>
 
+#include <proj.h>
+
 namespace StereoVisionApp {
 
 Landmark::Landmark(Project *parent) : Point3D(parent)
@@ -135,6 +137,93 @@ QSet<qint64> Landmark::getViewingImgInList(QSet<qint64> const& included) const {
 	}
 
 	return referingImgsId;
+
+}
+
+bool Landmark::geoReferenceSupportActive() const {
+
+    floatParameter x = xCoord();
+    floatParameter y = yCoord();
+    floatParameter z = zCoord();
+
+    if (!x.isSet() or !y.isSet() or !z.isSet()) {
+        return false;
+    } //we need all coordinates to georeference the point
+
+    return !_coordinatesReferenceSystem.isEmpty();
+}
+
+Eigen::Array<float,3, Eigen::Dynamic> Landmark::getLocalPointsEcef() const {
+
+    floatParameter x = xCoord();
+    floatParameter y = yCoord();
+    floatParameter z = zCoord();
+
+    Eigen::Array<float,3, Eigen::Dynamic> ret;
+    ret.resize(3,0);
+
+    if (!x.isSet() or !y.isSet() or !z.isSet()) {
+        return ret;
+    }
+
+    ret.resize(3,1);
+    ret.col(0) = getEcefCoordinates();
+
+    return ret;
+}
+
+Eigen::Vector3f Landmark::getEcefCoordinates() const {
+
+    double vx = xCoord().value();
+    double vy = yCoord().value();
+    double vz = zCoord().value();
+
+    Eigen::Vector3f ret;
+
+    PJ_CONTEXT* ctx = proj_context_create();
+
+    PJ* converter = proj_create_crs_to_crs(ctx, _coordinatesReferenceSystem.toStdString().c_str(), "EPSG:4978", nullptr);
+
+    if (converter == 0) { //in case of error
+        return ret;
+    }
+
+    proj_trans_generic(converter, PJ_FWD, &vx, 0, 1, &vy, 0, 1, &vz, 0, 1, nullptr, 0, 1);
+
+    proj_destroy(converter);
+    proj_context_destroy(ctx);
+
+    ret.resize(3,1);
+    ret(0,0) = vx;
+    ret(1,0) = vy;
+    ret(2,0) = vz;
+
+    return ret;
+}
+
+QString Landmark::getCoordinateReferenceSystemDescr(int role) const {
+    Q_UNUSED(role);
+    return _coordinatesReferenceSystem;
+}
+
+QJsonObject Landmark::encodeJson() const {
+    QJsonObject obj = Point3D::encodeJson();
+
+    if (!_coordinatesReferenceSystem.isEmpty()) {
+        obj.insert("geo_crs", _coordinatesReferenceSystem);
+    }
+
+    return obj;
+}
+void Landmark::configureFromJson(QJsonObject const& data) {
+
+    Point3D::configureFromJson(data);
+
+    _coordinatesReferenceSystem.clear();
+
+    if (data.contains("geo_crs")) {
+        _coordinatesReferenceSystem = data.value("geo_crs").toString();
+    }
 
 }
 
