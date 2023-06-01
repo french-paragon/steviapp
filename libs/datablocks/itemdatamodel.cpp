@@ -732,7 +732,7 @@ ItemDataModel::Node* ItemDataModel::nodeFromIndex(QModelIndex const& index) cons
 		case Node::SubItems:
 			node = static_cast<SubItemCollectionManager*>(pNode)->getNodeAtRow(index.row());
 			break;
-		case Node::Category:
+        case Node::Category:
 		case Node::SubItem: //the internal pointer points toward the parent node, so those categories are already leafs
 			return nullptr;
 		}

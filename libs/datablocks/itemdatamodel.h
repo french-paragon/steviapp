@@ -153,7 +153,7 @@ protected:
 			return QVariant::fromValue((block->*_getter)());
 		}
 		bool setData(QVariant const& d) override {
-			if (!d.canConvert(qMetaTypeId<T>())) {
+            if (!d.canConvert(qMetaTypeId<T>())) {
 				return false;
 			}
 
@@ -162,8 +162,8 @@ protected:
 				return false;
 			}
 
-			T v = qvariant_cast<T>(d);
-			(block->*_setter)(v);
+            T v = qvariant_cast<T>(d);
+            (block->*_setter)(v);
 			return true;
 		}
 
@@ -176,6 +176,92 @@ protected:
 		SetterType _setter;
 		GetterType _getter;
 	};
+
+    template<class D, bool refS, ItemPropertyDescription::SignalType signalT>
+    class TypedItemPropertyDescr<QVariant, D, refS, signalT> : public ItemPropertyDescription
+    {
+    public:
+        typedef void(D::*SetterType)(typename std::conditional<refS, QVariant const&, QVariant>::type);
+        typedef typename std::conditional<signalT==NoValueSignal,
+                                        void(D::*)(),
+                                        typename std::conditional<signalT==PassByRefSignal,
+                                                                void(D::*)(QVariant const&),
+                                                                void(D::*)(QVariant)>::type>::type SignalType;
+        typedef QVariant (D::*GetterType)() const;
+
+        TypedItemPropertyDescr(Category* cat,
+                               QString descrName,
+                               GetterType getter,
+                               SetterType setter,
+                               SignalType signal) :
+            ItemPropertyDescription(cat, descrName),
+            _setter(setter),
+            _getter(getter)
+        {
+            D* d = castedBlock();
+            vChangedConnection = QObject::connect(d, signal, [this] () {
+                valueChanged();
+            });
+        }
+
+        TypedItemPropertyDescr(SubItemCollectionManager* subItemsManager,
+                               DataBlock* block,
+                               QString descrName,
+                               GetterType getter,
+                               SetterType setter,
+                               SignalType signal) :
+            ItemPropertyDescription(subItemsManager, block, descrName),
+            _setter(setter),
+            _getter(getter)
+        {
+            D* d = castedBlock();
+            vChangedConnection = QObject::connect(d, signal, [this] () {
+                valueChanged();
+            });
+        }
+
+        bool isWritable() const override {
+            return _setter != nullptr;
+        }
+
+        PropertyEditor editor() const override {
+            return ValueEditor;
+        }
+
+        QVariant data(int role = Qt::DisplayRole) const override {
+
+            if (role != Qt::DisplayRole and role != Qt::EditRole) {
+                return QVariant();
+            }
+
+            D* block = castedBlock();
+
+            if (block == nullptr) {
+                return QVariant();
+            }
+
+            return (block->*_getter)();
+        }
+        bool setData(QVariant const& d) override {
+
+            D* block = castedBlock();
+            if (block == nullptr) {
+                return false;
+            }
+
+            (block->*_setter)(d);
+            return true;
+        }
+
+        D* castedBlock() const {
+            DataBlock* b = block();
+            return qobject_cast<D*>(b);
+        }
+
+    protected:
+        SetterType _setter;
+        GetterType _getter;
+    };
 
 	template<class D, bool refS, ItemPropertyDescription::SignalType signalT>
 	class TypedItemPropertyDescr<floatParameter, D, refS, signalT> : public ItemPropertyDescription
