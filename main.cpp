@@ -41,6 +41,8 @@
 
 #include <QDebug>
 
+#include <gdal/gdal.h>
+
 namespace py = pybind11;
 
 void runScript(QString const& scriptPath, QStringList argv = {}) {
@@ -60,6 +62,9 @@ void runScript(QString const& scriptPath, QStringList argv = {}) {
 
 int main(int argc, char *argv[])
 {
+
+    //configure libraries
+    GDALAllRegister();
 
 	StereoVisionApp::StereoVisionApplication a(argc, argv);
 

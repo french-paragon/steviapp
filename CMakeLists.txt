@@ -76,6 +76,9 @@ pkg_check_modules(PROJ REQUIRED IMPORTED_TARGET proj)
 add_library(PROJ::proj ALIAS PkgConfig::PROJ)
 #TODO: check when the ubuntu repos update to the PROJ 9 release, which should include a cmake package
 
+pkg_check_modules(GDAL REQUIRED IMPORTED_TARGET gdal)
+add_library(GDAL::GDAL ALIAS PkgConfig::GDAL)
+#TODO: check when the ubuntu repos include the proper cmake configuration files in their repos
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -98,7 +101,7 @@ add_executable(steviapp
     ${PROJ_SRC}
 )
 
-target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets pybind11::embed)
+target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets pybind11::embed GDAL::GDAL)
 
 target_link_libraries(steviapp PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
 
