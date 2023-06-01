@@ -252,6 +252,7 @@ void OpenGl3DSceneViewWidget::initializeGL() {
     f->glEnable(GL_MULTISAMPLE);
     f->glEnable(GL_POINT_SMOOTH);
     f->glEnable(GL_PROGRAM_POINT_SIZE);
+    f->glEnable(GL_DEPTH_TEST);
 
     //initialize all drawables.
     for (OpenGlDrawable* oglDrawable : _drawables) {
@@ -297,6 +298,12 @@ void OpenGl3DSceneViewWidget::initializeObjectIdMaskPart() {
     _obj_raycasting_context->doneCurrent();
 }
 void OpenGl3DSceneViewWidget::paintObjectIdMask() {
+
+    GLenum err = glGetError();
+    while(err != GL_NO_ERROR) {
+      // loop to remove errors
+        err = glGetError();
+    }
 
     if (_obj_raycasting_context == nullptr or _obj_raycasting_surface == nullptr) {
         return; //no object id context mean no object id masks
@@ -350,7 +357,7 @@ void OpenGl3DSceneViewWidget::paintObjectIdMask() {
     //f->glReadBuffer(GL_BACK);
     f->glReadPixels(0, 0, width(), height(), GL_RGB, GL_FLOAT, &(_id_img->atUnchecked(0)));
 
-    auto err = glGetError();
+    err = glGetError();
     if (err != GL_NO_ERROR) {
         qDebug() << "OpenGL error while reading  id pass: " << err;
     }
