@@ -115,6 +115,10 @@ bool Project::load(QString const& inFile) {
 
 	for (QString itemClass : _dataBlocksFactory.keys()) {
 
+        if (itemClass == "metadata") {
+            continue; //reserved keyword
+        }
+
 		QJsonArray items = proj.value(itemClass).toArray();
 
 		for (QJsonValue v : items) {
@@ -129,6 +133,30 @@ bool Project::load(QString const& inFile) {
 			}
 		}
 	}
+
+    _hasLocalCrs = false;
+    if (proj.contains("metadata")) {
+
+        QJsonObject metadata = proj.value("metadata").toObject();
+
+        if (metadata.contains("local_transform")) {
+            QJsonObject local = metadata.value("local_transform").toObject();
+
+            if (local.contains("R") and local.contains("t")) {
+                QJsonArray R = local.value("R").toArray();
+                QJsonArray t = local.value("t").toArray();
+
+                for (int i = 0; i < 3; i++) {
+                    QJsonArray row = R.at(i).toArray();
+                    _ecef2local.R.row(i) << row.at(0).toDouble(), row.at(1).toDouble(), row.at(2).toDouble();
+                }
+
+                _ecef2local.t << t.at(0).toDouble(), t.at(1).toDouble(), t.at(2).toDouble();
+                _hasLocalCrs = true;
+            }
+        }
+
+    }
 
 	endResetModel();
 
@@ -161,6 +189,32 @@ bool Project::save(QString const& outFile) {
 
 		proj.insert(itemClass, items);
 	}
+    QJsonObject metadata;
+
+    if (_hasLocalCrs) {
+        QJsonObject localTransform;
+        QJsonArray R;
+        QJsonArray t;
+
+        for (int i = 0; i < 3; i++) {
+            QJsonArray R_row;
+
+            for (int j = 0; j < 3; j++) {
+                R_row.push_back(_ecef2local.R(i,j));
+            }
+
+            R.push_back(R_row);
+
+            t.push_back(_ecef2local.t[i]);
+        }
+
+        localTransform.insert("R", R);
+        localTransform.insert("t", t);
+
+        metadata.insert("local_transform", localTransform);
+    }
+
+    proj.insert("metadata", metadata);
 
 	QJsonDocument doc;
 
