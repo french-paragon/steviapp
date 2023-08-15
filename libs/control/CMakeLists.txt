@@ -1,5 +1,7 @@
 define_stereovisionapp_lib(CONTROL Control)
 
+configure_file(application_config.h.in ${CONFIGURED_INCLUDES_DIR}/control/application_config.h)
+
 set(LIB_SRC
         utils_functions.cpp
         application.cpp
@@ -28,6 +30,7 @@ set(LIB_SRC
 )
 
 set(LIB_HEADERS
+    ${CONFIGURED_INCLUDES_DIR}/control/application_config.h
     utils_functions.h
     application.h
     stereoappplugininterface.h
@@ -52,6 +55,11 @@ set(LIB_HEADERS
     fixedstereosequenceactionmanager.h
     projectactions.h
 )
+
+if (ADD_DEVEL_TOOLS)
+    list (APPEND LIB_SRC cornerdetectionactions.cpp)
+    list (APPEND LIB_HEADERS cornerdetectionactions.h)
+endif()
 
 add_library(
 ${CONTROL_LIB}

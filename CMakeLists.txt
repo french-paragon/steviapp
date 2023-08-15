@@ -16,6 +16,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp -march=native -ftree-vectorize")
 
+#options
+option(ADD_DEVEL_TOOLS "enable devellopement tools in the build" OFF)
+set(STEVIAPP_DEVEL_TOOLS ${ADD_DEVEL_TOOLS})
+
 #some global variables
 
 include(GNUInstallDirs)
@@ -24,6 +28,9 @@ set(CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 set(CMAKE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME})
 set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
+
+set(CONFIGURED_INCLUDES_DIR ${CMAKE_BINARY_DIR}/configured_includes)
+include_directories(${CONFIGURED_INCLUDES_DIR})
 
 message("Lib install dir: ${CMAKE_INSTALL_LIBDIR}")
 

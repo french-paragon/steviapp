@@ -7,6 +7,8 @@
 #include <QApplication>
 #include <QSurfaceFormat>
 
+#include "control/application_config.h"
+
 #include "datablocks/project.h"
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
@@ -28,6 +30,10 @@
 #include "gui/cameracalibrationeditor.h"
 #include "gui/cameracalibrationsparsealignementeditor.h"
 #include "gui/fixedstereosequenceeditor.h"
+
+#ifdef STEVIAPP_DEVEL_TOOLS
+#include "gui/cornerdetectortesteditor.h"
+#endif
 
 #include "control/imagebaseactionmanager.h"
 #include "control/camerabaseactionmanager.h"
@@ -119,6 +125,10 @@ int main(int argc, char *argv[])
 		w->installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::CameraCalibrationSparseAlignementEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::FixedStereoSequenceEditorFactory(&a));
+
+        #ifdef STEVIAPP_DEVEL_TOOLS
+        w->installEditor(new StereoVisionApp::CornerDetectorTestEditorFactory(&a));
+        #endif
 	}
 
 	//create an empty project to start

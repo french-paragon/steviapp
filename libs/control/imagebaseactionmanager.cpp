@@ -1,5 +1,7 @@
 #include "imagebaseactionmanager.h"
 
+#include "control/application_config.h"
+
 #include "mainwindow.h"
 #include "gui/imageeditor.h"
 #include "gui/imagepointdetailseditor.h"
@@ -16,6 +18,10 @@
 #include <QMessageBox>
 
 #include "imagebaseactions.h"
+
+#ifdef STEVIAPP_DEVEL_TOOLS
+#include "cornerdetectionactions.h"
+#endif
 
 namespace StereoVisionApp {
 
@@ -156,6 +162,17 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 	QAction* addToCalibration = createAddToCalibrationAction(parent, im->getProject(), {im});
 
 	lst.append(addToCalibration);
+
+
+    #ifdef STEVIAPP_DEVEL_TOOLS
+
+    QAction* testDetectCorners = new QAction(tr("Test detect corners"), parent);
+    connect(testDetectCorners, &QAction::triggered, [im] () {
+        detectCornerInImage(im->getProject(), im->internalId());
+    });
+    lst.append(testDetectCorners);
+
+    #endif
 
 	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
 	connect(clearOptimized, &QAction::triggered, [im] () {
