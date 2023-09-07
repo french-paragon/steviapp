@@ -4,8 +4,8 @@ set(LIB_SRC imagewidget.cpp
             editor.cpp
             imageadapters/imagedatablockdisplayadapter.cpp
             imagedisplayoverlays/imagelandmarksoverlay.cpp
-            imagedisplayoverlays/pointssetoverlay.h
             imagedisplayoverlays/pointssetoverlay.cpp
+            imagedisplayoverlays/labelledpointsoverlay.cpp
             openGlDrawables/opengldrawablescenegrid.cpp
             openGlDrawables/opengldrawablelandmarkset.cpp
             openGlDrawables/opengldrawablecamerasset.cpp
@@ -88,6 +88,8 @@ set(LIB_HEADERS_IMGADAPTERS
 
 set(LIB_HEADERS_IMGDISPOVERLAYS
     imagedisplayoverlays/imagelandmarksoverlay.h
+    imagedisplayoverlays/pointssetoverlay.h
+    imagedisplayoverlays/labelledpointsoverlay.h
 )
 
 set(LIB_HEADERS_OPENGLDRAWABLES
@@ -97,8 +99,10 @@ set(LIB_HEADERS_OPENGLDRAWABLES
 )
 
 if (ADD_DEVEL_TOOLS)
-    list (APPEND LIB_SRC cornerdetectortesteditor.cpp)
-    list (APPEND LIB_HEADERS cornerdetectortesteditor.h)
+    list (APPEND LIB_SRC cornerdetectortesteditor.cpp
+        cornermatchingtesteditor.cpp)
+    list (APPEND LIB_HEADERS cornerdetectortesteditor.h
+        cornermatchingtesteditor.h)
 endif()
 
 add_library(

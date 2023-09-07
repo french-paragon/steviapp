@@ -33,6 +33,7 @@
 
 #ifdef STEVIAPP_DEVEL_TOOLS
 #include "gui/cornerdetectortesteditor.h"
+#include "gui/cornermatchingtesteditor.h"
 #endif
 
 #include "control/imagebaseactionmanager.h"
@@ -128,6 +129,7 @@ int main(int argc, char *argv[])
 
         #ifdef STEVIAPP_DEVEL_TOOLS
         w->installEditor(new StereoVisionApp::CornerDetectorTestEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::CornerMatchingTestEditorFactory(&a));
         #endif
 	}
 

@@ -72,6 +72,21 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
 		exportRectified->setEnabled(false);
 	}
 
+    #ifdef STEVIAPP_DEVEL_TOOLS
+
+    QAction* testDetectCorners = new QAction(tr("Test detect corners"), parent);
+    connect(testDetectCorners, &QAction::triggered, [] () {
+        detectCornerInTestImage();
+    });
+
+    QAction* testMatchCorners = new QAction(tr("Test match corners"), parent);
+    connect(testMatchCorners, &QAction::triggered, [] () {
+        matchCornersInTestImagePair();
+    });
+    return {add, exportRectified, testDetectCorners, testMatchCorners};
+
+    #endif
+
 	return {add, exportRectified};
 
 }
@@ -219,6 +234,12 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 	if (assignToStereoRig != nullptr) {
 		lst.append(assignToStereoRig);
 	}
+
+    QAction* openImagesInCornerMatchingEditor = createOpenInCornerMatchingEditor(parent, p, ims);
+
+    if (openImagesInCornerMatchingEditor != nullptr) {
+        lst.append(openImagesInCornerMatchingEditor);
+    }
 
 
 	QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
@@ -386,6 +407,25 @@ QAction* ImageBaseActionManager::createAssignToStereoRigAction(QObject* parent, 
 
 	return nullptr;
 
+}
+
+QAction* ImageBaseActionManager::createOpenInCornerMatchingEditor(QObject* parent, Project* p, const QVector<Image *> &ims) const {
+
+    if (ims.size() != 2) {
+        return nullptr;
+    }
+
+    #ifdef STEVIAPP_DEVEL_TOOLS
+
+    QAction* testMatchCorners = new QAction(tr("Test match corners"), parent);
+    connect(testMatchCorners, &QAction::triggered, [p, ims] () {
+        matchCornersInImagePair(p, ims[0]->internalId(), ims[1]->internalId());
+    });
+
+    return testMatchCorners;
+
+    #endif
+    return nullptr;
 }
 
 QAction* ImageBaseActionManager::createExportRectifiedForRigAction(QObject* parent, Project* p, const QVector<qint64> &ims, QWidget* w) const {

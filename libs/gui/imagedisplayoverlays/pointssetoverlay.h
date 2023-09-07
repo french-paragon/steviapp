@@ -30,8 +30,6 @@ protected:
 
     void paintItemImpl(QPainter* painter) const override;
 
-    bool _show;
-
     QVector<QPointF> _pointsSet;
     QColor _color;
     float _radius;

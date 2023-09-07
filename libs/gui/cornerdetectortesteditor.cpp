@@ -225,7 +225,7 @@ void CornerDetectorTestEditor::compute() {
 
     int lpRadius = _lowPassRadius->value();
 
-    _scoreData = StereoVision::SparseMatching::HarrisCornerScore(Multidim::Array<float, 3, Multidim::ConstView>(_imgData), lpRadius, batchDim);
+    _scoreData = StereoVision::SparseMatching::windowedHarrisCornerScore(Multidim::Array<float, 3, Multidim::ConstView>(_imgData), lpRadius, 0, batchDim);
 
     float min = 0;
     float max = 0;
