@@ -22,6 +22,7 @@
 #include "datablocks/fixedstereopluscolorsequence.h"
 
 #include "gui/imageeditor.h"
+#include "gui/imageviewer.h"
 #include "gui/imagepointdetailseditor.h"
 #include "gui/landmarkpointdetailseditor.h"
 #include "gui/localcoordinatesystempointdetailseditor.h"
@@ -118,6 +119,7 @@ int main(int argc, char *argv[])
 
 	if (w != nullptr) {
 		w->installEditor(new StereoVisionApp::ImageEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::ImageViewerFactory(&a));
 		w->installEditor(new StereoVisionApp::ImagePointDetailsEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::LandmarkPointDetailsEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::LocalCoordinateSystemPointDetailsEditorFactory(&a));

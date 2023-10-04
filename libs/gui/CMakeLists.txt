@@ -3,6 +3,7 @@ define_stereovisionapp_lib(GUI Gui)
 set(LIB_SRC imagewidget.cpp
             editor.cpp
             imageadapters/imagedatablockdisplayadapter.cpp
+            imageadapters/imagedatadisplayadapter.cpp
             imagedisplayoverlays/imagelandmarksoverlay.cpp
             imagedisplayoverlays/pointssetoverlay.cpp
             imagedisplayoverlays/labelledpointsoverlay.cpp
@@ -11,6 +12,7 @@ set(LIB_SRC imagewidget.cpp
             openGlDrawables/opengldrawablecamerasset.cpp
             imageeditor.cpp
             imageeditor.ui
+            imageviewer.cpp
             imagepointdetailseditor.cpp
             imagepointdetailseditor.ui
             landmarkpointdetailseditor.cpp
@@ -58,6 +60,7 @@ set(LIB_HEADERS
     imagewidget.h
     editor.h
     imageeditor.h
+    imageviewer.h
     imagepointdetailseditor.h
     landmarkpointdetailseditor.h
     localcoordinatesystempointdetailseditor.h
@@ -84,6 +87,7 @@ set(LIB_HEADERS
 
 set(LIB_HEADERS_IMGADAPTERS
     imageadapters/imagedatablockdisplayadapter.h
+    imageadapters/imagedatadisplayadapter.h
 )
 
 set(LIB_HEADERS_IMGDISPOVERLAYS
