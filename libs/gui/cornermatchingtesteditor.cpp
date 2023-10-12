@@ -257,21 +257,25 @@ void CornerMatchingTestEditor::compute() {
 
     int nSamples = _nFeatures->value();
 
-    std::vector<SpaMat::ComparisonPair<nDim>> comparisons = SpaMat::generateRandomComparisonPairs<nDim>(nSamples, patchRadius);
+    std::array<int,nDim> shape;
+    std::fill(shape.begin(), shape.end(), 2*patchRadius+1);
+    shape[batchDim] = 3;
+
+    std::vector<std::array<int,nDim>> patchCoords = SpaMat::generateDensePatchCoordinates<nDim>(shape);
 
 
-    auto features1 = SpaMat::BriefDescriptor<true, 2, float>(oriented1, _imgData1, comparisons, batchDim);
-    auto features2 = SpaMat::BriefDescriptor<true, 2, float>(oriented2, _imgData2, comparisons, batchDim);
+    auto features1 = SpaMat::WhitenedPixelsDescriptor(oriented1, _imgData1, patchCoords, batchDim);
+    auto features2 = SpaMat::WhitenedPixelsDescriptor(oriented2, _imgData2, patchCoords, batchDim);
 
     int n = features1.size();
     int m = features2.size();
 
-    Eigen::MatrixXi costs;
+    Eigen::MatrixXf costs;
     costs.resize(n, m);
 
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
-            costs(i,j) = Corr::hammingDistance(features1[i].features, features2[j].features);
+            costs(i,j) = Corr::SumAbsDiff(features1[i].features, features2[j].features);
         }
     }
 
