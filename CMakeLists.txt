@@ -56,6 +56,12 @@ if (FMASUPPORTED)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mfma")
 endif()
 
+#backtrace limit
+check_cxx_compiler_flag("-ftemplate-backtrace-limit=100" TMPL_BACKTRACE_LIMIT)
+
+if (TMPL_BACKTRACE_LIMIT)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-backtrace-limit=100")
+endif()
 
 # QtCreator supports the following variables for Android, which are identical to qmake Android variables.
 # Check http://doc.qt.io/qt-5/deployment-android.html for more information.
@@ -86,6 +92,9 @@ add_library(PROJ::proj ALIAS PkgConfig::PROJ)
 pkg_check_modules(GDAL REQUIRED IMPORTED_TARGET gdal)
 add_library(GDAL::GDAL ALIAS PkgConfig::GDAL)
 #TODO: check when the ubuntu repos include the proper cmake configuration files in their repos
+
+find_package(Ceres REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

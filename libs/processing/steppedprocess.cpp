@@ -111,6 +111,23 @@ void SteppedProcess::process() {
 	}
 }
 
+
+void SteppedProcess::jumpStep() {
+
+    bool extended = false;
+
+    _sync.lock();
+    if (_current_step < numberOfSteps()-1) {
+        _current_step++;
+        extended = true;
+    }
+    _sync.unlock();
+
+    if (extended) {
+        Q_EMIT newStepStarted();
+    }
+}
+
 void SteppedProcess::stop() {
 	QMutexLocker locker(&_sync);
 	_goOn = false;

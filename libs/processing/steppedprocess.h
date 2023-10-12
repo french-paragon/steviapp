@@ -39,6 +39,12 @@ public Q_SLOTS:
 protected:
 
 	void process();
+
+    /*!
+     * \brief jumpStep force a step jump to skip a step manually
+     */
+    void jumpStep();
+
 	virtual bool doNextStep() = 0;
 
 	virtual bool init() = 0;

@@ -6,6 +6,7 @@ set(LIB_SRC initialsolution.cpp
             sparsesolverbase.cpp
             graphroughbundleadjustementsolver.cpp
             graphsbasolver.cpp
+            ceressbasolver.cpp
             graphstereorigsolver.cpp
             graphcameracalibrator.cpp
             imagepointssolutionmodel.cpp
@@ -30,6 +31,9 @@ set(LIB_SRC initialsolution.cpp
             edges/edgecameralandmarkdirectionalalignement.cpp
             edges/edgecamerase3leverarm.cpp
             edges/edgelocalpointcoordinates.cpp
+            costfunctors/camerase3leverarmcostfunctor.cpp
+            costfunctors/parametrizedxyz2uvcost.cpp
+            costfunctors/localpointalignementcost.cpp
 )
 
 set(LIB_HEADERS
@@ -37,6 +41,7 @@ set(LIB_HEADERS
     sbagraphreductor.h
     sbainitializer.h
     graphsbasolver.h
+    ceressbasolver.h
     fixedpreoptimizedparameters.h
     landmarkpointssolutionmodel.h
     localcoordinatespointssolutionmodel.h
@@ -73,17 +78,24 @@ set(LIB_HEADERS_VERTICES
     vertices/camerapose.h
 )
 
+set(LIB_HEADERS_COST_FUNCTORS
+    costfunctors/camerase3leverarmcostfunctor.h
+    costfunctors/parametrizedxyz2uvcost.h
+    costfunctors/localpointalignementcost.h
+)
+
 add_library(
     ${SOLVING_LIB}
     ${LIB_SRC}
     ${LIB_HEADERS}
     ${LIB_HEADERS_EDGES}
     ${LIB_HEADERS_VERTICES}
+    ${LIB_HEADERS_COST_FUNCTORS}
 )
 
 target_link_libraries(${SOLVING_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(${SOLVING_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${STEREOVISION_LIB})
-target_link_libraries(${SOLVING_LIB} PRIVATE ${G2O_LIBS} ${CSPARSE_LIBRARY})
+target_link_libraries(${SOLVING_LIB} PRIVATE ${G2O_LIBS} ${CERES_LIBRARIES} ${CSPARSE_LIBRARY})
 
 install_stereovisionapp_sdklib(${SOLVING_LIB})
 
