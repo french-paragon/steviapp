@@ -10,6 +10,7 @@
 #include "control/application_config.h"
 
 #include "datablocks/project.h"
+#include "datablocks/datatable.h"
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
 #include "datablocks/image.h"
@@ -21,6 +22,7 @@
 #include "datablocks/fixedcolorstereosequence.h"
 #include "datablocks/fixedstereopluscolorsequence.h"
 
+#include "gui/datatablevieweditor.h"
 #include "gui/imageeditor.h"
 #include "gui/imageviewer.h"
 #include "gui/imagepointdetailseditor.h"
@@ -37,6 +39,7 @@
 #include "gui/cornermatchingtesteditor.h"
 #endif
 
+#include "control/datatableactionmanager.h"
 #include "control/imagebaseactionmanager.h"
 #include "control/camerabaseactionmanager.h"
 #include "control/landmarkbaseactionmanager.h"
@@ -90,6 +93,7 @@ int main(int argc, char *argv[])
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
     StereoVisionApp::ActionManagersLibrary& aml = StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary();
 
+    pF.addType(new StereoVisionApp::DataTableFactory(&a));
     pF.addType(new StereoVisionApp::LandmarkFactory(&a));
     pF.addType(new StereoVisionApp::ImageFactory(&a));
     pF.addType(new StereoVisionApp::CameraFactory(&a));
@@ -102,6 +106,7 @@ int main(int argc, char *argv[])
     pF.addType(new StereoVisionApp::FixedColorStereoSequenceFactory(&a));
     pF.addType(new StereoVisionApp::FixedStereoPlusColorSequenceFactory(&a));
 
+    aml.registerDatablockActionManager(new StereoVisionApp::DataTableActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::ImageBaseActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::LandmarkBaseActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::CameraBaseActionManager(&pF));
@@ -118,7 +123,8 @@ int main(int argc, char *argv[])
 	StereoVisionApp::MainWindow* w = a.mainWindow();
 
 	if (w != nullptr) {
-		w->installEditor(new StereoVisionApp::ImageEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::DataTableViewEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::ImageEditorFactory(&a));
         w->installEditor(new StereoVisionApp::ImageViewerFactory(&a));
 		w->installEditor(new StereoVisionApp::ImagePointDetailsEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::LandmarkPointDetailsEditorFactory(&a));

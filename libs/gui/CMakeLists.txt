@@ -54,6 +54,7 @@ set(LIB_SRC imagewidget.cpp
             stereosequenceexportoptiondialog.ui
             stereosequenceimageexportoptiondialog.cpp
             stereosequenceimageexportoptiondialog.ui
+            datatablevieweditor.cpp
 )
 
 set(LIB_HEADERS
@@ -83,6 +84,7 @@ set(LIB_HEADERS
     fixedstereosequenceeditor.h
     stereosequenceexportoptiondialog.h
     stereosequenceimageexportoptiondialog.h
+    datatablevieweditor.h
 )
 
 set(LIB_HEADERS_IMGADAPTERS

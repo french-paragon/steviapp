@@ -9,6 +9,8 @@ set(LIB_SRC
         mainwindow.cpp
 	mainwindow.ui
         actionmanager.cpp
+        datatableactions.cpp
+        datatableactionmanager.cpp
         imagebaseactions.cpp
         imagebaseactionmanager.cpp
         camerabaseactionmanager.cpp
@@ -36,6 +38,8 @@ set(LIB_HEADERS
     stereoappplugininterface.h
     mainwindow.h
     actionmanager.h
+    datatableactions.h
+    datatableactionmanager.h
     imagebaseactions.h
     imagebaseactionmanager.h
     camerabaseactionmanager.h

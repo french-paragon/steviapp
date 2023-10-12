@@ -18,6 +18,7 @@ set(LIB_SRC floatparameter.cpp
             exportablestereosequence.cpp
             fixedstereopluscolorsequence.cpp
             fixedcolorstereosequence.cpp
+            datatable.cpp
             io/collada_export_filter.cpp
             io/collada_export_filter.h
 )
@@ -42,6 +43,7 @@ set(LIB_HEADERS
     exportablestereosequence.h
     fixedstereopluscolorsequence.h
     fixedcolorstereosequence.h
+    datatable.h
 )
 
 add_library(
