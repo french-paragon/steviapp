@@ -13,6 +13,8 @@ bool openDataTable(DataBlock* d);
 
 bool removeDataTable(DataBlock* d);
 
+bool exportDataTableToCsv(DataBlock* d);
+
 } // namespace StereoVisionApp
 
 #endif // STEREOVISIONAPP_DATATABLEACTIONS_H

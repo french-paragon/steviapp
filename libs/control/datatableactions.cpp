@@ -36,7 +36,7 @@ bool openDataTableFromCsv(Project* p) {
     QString inFilePath = QFileDialog::getOpenFileName(mw,
                                  QObject::tr("Open csv data"),
                                  QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first(),
-                                 QObject::tr("csv files (*.csv, *.txt, *.dat);;all files (*.*)"));
+                                 QObject::tr("csv files (*.csv *.txt *.dat);;all files (*.*)"));
 
 
     if (inFilePath.isEmpty()) {
@@ -140,6 +140,92 @@ bool removeDataTable(DataBlock* d) {
     p->clearById(dataTable->internalId());
 
     return true;
+}
+
+bool exportDataTableToCsv(DataBlock* d) {
+
+    QString functionName = "exportDataTableToCsv";
+
+    DataTable* dataTable = qobject_cast<DataTable*>(d);
+
+    if (dataTable == nullptr) {
+        return false;
+    }
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (mw == nullptr) {
+        qDebug() << functionName << "missing main windows";
+        return false;
+    }
+
+    QString saveFilePath = QFileDialog::getSaveFileName(mw,
+                                 QObject::tr("Save to csv data"),
+                                 QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first(),
+                                 QObject::tr("csv files (*.csv *.txt *.dat);;all files (*.*)"));
+
+
+    if (saveFilePath.isEmpty()) {
+        qDebug() << functionName << "empty save file path";
+        return false;
+    }
+
+    if (!saveFilePath.endsWith(".csv", Qt::CaseInsensitive) and
+            !saveFilePath.endsWith(".txt", Qt::CaseInsensitive) and
+            !saveFilePath.endsWith(".dat", Qt::CaseInsensitive)) {
+
+        saveFilePath += ".csv";
+    }
+
+    QFile file(saveFilePath);
+    QFileInfo fileInfo(saveFilePath);
+
+    if (!file.open(QFile::WriteOnly)) {
+        QMessageBox::warning(mw, QObject::tr("Could not export data"), QObject::tr("File %1 could not be opened").arg(saveFilePath));
+        return false;
+    }
+
+    QTextStream stream(&file);
+
+    QVector<QString> columns = dataTable->columns();
+    QVector<QVector<QVariant>> colsDatas;
+    colsDatas.reserve(columns.size());
+
+    for (QString const& col : columns) {
+        colsDatas.push_back(dataTable->getColumnData(col));
+    }
+
+    int nRows = dataTable->nRows();
+
+    for (int i = 0; i < columns.size(); i++) {
+        if (i > 0) {
+            stream << ',';
+        }
+        stream << columns[i];
+    }
+    stream << Qt::endl;
+
+    for (int i = 0; i < nRows; i++) {
+
+        for (int c = 0; c < columns.size(); c++) {
+            if (c > 0) {
+                stream << ',';
+            }
+
+            if (colsDatas[c].size() > i) {
+                stream << colsDatas[c][i].toString();
+            }
+        }
+        stream << Qt::endl;
+
+    }
+
+    file.close();
+
+    qDebug() << functionName << "data written to: " << saveFilePath;
+
+    return true;
+
 }
 
 } // namespace StereoVisionApp

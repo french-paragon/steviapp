@@ -44,13 +44,20 @@ QList<QAction*> DataTableActionManager::factorizeItemContextActions(QObject* par
     });
 
 
+    QAction* export2csv = new QAction("export to csv", parent);
+
+    connect(export2csv, &QAction::triggered, d, [d] () {
+        exportDataTableToCsv(d);
+    });
+
+
     QAction* removeData = new QAction("delete", parent);
 
     connect(removeData, &QAction::triggered, d, [d] () {
         removeDataTable(d);
     });
 
-    return {viewData, removeData};
+    return {viewData, export2csv, removeData};
 
 }
 
