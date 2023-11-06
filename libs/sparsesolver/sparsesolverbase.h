@@ -1,9 +1,9 @@
 #ifndef STEREOVISIONAPP_SPARSESOLVERBASE_H
 #define STEREOVISIONAPP_SPARSESOLVERBASE_H
 
-#include "processing/steppedprocess.h"
+#include "../processing/steppedprocess.h"
 
-#include "fixedpreoptimizedparameters.h"
+#include "./fixedpreoptimizedparameters.h"
 
 namespace StereoVisionApp {
 

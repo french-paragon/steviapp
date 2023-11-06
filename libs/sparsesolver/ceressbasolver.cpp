@@ -104,34 +104,27 @@ bool CeresSBASolver::init() {
                 m[1] = lm->yCoord().value();
                 m[2] = lm->zCoord().value();
 
-                Eigen::Matrix3d info = Eigen::Matrix3d::Identity();
+                Eigen::Matrix3d stiffness = Eigen::Matrix3d::Identity();
 
                 if (lm->xCoord().isUncertain()) {
-                    info(0,0) = 1./(lm->xCoord().stddev()*lm->xCoord().stddev());
+                    stiffness(0,0) = 1./(lm->xCoord().stddev()*lm->xCoord().stddev());
                 } else {
-                    info(0,0) = 1e6;
+                    stiffness(0,0) = 1e6;
                 }
 
                 if (lm->yCoord().isUncertain()) {
-                    info(1,1) = 1./(lm->yCoord().stddev()*lm->yCoord().stddev());
+                    stiffness(1,1) = 1./(lm->yCoord().stddev()*lm->yCoord().stddev());
                 } else {
-                    info(1,1) = 1e6;
+                    stiffness(1,1) = 1e6;
                 }
 
                 if (lm->zCoord().isUncertain()) {
-                    info(2,2) = 1./(lm->zCoord().stddev()*lm->zCoord().stddev());
+                    stiffness(2,2) = 1./(lm->zCoord().stddev()*lm->zCoord().stddev());
                 } else {
-                    info(2,2) = 1e6;
+                    stiffness(2,2) = 1e6;
                 }
 
-                ceres::Matrix A = info;
-                A.setConstant(3,3,0);
-
-                A(0,0) = std::sqrt(info(0,0));
-                A(1,1) = std::sqrt(info(0,0));
-                A(2,2) = std::sqrt(info(0,0));
-
-                ceres::NormalPrior* normalPrior = new ceres::NormalPrior(A, m);
+                ceres::NormalPrior* normalPrior = new ceres::NormalPrior(stiffness, m);
 
                 _problem.AddResidualBlock(normalPrior, nullptr, pos.position.data());
 
@@ -378,7 +371,7 @@ bool CeresSBASolver::opt_step() {
 
     _not_first_step = true;
 
-    return true; //TODO: implement
+    return true;
 }
 bool CeresSBASolver::std_step() {
     return true;

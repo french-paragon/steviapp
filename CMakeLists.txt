@@ -93,6 +93,9 @@ pkg_check_modules(GDAL REQUIRED IMPORTED_TARGET gdal)
 add_library(GDAL::GDAL ALIAS PkgConfig::GDAL)
 #TODO: check when the ubuntu repos include the proper cmake configuration files in their repos
 
+find_package(glog REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
+
 find_package(Ceres REQUIRED)
 include_directories(${CERES_INCLUDE_DIRS})
 
@@ -117,7 +120,7 @@ add_executable(steviapp
     ${PROJ_SRC}
 )
 
-target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets pybind11::embed GDAL::GDAL)
+target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets pybind11::embed GDAL::GDAL glog::glog)
 
 target_link_libraries(steviapp PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
 

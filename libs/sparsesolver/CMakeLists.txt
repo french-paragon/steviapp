@@ -34,6 +34,9 @@ set(LIB_SRC initialsolution.cpp
             costfunctors/camerase3leverarmcostfunctor.cpp
             costfunctors/parametrizedxyz2uvcost.cpp
             costfunctors/localpointalignementcost.cpp
+            costfunctors/camposwithparametrizedleverarmcost.cpp
+            costfunctors/weightedcostfunction.cpp
+            costfunctors/imustepcost.cpp
 )
 
 set(LIB_HEADERS
@@ -80,8 +83,11 @@ set(LIB_HEADERS_VERTICES
 
 set(LIB_HEADERS_COST_FUNCTORS
     costfunctors/camerase3leverarmcostfunctor.h
+    costfunctors/camposwithparametrizedleverarmcost.h
     costfunctors/parametrizedxyz2uvcost.h
     costfunctors/localpointalignementcost.h
+    costfunctors/weightedcostfunction.h
+    costfunctors/imustepcost.h
 )
 
 add_library(
@@ -111,4 +117,8 @@ install(FILES ${LIB_HEADERS_EDGES}
 
 install(FILES ${LIB_HEADERS_VERTICES}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/vertices
+  )
+
+install(FILES ${LIB_HEADERS_COST_FUNCTORS}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/costfunctors
   )

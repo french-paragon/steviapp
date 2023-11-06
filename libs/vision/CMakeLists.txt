@@ -11,6 +11,7 @@ set(LIB_HEADERS
     imageio.h
     checkboarddetector.h
     pointcloudio.h
+    indexed_timed_sequence.h
 )
 
 add_library(
