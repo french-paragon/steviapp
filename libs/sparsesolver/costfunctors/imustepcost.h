@@ -157,7 +157,7 @@ public:
         T dt(_delta_t);
 
         V3T vt1p1 = vt1 + vv1*dt - vg*dt*dt + R1*_posSpeedDelta;
-        V3T vv1p1 = vt1 - vg*dt + R1*_speedDelta;
+        V3T vv1p1 = vv1 - vg*dt + R1*_speedDelta;
 
         V3T errR = StereoVision::Geometry::inverseRodriguezFormula<T>(R1p1.transpose()*R2);
         V3T errt = vt1p1 - vt2;

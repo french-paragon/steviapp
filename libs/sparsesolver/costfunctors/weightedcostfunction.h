@@ -66,6 +66,10 @@ public:
 
         for (int i = 0; i < sizeof... (Ns); i++) {
 
+            if (jacobians[i] == nullptr) { //parameter is constant
+                continue;
+            }
+
             JacMatT J;
             J.resize(kNumResiduals, block_sizes[i]);
 
