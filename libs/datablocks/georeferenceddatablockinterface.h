@@ -16,7 +16,11 @@ namespace StereoVisionApp {
  * optimize the display.
  *
  * But the end user working with georeferenced data might want to enter the data
- * using georeferenced
+ * using georeferenced coordinates.
+ *
+ * This interface provide the informations required for other components of the application
+ * to know when a datablock is georeference and accordingly which conversion function
+ * to use to convert the data to their local frame of reference.
  */
 class GeoReferencedDataBlockInterface
 {
