@@ -9,10 +9,10 @@
 #include <eigen3/Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "geometry/imagecoordinates.h"
-#include "geometry/pointcloudalignment.h"
-#include "geometry/alignement.h"
-#include "geometry/geometricexception.h"
+#include <StereoVision/geometry/imagecoordinates.h>
+#include <StereoVision/geometry/pointcloudalignment.h>
+#include <StereoVision/geometry/alignement.h>
+#include <StereoVision/geometry/geometricexception.h>
 
 #include "graphstereorigsolver.h"
 

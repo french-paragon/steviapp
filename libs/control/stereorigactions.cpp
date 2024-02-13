@@ -5,10 +5,10 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 
-#include "interpolation/interpolation.h"
-#include "interpolation/lensdistortionsmap.h"
+#include <StereoVision/interpolation/interpolation.h>
+#include <StereoVision/interpolation/lensdistortionsmap.h>
 
-#include "geometry/stereorigrectifier.h"
+#include <StereoVision/geometry/stereorigrectifier.h>
 
 #include "vision/imageio.h"
 

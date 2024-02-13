@@ -1,6 +1,6 @@
 #include "rigidbody.h"
 
-#include "geometry/rotations.h"
+#include <StereoVision/geometry/rotations.h>
 
 namespace StereoVisionApp {
 

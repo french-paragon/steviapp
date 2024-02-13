@@ -7,25 +7,25 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 
-#include "interpolation/interpolation.h"
-#include "interpolation/lensdistortionsmap.h"
+#include <StereoVision/interpolation/interpolation.h>
+#include <StereoVision/interpolation/lensdistortionsmap.h>
 
-#include "geometry/stereorigrectifier.h"
-#include "geometry/lensdistortion.h"
-#include "geometry/imagecoordinates.h"
-#include "geometry/alignement.h"
+#include <StereoVision/geometry/stereorigrectifier.h>
+#include <StereoVision/geometry/lensdistortion.h>
+#include <StereoVision/geometry/imagecoordinates.h>
+#include <StereoVision/geometry/alignement.h>
 
-#include "correlation/unfold.h"
-#include "correlation/correlation_base.h"
-#include "correlation/cross_correlations.h"
-#include "correlation/cost_based_refinement.h"
-#include "correlation/disparity_plus_background_segmentation.h"
-#include "correlation/hierarchical.h"
+#include <StereoVision/correlation/unfold.h>
+#include <StereoVision/correlation/correlation_base.h>
+#include <StereoVision/correlation/cross_correlations.h>
+#include <StereoVision/correlation/cost_based_refinement.h>
+#include <StereoVision/correlation/disparity_plus_background_segmentation.h>
+#include <StereoVision/correlation/hierarchical.h>
 
-#include "imageProcessing/morphologicalOperators.h"
-#include "imageProcessing/foregroundSegmentation.h"
+#include <StereoVision/imageProcessing/morphologicalOperators.h>
+#include <StereoVision/imageProcessing/foregroundSegmentation.h>
 
-#include "io/image_io.h"
+#include <StereoVision/io/image_io.h>
 
 #include "vision/imageio.h"
 #include "vision/pointcloudio.h"

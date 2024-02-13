@@ -9,8 +9,8 @@
 #include "g2o/types/sba/types_sba.h"
 #include "g2o/types/slam3d/se3_ops.h"
 
-#include "geometry/alignement.h"
-#include "geometry/lensdistortion.h"
+#include <StereoVision/geometry/alignement.h>
+#include <StereoVision/geometry/lensdistortion.h>
 
 #include <cmath>
 

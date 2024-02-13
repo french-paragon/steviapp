@@ -18,7 +18,7 @@
 #include "edges/edgeparametrizedxyz2uv.h"
 #include "edges/edgecamerase3leverarm.h"
 
-#include "LibStevi/geometry/alignement.h"
+#include <StereoVision/geometry/alignement.h>
 
 #include <QDebug>
 

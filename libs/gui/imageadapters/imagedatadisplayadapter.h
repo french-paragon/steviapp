@@ -5,7 +5,7 @@
 
 #include <MultidimArrays/MultidimArrays.h>
 
-#include <LibStevi/utils/types_manipulations.h>
+#include <StereoVision/utils/types_manipulations.h>
 
 #include <cmath>
 #include <optional>

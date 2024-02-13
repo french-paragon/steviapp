@@ -74,7 +74,7 @@ ${LIB_HEADERS}
 target_link_libraries(${CONTROL_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(${CONTROL_LIB} PRIVATE exiv2)
 
-target_link_libraries(${CONTROL_LIB} PRIVATE ${STEREOVISION_LIB} ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} Threads::Threads)
+target_link_libraries(${CONTROL_LIB} PRIVATE StereoVision::stevi ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} Threads::Threads)
 
 install_stereovisionapp_sdklib(${CONTROL_LIB})
 

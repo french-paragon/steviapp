@@ -3,8 +3,8 @@
 #include "./image.h"
 #include "../vision/imageio.h"
 
-#include "LibStevi/imageProcessing/colorConversions.h"
-#include "LibStevi/imageProcessing/checkBoardDetection.h"
+#include <StereoVision/imageProcessing/colorConversions.h>
+#include <StereoVision/imageProcessing/checkBoardDetection.h>
 
 #include <QSize>
 #include <QDebug>

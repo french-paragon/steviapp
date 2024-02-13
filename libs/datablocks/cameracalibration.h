@@ -4,7 +4,7 @@
 #include "./project.h"
 #include "./floatparameter.h"
 
-#include "LibStevi/imageProcessing/checkBoardDetection.h"
+#include <StereoVision/imageProcessing/checkBoardDetection.h>
 
 #include <QThread>
 #include <QMutex>

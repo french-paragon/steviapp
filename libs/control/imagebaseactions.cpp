@@ -11,18 +11,18 @@
 #include "datablocks/distanceconstrain.h"
 #include "datablocks/localcoordinatesystem.h"
 
-#include "interpolation/interpolation.h"
-#include "interpolation/lensdistortionsmap.h"
-#include "geometry/stereorigrectifier.h"
-#include "geometry/lensdistortion.h"
-#include "geometry/imagecoordinates.h"
-#include "geometry/alignement.h"
+#include <StereoVision/interpolation/interpolation.h>
+#include <StereoVision/interpolation/lensdistortionsmap.h>
+#include <StereoVision/geometry/stereorigrectifier.h>
+#include <StereoVision/geometry/lensdistortion.h>
+#include <StereoVision/geometry/imagecoordinates.h>
+#include <StereoVision/geometry/alignement.h>
 
 #include "sparsesolver/vertices/camerapose.h"
 
-#include "imageProcessing/hexagonalRGBTargetsDetection.h"
+#include <StereoVision/imageProcessing/hexagonalRGBTargetsDetection.h>
 
-#include "io/image_io.h"
+#include <StereoVision/io/image_io.h>
 
 #include "vision/imageio.h"
 

@@ -1,7 +1,7 @@
 #ifndef STEREOVISIONAPP_INITIALSOLUTION_H
 #define STEREOVISIONAPP_INITIALSOLUTION_H
 
-#include "geometry/pointcloudalignment.h"
+#include <StereoVision/geometry/pointcloudalignment.h>
 
 #include <QtCore>
 #include <map>

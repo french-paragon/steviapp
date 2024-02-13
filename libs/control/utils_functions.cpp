@@ -1,7 +1,7 @@
 #include "utils_functions.h"
 
-#include "geometry/lensdistortion.h"
-#include "geometry/stereorigrectifier.h"
+#include <StereoVision/geometry/lensdistortion.h>
+#include <StereoVision/geometry/stereorigrectifier.h>
 
 #include "datablocks/stereorig.h"
 #include "datablocks/image.h"

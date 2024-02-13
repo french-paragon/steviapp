@@ -3,7 +3,7 @@
 
 #include "datablocks/floatparameter.h"
 
-#include "geometry/pointcloudalignment.h"
+#include <StereoVision/geometry/pointcloudalignment.h>
 
 #include "initialsolution.h"
 #include "fixedpreoptimizedparameters.h"

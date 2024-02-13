@@ -1,7 +1,7 @@
 #include "cornerdetectortesteditor.h"
 
-#include <LibStevi/sparseMatching/cornerDetectors.h>
-#include <LibStevi/sparseMatching/nonLocalMaximumPointSelection.h>
+#include <StereoVision/sparseMatching/cornerDetectors.h>
+#include <StereoVision/sparseMatching/nonLocalMaximumPointSelection.h>
 
 #include "imagewidget.h"
 #include "imagedisplayoverlays/pointssetoverlay.h"

@@ -5,7 +5,7 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 
-#include "geometry/rotations.h"
+#include <StereoVision/geometry/rotations.h>
 
 #include <cmath>
 

@@ -1,13 +1,13 @@
 #include "cornermatchingtesteditor.h"
 
-#include <LibStevi/sparseMatching/cornerDetectors.h>
-#include <LibStevi/sparseMatching/nonLocalMaximumPointSelection.h>
-#include <LibStevi/sparseMatching/pointsDescriptors.h>
-#include <LibStevi/sparseMatching/pointsOrientation.h>
+#include <StereoVision/sparseMatching/cornerDetectors.h>
+#include <StereoVision/sparseMatching/nonLocalMaximumPointSelection.h>
+#include <StereoVision/sparseMatching/pointsDescriptors.h>
+#include <StereoVision/sparseMatching/pointsOrientation.h>
 
-#include <LibStevi/correlation/matching_costs.h>
+#include <StereoVision/correlation/matching_costs.h>
 
-#include <LibStevi/optimization/assignement_problems.h>
+#include <StereoVision/optimization/assignement_problems.h>
 
 #include "imagewidget.h"
 

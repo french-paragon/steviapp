@@ -5,7 +5,7 @@
 #include <QSet>
 #include <QAbstractItemModel>
 
-#include "LibStevi/geometry/rotations.h"
+#include <StereoVision/geometry/rotations.h>
 
 class QAction;
 

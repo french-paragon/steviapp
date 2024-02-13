@@ -3,8 +3,8 @@
 
 #include <Eigen/Core>
 
-#include <LibStevi/geometry/core.h>
-#include <LibStevi/geometry/rotations.h>
+#include <StereoVision/geometry/core.h>
+#include <StereoVision/geometry/rotations.h>
 
 #include "../../vision/indexed_timed_sequence.h"
 

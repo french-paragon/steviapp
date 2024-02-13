@@ -3,9 +3,9 @@
 
 #include "./imageadapters/imagedatablockdisplayadapter.h"
 
-#include "geometry/rotations.h"
-#include "geometry/alignement.h"
-#include "geometry/lensdistortion.h"
+#include <StereoVision/geometry/rotations.h>
+#include <StereoVision/geometry/alignement.h>
+#include <StereoVision/geometry/lensdistortion.h>
 
 #include "datablocks/image.h"
 #include "datablocks/camera.h"

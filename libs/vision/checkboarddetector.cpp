@@ -5,7 +5,7 @@
 
 #include "imageio.h"
 
-#include "LibStevi/imageProcessing/colorConversions.h"
+#include <StereoVision/imageProcessing/colorConversions.h>
 
 #include <QDebug>
 

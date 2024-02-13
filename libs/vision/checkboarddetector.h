@@ -2,7 +2,7 @@
 #define STEREOVISIONAPP_CHECKBOARDDETECTOR_H
 
 #include "processing/steppedprocess.h"
-#include "LibStevi/imageProcessing/checkBoardDetection.h"
+#include <StereoVision/imageProcessing/checkBoardDetection.h>
 
 #include <QVector>
 

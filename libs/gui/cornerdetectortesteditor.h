@@ -4,7 +4,7 @@
 #include "./editor.h"
 
 #include <MultidimArrays/MultidimArrays.h>
-#include <LibStevi/gui/arraydisplayadapter.h>
+#include <StereoVision/gui/arraydisplayadapter.h>
 
 class QSpinBox;
 class QComboBox;

@@ -8,7 +8,7 @@
 #include "datablocks/project.h"
 #include "datablocks/image.h"
 
-#include "LibStevi/io/image_io.h"
+#include <StereoVision/io/image_io.h>
 
 #include <MultidimArrays/MultidimArrays.h>
 

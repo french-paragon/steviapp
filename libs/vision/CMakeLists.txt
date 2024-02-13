@@ -21,7 +21,7 @@ add_library(
 )
 
 target_link_libraries(${VISION_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui)
-target_link_libraries(${VISION_LIB} PRIVATE ${PROCESSING_LIB} ${STEREOVISION_LIB})
+target_link_libraries(${VISION_LIB} PRIVATE ${PROCESSING_LIB} StereoVision::stevi)
 
 install_stereovisionapp_sdklib(${VISION_LIB})
 

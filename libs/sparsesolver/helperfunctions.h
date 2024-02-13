@@ -7,9 +7,9 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "geometry/core.h"
-#include "geometry/rotations.h"
-#include "geometry/pointcloudalignment.h"
+#include <StereoVision/geometry/core.h>
+#include <StereoVision/geometry/rotations.h>
+#include <StereoVision/geometry/pointcloudalignment.h>
 
 #include <optional>
 

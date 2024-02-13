@@ -4,7 +4,7 @@
 #include <datablocks/localcoordinatesystem.h>
 #include <datablocks/landmark.h>
 
-#include <geometry/pointcloudalignment.h>
+#include <StereoVision/geometry/pointcloudalignment.h>
 
 #include <QDebug>
 #include <iostream>

@@ -3,7 +3,8 @@
 
 #include "./project.h"
 #include "./floatparameter.h"
-#include "geometry/core.h"
+
+#include <StereoVision/geometry/core.h>
 
 #include <optional>
 

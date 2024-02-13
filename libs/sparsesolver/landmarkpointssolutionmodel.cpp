@@ -5,7 +5,7 @@
 #include "datablocks/camera.h"
 #include "helperfunctions.h"
 
-#include "geometry/alignement.h"
+#include <StereoVision/geometry/alignement.h>
 
 namespace StereoVisionApp {
 
