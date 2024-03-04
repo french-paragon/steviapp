@@ -1,15 +1,16 @@
 #include <QtTest/QtTest>
 
-#include "geometry/alignement.h"
-#include "geometry/rotations.h"
-#include "geometry/geometricexception.h"
+#include <StereoVision/geometry/alignement.h>
+#include <StereoVision/geometry/rotations.h>
+#include <StereoVision/geometry/geometricexception.h>
 
 #include <random>
 #include <iostream>
 #include <eigen3/Eigen/SVD>
 #include <eigen3/Eigen/Geometry>
 
-using namespace StereoVisionApp;
+using namespace StereoVision;
+using namespace StereoVision::Geometry;
 
 Eigen::Array3Xf generateRandomPoints(int nPoints, float distance = 3.0, float spread = 2.0, float v_spread = 1.0) {
 
@@ -24,7 +25,7 @@ Eigen::Array3Xf generateRandomPoints(int nPoints, float distance = 3.0, float sp
 	return r;
 }
 
-AffineTransform generateRandomTransform(float distance = 3.0, float dist_variability = 0.5, float rot_perturbation = 0.1) {
+AffineTransform<float> generateRandomTransform(float distance = 3.0, float dist_variability = 0.5, float rot_perturbation = 0.1) {
 
 	Eigen::Vector3f randLogRot;
 	randLogRot.setRandom();
@@ -33,8 +34,8 @@ AffineTransform generateRandomTransform(float distance = 3.0, float dist_variabi
 		randLogRot.setOnes();
 	}
 
-	Eigen::Matrix3f R = rodriguezFormula(randLogRot*M_PI);
-	Eigen::Matrix3f R_perturb = rodriguezFormula(randLogRot*rot_perturbation);
+    Eigen::Matrix3f R = rodriguezFormula<float>(randLogRot*M_PI);
+    Eigen::Matrix3f R_perturb = rodriguezFormula<float>(randLogRot*rot_perturbation);
 
 	Eigen::Vector3f t;
 	t.setZero();
@@ -53,7 +54,7 @@ AffineTransform generateRandomTransform(float distance = 3.0, float dist_variabi
 
 	t = t - (1+dPerturb)*R*t;
 
-	return AffineTransform(R_perturb*R.transpose(), -R.transpose()*t);
+    return AffineTransform<float>(R_perturb*R.transpose(), -R.transpose()*t);
 
 }
 
@@ -97,7 +98,7 @@ void TestReprojectionMethods::testBuildEssentialMatrix() {
 	AffineTransform cam_delta = generateRandomTransform(dist);
 
 	Eigen::Array2Xf pt_im1 = projectPoints(points);
-	Eigen::Array2Xf pt_im2 = projectPoints(points, cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
+    Eigen::Array2Xf pt_im2 = projectPoints<float>(points, cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
 
 	Eigen::Matrix3f E;
 
@@ -142,9 +143,9 @@ void TestReprojectionMethods::testReprojection() {
 	AffineTransform cam_delta = generateRandomTransform(dist);  //cam2 2 cam1
 
 	Eigen::Array2Xf pt_im1 = projectPoints(points);
-	Eigen::Array2Xf pt_im2 = projectPoints(points, cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
+    Eigen::Array2Xf pt_im2 = projectPoints<float>(points, cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
 
-	Eigen::Array3Xf reprojected_points = reprojectPoints(cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t, pt_im1, pt_im2);
+    Eigen::Array3Xf reprojected_points = reprojectPoints<float>(cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t, pt_im1, pt_im2);
 
 	float mismatch = (points - reprojected_points).matrix().norm()/nPts;
 	QVERIFY2(mismatch < 1e-4, qPrintable(QString("Reprojected points not correct (%1)").arg(mismatch)));
@@ -184,11 +185,11 @@ void TestReprojectionMethods::testExtractTransform() {
 	} else {
 
 		Eigen::Array2Xf pt_im1 = projectPoints(points);
-		Eigen::Array2Xf pt_im2 = projectPoints(points, cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
+        Eigen::Array2Xf pt_im2 = projectPoints<float>(points, cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t);
 
 		Eigen::Matrix3f E = estimateEssentialMatrix(pt_im1, pt_im2);
 
-		std::pair<AffineTransform, AffineTransform> candidates = essentialMatrix2Transforms(E);
+        std::pair<AffineTransform<float>, AffineTransform<float>> candidates = essentialMatrix2Transforms(E);
 		AffineTransform extractedTransform = selectTransform(candidates.first, candidates.second, pt_im1, pt_im2); //cam1 2 cam2
 
 		Eigen::Matrix3f Rdelta = cam_delta.R*extractedTransform.R;
@@ -227,7 +228,7 @@ void TestReprojectionMethods::testPnP() {
 
 	Eigen::Array3Xf points = generateRandomPoints(nPts, dist, spread, v_spread);
 	AffineTransform cam_delta = generateRandomTransform(dist); //cam 2 world
-	AffineTransform inv = AffineTransform(cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t); //world 2 cam
+    AffineTransform inv = AffineTransform<float>(cam_delta.R.transpose(), -cam_delta.R.transpose()*cam_delta.t); //world 2 cam
 
 	Eigen::Array3Xf pointsCam2 = inv*points;
 	//std::cout << pointsCam2 << std::endl << std::endl;

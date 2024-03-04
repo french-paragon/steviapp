@@ -1,8 +1,8 @@
 #include <QtTest/QtTest>
 
-#include "geometry/core.h"
+#include <StereoVision/geometry/core.h>
 
-using namespace StereoVisionApp;
+using namespace StereoVision;
 
 
 class TestGeometryLibCore: public QObject
@@ -30,7 +30,7 @@ void TestGeometryLibCore::testAffineTransform() {
 	Eigen::Vector3f t;
 	t.setRandom();
 
-	AffineTransform T(M,t);
+    Geometry::AffineTransform T(M,t);
 
 	Eigen::Array3Xf t_array = T*array;
 	Eigen::Array3Xf t_matrix = T*matrix;

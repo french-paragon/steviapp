@@ -1,8 +1,9 @@
 #include <QtTest/QtTest>
 
-#include "geometry/rotations.h"
+#include <StereoVision/geometry/rotations.h>
 
-using namespace StereoVisionApp;
+using namespace StereoVision;
+using namespace StereoVision::Geometry;
 
 Q_DECLARE_METATYPE(Eigen::Matrix3f)
 
@@ -149,9 +150,9 @@ void TestGeometryLibRotation::testDiffRodriguez() {
 
 	Eigen::Matrix3f S = rodriguezFormula(vec);
 
-	Eigen::Matrix3f dX_numeric = (rodriguezFormula(vec + drx) - S)/epsilon;
-	Eigen::Matrix3f dY_numeric = (rodriguezFormula(vec + dry) - S)/epsilon;
-	Eigen::Matrix3f dZ_numeric = (rodriguezFormula(vec + drz) - S)/epsilon;
+    Eigen::Matrix3f dX_numeric = (rodriguezFormula<float>(vec + drx) - S)/epsilon;
+    Eigen::Matrix3f dY_numeric = (rodriguezFormula<float>(vec + dry) - S)/epsilon;
+    Eigen::Matrix3f dZ_numeric = (rodriguezFormula<float>(vec + drz) - S)/epsilon;
 
 	Eigen::Matrix3f dX_analytic = diffRodriguez(vec, Axis::X);
 	Eigen::Matrix3f dY_analytic = diffRodriguez(vec, Axis::Y);

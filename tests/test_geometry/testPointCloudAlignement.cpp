@@ -1,17 +1,18 @@
 #include <QtTest/QtTest>
 
-#include "geometry/pointcloudalignment.h"
+#include <StereoVision/geometry/pointcloudalignment.h>
 
 #include <random>
 
-using namespace StereoVisionApp;
+using namespace StereoVision;
+using namespace StereoVision::Geometry;
 
 std::default_random_engine rd;
 std::default_random_engine engine(rd());
 std::uniform_real_distribution<float> uDist(0.1, 10);
 
-AffineTransform generateRandomTransform() {
-	AffineTransform T;
+Geometry::AffineTransform<float> generateRandomTransform() {
+    Geometry::AffineTransform<float> T;
 
 	T.R.setRandom();
 	T.t.setRandom();
@@ -19,8 +20,8 @@ AffineTransform generateRandomTransform() {
 	return T;
 }
 
-AffineTransform generateShapePreservingRandomTransform() {
-	ShapePreservingTransform T;
+Geometry::AffineTransform<float> generateShapePreservingRandomTransform() {
+    Geometry::ShapePreservingTransform<float> T;
 
 	T.s = uDist(engine);
 	T.r.setRandom();
@@ -34,8 +35,8 @@ void generateObs(int nPts,
 				 Eigen::VectorXf & obs,
 				 Eigen::Matrix3Xf & pts,
 				 std::vector<int> & idxs,
-				 std::vector<Axis> & coordinate,
-				 AffineTransform const& T) {
+                 std::vector<Geometry::Axis> & coordinate,
+                 Geometry::AffineTransform<float> const& T) {
 
 	std::random_device rd;
 	std::default_random_engine engine(rd());

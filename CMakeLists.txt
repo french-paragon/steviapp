@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 cmake_policy(SET CMP0095 NEW)
 
+option(BUILD_TESTS "Build the test suite" ON)
+
 include(CheckCXXCompilerFlag)
 project(steviapp LANGUAGES CXX)
 
@@ -132,6 +134,11 @@ set_target_properties(pysteviapp PROPERTIES DEBUG_POSTFIX "")
 
 target_link_libraries(pysteviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(pysteviapp PRIVATE StereoVision::stevi ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
+
+
+if (BUILD_TESTS)
+        add_subdirectory(tests)
+endif (BUILD_TESTS)
 
 #installing
 install(

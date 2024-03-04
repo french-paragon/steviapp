@@ -146,9 +146,6 @@ void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> const& img
     _pointsOverlay1->setPointSet({});
     _pointsOverlay2->setPointSet({});
 
-    _imageViewAdapter1->update();
-    _imageViewAdapter2->update();
-
     _imageDisplay1->update();
     _imageDisplay2->update();
 }
@@ -160,9 +157,6 @@ void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> && imgData
 
     _pointsOverlay1->setPointSet({});
     _pointsOverlay2->setPointSet({});
-
-    _imageViewAdapter1->update();
-    _imageViewAdapter2->update();
 
     _imageDisplay1->update();
     _imageDisplay2->update();
@@ -177,9 +171,6 @@ void CornerMatchingTestEditor::clearImageData() {
     _pointsOverlay1->setPointSet({});
     _pointsOverlay2->setPointSet({});
 
-    _imageViewAdapter1->update();
-    _imageViewAdapter2->update();
-
     _imageDisplay1->update();
     _imageDisplay2->update();
 }
@@ -191,9 +182,6 @@ void CornerMatchingTestEditor::compute() {
 
     if (_imgData1.empty()) {
 
-        _imageViewAdapter1->update();
-        _imageViewAdapter2->update();
-
         _imageDisplay1->update();
         _imageDisplay2->update();
 
@@ -201,9 +189,6 @@ void CornerMatchingTestEditor::compute() {
     }
 
     if (_imgData2.empty()) {
-
-        _imageViewAdapter1->update();
-        _imageViewAdapter2->update();
 
         _imageDisplay1->update();
         _imageDisplay2->update();

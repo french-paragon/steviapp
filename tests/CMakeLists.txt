@@ -1,2 +1,3 @@
 
 add_subdirectory(test_geometry)
+add_subdirectory(test_geo_functions)

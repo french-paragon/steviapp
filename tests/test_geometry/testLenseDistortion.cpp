@@ -1,10 +1,10 @@
 #include <QtTest/QtTest>
 
-#include "geometry/lensdistortion.h"
+#include <StereoVision/geometry/lensdistortion.h>
 
 #include <random>
 
-using namespace StereoVisionApp;
+using namespace StereoVision;
 
 Q_DECLARE_METATYPE(Eigen::Vector3f)
 Q_DECLARE_METATYPE(Eigen::Vector2f)
@@ -62,7 +62,7 @@ void TestLenseDistortion::testRadialInverse() {
 		Eigen::Vector2f pos;
 		pos << x, y;
 
-		Eigen::Vector2f drpos = radialDistortion(pos, k123);
+        Eigen::Vector2f drpos = Geometry::radialDistortion(pos, k123);
 
 		Eigen::Vector2f mpos = pos + drpos;
 
@@ -73,7 +73,7 @@ void TestLenseDistortion::testRadialInverse() {
 			QSKIP("Distortion too important, passing test");
 		}
 
-		Eigen::Vector2f rpos = invertRadialDistorstion(mpos, k123);
+        Eigen::Vector2f rpos = Geometry::invertRadialDistorstion(mpos, k123);
 
 		float missalignement = (pos - rpos).norm();
 		QVERIFY2(missalignement < 1e-2, qPrintable(QString("Reconstructed initial image coordinates not correct (norm (pos - rpos) = %1)").arg(missalignement)));
@@ -107,7 +107,7 @@ void TestLenseDistortion::testTangentialInverse() {
 		Eigen::Vector2f pos;
 		pos << x, y;
 
-		Eigen::Vector2f dtpos = tangentialDistortion(pos, t12);
+        Eigen::Vector2f dtpos = Geometry::tangentialDistortion(pos, t12);
 
 		Eigen::Vector2f mpos = pos + dtpos;
 
@@ -118,7 +118,7 @@ void TestLenseDistortion::testTangentialInverse() {
 			QSKIP("Distortion too important, passing test");
 		}
 
-		Eigen::Vector2f rpos = invertTangentialDistorstion(mpos, t12);
+        Eigen::Vector2f rpos = Geometry::invertTangentialDistorstion(mpos, t12);
 
 		float missalignement = (pos - rpos).norm();
 		QVERIFY2(missalignement < 1e-2, qPrintable(QString("Reconstructed initial image coordinates not correct (norm (pos - rpos) = %1)").arg(missalignement)));
@@ -153,8 +153,8 @@ void TestLenseDistortion::testRadialTangentialInverse() {
 
 		Eigen::Vector2f pos(x, y);
 
-		Eigen::Vector2f drpos = radialDistortion(pos, k123);
-		Eigen::Vector2f dtpos = tangentialDistortion(pos, t12);
+        Eigen::Vector2f drpos = Geometry::radialDistortion(pos, k123);
+        Eigen::Vector2f dtpos = Geometry::tangentialDistortion(pos, t12);
 
 		Eigen::Vector2f mpos = pos + drpos + dtpos;
 
@@ -165,7 +165,7 @@ void TestLenseDistortion::testRadialTangentialInverse() {
 			QSKIP("Distortion too important, passing test");
 		}
 
-		Eigen::Vector2f rpos = invertRadialTangentialDistorstion(mpos, k123, t12);
+        Eigen::Vector2f rpos = Geometry::invertRadialTangentialDistorstion(mpos, k123, t12);
 
 		float missalignement = (pos - rpos).norm();
 		QVERIFY2(missalignement < 1e-2, qPrintable(QString("Reconstructed initial image coordinates not correct (norm (pos - rpos) = %1)").arg(missalignement)));
@@ -199,9 +199,9 @@ void TestLenseDistortion::testSkewInverse() {
 
 		Eigen::Vector2f pos(x, y);
 
-		Eigen::Vector2f mpos = skewDistortion(pos, B12, f, pp);
+        Eigen::Vector2f mpos = Geometry::skewDistortion(pos, B12, f, pp);
 
-		Eigen::Vector2f rpos = inverseSkewDistortion(mpos, B12, f, pp);
+        Eigen::Vector2f rpos = Geometry::inverseSkewDistortion(mpos, B12, f, pp);
 
 		float missalignement = (pos - rpos).norm();
 		QVERIFY2(missalignement < 1e-2, qPrintable(QString("Reconstructed initial image coordinates not correct (norm (pos - rpos) = %1)").arg(missalignement)));
