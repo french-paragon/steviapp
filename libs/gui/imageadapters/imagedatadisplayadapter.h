@@ -1,7 +1,7 @@
 #ifndef STEREOVISIONAPP_IMAGEDATADISPLAYADAPTER_H
 #define STEREOVISIONAPP_IMAGEDATADISPLAYADAPTER_H
 
-#include <qImageDisplayWidget/imageadapter.h>
+#include <StereoVision/QImageDisplayWidget/imageadapter.h>
 
 #include <MultidimArrays/MultidimArrays.h>
 

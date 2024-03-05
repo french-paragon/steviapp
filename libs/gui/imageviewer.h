@@ -5,8 +5,8 @@
 
 #include "./editor.h"
 
-#include <qImageDisplayWidget/imageadapter.h>
-#include <qImageDisplayWidget/imagewidget.h>
+#include <StereoVision/QImageDisplayWidget/imageadapter.h>
+#include <StereoVision/QImageDisplayWidget/imagewidget.h>
 
 class QLabel;
 

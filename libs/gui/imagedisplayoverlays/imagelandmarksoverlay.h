@@ -1,7 +1,7 @@
 #ifndef STEREOVISION_IMAGELANDMARKSOVERLAY_H
 #define STEREOVISION_IMAGELANDMARKSOVERLAY_H
 
-#include <qImageDisplayWidget/overlay.h>
+#include <StereoVision/QImageDisplayWidget/overlay.h>
 
 #include <QMap>
 #include <QList>

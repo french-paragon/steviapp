@@ -6,7 +6,7 @@
 #include "./editor.h"
 #include "./imagewidget.h"
 
-#include <qImageDisplayWidget/overlay.h>
+#include <StereoVision/QImageDisplayWidget/overlay.h>
 
 class QSortFilterProxyModel;
 

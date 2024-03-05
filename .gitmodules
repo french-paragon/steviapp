@@ -1,6 +1,3 @@
 [submodule "modules/g2o"]
 	path = modules/g2o
 	url = https://github.com/RainerKuemmerle/g2o.git
-[submodule "modules/qImageDisplayWidget"]
-	path = modules/qImageDisplayWidget
-	url = https://github.com/french-paragon/qImageDisplayWidget.git

@@ -122,7 +122,7 @@ add_library(
 
 
 target_link_libraries(${GUI_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${QIMAGEDISPLAYWIDGET_LIB})
+target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} StereoVision::qImageWidget)
 
 install_stereovisionapp_sdklib(${GUI_LIB})
 

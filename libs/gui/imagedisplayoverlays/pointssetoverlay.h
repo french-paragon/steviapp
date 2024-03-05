@@ -1,7 +1,7 @@
 #ifndef STEREOVISIONAPP_POINTSSETOVERLAY_H
 #define STEREOVISIONAPP_POINTSSETOVERLAY_H
 
-#include <qImageDisplayWidget/overlay.h>
+#include <StereoVision/QImageDisplayWidget/overlay.h>
 
 #include <QObject>
 

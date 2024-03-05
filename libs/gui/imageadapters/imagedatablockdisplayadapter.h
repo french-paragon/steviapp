@@ -1,7 +1,7 @@
 #ifndef STEREOVISIONAPP_IMAGEDATABLOCKDISPLAYADAPTER_H
 #define STEREOVISIONAPP_IMAGEDATABLOCKDISPLAYADAPTER_H
 
-#include <qImageDisplayWidget/imageadapter.h>
+#include <StereoVision/QImageDisplayWidget/imageadapter.h>
 
 namespace StereoVisionApp {
 

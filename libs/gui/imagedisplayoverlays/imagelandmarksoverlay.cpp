@@ -1,6 +1,6 @@
 #include "imagelandmarksoverlay.h"
 
-#include <qImageDisplayWidget/imagewidget.h>
+#include <StereoVision/QImageDisplayWidget/imagewidget.h>
 
 #include "datablocks/image.h"
 #include "datablocks/landmark.h"

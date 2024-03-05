@@ -1,8 +1,8 @@
 #ifndef STEREOVISIONAPP_IMAGEWIDGET_H
 #define STEREOVISIONAPP_IMAGEWIDGET_H
 
-#include <qImageDisplayWidget/imagewidget.h>
-#include <qImageDisplayWidget/imageadapter.h>
+#include <StereoVision/QImageDisplayWidget/imagewidget.h>
+#include <StereoVision/QImageDisplayWidget/imageadapter.h>
 
 #include <QWidget>
 #include <QMap>
