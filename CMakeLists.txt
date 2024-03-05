@@ -78,7 +78,7 @@ endif()
 #    endif()
 #endif()
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets Core Test REQUIRED)
+find_package(QT NAMES Qt5 COMPONENTS Widgets Core Test REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Core Test REQUIRED)
 find_package(exiv2 REQUIRED CONFIG NAMES exiv2)
 
