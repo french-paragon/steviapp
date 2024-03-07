@@ -39,28 +39,10 @@ public:
         typename Multidim::Array<double,3>::ShapeBlock shape = {terrain.raster.shape()[0], terrain.raster.shape()[1], 3};
         typename Multidim::Array<double,3>::ShapeBlock strides = {terrain.raster.shape()[1]*3, 3, 1}; //ensure each triplets of floats is a point.
 
-        typename Multidim::Array<double,3> coordinates_vecs(shape, strides);
+        _ecefTerrain = typename Multidim::Array<double,3>(shape, strides);
 
-        _minTerrainHeight = _terrain.raster.valueUnchecked(0,0);
-        _maxTerrainHeight = _terrain.raster.valueUnchecked(0,0);
-
-        for (int i = 0; i < shape[0]; i++) {
-            for (int j = 0; j < shape[1]; j++) {
-
-                Eigen::Vector3d homogeneousImgCoord(j,i,1);
-                Eigen::Vector2d geoCoord = terrain.geoTransform*homogeneousImgCoord;
-
-                coordinates_vecs.atUnchecked(i,j,0) = geoCoord.y();
-                coordinates_vecs.atUnchecked(i,j,1) = geoCoord.x();
-
-                TerrainT terrainVal = _terrain.raster.valueUnchecked(i,j);
-                coordinates_vecs.atUnchecked(i,j,2) = terrainVal;
-
-                _minTerrainHeight = std::min(terrainVal, _minTerrainHeight);
-                _maxTerrainHeight = std::max(terrainVal, _maxTerrainHeight);
-
-            }
-        }
+        _minTerrainHeight = std::numeric_limits<double>::infinity();
+        _maxTerrainHeight = -std::numeric_limits<double>::infinity();
 
         _ctx = proj_context_create();
 
@@ -77,15 +59,59 @@ public:
             return;
         }
 
+        int nFinitePoints = 0;
+
         //Build the ECEF lattice
+        for (int i = 0; i < shape[0]; i++) {
+            for (int j = 0; j < shape[1]; j++) {
 
-        proj_trans_generic(_reprojector, PJ_FWD,
-                           &coordinates_vecs.atUnchecked(0,0,0), 3*sizeof(double), nPoints,
-                           &coordinates_vecs.atUnchecked(0,0,1), 3*sizeof(double), nPoints,
-                           &coordinates_vecs.atUnchecked(0,0,2), 3*sizeof(double), nPoints,
-                           nullptr,0,0); //reproject to ecef coordinates
+                Eigen::Vector3d homogeneousImgCoord(j,i,1);
+                Eigen::Vector2d geoCoord = terrain.geoTransform*homogeneousImgCoord;
 
-        _ecefTerrain = coordinates_vecs.cast<float>();
+                TerrainT terrainVal = _terrain.raster.valueUnchecked(i,j);
+
+                PJ_COORD coord;
+
+                coord.v[0] = geoCoord.x();
+                coord.v[1] = geoCoord.y();
+                coord.v[2] = terrainVal;
+                coord.v[3] = 0;
+
+                //reproject to ecef coordinates
+                PJ_COORD reproject = proj_trans(_reprojector, PJ_FWD, coord);
+
+                _ecefTerrain.atUnchecked(i,j,0) = reproject.v[0];
+                _ecefTerrain.atUnchecked(i,j,1) = reproject.v[1];
+                _ecefTerrain.atUnchecked(i,j,2) = reproject.v[2];
+
+                if (terrainVal < -1e-3 or !std::isfinite(terrainVal)) { // some DTM uses large negative values to indicate invalid pixels.
+                    continue;
+                }
+
+                _minTerrainHeight = std::min(terrainVal, _minTerrainHeight);
+                _maxTerrainHeight = std::max(terrainVal, _maxTerrainHeight);
+
+                if (std::isfinite(reproject.v[0]) and std::isfinite(reproject.v[1]) and std::isfinite(reproject.v[2])) {
+                    _ecefOffset[0] += reproject.v[0];
+                    _ecefOffset[1] += reproject.v[1];
+                    _ecefOffset[2] += reproject.v[2];
+                    nFinitePoints++;
+                }
+            }
+        }
+
+        _ecefOffset[0] /= nFinitePoints;
+        _ecefOffset[1] /= nFinitePoints;
+        _ecefOffset[2] /= nFinitePoints;
+
+        //Offset for numerical stability
+        for (int i = 0; i < shape[0]; i++) {
+            for (int j = 0; j < shape[1]; j++) {
+                _ecefTerrain.atUnchecked(i,j,0) -= _ecefOffset[0];
+                _ecefTerrain.atUnchecked(i,j,1) -= _ecefOffset[1];
+                _ecefTerrain.atUnchecked(i,j,2) -= _ecefOffset[2];
+            }
+        }
 
     }
 
@@ -146,8 +172,10 @@ public:
 
         Eigen::Vector2d imgOrigin = _invGeoTransform*projectedCoord;
 
-        int imgI = std::round(imgOrigin[1]);
-        int imgJ = std::round(imgOrigin[0]);
+        //order i,j rather than x,y
+        double tmp = imgOrigin[0];
+        imgOrigin[0] = imgOrigin[1];
+        imgOrigin[1] = tmp;
 
         ProjectionResults ret;
         ret.originMapPos[0] = imgOrigin[0];
@@ -233,8 +261,10 @@ public:
 
         Eigen::Vector2d imgOrigin = _invGeoTransform*projectedCoord;
 
-        int imgI = std::round(imgOrigin[1]);
-        int imgJ = std::round(imgOrigin[0]);
+        //order i,j rather than x,y
+        double tmp = imgOrigin[0];
+        imgOrigin[0] = imgOrigin[1];
+        imgOrigin[1] = tmp;
 
         ProjectionResults ret;
         ret.originMapPos[0] = imgOrigin[0];
@@ -273,7 +303,7 @@ public:
 
                 ret.projectedPoints[i] = {std::nanf(""), std::nanf("")};
 
-                //do not update previous directions. It would make sense that
+                //do not update previous directions.
             }
         }
 
@@ -383,12 +413,13 @@ protected:
         triangleAdjustement.block<3,1>(0,3) = directionVec;
 
         Eigen::Vector4d o;
-        o[0] = ecefOrigin[0];
-        o[1] = ecefOrigin[1];
-        o[2] = ecefOrigin[2];
+        o[0] = ecefOrigin[0] - _ecefOffset[0];
+        o[1] = ecefOrigin[1] - _ecefOffset[1];
+        o[2] = ecefOrigin[2] - _ecefOffset[2];
         o[3] = 1;
 
         Eigen::Vector3d projectedPoint;
+        int prevEdgeSwitch = -1;
 
         do {
 
@@ -456,6 +487,12 @@ protected:
                 lastNegative = (dists[0] < dists[1]) ? negatives[0] : negatives[1];
             }
 
+            if (prevEdgeSwitch == lastNegative) {//abberation
+                return std::nullopt; //TODO: this seems to happen when the drone is looking to the side a lot. Try to see if this can be detected.
+            }
+
+            prevEdgeSwitch = lastNegative;
+
             //Switch to the next triangle. Along the edge opposed to the point with negative barycentric weight.
             std::array<int,2>& pointCoord = trianglePoints[lastNegative];
 
@@ -473,7 +510,9 @@ protected:
 
         } while (!intersectionInTriangle);
 
-        Eigen::Vector3d geoProj(projectedPoint[0], projectedPoint[1], projectedPoint[2]);
+        Eigen::Vector3d geoProj(projectedPoint[0] + _ecefOffset[0],
+                projectedPoint[1] + _ecefOffset[1],
+                projectedPoint[2] + _ecefOffset[2]);
 
         proj_trans_generic(_projector, PJ_FWD,
                            &geoProj[0], sizeof(double), 1,
@@ -484,12 +523,20 @@ protected:
         geoProj[2] = 1;
         Eigen::Vector2d imgProj = _invGeoTransform*geoProj;
 
-        return std::array<float,2>{float(imgProj[0]), float(imgProj[1])};
+        int imgI = std::round(imgProj[1]);
+        int imgJ = std::round(imgProj[0]);
+
+        if (imgI >= 0 and imgI < _cover.shape()[0] and imgJ >= 0 and imgJ < _cover.shape()[1]) {
+            _cover.atUnchecked(imgI, imgJ) = true;
+        }
+
+        return std::array<float,2>{float(imgProj[1]), float(imgProj[0])}; //order i,j instead of x,y
 
     }
 
     GeoRasterData<TerrainT,2> const& _terrain;
-    Multidim::Array<float, 3> _ecefTerrain;
+    Multidim::Array<double, 3> _ecefTerrain;
+    std::array<double,3> _ecefOffset; //offset to make numerical computations more stable;
 
     TerrainT _minTerrainHeight;
     TerrainT _maxTerrainHeight;
