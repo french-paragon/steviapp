@@ -364,13 +364,121 @@ public:
 		StereoVisionApp::Image* im2 = qobject_cast<StereoVisionApp::Image*>(img2.datablock());
 
 		if (rig == nullptr or im1 == nullptr or im2 == nullptr) {
-			py::print("One of the provided datablock is invalid!");
+            py::print("One of the provided datablocks is invalid!");
 			return;
 		}
 
 		rig->insertImagePair(im1->internalId(), im2->internalId());
 
 	}
+
+    void assignLandmarkToImage(DataBlockReference landmark,
+                                DataBlockReference img,
+                                std::array<double, 2> projectionPos,
+                                bool uncertain = false,
+                                double sigma_pos = 1.0) {
+
+        StereoVisionApp::Landmark* lm = qobject_cast<StereoVisionApp::Landmark*>(landmark.datablock());
+        StereoVisionApp::Image* im = qobject_cast<StereoVisionApp::Image*>(img.datablock());
+
+        if (lm == nullptr or im == nullptr) {
+            py::print("One of the provided datablocks is invalid!");
+            return;
+        }
+
+        QPointF point(projectionPos[0], projectionPos[1]);
+        im->addImageLandmark(point, lm->internalId(), uncertain, sigma_pos);
+    }
+
+    void assignLandmarkToLocalSystem(DataBlockReference landmark,
+                                     DataBlockReference localSystem,
+                                     std::array<double, 3> localLmPos,
+                                     bool uncertain = false,
+                                     double sigma_pos = 1.0) {
+
+        StereoVisionApp::Landmark* lm = qobject_cast<StereoVisionApp::Landmark*>(landmark.datablock());
+        StereoVisionApp::LocalCoordinateSystem* ls = qobject_cast<StereoVisionApp::LocalCoordinateSystem*>(localSystem.datablock());
+
+        if (lm == nullptr or ls == nullptr) {
+            py::print("One of the provided datablocks is invalid!");
+            return;
+        }
+
+        StereoVisionApp::floatParameter priorX(localLmPos[0], true);
+        StereoVisionApp::floatParameter priorY(localLmPos[1], true);
+        StereoVisionApp::floatParameter priorZ(localLmPos[2], true);
+
+        if (uncertain) {
+            priorX.setUncertainty(sigma_pos);
+            priorY.setUncertainty(sigma_pos);
+            priorZ.setUncertainty(sigma_pos);
+        }
+
+        ls->addLandmarkLocalCoordinates(lm->internalId(), priorX, priorY, priorZ);
+
+    }
+
+    void setRigidBodyPose(DataBlockReference rigidBody,
+                          std::array<double, 3> position,
+                          std::array<double, 3> rotationAxis,
+                          bool uncertain = false,
+                          double position_sigma = 1.0,
+                          double rotation_sigma = 1.0,
+                          bool isOptimized = false) {
+
+        StereoVisionApp::RigidBody* rb = qobject_cast<StereoVisionApp::RigidBody*>(rigidBody.datablock());
+
+        if (rb == nullptr) {
+            py::print("Provided datablock is invalid!");
+            return;
+        }
+
+        if (isOptimized) {
+            StereoVisionApp::floatParameterGroup<3> optPos;
+            optPos.value(0) = position[0];
+            optPos.value(1) = position[1];
+            optPos.value(2) = position[2];
+            optPos.setIsSet();
+
+            StereoVisionApp::floatParameterGroup<3> optRot;
+            optRot.value(0) = rotationAxis[0];
+            optRot.value(1) = rotationAxis[1];
+            optRot.value(2) = rotationAxis[2];
+            optRot.setIsSet();
+
+            rb->setOptPos(optPos);
+            rb->setOptRot(optRot);
+
+            return;
+        }
+
+        StereoVisionApp::floatParameter xPos(position[0]);
+        StereoVisionApp::floatParameter yPos(position[1]);
+        StereoVisionApp::floatParameter zPos(position[2]);
+
+        StereoVisionApp::floatParameter xRot(rotationAxis[0]);
+        StereoVisionApp::floatParameter yRot(rotationAxis[1]);
+        StereoVisionApp::floatParameter zRot(rotationAxis[2]);
+
+        if (uncertain) {
+
+            xPos.setUncertainty(position_sigma);
+            yPos.setUncertainty(position_sigma);
+            zPos.setUncertainty(position_sigma);
+
+            xRot.setUncertainty(rotation_sigma);
+            yRot.setUncertainty(rotation_sigma);
+            zRot.setUncertainty(rotation_sigma);
+        }
+
+        rb->setXCoord(xPos);
+        rb->setYCoord(yPos);
+        rb->setXCoord(zPos);
+
+        rb->setXRot(xRot);
+        rb->setYRot(yRot);
+        rb->setXRot(zRot);
+    }
 
 	void detectHexagonalTargets(DataBlockReference img,
 								double minThreshold = 80,
@@ -635,7 +743,27 @@ PYBIND11_MODULE(pysteviapp, m) {
 			.def("addImage", &PythonStereoVisionApp::addImageWithCam, py::arg("filename"), py::arg("imgname"), py::arg("cam"))
 			.def("addImages", &PythonStereoVisionApp::addImages, py::arg("filenames"))
 			.def("addLandmark", &PythonStereoVisionApp::addDatablock<StereoVisionApp::Landmark>, py::arg("name"))
-			.def("addCamera", &PythonStereoVisionApp::addDatablock<StereoVisionApp::Camera>, py::arg("name"))
+            .def("addCamera", &PythonStereoVisionApp::addDatablock<StereoVisionApp::Camera>, py::arg("name"))
+            .def("", &PythonStereoVisionApp::assignLandmarkToImage,
+                 py::arg("landmark"),
+                 py::arg("image"),
+                 py::arg("projectionPos"),
+                 py::arg("uncertain"),
+                 py::arg("sigma_pos"))
+            .def("", &PythonStereoVisionApp::assignLandmarkToLocalSystem,
+                 py::arg("landmark"),
+                 py::arg("localSystem"),
+                 py::arg("localPos"),
+                 py::arg("uncertain"),
+                 py::arg("sigma_pos"))
+            .def("", &PythonStereoVisionApp::setRigidBodyPose,
+                 py::arg("rigidBody"),
+                 py::arg("position"),
+                 py::arg("rotationAxis"),
+                 py::arg("ucertain"),
+                 py::arg("sigmaPosition"),
+                 py::arg("sigmaRotation"),
+                 py::arg("isOptimized"))
 			.def("addStereoRig", &PythonStereoVisionApp::addDatablock<StereoVisionApp::StereoRig>, py::arg("name"))
 			.def("importCameraData", &PythonStereoVisionApp::configureDatablockDataFromJson<StereoVisionApp::Camera>, py::arg("datablock"), py::arg("filepath"))
 			.def("importStereoRigData", &PythonStereoVisionApp::configureDatablockDataFromJson<StereoVisionApp::StereoRig>, py::arg("datablock"), py::arg("filepath"))
