@@ -77,6 +77,15 @@ public:
                 coord.v[2] = terrainVal;
                 coord.v[3] = 0;
 
+                //invalid node in the terrain
+                if (terrainVal < -1e4 or !std::isfinite(terrainVal)) {
+
+                    _ecefTerrain.atUnchecked(i,j,0) = std::nan("");
+                    _ecefTerrain.atUnchecked(i,j,1) = std::nan("");
+                    _ecefTerrain.atUnchecked(i,j,2) = std::nan("");
+                    continue;
+                }
+
                 //reproject to ecef coordinates
                 PJ_COORD reproject = proj_trans(_reprojector, PJ_FWD, coord);
 
@@ -437,6 +446,12 @@ protected:
                 triangleAdjustement(0,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],0);
                 triangleAdjustement(1,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],1);
                 triangleAdjustement(2,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],2);
+
+                for (int k = 0; k < 3; k++) {
+                    if (!std::isfinite(triangleAdjustement(k,i))) {
+                        return std::nullopt;
+                    }
+                }
             }
 
             Eigen::Vector4d results = triangleAdjustement.colPivHouseholderQr().solve(o);
