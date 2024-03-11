@@ -15,6 +15,7 @@ class CeresSBASolver : public SparseSolverBase
 {
 public:
     CeresSBASolver(Project* p, bool computeUncertainty = true, bool sparse = true, QObject* parent = nullptr);
+    ~CeresSBASolver();
 
     int uncertaintySteps() const override;
     bool hasUncertaintyStep() const override;
@@ -37,6 +38,7 @@ protected:
     bool _not_first_step;
 
     ceres::Problem _problem;
+    ceres::Covariance* _covariance;
 
     struct LandmarkPos {
         std::array<double, 3> position;

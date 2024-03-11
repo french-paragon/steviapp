@@ -47,9 +47,16 @@ protected:
 CeresSBASolver::CeresSBASolver(Project* p, bool computeUncertainty, bool sparse, QObject* parent):
     SparseSolverBase(p, parent),
     _sparse(sparse),
-    _compute_marginals(computeUncertainty)
+    _compute_marginals(computeUncertainty),
+    _covariance(nullptr)
 {
 
+}
+
+CeresSBASolver::~CeresSBASolver() {
+    if (_covariance != nullptr) {
+        delete _covariance;
+    }
 }
 
 int CeresSBASolver::uncertaintySteps() const {
@@ -374,7 +381,53 @@ bool CeresSBASolver::opt_step() {
     return true;
 }
 bool CeresSBASolver::std_step() {
-    return true;
+
+    ceres::Covariance::Options options;
+    options.algorithm_type = ceres::CovarianceAlgorithmType::SPARSE_QR;
+
+    _covariance = new ceres::Covariance(options);
+
+    std::vector<std::pair<const double*, const double*>> pairs;
+
+    for (int i = 0; i < _landmarksParameters.size(); i++) {
+        double* ptr = &_landmarksParameters[i].position[0];
+        pairs.push_back({ptr, ptr});
+    }
+
+    for (int i = 0; i < _camParameters.size(); i++) {
+        double* ptr = &_camParameters[i].fLen;
+        pairs.push_back({ptr, ptr});
+
+        ptr = &_camParameters[i].principalPoint[0];
+        pairs.push_back({ptr, ptr});
+
+        ptr = &_camParameters[i].radialDistortion[0];
+        pairs.push_back({ptr, ptr});
+
+        ptr = &_camParameters[i].tangentialDistortion[0];
+        pairs.push_back({ptr, ptr});
+
+        ptr = &_camParameters[i].skewDistortion[0];
+        pairs.push_back({ptr, ptr});
+    }
+
+    for (int i = 0; i < _frameParameters.size(); i++) {
+        double* ptr = &_frameParameters[i].t[0];
+        pairs.push_back({ptr, ptr});
+
+        ptr = &_frameParameters[i].rAxis[0];
+        pairs.push_back({ptr, ptr});
+    }
+
+    for (int i = 0; i < _localCoordinatesParameters.size(); i++) {
+        double* ptr = &_localCoordinatesParameters[i].t[0];
+        pairs.push_back({ptr, ptr});
+
+        ptr = &_localCoordinatesParameters[i].rAxis[0];
+        pairs.push_back({ptr, ptr});
+    }
+
+    return _covariance->Compute(pairs, &_problem);
 }
 bool CeresSBASolver::writeResults() {
 
@@ -494,7 +547,201 @@ bool CeresSBASolver::writeResults() {
 
 }
 bool CeresSBASolver::writeUncertainty() {
-    return true; //TODO: implement
+
+    if (_covariance == nullptr) {
+        return false;
+    }
+
+    for (qint64 id : _landmarkParametersIndex.keys()) {
+
+        Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
+
+        if (lm->isFixed()) {
+            continue;
+        }
+
+        LandmarkPos& lm_p = _landmarksParameters[_landmarkParametersIndex[id]];
+        double* ptr = &lm_p.position[0];
+
+        floatParameterGroup<3> pos = lm->optPos();
+
+        double cov[3*3];
+        _covariance->GetCovarianceBlock(ptr, ptr, cov);
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                pos.stddev(i,j) = cov[i*3 + j];
+            }
+        }
+
+        lm->setOptPos(pos);
+    }
+
+    for (qint64 id : _camParametersIndex.keys()) {
+
+        Camera* cam = qobject_cast<Camera*>(_currentProject->getById(id));
+
+        if (cam->isFixed()) {
+            continue;
+        }
+
+        CameraIntrinsicParameters& cm_p = _camParameters[_camParametersIndex[id]];
+
+        //focal length
+        double* ptr = &cm_p.fLen;
+
+        floatParameter flen = cam->optimizedFLen();
+
+        double covFLen[1];
+        _covariance->GetCovarianceBlock(ptr, ptr, covFLen);
+
+        flen.setUncertainty(covFLen[0]);
+        cam->setOptimizedFLen(flen);
+
+        //principal point
+        ptr = &cm_p.principalPoint[0];
+
+        floatParameter pp_x = cam->optimizedOpticalCenterX();
+        floatParameter pp_y = cam->optimizedOpticalCenterY();
+
+        double covPP[2*2];
+        _covariance->GetCovarianceBlock(ptr, ptr, covPP);
+
+        pp_x.setUncertainty(covPP[0]);
+        pp_y.setUncertainty(covPP[3]);
+
+        cam->setOptimizedOpticalCenterX(pp_x);
+        cam->setOptimizedOpticalCenterY(pp_y);
+
+        //radial distortion
+        ptr = &cm_p.radialDistortion[0];
+
+        floatParameter k1 = cam->optimizedK1();
+        floatParameter k2 = cam->optimizedK2();
+        floatParameter k3 = cam->optimizedK3();
+
+        double covK[3*3];
+        _covariance->GetCovarianceBlock(ptr, ptr, covK);
+
+        k1.setUncertainty(covK[0]);
+        k2.setUncertainty(covK[4]);
+        k3.setUncertainty(covK[8]);
+
+        cam->setOptimizedK1(k1);
+        cam->setOptimizedK2(k2);
+        cam->setOptimizedK3(k3);
+
+        //tangential distortion
+        ptr = &cm_p.tangentialDistortion[0];
+
+        floatParameter p1 = cam->optimizedP1();
+        floatParameter p2 = cam->optimizedP2();
+
+        double covP[2*2];
+        _covariance->GetCovarianceBlock(ptr, ptr, covP);
+
+        p1.setUncertainty(covP[0]);
+        p2.setUncertainty(covP[3]);
+
+        cam->setOptimizedP1(p1);
+        cam->setOptimizedP2(p2);
+
+        //skew distortion
+        ptr = &cm_p.skewDistortion[0];
+
+        floatParameter B1 = cam->optimizedB1();
+        floatParameter B2 = cam->optimizedB2();
+
+        double covB[2*2];
+        _covariance->GetCovarianceBlock(ptr, ptr, covB);
+
+        B1.setUncertainty(covB[0]);
+        B2.setUncertainty(covB[3]);
+
+        cam->setOptimizedB1(B1);
+        cam->setOptimizedB2(B2);
+
+    }
+
+    for (qint64 id : _frameParametersIndex.keys()) {
+
+        Image* im = qobject_cast<Image*>(_currentProject->getById(id));
+
+        if (im->isFixed()) {
+            continue;
+        }
+
+        FramePoseParameters& im_p = _frameParameters[_frameParametersIndex[id]];
+        double* ptr = &im_p.t[0];
+
+        floatParameterGroup<3> pos = im->optPos();
+
+        double cov[3*3];
+        _covariance->GetCovarianceBlock(ptr, ptr, cov);
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                pos.stddev(i,j) = cov[i*3 + j];
+            }
+        }
+
+        im->setOptPos(pos);
+
+        ptr = &im_p.rAxis[0];
+
+        floatParameterGroup<3> rot = im->optRot();
+
+        _covariance->GetCovarianceBlock(ptr, ptr, cov);
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                rot.stddev(i,j) = cov[i*3 + j];
+            }
+        }
+
+        im->setOptRot(rot);
+    }
+
+    for (qint64 id : _localCoordinatesParametersIndex.keys()) {
+
+        LocalCoordinateSystem* lc = qobject_cast<LocalCoordinateSystem*>(_currentProject->getById(id));
+
+        if (lc->isFixed()) {
+            continue;
+        }
+
+        FramePoseParameters& lc_p = _localCoordinatesParameters[_localCoordinatesParametersIndex[id]];
+        double* ptr = &lc_p.t[0];
+
+        floatParameterGroup<3> pos = lc->optPos();
+
+        double cov[3*3];
+        _covariance->GetCovarianceBlock(ptr, ptr, cov);
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                pos.stddev(i,j) = cov[i*3 + j];
+            }
+        }
+
+        lc->setOptPos(pos);
+
+        ptr = &lc_p.rAxis[0];
+
+        floatParameterGroup<3> rot = lc->optRot();
+
+        _covariance->GetCovarianceBlock(ptr, ptr, cov);
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                rot.stddev(i,j) = cov[i*3 + j];
+            }
+        }
+
+        lc->setOptRot(rot);
+    }
+
+    return true;
 }
 
 void CeresSBASolver::cleanup() {
@@ -510,6 +757,11 @@ void CeresSBASolver::cleanup() {
 
     _localCoordinatesParameters.clear();
     _localCoordinatesParametersIndex.clear();
+
+    if (_covariance != nullptr) {
+        delete _covariance;
+        _covariance = nullptr;
+    }
 
     _problem = ceres::Problem(); //reset problem
 }

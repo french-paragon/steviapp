@@ -11,6 +11,7 @@
 
 #include "sparsesolver/graphroughbundleadjustementsolver.h"
 #include "sparsesolver/graphsbasolver.h"
+#include "sparsesolver/ceressbasolver.h"
 #include "sparsesolver/graphstereorigsolver.h"
 #include "sparsesolver/sbagraphreductor.h"
 #include "sparsesolver/sbainitializer.h"
@@ -406,7 +407,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		return;
 	}
 
-	GraphSBASolver* solver = new GraphSBASolver(p, computeUncertainty, useSparseOptimizer);
+    CeresSBASolver* solver = new CeresSBASolver(p, computeUncertainty, useSparseOptimizer);
 
 	solver->setOptimizationSteps(nSteps);
 	solver->setFixedParametersFlag(fixedParameters);
@@ -454,7 +455,7 @@ void solveSparseHeadless(Project* p,
 		return;
 	}
 
-	GraphSBASolver* solver = new GraphSBASolver(p, computeUncertainty, useSparseOptimizer);
+    CeresSBASolver* solver = new CeresSBASolver(p, computeUncertainty, useSparseOptimizer);
 
 	solver->setOptimizationSteps(nSteps);
 	solver->setFixedParametersFlag(fixed);
