@@ -51,6 +51,10 @@ int CameraCalibrationSparseAlignementViewerInterface::nPoints() const {
 	return _currentCalibration->selectedGridSize();
 }
 
+int CameraCalibrationSparseAlignementViewerInterface::nLocalSystems() const {
+    return 0;
+}
+
 QMatrix4x4 CameraCalibrationSparseAlignementViewerInterface::getCameraTransform(int idx) const {
 
 	if (_currentCalibration == nullptr) {
@@ -101,6 +105,10 @@ QMatrix4x4 CameraCalibrationSparseAlignementViewerInterface::getCameraTransform(
 	}
 
 	return QMatrix4x4();
+}
+
+QMatrix4x4 CameraCalibrationSparseAlignementViewerInterface::getLocalSystemTransform(int idx) const {
+    return QMatrix4x4();
 }
 
 QVector3D CameraCalibrationSparseAlignementViewerInterface::getPointPos(int idx) const {
@@ -166,11 +174,18 @@ void CameraCalibrationSparseAlignementViewerInterface::hooverCam(int idx) const 
 
 }
 
+void CameraCalibrationSparseAlignementViewerInterface::hooverLocalCoord(int idx) const {
+    return;
+}
+
 void CameraCalibrationSparseAlignementViewerInterface::clickPoint(int idx) const {
 	return hooverPoint(idx);
 }
 void CameraCalibrationSparseAlignementViewerInterface::clickCam(int idx) const {
 	return hooverCam(idx);
+}
+void CameraCalibrationSparseAlignementViewerInterface::clickLocalCoordinateSystem(int idx) const {
+    return hooverLocalCoord(idx);
 }
 
 } // namespace StereoVisionApp

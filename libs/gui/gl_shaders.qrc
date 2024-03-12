@@ -14,5 +14,7 @@
         <file>shaders/objectId.frag</file>
         <file>shaders/objectId.vert</file>
         <file>shaders/objectCstId.vert</file>
+        <file>shaders/sparseViewerLocalAxis.vert</file>
+        <file>shaders/sparseViewerLocalAxis.frag</file>
     </qresource>
 </RCC>

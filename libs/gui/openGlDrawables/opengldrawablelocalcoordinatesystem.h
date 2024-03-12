@@ -1,17 +1,16 @@
-#ifndef STEREOVISIONAPP_OPENGLDRAWABLECAMERASSET_H
-#define STEREOVISIONAPP_OPENGLDRAWABLECAMERASSET_H
+#ifndef STEREOVISIONAPP_OPENGLDRAWABLELOCALCOORDINATESYSTEM_H
+#define STEREOVISIONAPP_OPENGLDRAWABLELOCALCOORDINATESYSTEM_H
 
 #include "../opengl3dsceneviewwidget.h"
 #include "../sparsealignementviewer.h"
 
 namespace StereoVisionApp {
 
-class OpenGlDrawableCamerasSet : public OpenGlDrawable
+class OpenGlDrawableLocalCoordinateSystem : public OpenGlDrawable
 {
-    Q_OBJECT
 public:
-    OpenGlDrawableCamerasSet(OpenGl3DSceneViewWidget* parent);
-    ~OpenGlDrawableCamerasSet();
+    OpenGlDrawableLocalCoordinateSystem(OpenGl3DSceneViewWidget* parent);
+    ~OpenGlDrawableLocalCoordinateSystem();
 
     void initializeGL() override;
     void paintGL(QMatrix4x4 const& modelView, QMatrix4x4 const& projectionView) override;
@@ -27,28 +26,26 @@ public:
     void clearInterface();
 
     void setSceneScale(float sceneScale);
-    void setCamScale(float camScale);
+    void setCoordinatesScale(float lsScale);
 
 protected:
 
-    void generateCamModel();
+    void generateLocalCoordinatesModel();
 
     AbstractSparseAlignementDataInterface* _currentInterface;
 
     float _sceneScale;
-    float _camScale;
+    float _lsScale;
 
-    QOpenGLShaderProgram* _camProgram;
+    QOpenGLShaderProgram* _localSystemProgram;
     QOpenGLShaderProgram* _objFixedIdProgram;
 
-    QOpenGLVertexArrayObject _cam_vao;
-    QOpenGLVertexArrayObject _cam_ids_vao;
+    QOpenGLVertexArrayObject _ls_vao;
+    QOpenGLVertexArrayObject _ls_ids_vao;
 
-    QOpenGLBuffer _cam_buffer;
-    QOpenGLBuffer _cam_indices;
-
+    QOpenGLBuffer _ls_buffer;
 };
 
 } // namespace StereoVisionApp
 
-#endif // STEREOVISIONAPP_OPENGLDRAWABLECAMERASSET_H
+#endif // STEREOVISIONAPP_OPENGLDRAWABLELOCALCOORDINATESYSTEM_H

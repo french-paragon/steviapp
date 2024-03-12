@@ -10,6 +10,7 @@ set(LIB_SRC imagewidget.cpp
             openGlDrawables/opengldrawablescenegrid.cpp
             openGlDrawables/opengldrawablelandmarkset.cpp
             openGlDrawables/opengldrawablecamerasset.cpp
+            openGlDrawables/opengldrawablelocalcoordinatesystem.cpp
             imageeditor.cpp
             imageeditor.ui
             imageviewer.cpp
@@ -102,6 +103,7 @@ set(LIB_HEADERS_OPENGLDRAWABLES
     openGlDrawables/opengldrawablescenegrid.h
     openGlDrawables/opengldrawablelandmarkset.h
     openGlDrawables/opengldrawablecamerasset.h
+    openGlDrawables/opengldrawablelocalcoordinatesystem.h
 )
 
 if (ADD_DEVEL_TOOLS)

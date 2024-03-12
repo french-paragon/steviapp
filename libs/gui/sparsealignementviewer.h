@@ -25,19 +25,23 @@ class AbstractSparseAlignementDataInterface : public QObject
 public:
 	explicit AbstractSparseAlignementDataInterface(QObject* parent = nullptr);
 
-	virtual int nCameras() const = 0;
-	virtual int nPoints() const = 0;
+    virtual int nCameras() const = 0;
+    virtual int nPoints() const = 0;
+    virtual int nLocalSystems() const = 0;
 
 	virtual QMatrix4x4 getCameraTransform(int idx) const = 0;
+    virtual QMatrix4x4 getLocalSystemTransform(int idx) const = 0;
 	virtual QVector3D getPointPos(int idx) const = 0;
 
 	virtual void reload() = 0;
 
     virtual void hooverPoint(int idx) const = 0;
     virtual void hooverCam(int idx) const = 0;
+    virtual void hooverLocalCoord(int idx) const = 0;
 
     virtual void clickPoint(int idx) const = 0;
     virtual void clickCam(int idx) const = 0;
+    virtual void clickLocalCoordinateSystem(int idx) const = 0;
 
 Q_SIGNALS:
 
@@ -62,17 +66,21 @@ public:
 
 	int nCameras() const override;
 	int nPoints() const override;
+    int nLocalSystems() const override;
 
 	QMatrix4x4 getCameraTransform(int idx) const override;
+    QMatrix4x4 getLocalSystemTransform(int idx) const override;
 	QVector3D getPointPos(int idx) const override;
 
 	void reload() override;
 
     void hooverPoint(int idx) const override;
     void hooverCam(int idx) const override;
+    void hooverLocalCoord(int idx) const override;
 
     void clickPoint(int idx) const override;
     void clickCam(int idx) const override;
+    void clickLocalCoordinateSystem(int idx) const override;
 
 protected:
 
@@ -81,11 +89,13 @@ protected:
 	Project* _currentProject;
 	QVector<qint64> _loadedLandmarks;
 	QVector<qint64> _loadedFrames;
+    QVector<qint64> _loadedLocalCoordinateSystems;
 };
 
 class OpenGlDrawableSceneGrid;
 class OpenGlDrawableLandmarkSet;
 class OpenGlDrawableCamerasSet;
+class OpenGlDrawableLocalCoordinateSystem;
 
 class SparseAlignementViewer : public OpenGl3DSceneViewWidget
 {
@@ -129,6 +139,7 @@ protected:
     OpenGlDrawableSceneGrid* _drawableGrid;
     OpenGlDrawableLandmarkSet* _drawableLandmarks;
     OpenGlDrawableCamerasSet* _drawableCameras;
+    OpenGlDrawableLocalCoordinateSystem* _drawableLocalSystems;
 
     float _sceneScale;
     float _camScale;

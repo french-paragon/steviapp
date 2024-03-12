@@ -4,6 +4,7 @@
 #include "datablocks/landmark.h"
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
+#include "datablocks/localcoordinatesystem.h"
 
 #include <StereoVision/geometry/rotations.h>
 
@@ -23,6 +24,7 @@
 #include "openGlDrawables/opengldrawablescenegrid.h"
 #include "openGlDrawables/opengldrawablelandmarkset.h"
 #include "openGlDrawables/opengldrawablecamerasset.h"
+#include "openGlDrawables/opengldrawablelocalcoordinatesystem.h"
 
 namespace StereoVisionApp {
 
@@ -69,6 +71,9 @@ int ProjectSparseAlignementDataInterface::nCameras() const {
 }
 int ProjectSparseAlignementDataInterface::nPoints() const {
 	return _loadedLandmarks.size();
+}
+int ProjectSparseAlignementDataInterface::nLocalSystems() const {
+    return _loadedLocalCoordinateSystems.size();
 }
 
 QMatrix4x4 ProjectSparseAlignementDataInterface::getCameraTransform(int idx) const {
@@ -119,6 +124,41 @@ QMatrix4x4 ProjectSparseAlignementDataInterface::getCameraTransform(int idx) con
 
 }
 
+QMatrix4x4 ProjectSparseAlignementDataInterface::getLocalSystemTransform(int idx) const {
+
+    qint64 lcsId = _loadedLocalCoordinateSystems.at(idx);
+
+    LocalCoordinateSystem* lcs = qobject_cast<LocalCoordinateSystem*>(_currentProject->getById(lcsId));
+
+    if (lcs != nullptr) {
+
+        if (lcs->optPos().isSet() and
+                lcs->optRot().isSet() ) {
+
+            QMatrix4x4 lcsRotate;
+            QMatrix4x4 lcsTranslate;
+
+            QVector3D r;
+            r.setX(lcs->optRot().value(0));
+            r.setY(lcs->optRot().value(1));
+            r.setZ(lcs->optRot().value(2));
+
+            lcsRotate.rotate(r.length()/M_PI*180, r);
+
+            lcsTranslate.translate(lcs->optPos().value(0),
+                                   lcs->optPos().value(1),
+                                   lcs->optPos().value(2));
+
+            QMatrix4x4 lcsTransform = lcsTranslate*lcsRotate;
+
+            return lcsTransform;
+        }
+    }
+
+    return QMatrix4x4();
+
+}
+
 QVector3D ProjectSparseAlignementDataInterface::getPointPos(int idx) const {
 
 	QVector3D ret;
@@ -141,8 +181,9 @@ void ProjectSparseAlignementDataInterface::reload() {
 
 void ProjectSparseAlignementDataInterface::reloadCache() {
 
-	_loadedFrames.clear();
-	_loadedLandmarks.clear();
+    _loadedFrames.clear();
+    _loadedLandmarks.clear();
+    _loadedLocalCoordinateSystems.clear();
 
 	if (_currentProject == nullptr) {
 		Q_EMIT dataChanged();
@@ -159,19 +200,31 @@ void ProjectSparseAlignementDataInterface::reloadCache() {
 				_loadedLandmarks.push_back(id);
 			}
 		}
-	}
+    }
 
-	QVector<qint64> imIds = _currentProject->getIdsByClass(ImageFactory::imageClassName());
+    QVector<qint64> imIds = _currentProject->getIdsByClass(ImageFactory::imageClassName());
 
-	for (qint64 id : imIds) {
-		Image* im = qobject_cast<Image*>(_currentProject->getById(id));
+    for (qint64 id : imIds) {
+        Image* im = qobject_cast<Image*>(_currentProject->getById(id));
 
-		if (im != nullptr) {
-			if (im->optPos().isSet() and im->optRot().isSet()) {
-				_loadedFrames.push_back(id);
-			}
-		}
-	}
+        if (im != nullptr) {
+            if (im->optPos().isSet() and im->optRot().isSet()) {
+                _loadedFrames.push_back(id);
+            }
+        }
+    }
+
+    QVector<qint64> lcsIds = _currentProject->getIdsByClass(LocalCoordinateSystem::staticMetaObject.className());
+
+    for (qint64 id : lcsIds) {
+        LocalCoordinateSystem* lcs = qobject_cast<LocalCoordinateSystem*>(_currentProject->getById(id));
+
+        if (lcs != nullptr) {
+            if (lcs->optPos().isSet() and lcs->optRot().isSet()) {
+                _loadedLocalCoordinateSystems.push_back(id);
+            }
+        }
+    }
 
 	Q_EMIT dataChanged();
 }
@@ -210,12 +263,31 @@ void ProjectSparseAlignementDataInterface::hooverCam(int idx) const {
 	}
 
 }
+void ProjectSparseAlignementDataInterface::hooverLocalCoord(int idx) const {
+
+    if (idx < 0 or idx >= _loadedLocalCoordinateSystems.size()) {
+        return;
+    }
+
+    if (_currentProject != nullptr) {
+
+        LocalCoordinateSystem* lcs = _currentProject->getDataBlock<LocalCoordinateSystem>(_loadedLocalCoordinateSystems[idx]);
+
+        if (lcs != nullptr) {
+            sendStatusMessage(QString("Local system \"%1\"").arg(lcs->objectName()));
+        }
+
+    }
+}
 
 void ProjectSparseAlignementDataInterface::clickPoint(int idx) const {
     return hooverPoint(idx);
 }
 void ProjectSparseAlignementDataInterface::clickCam(int idx) const {
     return hooverCam(idx);
+}
+void ProjectSparseAlignementDataInterface::clickLocalCoordinateSystem(int idx) const {
+    return hooverLocalCoord(idx);
 }
 
 SparseAlignementViewer::SparseAlignementViewer(QWidget *parent) :
@@ -242,6 +314,12 @@ SparseAlignementViewer::SparseAlignementViewer(QWidget *parent) :
     _drawableCameras->setCamScale(_camScale);
 
     addDrawable(_drawableCameras);
+
+    _drawableLocalSystems = new OpenGlDrawableLocalCoordinateSystem(this);
+    _drawableLocalSystems->setSceneScale(_sceneScale);
+    _drawableLocalSystems->setCoordinatesScale(_camScale); //use the same scale as the camera
+
+    addDrawable(_drawableLocalSystems);
 }
 
 SparseAlignementViewer::~SparseAlignementViewer() {
@@ -280,6 +358,7 @@ void SparseAlignementViewer::setCamScale(float camScale)
 {
     _camScale = camScale;
     _drawableCameras->setCamScale(camScale);
+    _drawableLocalSystems->setCoordinatesScale(camScale);
 }
 
 void SparseAlignementViewer::scaleCamerasIn(float steps) {
