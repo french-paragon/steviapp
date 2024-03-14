@@ -43,6 +43,30 @@
 
 namespace StereoVisionApp {
 
+qint64 addPlaceholderImage(QString name, Project* p, Camera *cam) {
+
+    QString cn = ImageFactory::imageClassName();
+
+    if (cam == nullptr) {
+        return -1;
+    }
+
+    if (cam->getProject() != p) {
+        return -1;
+    }
+
+    qint64 id = p->createDataBlock(cn.toStdString().c_str());
+
+    if (id >= 0) {
+        Image* im = qobject_cast<Image*>(p->getById(id));
+
+        im->setObjectName(name);
+
+        im->assignCamera(cam->internalId());
+    }
+
+    return id;
+}
 
 qint64 addImage(QString f, Project* p, Camera* cam) {
 
