@@ -14,7 +14,7 @@ class Image;
 class CeresSBASolver : public SparseSolverBase
 {
 public:
-    CeresSBASolver(Project* p, bool computeUncertainty = true, bool sparse = true, QObject* parent = nullptr);
+    CeresSBASolver(Project* p, bool computeUncertainty = true, bool sparse = true, bool verbose = false, QObject* parent = nullptr);
     ~CeresSBASolver();
 
     int uncertaintySteps() const override;
@@ -34,6 +34,7 @@ protected:
     qint64 setupCameraVertexForImage(Image* img);
 
     bool _sparse;
+    bool _verbose;
     bool _compute_marginals;
     bool _not_first_step;
 

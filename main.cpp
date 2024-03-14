@@ -14,6 +14,7 @@
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
 #include "datablocks/image.h"
+#include "datablocks/correspondencesset.h"
 #include "datablocks/stereorig.h"
 #include "datablocks/angleconstrain.h"
 #include "datablocks/distanceconstrain.h"
@@ -68,7 +69,10 @@ void runScript(QString const& scriptPath, QStringList argv = {}) {
 	for(QString const& arg : argv) {
 		args.append(arg.toStdString());
 	}
-	py::module::import("sys").add_object("argv", args);
+
+    if (argv.size() > 0) {
+        py::module::import("sys").add_object("argv", args);
+    }
 
 	py::eval_file(scriptPath.toStdString(), scope);
 }
@@ -100,6 +104,7 @@ int main(int argc, char *argv[])
     pF.addType(new StereoVisionApp::LandmarkFactory(&a));
     pF.addType(new StereoVisionApp::ImageFactory(&a));
     pF.addType(new StereoVisionApp::CameraFactory(&a));
+    pF.addType(new StereoVisionApp::CorrespondencesSetFactory(&a));
     pF.addType(new StereoVisionApp::StereoRigFactory(&a));
     pF.addType(new StereoVisionApp::LocalCoordinateSystemFactory(&a));
     pF.addType(new StereoVisionApp::AngleConstrainFactory(&a));

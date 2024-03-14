@@ -6,14 +6,19 @@
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 #include "datablocks/localcoordinatesystem.h"
+#include "datablocks/correspondencesset.h"
 
 #include "costfunctors/parametrizedxyz2uvcost.h"
 #include "costfunctors/localpointalignementcost.h"
+#include "costfunctors/local3dcoalignementcost.h"
+#include "costfunctors/local3dtoimageuvcost.h"
 
 #include <ceres/cost_function.h>
 #include <ceres/autodiff_cost_function.h>
 #include <ceres/normal_prior.h>
 #include <ceres/iteration_callback.h>
+
+#include <QTextStream>
 
 namespace StereoVisionApp {
 
@@ -29,7 +34,9 @@ public:
 
     virtual ceres::CallbackReturnType operator()(const ceres::IterationSummary& summary) override {
 
-        _solver->jumpStep();
+        if (_solver->currentStep() < _solver->optimizationSteps()-1) {
+            _solver->jumpStep();
+        }
 
         if (summary.step_is_valid) {
             return ceres::SOLVER_CONTINUE;
@@ -44,9 +51,10 @@ protected:
     CeresSBASolver* _solver;
 };
 
-CeresSBASolver::CeresSBASolver(Project* p, bool computeUncertainty, bool sparse, QObject* parent):
+CeresSBASolver::CeresSBASolver(Project* p, bool computeUncertainty, bool sparse, bool verbose, QObject* parent):
     SparseSolverBase(p, parent),
     _sparse(sparse),
+    _verbose(verbose),
     _compute_marginals(computeUncertainty),
     _covariance(nullptr)
 {
@@ -68,6 +76,8 @@ bool CeresSBASolver::hasUncertaintyStep() const {
 }
 
 bool CeresSBASolver::init() {
+
+    QTextStream out(stdout);
 
     if (_currentProject == nullptr) {
         return false;
@@ -134,6 +144,14 @@ bool CeresSBASolver::init() {
                 ceres::NormalPrior* normalPrior = new ceres::NormalPrior(stiffness, m);
 
                 _problem.AddResidualBlock(normalPrior, nullptr, pos.position.data());
+
+                if (_verbose) {
+
+                    std::array<double,3> res;
+
+                    out << "Position prior (lm " << id << ") ";
+                    out << "initial residuals = [" << pos.position[0] - m[0] << " " << pos.position[1] - m[1] << " " << pos.position[2] - m[2] << "]\n";
+                }
 
             }
         }
@@ -218,6 +236,14 @@ bool CeresSBASolver::init() {
                 ceres::NormalPrior* tPrior = new ceres::NormalPrior(At, bt);
                 _problem.AddResidualBlock(tPrior, nullptr, pose.t.data());
 
+                if (_verbose) {
+
+                    std::array<double,3> res;
+
+                    out << "Position prior (img " << id << ") ";
+                    out << "initial residuals = [" << pose.t[0] - t_prior[0] << " " << pose.t[1] - t_prior[1] << " " << pose.t[2] - t_prior[2] << "]\n";
+                }
+
             }
 
             if (!im->isFixed() and im->xRot().isUncertain() and im->yRot().isUncertain() and im->zRot().isUncertain()) {
@@ -237,6 +263,14 @@ bool CeresSBASolver::init() {
                 ceres::NormalPrior* rAxisPrior = new ceres::NormalPrior(Araxis, (braxis));
                 _problem.AddResidualBlock(rAxisPrior, nullptr, pose.rAxis.data());
 
+                if (_verbose) {
+
+                    std::array<double,3> res;
+
+                    out << "Rotation axis prior (img " << id << ") ";
+                    out << "initial residuals = [" << pose.rAxis[0] - raxis_prior[0] << " " << pose.rAxis[1] - raxis_prior[1] << " " << pose.rAxis[2] - raxis_prior[2] << "]\n";
+                }
+
             }
 
             for (qint64 lmId : im->listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
@@ -246,7 +280,7 @@ bool CeresSBASolver::init() {
 
                     qint64 lmId = iml->attachedLandmarkid();
 
-                    if (!_landmarkParametersIndex.contains(lmId) or _camParametersIndex.contains(cam_id)) {
+                    if (!_landmarkParametersIndex.contains(lmId) or !_camParametersIndex.contains(cam_id)) {
                         continue;
                     }
 
@@ -272,6 +306,25 @@ bool CeresSBASolver::init() {
                                               c_p.radialDistortion.data(),
                                               c_p.tangentialDistortion.data(),
                                               c_p.skewDistortion.data());
+
+                    if (_verbose) {
+
+                        std::array<double,3> res;
+
+                        (*projCost)(l_p.position.data(),
+                                    pose.rAxis.data(),
+                                    pose.t.data(),
+                                    &c_p.fLen,
+                                    c_p.principalPoint.data(),
+                                    c_p.radialDistortion.data(),
+                                    c_p.tangentialDistortion.data(),
+                                    c_p.skewDistortion.data(),
+                                    res.data());
+
+                        out << "Image GCP (img " << id << ") ";
+                        out << "lm[" << lmId << "] ";
+                        out << "initial residuals = [" << res[0] << " " << res[1] << "]\n";
+                    }
                 }
             }
         }
@@ -317,6 +370,76 @@ bool CeresSBASolver::init() {
                 _problem.SetParameterBlockConstant(pose.t.data());
             }
 
+            std::array<double, 3> raxis_prior;
+            std::array<double, 3> t_prior;
+
+            //TODO: check if the use of axis angle representation here is consistent.
+            if (lcs->xRot().isSet() and lcs->yRot().isSet() and lcs->zRot().isSet()) {
+                raxis_prior[0] = lcs->xRot().value();
+                raxis_prior[1] = lcs->yRot().value();
+                raxis_prior[2] = lcs->zRot().value();
+            }
+
+            if (lcs->xCoord().isSet() and lcs->yCoord().isSet() and lcs->zCoord().isSet()) {
+                t_prior[0] = lcs->xCoord().value();
+                t_prior[1] = lcs->yCoord().value();
+                t_prior[2] = lcs->zCoord().value();
+            }
+
+            if (!lcs->isFixed() and lcs->xCoord().isUncertain() and lcs->yCoord().isUncertain() and lcs->zCoord().isUncertain()) {
+
+                ceres::Matrix At;
+                At.setConstant(3,3,0);
+
+                At(0,0) = 1./std::abs(lcs->xCoord().stddev());
+                At(1,1) = 1./std::abs(lcs->yCoord().stddev());
+                At(2,2) = 1./std::abs(lcs->zCoord().stddev());
+
+                ceres::Vector bt;
+                bt.resize(3);
+
+                bt << t_prior[0],t_prior[1], t_prior[2];
+
+                ceres::NormalPrior* tPrior = new ceres::NormalPrior(At, bt);
+                _problem.AddResidualBlock(tPrior, nullptr, pose.t.data());
+
+                if (_verbose) {
+
+                    std::array<double,3> res;
+
+                    out << "Position prior (lcs " << id << ") ";
+                    out << "initial residuals = [" << pose.t[0] - t_prior[0] << " " << pose.t[1] - t_prior[1] << " " << pose.t[2] - t_prior[2] << "]\n";
+                }
+
+            }
+
+            if (!lcs->isFixed() and lcs->xRot().isUncertain() and lcs->yRot().isUncertain() and lcs->zRot().isUncertain()) {
+
+                ceres::Matrix Araxis;
+                Araxis.setConstant(3, 3, 0);
+
+                Araxis(0,0) = 1./std::abs(lcs->xRot().stddev());
+                Araxis(1,1) = 1./std::abs(lcs->yRot().stddev());
+                Araxis(2,2) = 1./std::abs(lcs->zRot().stddev());
+
+                ceres::Vector braxis;
+                braxis.resize(3);
+
+                braxis << raxis_prior[0],raxis_prior[1], raxis_prior[2];
+
+                ceres::NormalPrior* rAxisPrior = new ceres::NormalPrior(Araxis, (braxis));
+                _problem.AddResidualBlock(rAxisPrior, nullptr, pose.rAxis.data());
+
+                if (_verbose) {
+
+                    std::array<double,3> res;
+
+                    out << "Rotation axis prior (lcs " << id << ") ";
+                    out << "initial residuals = [" << pose.rAxis[0] - raxis_prior[0] << " " << pose.rAxis[1] - raxis_prior[1] << " " << pose.rAxis[2] - raxis_prior[2] << "]\n";
+                }
+
+            }
+
             for (qint64 lmId : lcs->listTypedSubDataBlocks(LandmarkLocalCoordinates::staticMetaObject.className())) {
                 LandmarkLocalCoordinates* lmlc = lcs->getLandmarkLocalCoordinates(lmId);
 
@@ -349,9 +472,237 @@ bool CeresSBASolver::init() {
                                           l_p.position.data(),
                                           pose.rAxis.data(),
                                           pose.t.data());
+
+                if (_verbose) {
+
+                    std::array<double,3> res;
+
+                    (*alignementCost)(l_p.position.data(),
+                                      pose.rAxis.data(),
+                                      pose.t.data(),
+                                      res.data());
+
+                    out << "Local 3D GCP (lcs " << id << ") ";
+                    out << "lm[" << lm_id << "] ";
+                    out << "initial residuals = [" << res[0] << " " << res[1] << " " << res[2] << "]\n";
+                }
             }
         }
     }
+
+    //correspondences sets
+
+    QVector<qint64> corresps = _currentProject->getIdsByClass(CorrespondencesSet::staticMetaObject.className());
+
+    for (qint64 id : qAsConst(corresps)) {
+
+        CorrespondencesSet* cset = _currentProject->getDataBlock<CorrespondencesSet>(id);
+
+        if (cset == nullptr) {
+            continue;
+        }
+
+        QVector<LocalCoordinates2LocalCoordinatesCorrespondence*> corresp3D3D;
+        corresp3D3D = cset->getAllLocalFramesCorrespondences();
+
+        for (LocalCoordinates2LocalCoordinatesCorrespondence* c : qAsConst(corresp3D3D)) {
+            qint64 id1 = c->attachedLcs1Id();
+            qint64 id2 = c->attachedLcs2Id();
+
+            if (!_localCoordinatesParametersIndex.contains(id1) or
+                !_localCoordinatesParametersIndex.contains(id2)) {
+                continue; //skip pairs which are not part of the current problem
+            }
+
+            floatParameter lcs1x = c->xLcs1();
+            floatParameter lcs1y = c->yLcs1();
+            floatParameter lcs1z = c->zLcs1();
+
+            floatParameter lcs2x = c->xLcs2();
+            floatParameter lcs2y = c->yLcs2();
+            floatParameter lcs2z = c->zLcs2();
+
+            if (!lcs1x.isSet() or !lcs1y.isSet() or !lcs1z.isSet()) {
+                continue; //skip the measurement if not set
+            }
+
+            if (!lcs2x.isSet() or !lcs2y.isSet() or !lcs2z.isSet()) {
+                continue; //skip the measurement if not set
+            }
+
+            Eigen::Vector3d localPos1;
+            localPos1 << lcs1x.value(), lcs1y.value(), lcs1z.value();
+            Eigen::Vector3d localPos2;
+            localPos2 << lcs2x.value(), lcs2y.value(), lcs2z.value();
+
+            Eigen::Matrix3d info = Eigen::Matrix3d::Identity();
+
+            float sigmax = 1;
+            float sigmay = 1;
+            float sigmaz = 1;
+
+            if (lcs1x.isUncertain() and lcs2x.isUncertain()) {
+                sigmax = lcs1x.stddev() + lcs2x.stddev();
+            } else if (lcs1x.isUncertain()) {
+                sigmax = lcs1x.stddev();
+            } else if (lcs2x.isUncertain()) {
+                sigmax = lcs2x.stddev();
+            }
+
+            if (lcs1y.isUncertain() and lcs2y.isUncertain()) {
+                sigmay = lcs1y.stddev() + lcs2y.stddev();
+            } else if (lcs1y.isUncertain()) {
+                sigmay = lcs1y.stddev();
+            } else if (lcs2y.isUncertain()) {
+                sigmay = lcs2y.stddev();
+            }
+
+            if (lcs1z.isUncertain() and lcs2z.isUncertain()) {
+                sigmaz = lcs1z.stddev() + lcs2z.stddev();
+            } else if (lcs1z.isUncertain()) {
+                sigmaz = lcs1z.stddev();
+            } else if (lcs2x.isUncertain()) {
+                sigmaz = lcs2z.stddev();
+            }
+
+            info(0,0) = 1/sigmax;
+            info(1,1) = 1/sigmay;
+            info(2,2) = 1/sigmaz;
+
+            Local3DCoalignementCost* alignementCost = new Local3DCoalignementCost(localPos1, localPos2, info);
+
+            std::size_t p1id = _localCoordinatesParametersIndex[id1];
+            FramePoseParameters& pose1 = _localCoordinatesParameters[p1id];
+
+            std::size_t p2id = _localCoordinatesParametersIndex[id2];
+            FramePoseParameters& pose2 = _localCoordinatesParameters[p2id];
+
+            _problem.AddResidualBlock(new ceres::AutoDiffCostFunction<Local3DCoalignementCost, 3, 3, 3, 3, 3>(alignementCost), nullptr,
+                                      pose1.rAxis.data(),
+                                      pose1.t.data(),
+                                      pose2.rAxis.data(),
+                                      pose2.t.data());
+
+            if (_verbose) {
+
+                std::array<double,3> res;
+
+                (*alignementCost)(pose1.rAxis.data(),
+                                  pose1.t.data(),
+                                  pose2.rAxis.data(),
+                                  pose2.t.data(),
+                                  res.data());
+
+                out << "Correspd 3D-3D (set " << cset->internalId() << ") ";
+                out << "lcs1[" << id1 << "] ";
+                out << "lcs2[" << id2 << "] ";
+                out << "initial residuals = [" << res[0] << " " << res[1] << " " << res[2] << "]\n";
+            }
+
+        }
+
+        QVector<LocalCoordinates2ImageCorrespondence*> corresp3D2D;
+        corresp3D2D = cset->getAllImages2LocalCoordinatesCorrespondences();
+
+        for (LocalCoordinates2ImageCorrespondence* c : qAsConst(corresp3D2D)) {
+            qint64 idlcs = c->attachedLcsId();
+            qint64 idimg = c->attachedImgId();
+
+            if (!_localCoordinatesParametersIndex.contains(idlcs) or
+                !_frameParametersIndex.contains(idimg)) {
+                continue; //skip pairs which are not part of the current problem
+            }
+
+            qint64 idcam = c->attachedImg()->assignedCamera();
+
+            if (!_camParametersIndex.contains(idcam)) {
+                continue;
+            }
+
+            floatParameter lcsx = c->xLcs();
+            floatParameter lcsy = c->yLcs();
+            floatParameter lcsz = c->zLcs();
+
+            if (!lcsx.isSet() or !lcsy.isSet() or !lcsz.isSet()) {
+                continue;
+            }
+
+            floatParameter imgx = c->xImg();
+            floatParameter imgy = c->yImg();
+
+            if (!imgx.isSet() or !imgy.isSet()) {
+                continue;
+            }
+
+            Eigen::Vector3d localPos;
+            localPos << lcsx.value(), lcsy.value(), lcsz.value();
+            Eigen::Vector2d imgUV;
+            imgUV << imgx.value(), imgy.value();
+
+            Eigen::Matrix2d info = Eigen::Matrix2d::Identity();
+
+            float sigmau;
+            float sigmav;
+
+            if (imgx.isUncertain()) {
+                sigmau = imgx.stddev();
+            }
+
+            if (imgy.isUncertain()) {
+                sigmav = imgy.stddev();
+            }
+
+            info(0,0) = 1/sigmau;
+            info(1,1) = 1/sigmav;
+
+            Local3DtoImageUVCost* alignementCost = new  Local3DtoImageUVCost(localPos, imgUV, info);
+
+            std::size_t plcsid = _localCoordinatesParametersIndex[idlcs];
+            FramePoseParameters& poselcs = _localCoordinatesParameters[plcsid];
+
+            std::size_t pimgid = _frameParametersIndex[idimg];
+            FramePoseParameters& poseimg = _frameParameters[pimgid];
+
+            std::size_t pcamid = _camParametersIndex[idcam];
+            CameraIntrinsicParameters& camParams = _camParameters[pcamid];
+
+            _problem.AddResidualBlock(new ceres::AutoDiffCostFunction<Local3DtoImageUVCost, 2, 3, 3, 3, 3, 1, 2, 3, 2, 2>(alignementCost), nullptr,
+                                      poselcs.rAxis.data(),
+                                      poselcs.t.data(),
+                                      poseimg.rAxis.data(),
+                                      poseimg.t.data(),
+                                      &camParams.fLen,
+                                      camParams.principalPoint.data(),
+                                      camParams.radialDistortion.data(),
+                                      camParams.tangentialDistortion.data(),
+                                      camParams.skewDistortion.data());
+
+            if (_verbose) {
+
+                std::array<double,2> res;
+
+                (*alignementCost)(poselcs.rAxis.data(),
+                               poselcs.t.data(),
+                               poseimg.rAxis.data(),
+                               poseimg.t.data(),
+                               &camParams.fLen,
+                               camParams.principalPoint.data(),
+                               camParams.radialDistortion.data(),
+                               camParams.tangentialDistortion.data(),
+                               camParams.skewDistortion.data(),
+                               res.data());
+
+                out << "Correspd 2D-3D (set " << cset->internalId() << ") ";
+                out << "lcs[" << idlcs << "] ";
+                out << "img[" << idimg << "] ";
+                out << "initial residuals = [" << res[0] << " " << res[1] << "]\n";
+            }
+
+        }
+
+    }
+
+    out << Qt::endl;
 
     _not_first_step = false;
     return true;
@@ -362,9 +713,13 @@ bool CeresSBASolver::opt_step() {
         return true; //optimization already converged
     }
 
+    if (_verbose) {
+        std::cout << "Start optimization!" << std::endl;
+    }
+
     ceres::Solver::Options options;
     options.linear_solver_type = (_sparse) ? ceres::SPARSE_SCHUR : ceres::DENSE_QR;
-    options.minimizer_progress_to_stdout = true;
+    options.minimizer_progress_to_stdout = _verbose;
 
     CeresSBASolverIterationCallback* iterationCallBack = new CeresSBASolverIterationCallback(this);
 
@@ -381,6 +736,10 @@ bool CeresSBASolver::opt_step() {
     return true;
 }
 bool CeresSBASolver::std_step() {
+
+    if (_verbose) {
+        std::cout << "Start estimating uncertainty!" << std::endl;
+    }
 
     ceres::Covariance::Options options;
     options.algorithm_type = ceres::CovarianceAlgorithmType::SPARSE_QR;
@@ -473,8 +832,8 @@ bool CeresSBASolver::writeResults() {
 
         floatParameterGroup<3> rot;
         rot.value(0) = static_cast<float>(im_p.rAxis[0]);
-        rot.value(1) = static_cast<float>(im_p.rAxis[0]);
-        rot.value(2) = static_cast<float>(im_p.rAxis[0]);
+        rot.value(1) = static_cast<float>(im_p.rAxis[1]);
+        rot.value(2) = static_cast<float>(im_p.rAxis[2]);
         rot.setIsSet();
         im->setOptRot(rot);
 
@@ -564,6 +923,7 @@ bool CeresSBASolver::writeUncertainty() {
         double* ptr = &lm_p.position[0];
 
         floatParameterGroup<3> pos = lm->optPos();
+        pos.setUncertain();
 
         double cov[3*3];
         _covariance->GetCovarianceBlock(ptr, ptr, cov);
@@ -675,6 +1035,7 @@ bool CeresSBASolver::writeUncertainty() {
         double* ptr = &im_p.t[0];
 
         floatParameterGroup<3> pos = im->optPos();
+        pos.setUncertain();
 
         double cov[3*3];
         _covariance->GetCovarianceBlock(ptr, ptr, cov);
@@ -690,6 +1051,7 @@ bool CeresSBASolver::writeUncertainty() {
         ptr = &im_p.rAxis[0];
 
         floatParameterGroup<3> rot = im->optRot();
+        rot.setUncertain();
 
         _covariance->GetCovarianceBlock(ptr, ptr, cov);
 
@@ -714,6 +1076,7 @@ bool CeresSBASolver::writeUncertainty() {
         double* ptr = &lc_p.t[0];
 
         floatParameterGroup<3> pos = lc->optPos();
+        pos.setUncertain();
 
         double cov[3*3];
         _covariance->GetCovarianceBlock(ptr, ptr, cov);
@@ -729,6 +1092,7 @@ bool CeresSBASolver::writeUncertainty() {
         ptr = &lc_p.rAxis[0];
 
         floatParameterGroup<3> rot = lc->optRot();
+        rot.setUncertain();
 
         _covariance->GetCovarianceBlock(ptr, ptr, cov);
 
@@ -788,8 +1152,8 @@ qint64 CeresSBASolver::setupCameraVertexForImage(Image* im) {
         return cam_id;
     }
 
-    _camParameters.emplace_back();
     _camParametersIndex.insert(cam_id, _camParameters.size());
+    _camParameters.emplace_back();
 
     CameraIntrinsicParameters& camParams = _camParameters.back();
 

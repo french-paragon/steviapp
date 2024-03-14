@@ -377,6 +377,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
 	bool computeUncertainty = true;
 	bool useSparseOptimizer = true;
+    bool verbose = true;
 	int nSteps = pnStep;
 
 	FixedParameters fixedParameters = FixedParameter::CameraInternal|FixedParameter::StereoRigs;
@@ -407,7 +408,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		return;
 	}
 
-    CeresSBASolver* solver = new CeresSBASolver(p, computeUncertainty, useSparseOptimizer);
+    CeresSBASolver* solver = new CeresSBASolver(p, computeUncertainty, useSparseOptimizer, verbose);
 
 	solver->setOptimizationSteps(nSteps);
 	solver->setFixedParametersFlag(fixedParameters);

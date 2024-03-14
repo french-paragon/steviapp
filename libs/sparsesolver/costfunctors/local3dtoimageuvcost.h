@@ -1,5 +1,5 @@
-#ifndef STEREOVISIONAPP_PARAMETRIZEDXYZ2UVCOST_H
-#define STEREOVISIONAPP_PARAMETRIZEDXYZ2UVCOST_H
+#ifndef STEREOVISIONAPP_LOCAL3DTOIMAGEUVCOST_H
+#define STEREOVISIONAPP_LOCAL3DTOIMAGEUVCOST_H
 
 #include <eigen3/Eigen/Core>
 
@@ -7,15 +7,17 @@
 #include <StereoVision/geometry/rotations.h>
 #include <StereoVision/geometry/alignement.h>
 
+
 namespace StereoVisionApp {
 
-class ParametrizedXYZ2UVCost
+class Local3DtoImageUVCost
 {
 public:
-    ParametrizedXYZ2UVCost(Eigen::Vector2d const& uv, Eigen::Matrix2d const& info);
+    Local3DtoImageUVCost(Eigen::Vector3d const& localPos, Eigen::Vector2d const& uv, Eigen::Matrix2d const& info);
 
     template <typename T>
-    bool operator()(const T* const lm,
+    bool operator()(const T* const rls,
+                    const T* const tls,
                     const T* const r,
                     const T* const t,
                     const T* const f,
@@ -30,10 +32,20 @@ public:
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
+        using PoseType = StereoVision::Geometry::AffineTransform<T>;
+
         //projection
 
-        V3T lm_pos;
-        lm_pos << lm[0], lm[1], lm[2];
+        V3T ls_r;
+        ls_r << rls[0], rls[1], rls[2];
+
+        PoseType LocaltoWorld;
+
+        LocaltoWorld.R = StereoVision::Geometry::rodriguezFormula(ls_r);
+
+        LocaltoWorld.t << tls[0], tls[1], tls[2];
+
+        V3T lm_pos = LocaltoWorld*_localPos.cast<T>();
 
         V3T pose_r;
         pose_r << r[0], r[1], r[2];
@@ -83,10 +95,11 @@ public:
 
 protected:
 
+    Eigen::Vector3d _localPos;
     Eigen::Vector2d _uv;
     Eigen::Matrix2d _info;
 };
 
 } // namespace StereoVisionApp
 
-#endif // STEREOVISIONAPP_PARAMETRIZEDXYZ2UVCOST_H
+#endif // STEREOVISIONAPP_LOCAL3DTOIMAGEUVCOST_H

@@ -62,7 +62,7 @@ SBAGraphReductor::elementsSet SBAGraphReductor::reduceGraph(Project* p, bool ini
 			if (_count_self_obs_pos and _count_self_obs_rot) {
 				if (im->xCoord().isSet() or im->yCoord().isSet() or im->zCoord().isSet() or
 					im->xRot().isSet() or im->yRot().isSet() or im->zRot().isSet()) {
-					connections++;
+                    connections += 3;
 				}
 			} else if (_count_self_obs_pos) {
 				if (im->xCoord().isSet() or im->yCoord().isSet() or im->zCoord().isSet()) {
@@ -94,7 +94,7 @@ SBAGraphReductor::elementsSet SBAGraphReductor::reduceGraph(Project* p, bool ini
 			if (_count_self_obs_pos and _count_self_obs_rot) {
 				if (lcs->xCoord().isSet() or lcs->yCoord().isSet() or lcs->zCoord().isSet() or
 					lcs->xRot().isSet() or lcs->yRot().isSet() or lcs->zRot().isSet()) {
-					connections++;
+                    connections += 3;
 				}
 			} else if (_count_self_obs_pos) {
 				if (lcs->xCoord().isSet() or lcs->yCoord().isSet() or lcs->zCoord().isSet()) {

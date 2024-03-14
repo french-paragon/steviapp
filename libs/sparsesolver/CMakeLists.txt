@@ -37,6 +37,8 @@ set(LIB_SRC initialsolution.cpp
             costfunctors/camposwithparametrizedleverarmcost.cpp
             costfunctors/weightedcostfunction.cpp
             costfunctors/imustepcost.cpp
+            costfunctors/local3dcoalignementcost.cpp
+            costfunctors/local3dtoimageuvcost.cpp
 )
 
 set(LIB_HEADERS
@@ -88,6 +90,8 @@ set(LIB_HEADERS_COST_FUNCTORS
     costfunctors/localpointalignementcost.h
     costfunctors/weightedcostfunction.h
     costfunctors/imustepcost.h
+    costfunctors/local3dcoalignementcost.h
+    costfunctors/local3dtoimageuvcost.h
 )
 
 add_library(
