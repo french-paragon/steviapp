@@ -99,6 +99,20 @@ public:
 
     }
 
+    IndexedTimeSequence<T, TimeT>& operator= (IndexedTimeSequence<T, TimeT> const& other) {
+        _initialTime = other._initialTime;
+        _finalTime = other._finalTime;
+        _indicesFromTimeIntervals = other._indicesFromTimeIntervals;
+        _sequence = other._sequence;
+    }
+
+    IndexedTimeSequence<T, TimeT>& operator= (IndexedTimeSequence<T, TimeT> && other) {
+        _initialTime = other._initialTime;
+        _finalTime = other._finalTime;
+        _indicesFromTimeIntervals = std::move(other._indicesFromTimeIntervals);
+        _sequence = std::move(other._sequence);
+    }
+
     void rebuildIndex(int nElements = -1) {
         int nElems = nElements;
 
