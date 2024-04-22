@@ -11,6 +11,7 @@ set(LIB_SRC imagewidget.cpp
             openGlDrawables/opengldrawablelandmarkset.cpp
             openGlDrawables/opengldrawablecamerasset.cpp
             openGlDrawables/opengldrawablelocalcoordinatesystem.cpp
+            openGlDrawables/opengldrawabletrajectory.cpp
             imageeditor.cpp
             imageeditor.ui
             imageviewer.cpp
@@ -56,6 +57,8 @@ set(LIB_SRC imagewidget.cpp
             stereosequenceimageexportoptiondialog.cpp
             stereosequenceimageexportoptiondialog.ui
             datatablevieweditor.cpp
+            dialogs/trajectoryeditpositionoptionsdialog.cpp
+            dialogs/trajectoryeditorientationoptionsdialog.cpp
 )
 
 set(LIB_HEADERS
@@ -104,6 +107,12 @@ set(LIB_HEADERS_OPENGLDRAWABLES
     openGlDrawables/opengldrawablelandmarkset.h
     openGlDrawables/opengldrawablecamerasset.h
     openGlDrawables/opengldrawablelocalcoordinatesystem.h
+    openGlDrawables/opengldrawabletrajectory.h
+)
+
+set(LIB_HEADERS_DIALOG
+    dialogs/trajectoryeditpositionoptionsdialog.h
+    dialogs/trajectoryeditorientationoptionsdialog.h
 )
 
 if (ADD_DEVEL_TOOLS)
@@ -120,6 +129,7 @@ add_library(
     ${LIB_HEADERS_IMGADAPTERS}
     ${LIB_HEADERS_IMGDISPOVERLAYS}
     ${LIB_HEADERS_OPENGLDRAWABLES}
+    ${LIB_HEADERS_DIALOG}
 )
 
 
@@ -144,4 +154,8 @@ install(FILES ${LIB_HEADERS_IMGDISPOVERLAYS}
 
 install(FILES ${LIB_HEADERS_OPENGLDRAWABLES}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/openGlDrawables
+  )
+
+install(FILES ${LIB_HEADERS_DIALOG}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/dialogs
   )

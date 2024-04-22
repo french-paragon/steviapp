@@ -48,6 +48,7 @@ public:
     ~OpenGl3DSceneViewWidget();
 
     void addDrawable(OpenGlDrawable* drawable);
+    void removeDrawable(OpenGlDrawable* drawable);
 
     void resetView();
 

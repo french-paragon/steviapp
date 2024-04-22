@@ -36,7 +36,8 @@ public:
     Eigen::Array<float,3, Eigen::Dynamic> getLocalPointsEcef() const override;
     QString getCoordinateReferenceSystemDescr(int role = DefaultCRSRole) const override;
 
-    Eigen::Vector3f getEcefCoordinates() const;
+    std::optional<Eigen::Vector3f> getEcefCoordinates(bool optimized = false) const;
+    bool setPositionFromEcef(Eigen::Vector3f const& point, bool optimized = false) const;
 
 protected:
 

@@ -121,6 +121,22 @@ void OpenGl3DSceneViewWidget::addDrawable(OpenGlDrawable* drawable) {
         update();
     });
 }
+void OpenGl3DSceneViewWidget::removeDrawable(OpenGlDrawable* drawable) {
+
+    bool contain = _drawables.contains(drawable);
+
+    if (!contain) {
+        return;
+    }
+
+    int idx = _drawableCodeMap.value(drawable);
+    _drawableCodeMap.remove(drawable);
+    _inverseDrawableCodeMap.remove(idx);
+    _drawables.removeAll(drawable);
+
+    drawable->deleteLater();
+
+}
 
 
 void OpenGl3DSceneViewWidget::zoomIn(float steps) {

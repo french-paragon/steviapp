@@ -39,6 +39,42 @@ void SparseAlignementEditor::clearLandmarks() {
 	ui->widget->clearLandmarks();
 }
 
+bool SparseAlignementEditor::addDrawable(QString const& name, OpenGlDrawable* drawable) {
+
+    if (drawable == nullptr) {
+        return false;
+    }
+
+    drawable->setParent(this);
+
+    if (_additionalDrawables.contains(name)) {
+        drawable->deleteLater();
+        return false;
+    }
+
+    _additionalDrawables.insert(name, drawable);
+    ui->widget->addDrawable(drawable);
+
+    return true;
+}
+
+OpenGlDrawable* SparseAlignementEditor::getDrawable(QString const& name) {
+
+    return _additionalDrawables.value(name, nullptr);
+
+}
+
+void SparseAlignementEditor::removeDrawable(QString const& name) {
+
+    if (_additionalDrawables.contains(name)) {
+
+        OpenGlDrawable* drawable = _additionalDrawables.value(name);
+
+        _additionalDrawables.remove(name);
+        ui->widget->removeDrawable(drawable);
+    }
+}
+
 
 SparseAlignementEditorFactory::SparseAlignementEditorFactory(QObject* parent) :
 	EditorFactory(parent)

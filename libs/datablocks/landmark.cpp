@@ -162,21 +162,44 @@ Eigen::Array<float,3, Eigen::Dynamic> Landmark::getLocalPointsEcef() const {
     Eigen::Array<float,3, Eigen::Dynamic> ret;
     ret.resize(3,0);
 
-    if (!x.isSet() or !y.isSet() or !z.isSet()) {
+    std::optional<Eigen::Vector3f> optRet = getEcefCoordinates();
+
+    if (!optRet.has_value()) {
         return ret;
     }
 
     ret.resize(3,1);
-    ret.col(0) = getEcefCoordinates();
+    ret.col(0) = optRet.value();
 
     return ret;
 }
 
-Eigen::Vector3f Landmark::getEcefCoordinates() const {
+std::optional<Eigen::Vector3f> Landmark::getEcefCoordinates(bool optimized) const {
 
-    double vx = xCoord().value();
-    double vy = yCoord().value();
-    double vz = zCoord().value();
+    double vx;
+    double vy;
+    double vz;
+
+    if (optimized) {
+
+        if (!Point3D::hasOptimizedParameters()) {
+            return std::nullopt;
+        }
+
+        vx = optXCoord();
+        vy = optYCoord();
+        vz = optZCoord();
+
+    } else {
+
+        if (!xCoord().isSet() or !yCoord().isSet() or !zCoord().isSet()) {
+            return std::nullopt;
+        }
+
+        vx = xCoord().value();
+        vy = yCoord().value();
+        vz = zCoord().value();
+    }
 
     Eigen::Vector3f ret;
 
@@ -185,7 +208,8 @@ Eigen::Vector3f Landmark::getEcefCoordinates() const {
     PJ* converter = proj_create_crs_to_crs(ctx, _coordinatesReferenceSystem.toStdString().c_str(), "EPSG:4978", nullptr);
 
     if (converter == 0) { //in case of error
-        return ret;
+        proj_context_destroy(ctx);
+        return std::nullopt;
     }
 
     proj_trans_generic(converter, PJ_FWD, &vx, 0, 1, &vy, 0, 1, &vz, 0, 1, nullptr, 0, 1);
@@ -199,6 +223,38 @@ Eigen::Vector3f Landmark::getEcefCoordinates() const {
     ret(2,0) = vz;
 
     return ret;
+}
+
+bool Landmark::setPositionFromEcef(Eigen::Vector3f const& point, bool optimized) const {
+
+    double vx = point.x();
+    double vy = point.y();
+    double vz = point.z();
+
+    PJ_CONTEXT* ctx = proj_context_create();
+
+    PJ* converter = proj_create_crs_to_crs(ctx, _coordinatesReferenceSystem.toStdString().c_str(), "EPSG:4978", nullptr);
+
+    if (converter == 0) { //in case of error
+        return false;
+    }
+
+    proj_trans_generic(converter, PJ_FWD, &vx, 0, 1, &vy, 0, 1, &vz, 0, 1, nullptr, 0, 1);
+
+    proj_destroy(converter);
+    proj_context_destroy(ctx);
+
+    if (optimized) {
+        optPos().setIsSet();
+        optPos().value(0) = vx;
+        optPos().value(1) = vy;
+        optPos().value(2) = vz;
+    } else {
+        xCoord().setIsSet(vx);
+        yCoord().setIsSet(vy);
+        zCoord().setIsSet(vz);
+    }
+    return true;
 }
 
 QString Landmark::getCoordinateReferenceSystemDescr(int role) const {

@@ -12,6 +12,7 @@
 #include "datablocks/project.h"
 #include "datablocks/datatable.h"
 #include "datablocks/landmark.h"
+#include "datablocks/trajectory.h"
 #include "datablocks/camera.h"
 #include "datablocks/image.h"
 #include "datablocks/correspondencesset.h"
@@ -50,6 +51,7 @@
 #include "control/cameracalibrationactionmanager.h"
 #include "control/localcoordinatesystembaseactionmanager.h"
 #include "control/fixedstereosequenceactionmanager.h"
+#include "control/trajectoryactionmanager.h"
 
 #include <QDebug>
 
@@ -102,6 +104,7 @@ int main(int argc, char *argv[])
 
     pF.addType(new StereoVisionApp::DataTableFactory(&a));
     pF.addType(new StereoVisionApp::LandmarkFactory(&a));
+    pF.addType(new StereoVisionApp::TrajectoryFactory(&a));
     pF.addType(new StereoVisionApp::ImageFactory(&a));
     pF.addType(new StereoVisionApp::CameraFactory(&a));
     pF.addType(new StereoVisionApp::CorrespondencesSetFactory(&a));
@@ -117,6 +120,7 @@ int main(int argc, char *argv[])
     aml.registerDatablockActionManager(new StereoVisionApp::DataTableActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::ImageBaseActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::LandmarkBaseActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::TrajectoryActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::CameraBaseActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::StereoRigActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::LocalCoordinateSystemBaseActionManager(&pF));

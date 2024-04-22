@@ -3,6 +3,7 @@ define_stereovisionapp_lib(DATA Data)
 set(LIB_SRC floatparameter.cpp
             dataexception.cpp
             project.cpp
+            trajectory.cpp
             rigidbody.cpp
             point3d.cpp
             landmark.cpp
@@ -29,6 +30,7 @@ set(LIB_HEADERS
     dataexception.h
     georeferenceddatablockinterface.h
     project.h
+    trajectory.h
     rigidbody.h
     point3d.h
     landmark.h
