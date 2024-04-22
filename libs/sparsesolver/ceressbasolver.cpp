@@ -124,19 +124,19 @@ bool CeresSBASolver::init() {
                 Eigen::Matrix3d stiffness = Eigen::Matrix3d::Identity();
 
                 if (lm->xCoord().isUncertain()) {
-                    stiffness(0,0) = 1./(lm->xCoord().stddev()*lm->xCoord().stddev());
+                    stiffness(0,0) = 1./std::abs(lm->xCoord().stddev());
                 } else {
                     stiffness(0,0) = 1e6;
                 }
 
                 if (lm->yCoord().isUncertain()) {
-                    stiffness(1,1) = 1./(lm->yCoord().stddev()*lm->yCoord().stddev());
+                    stiffness(1,1) = 1./std::abs(lm->yCoord().stddev());
                 } else {
                     stiffness(1,1) = 1e6;
                 }
 
                 if (lm->zCoord().isUncertain()) {
-                    stiffness(2,2) = 1./(lm->zCoord().stddev()*lm->zCoord().stddev());
+                    stiffness(2,2) = 1./std::abs(lm->zCoord().stddev());
                 } else {
                     stiffness(2,2) = 1e6;
                 }
@@ -565,9 +565,9 @@ bool CeresSBASolver::init() {
                 sigmaz = lcs2z.stddev();
             }
 
-            info(0,0) = 1/sigmax;
-            info(1,1) = 1/sigmay;
-            info(2,2) = 1/sigmaz;
+            info(0,0) = 1/std::abs(sigmax);
+            info(1,1) = 1/std::abs(sigmay);
+            info(2,2) = 1/std::abs(sigmaz);
 
             Local3DCoalignementCost* alignementCost = new Local3DCoalignementCost(localPos1, localPos2, info);
 
@@ -652,8 +652,8 @@ bool CeresSBASolver::init() {
                 sigmav = imgy.stddev();
             }
 
-            info(0,0) = 1/sigmau;
-            info(1,1) = 1/sigmav;
+            info(0,0) = 1/std::abs(sigmau);
+            info(1,1) = 1/std::abs(sigmav);
 
             Local3DtoImageUVCost* alignementCost = new  Local3DtoImageUVCost(localPos, imgUV, info);
 
@@ -955,7 +955,7 @@ bool CeresSBASolver::writeUncertainty() {
         double covFLen[1];
         _covariance->GetCovarianceBlock(ptr, ptr, covFLen);
 
-        flen.setUncertainty(covFLen[0]);
+        flen.setUncertainty(std::sqrt(covFLen[0]));
         cam->setOptimizedFLen(flen);
 
         //principal point
@@ -967,8 +967,8 @@ bool CeresSBASolver::writeUncertainty() {
         double covPP[2*2];
         _covariance->GetCovarianceBlock(ptr, ptr, covPP);
 
-        pp_x.setUncertainty(covPP[0]);
-        pp_y.setUncertainty(covPP[3]);
+        pp_x.setUncertainty(std::sqrt(covPP[0]));
+        pp_y.setUncertainty(std::sqrt(covPP[3]));
 
         cam->setOptimizedOpticalCenterX(pp_x);
         cam->setOptimizedOpticalCenterY(pp_y);
@@ -983,9 +983,9 @@ bool CeresSBASolver::writeUncertainty() {
         double covK[3*3];
         _covariance->GetCovarianceBlock(ptr, ptr, covK);
 
-        k1.setUncertainty(covK[0]);
-        k2.setUncertainty(covK[4]);
-        k3.setUncertainty(covK[8]);
+        k1.setUncertainty(std::sqrt(covK[0]));
+        k2.setUncertainty(std::sqrt(covK[4]));
+        k3.setUncertainty(std::sqrt(covK[8]));
 
         cam->setOptimizedK1(k1);
         cam->setOptimizedK2(k2);
@@ -1000,8 +1000,8 @@ bool CeresSBASolver::writeUncertainty() {
         double covP[2*2];
         _covariance->GetCovarianceBlock(ptr, ptr, covP);
 
-        p1.setUncertainty(covP[0]);
-        p2.setUncertainty(covP[3]);
+        p1.setUncertainty(std::sqrt(covP[0]));
+        p2.setUncertainty(std::sqrt(covP[3]));
 
         cam->setOptimizedP1(p1);
         cam->setOptimizedP2(p2);
@@ -1015,8 +1015,8 @@ bool CeresSBASolver::writeUncertainty() {
         double covB[2*2];
         _covariance->GetCovarianceBlock(ptr, ptr, covB);
 
-        B1.setUncertainty(covB[0]);
-        B2.setUncertainty(covB[3]);
+        B1.setUncertainty(std::sqrt(covB[0]));
+        B2.setUncertainty(std::sqrt(covB[3]));
 
         cam->setOptimizedB1(B1);
         cam->setOptimizedB2(B2);
