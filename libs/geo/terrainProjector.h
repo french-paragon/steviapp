@@ -122,6 +122,8 @@ public:
             }
         }
 
+        buildBVH();
+
     }
 
     ~TerrainProjector() {
@@ -154,7 +156,7 @@ public:
      * \param directions the projection direction
      * \return a structure with the map coordinate of the center of projection and the different projected coordinates (in image space of the terrain model).
      *
-     * This function bruteforce the projection of the rays on the terrain, starting the search from the down position for each vector.
+     * This function use a BVH built by the terrain projector as an accelleration structure.
      *
      */
     std::optional<ProjectionResults> projectVectors(std::array<double,3> const& ecefOrigin,
@@ -202,13 +204,8 @@ public:
 
             currentProjectionDirection = {directions[i][0],directions[i][1], directions[i][2]};
 
-            // we try to reproject assuming the previous vector is down.
-            // this is not guaranteed to give the nearest intersection between the ray and the surface.
-            // but if succesive directions intersect the surface close to one another, and there is no shading effect
             std::optional<std::array<float,2>> projected = projectPoints(ecefOrigin,
-                                                                         currentProjectionDirection,
-                                                                         downDirection,
-                                                                         imgOrigin);
+                                                                         currentProjectionDirection);
 
             if (projected.has_value()) {
                 ret.projectedPoints[i] = projected.value();
@@ -221,104 +218,8 @@ public:
 
     }
 
-    /*!
-     * \brief projectVectorsOptimized, project a set of vectors on the terrain
-     * \param ecefOrigin the position the vectors are projected from.
-     * \param directions the projection direction
-     * \return a structure with the map coordinate of the center of projection and the different projected coordinates (in image space of the terrain model).
-     *
-     * This function tries to speed up the projection process of a chunk of vectors by using some topological assumptions.
-     *
-     * Mainly, instead of projecting each vector one by one, it considers that sucsessive vectors in the list of directions are close together and search the projection nearby.
-     *
-     * To ensure that no obstructed intersection is detected, the algorithm process as such:
-     *
-     * - Search from the projection of the first and last vector stating from the pixel below the origin (with an algorithm garanteed to find the correct intersection).
-     * - Search along the path formed by the intersection of the surface between the sucessive vectors for the other vector intersection.
-     *
-     * It is thus important to sort the directions such that vectors which are likely to have the same intersection are close
-     * to one another.
-     *
-     * In some cases, this function can return projections which are in fact in the shade, but it will be much, much faster
-     * than a brute force approach for projecting vectors.
-     *
-     * This function also update the cover map. Since it only switch pixels in the cover map from false to true,
-     * it can be called from multiple threads at once with no impact on race conditions.
-     *
-     */
-    std::optional<ProjectionResults> projectVectorsOptimized(std::array<double,3> const& ecefOrigin,
-                                                             std::vector<std::array<float,3>> const& directions) {
 
-        Eigen::Vector3d projectedCoord(ecefOrigin[0], ecefOrigin[1], ecefOrigin[2]);
-
-        proj_trans_generic(_projector, PJ_FWD,
-                           &projectedCoord[0], sizeof(double), 1,
-                           &projectedCoord[1], sizeof(double), 1,
-                           &projectedCoord[2], sizeof(double), 1,
-                           nullptr,0,0); //project from ecef coordinates of the origin
-
-        Eigen::Vector3d reprojected = projectedCoord;
-        reprojected[2] = _minTerrainHeight;
-
-        proj_trans_generic(_reprojector, PJ_FWD,
-                           &reprojected[0], sizeof(double), 1,
-                           &reprojected[1], sizeof(double), 1,
-                           &reprojected[2], sizeof(double), 1,
-                           nullptr,0,0); //project to ecef coordinates of the point on the ground
-
-        projectedCoord[2] = 1;
-
-        Eigen::Vector2d imgOrigin = _invGeoTransform*projectedCoord;
-
-        //order i,j rather than x,y
-        double tmp = imgOrigin[0];
-        imgOrigin[0] = imgOrigin[1];
-        imgOrigin[1] = tmp;
-
-        ProjectionResults ret;
-        ret.originMapPos[0] = imgOrigin[0];
-        ret.originMapPos[1] = imgOrigin[1];
-
-        std::array<double,3> downDirection = {reprojected[0] - ecefOrigin[0],
-                                              reprojected[1] - ecefOrigin[1],
-                                              reprojected[2] - ecefOrigin[2]};
-
-        std::array<double,3> currentProjectionDirection = {directions[0][0],directions[0][1], directions[0][2]};
-        std::array<double,3> previousProjectionDirection = downDirection;
-        Eigen::Vector2d previousProjectedCoord = imgOrigin;
-
-        ret.projectedPoints.resize(directions.size());
-
-        for (int i = 0; i < directions.size(); i++) {
-
-            currentProjectionDirection = {directions[i][0],directions[i][1], directions[i][2]};
-
-            // we try to reproject assuming the previous vector is down.
-            // this is not guaranteed to give the nearest intersection between the ray and the surface.
-            // but if succesive directions intersect the surface close to one another, and there is no shading effect
-            std::optional<std::array<float,2>> projected = projectPoints(ecefOrigin,
-                                                                         currentProjectionDirection,
-                                                                         previousProjectionDirection,
-                                                                         previousProjectedCoord);
-
-            if (projected.has_value()) {
-
-                ret.projectedPoints[i] = projected.value();
-
-                previousProjectionDirection = currentProjectionDirection;
-                previousProjectedCoord = Eigen::Vector2d(ret.projectedPoints[i][0], ret.projectedPoints[i][1]);
-
-            } else {
-
-                ret.projectedPoints[i] = {std::nanf(""), std::nanf("")};
-
-                //do not update previous directions.
-            }
-        }
-
-        return ret;
-
-    }
+    //TODO create a function to use previously projected vector to restart the projection at an intermediate level in the BVH to be even faster at the cost of accuracy.
 
     /*!
      * \brief clearCover reset the cover estimate
@@ -344,213 +245,407 @@ public:
 
 protected:
 
+    static constexpr int BVHminXidx = 0;
+    static constexpr int BVHmaxXidx = 1;
+    static constexpr int BVHminYidx = 2;
+    static constexpr int BVHmaxYidx = 3;
+    static constexpr int BVHminZidx = 4;
+    static constexpr int BVHmaxZidx = 5;
+
     /*!
      * \brief projectPoints is a point projection function garanteed to find the correct position of a point on a terrain.
      * \param ecefOrigin the ecef coordinate of the center of projection.
      * \param direction the direction the projected point should be searched (in ecef frame)
-     * \param downDir the direction pointing from the center of projection towards the map (in ecef frame)
-     * \param searchStart the point position (on the map) below the center of projection.
      * \return the projected coordinates of the point on the terrain, in image space. or std::nullopt if the view direction does not intersect the terrain
      */
     inline std::optional<std::array<float,2>> projectPoints(std::array<double,3> const& ecefOrigin,
-                                                            std::array<double,3> const& direction,
-                                                            std::array<double,3> const& downDir,
-                                                            Eigen::Vector2d const& searchStart) {
+                                                            std::array<double,3> const& direction) {
+
+        Eigen::Vector3d origin;
+        for (int i = 0; i < 3; i++) {
+            origin[i] = ecefOrigin[i] - _ecefOffset[i];
+        }
 
         Eigen::Vector3d directionVec(direction[0], direction[1], direction[2]);
         directionVec.normalize();
 
-        Eigen::Vector3d downVec(downDir[0], downDir[1], downDir[2]);
-        downVec.normalize();
+        std::optional<IntersectionInfos> proj = projectRayUsingBVH(origin, directionVec);
 
-        Eigen::Vector3d perpVec = directionVec.cross(downVec);
-        perpVec.normalize();
-
-        Eigen::Matrix3d searchSpace;
-        searchSpace.block<3,1>(0,0) = directionVec;
-        searchSpace.block<3,1>(0,1) = downVec;
-        searchSpace.block<3,1>(0,2) = perpVec;
-
-        Eigen::ColPivHouseholderQR<Eigen::Matrix3d> searchSpaceInv = searchSpace.colPivHouseholderQr();
-
-        //initialize the first triangle
-        double startX = searchStart[0];
-        double startY = searchStart[1];
-
-        double fracX = startX - std::floor(startX);
-        double fracY = startY - std::floor(startY);
-
-        if (std::floor(startX) == std::ceil(startX)) {
-
-            if (std::floor(startY) == std::ceil(startY)) {
-
-                startX += 1./4.;
-                startY += 1./4.;
-
-            } else {
-                startX += fracY/2.;
-
-                if (std::floor(startX) == std::ceil(startX)) {
-                    startX += fracY;
-                }
-            }
-
-        } else if (std::floor(startY) == std::ceil(startY)) {
-            startY += fracX/2.;
-
-            if (std::floor(startY) == std::ceil(startY)) {
-                startY += fracX;
-            }
+        if (!proj.has_value()) {
+            return std::nullopt;
         }
 
-        std::array<int,2> currentTrianglePoint1 = {int(std::floor(startX)), int(std::floor(startY))};
-        std::array<int,2> currentTrianglePoint2 = (fracX - fracY < 0) ?
-                                                    std::array<int,2>{int(std::floor(startX)), int(std::ceil(startY))} :
-                                                    std::array<int,2>{int(std::ceil(startX)), int(std::floor(startY))};
-        std::array<int,2> currentTrianglePoint3 = {int(std::ceil(startX)), int(std::ceil(startY))};
+        IntersectionInfos& intersectionInfos = proj.value();
 
-        std::array<std::array<int,2>,3> trianglePoints = {currentTrianglePoint1, currentTrianglePoint2, currentTrianglePoint3};
-
-        assert(std::fabs(currentTrianglePoint2[0] - searchStart[0]) + std::fabs(currentTrianglePoint2[1] - searchStart[1]) <= 1.);
-
-        bool intersectionInTriangle = false;
-
-        Eigen::Matrix4d triangleAdjustement; //coordinates (in ecef) of the corners of the triangle., -direction; ones for barycentric constraint and 0 in final corner.
-
-        triangleAdjustement.block<1,3>(3,0) = Eigen::Matrix<double,1,3>::Ones();
-        triangleAdjustement(3,3) = 0;
-        triangleAdjustement.block<3,1>(0,3) = directionVec;
-
-        Eigen::Vector4d o;
-        o[0] = ecefOrigin[0] - _ecefOffset[0];
-        o[1] = ecefOrigin[1] - _ecefOffset[1];
-        o[2] = ecefOrigin[2] - _ecefOffset[2];
-        o[3] = 1;
-
-        Eigen::Vector3d projectedPoint;
-        int prevEdgeSwitch = -1;
-
-        do {
-
-            for (int i = 0; i < 3; i++) {
-                std::array<int,2>& pointCoord = trianglePoints[i];
-
-                if (pointCoord[0] < 0 or pointCoord[0] >= _ecefTerrain.shape()[0]) {
-                    return std::nullopt;
-                }
-
-                if (pointCoord[1] < 0 or pointCoord[1] >= _ecefTerrain.shape()[1]) {
-                    return std::nullopt;
-                }
-
-                triangleAdjustement(0,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],0);
-                triangleAdjustement(1,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],1);
-                triangleAdjustement(2,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],2);
-
-                for (int k = 0; k < 3; k++) {
-                    if (!std::isfinite(triangleAdjustement(k,i))) {
-                        return std::nullopt;
-                    }
-                }
-            }
-
-            Eigen::Vector4d results = triangleAdjustement.colPivHouseholderQr().solve(o);
-
-            Eigen::Vector3d coeffs = results.block<3,1>(0,0);
-
-            assert(std::fabs(coeffs[0] + coeffs[1] + coeffs[2] - 1) < 1e-6);
-
-            if (coeffs[0] >= 0 and coeffs[1] >= 0 and coeffs[2] >= 0) { //Barycentric coordinates within the triangle
-                intersectionInTriangle = true;
-                projectedPoint = triangleAdjustement.block<3,3>(0,0)*coeffs;
-                break;
-            }
-
-            //else select the next triangle to move to (need to change only a single point)
-
-            int countNegative = 0;
-            int lastNegative = -1;
-            int lastPositive = -1;
-
-            for (int i = 0; i < 3; i++) {
-                if (coeffs[i] < 0) {
-                    countNegative++;
-                    lastNegative = i;
-                } else {
-                    lastPositive = i;
-                }
-            }
-
-            assert(countNegative > 0 and countNegative < 3);
-
-            if (countNegative > 1) {
-
-                std::array<int,2> negatives;
-
-                negatives[0] = lastNegative;
-                negatives[1] = 3 - lastPositive - negatives[0];
-
-                std::array<double,2> dists;
-
-                for (int i = 0; i < 2; i++) {
-
-                    Eigen::Vector3d vi = triangleAdjustement.block<3,1>(0, negatives[i]);
-
-                    dists[i] = searchSpaceInv.solve(vi).x();
-                }
-
-                lastNegative = (dists[0] < dists[1]) ? negatives[0] : negatives[1];
-            }
-
-            if (prevEdgeSwitch == lastNegative) {//abberation
-                return std::nullopt; //TODO: this seems to happen when the drone is looking to the side a lot. Try to see if this can be detected.
-            }
-
-            prevEdgeSwitch = lastNegative;
-
-            //Switch to the next triangle. Along the edge opposed to the point with negative barycentric weight.
-            std::array<int,2>& pointCoord = trianglePoints[lastNegative];
-
-            std::array<int,2> delta = {0,0};
-
-            //This formula for the index delta can be obtained by considering that the next triangle form a parallelogram with the current triangle.
-            for (int i = 0; i < 3; i++) {
-                delta[0] +=  trianglePoints[i][0] - pointCoord[0];
-                delta[1] +=  trianglePoints[i][1] - pointCoord[1];
-            }
-
-            pointCoord[0] += delta[0];
-            pointCoord[1] += delta[1];
-
-
-        } while (!intersectionInTriangle);
-
-        Eigen::Vector3d geoProj(projectedPoint[0] + _ecefOffset[0],
-                projectedPoint[1] + _ecefOffset[1],
-                projectedPoint[2] + _ecefOffset[2]);
-
-        proj_trans_generic(_projector, PJ_FWD,
-                           &geoProj[0], sizeof(double), 1,
-                           &geoProj[1], sizeof(double), 1,
-                           &geoProj[2], sizeof(double), 1,
-                           nullptr,0,0); //project from ecef coordinates
-
-        geoProj[2] = 1;
-        Eigen::Vector2d imgProj = _invGeoTransform*geoProj;
-
-        int imgI = std::round(imgProj[1]);
-        int imgJ = std::round(imgProj[0]);
+        int imgI = std::round(intersectionInfos.dtmPixCoord[0]);
+        int imgJ = std::round(intersectionInfos.dtmPixCoord[1]);
 
         if (imgI >= 0 and imgI < _cover.shape()[0] and imgJ >= 0 and imgJ < _cover.shape()[1]) {
             _cover.atUnchecked(imgI, imgJ) = true;
         }
 
-        return std::array<float,2>{float(imgProj[1]), float(imgProj[0])}; //order i,j instead of x,y
+        return intersectionInfos.dtmPixCoord; //order i,j instead of x,y
+
+    }
+
+    inline int intLog2(int val) {
+        unsigned r = 0;
+
+        while (val >>= 1) {
+            r++;
+        }
+
+        return r;
+    }
+
+    inline void buildBVH() {
+
+        int levelV = intLog2(_ecefTerrain.shape()[0]) + 1;
+        int levelH = intLog2(_ecefTerrain.shape()[1]) + 1;
+
+        int levels = std::max(levelV, levelH) + 1;
+        _boudingVolumeHierarchy.reserve(levels);
+
+        int currentHeight = _ecefTerrain.shape()[0]-1;
+        int currentWidth = _ecefTerrain.shape()[1]-1;
+
+        //fill in the first bounding volumes set (each volume is two triangles)
+        Multidim::Array<double, 3>::ShapeBlock shape{currentHeight, currentWidth, 6};
+        _boudingVolumeHierarchy.emplace_back(shape);
+
+        for (int i = 0; i < _boudingVolumeHierarchy.back().shape()[0]; i++) {
+            for (int j = 0; j < _boudingVolumeHierarchy.back().shape()[1]; j++) {
+
+                double xMin = std::numeric_limits<double>::infinity();
+                double xMax = -std::numeric_limits<double>::infinity();
+                double yMin = std::numeric_limits<double>::infinity();
+                double yMax = -std::numeric_limits<double>::infinity();
+                double zMin = std::numeric_limits<double>::infinity();
+                double zMax = -std::numeric_limits<double>::infinity();
+
+                for (int di = 0; di < 2; di++) {
+                    for (int dj = 0; dj < 2; dj++) {
+
+                        int ti = i + di;
+                        int tj = j + dj;
+
+                        double xCandMin = _ecefTerrain.valueOrAlt({ti,tj,0}, xMin);
+                        double xCandMax = _ecefTerrain.valueOrAlt({ti,tj,0}, xMax);
+                        double yCandMin = _ecefTerrain.valueOrAlt({ti,tj,1}, yMin);
+                        double yCandMax = _ecefTerrain.valueOrAlt({ti,tj,1}, yMax);
+                        double zCandMin = _ecefTerrain.valueOrAlt({ti,tj,2}, zMin);
+                        double zCandMax = _ecefTerrain.valueOrAlt({ti,tj,2}, zMax);
+
+                        xMin = std::min(xMin, xCandMin);
+                        xMax = std::max(xMax, xCandMax);
+                        yMin = std::min(yMin, yCandMin);
+                        yMax = std::max(yMax, yCandMax);
+                        zMin = std::min(zMin, zCandMin);
+                        zMax = std::max(zMax, zCandMax);
+                    }
+                }
+
+                _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHminXidx) = xMin;
+                _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHmaxXidx) = xMax;
+                _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHminYidx) = yMin;
+                _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHmaxYidx) = yMax;
+                _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHminZidx) = zMin;
+                _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHmaxZidx) = zMax;
+
+            }
+        }
+
+        while (currentHeight > 2 or currentWidth > 2) {
+
+            int nextHeight = currentHeight/2;
+            int nextWidth = currentWidth/2;
+
+            if (2*nextHeight < currentHeight) {
+                nextHeight += 1;
+            }
+
+            if (2*nextWidth < currentWidth) {
+                nextWidth += 1;
+            }
+
+            Multidim::Array<double, 3>::ShapeBlock shape{nextHeight, nextWidth, 6};
+            _boudingVolumeHierarchy.emplace_back(shape);
+
+            for (int i = 0; i < _boudingVolumeHierarchy.back().shape()[0]; i++) {
+                for (int j = 0; j < _boudingVolumeHierarchy.back().shape()[1]; j++) {
+
+                    double xMin = std::numeric_limits<double>::infinity();
+                    double xMax = -std::numeric_limits<double>::infinity();
+                    double yMin = std::numeric_limits<double>::infinity();
+                    double yMax = -std::numeric_limits<double>::infinity();
+                    double zMin = std::numeric_limits<double>::infinity();
+                    double zMax = -std::numeric_limits<double>::infinity();
+
+                    for (int di = 0; di < 2; di++) {
+                        for (int dj = 0; dj < 2; dj++) {
+
+                            int ti = 2*i + di;
+                            int tj = 2*j + dj;
+
+                            int pbvhid = _boudingVolumeHierarchy.size()-2;
+                            Multidim::Array<double, 3>& pbvh = _boudingVolumeHierarchy[pbvhid];
+
+                            double xCandMin = pbvh.valueOrAlt({ti,tj,BVHminXidx}, xMin);
+                            double xCandMax = pbvh.valueOrAlt({ti,tj,BVHmaxXidx}, xMax);
+                            double yCandMin = pbvh.valueOrAlt({ti,tj,BVHminYidx}, yMin);
+                            double yCandMax = pbvh.valueOrAlt({ti,tj,BVHmaxYidx}, yMax);
+                            double zCandMin = pbvh.valueOrAlt({ti,tj,BVHminZidx}, zMin);
+                            double zCandMax = pbvh.valueOrAlt({ti,tj,BVHmaxZidx}, zMax);
+
+                            xMin = std::min(xMin, xCandMin);
+                            xMax = std::max(xMax, xCandMax);
+                            yMin = std::min(yMin, yCandMin);
+                            yMax = std::max(yMax, yCandMax);
+                            zMin = std::min(zMin, zCandMin);
+                            zMax = std::max(zMax, zCandMax);
+                        }
+                    }
+
+                    _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHminXidx) = xMin;
+                    _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHmaxXidx) = xMax;
+                    _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHminYidx) = yMin;
+                    _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHmaxYidx) = yMax;
+                    _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHminZidx) = zMin;
+                    _boudingVolumeHierarchy.back().atUnchecked(i,j,BVHmaxZidx) = zMax;
+
+                }
+            }
+
+            currentHeight = nextHeight;
+            currentWidth = nextWidth;
+        }
+
+    }
+
+    inline bool bvhCellIntersectRay(Eigen::Vector3d const& origin,
+                                    Eigen::Vector3d const& direction,
+                                    Eigen::Vector3d const& min,
+                                    Eigen::Vector3d const& max) {
+
+        Eigen::Vector3d minShifted = min - origin;
+        Eigen::Vector3d maxShifted = max - origin;
+
+        //need to invert that if the direction is negative
+        for (int i = 0; i < 3; i++) {
+            if (direction[i] < 0) {
+                double tmp = minShifted[i];
+                minShifted[i] = maxShifted[i];
+                maxShifted[i] = tmp;
+            }
+        }
+
+        Eigen::Vector3d rangesMin = minShifted.array()/direction.array();
+        Eigen::Vector3d rangesMax = maxShifted.array()/direction.array();
+
+        double rangeIntersectionsMin = rangesMin.maxCoeff();
+        double rangeIntersectionsMax = rangesMax.minCoeff();
+
+        return rangeIntersectionsMax > rangeIntersectionsMin;
+    }
+
+    struct IntersectionInfos {
+        std::array<float,2> dtmPixCoord;
+        float dist;
+    };
+
+    inline std::optional<IntersectionInfos> rayIntersectTerrain(Eigen::Vector3d const& origin,
+                                                                Eigen::Vector3d const& direction,
+                                                                std::array<int,3> const& trigI,
+                                                                std::array<int,3> const& trigJ) {
+
+        Eigen::Matrix4d triangleAdjustement; //coordinates (in ecef) of the corners of the triangle., -direction; ones for barycentric constraint and 0 in final corner.
+
+        triangleAdjustement.block<1,3>(3,0) = Eigen::Matrix<double,1,3>::Ones();
+        triangleAdjustement(3,3) = 0;
+        triangleAdjustement.block<3,1>(0,3) = direction;
+
+        Eigen::Vector4d o;
+        o[0] = origin[0];
+        o[1] = origin[1];
+        o[2] = origin[2];
+        o[3] = 1;
+
+        for (int i = 0; i < 3; i++) {
+            std::array<int,2> pointCoord = {trigI[i], trigJ[i]};
+
+            if (pointCoord[0] < 0 or pointCoord[0] >= _ecefTerrain.shape()[0]) {
+                return std::nullopt;
+            }
+
+            if (pointCoord[1] < 0 or pointCoord[1] >= _ecefTerrain.shape()[1]) {
+                return std::nullopt;
+            }
+
+            triangleAdjustement(0,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],0);
+            triangleAdjustement(1,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],1);
+            triangleAdjustement(2,i) = _ecefTerrain.value(pointCoord[0], pointCoord[1],2);
+
+            for (int k = 0; k < 3; k++) {
+                if (!std::isfinite(triangleAdjustement(k,i))) {
+                    return std::nullopt;
+                }
+            }
+        }
+
+        Eigen::Vector4d results = triangleAdjustement.colPivHouseholderQr().solve(o);
+
+        Eigen::Vector3d coeffs = results.block<3,1>(0,0);
+
+        assert(std::fabs(coeffs[0] + coeffs[1] + coeffs[2] - 1) < 1e-6);
+
+        if (coeffs[0] >= 0 and coeffs[1] >= 0 and coeffs[2] >= 0) { //Barycentric coordinates within the triangle
+
+            Eigen::Vector3d projectedPoint = triangleAdjustement.block<3,3>(0,0)*coeffs;
+
+            float dist = (origin - projectedPoint).norm();
+
+            Eigen::Vector3d geoProj(projectedPoint[0] + _ecefOffset[0],
+                    projectedPoint[1] + _ecefOffset[1],
+                    projectedPoint[2] + _ecefOffset[2]);
+
+            proj_trans_generic(_projector, PJ_FWD,
+                               &geoProj[0], sizeof(double), 1,
+                               &geoProj[1], sizeof(double), 1,
+                               &geoProj[2], sizeof(double), 1,
+                               nullptr,0,0); //project from ecef coordinates
+
+            geoProj[2] = 1;
+            Eigen::Vector2d imgProj = _invGeoTransform*geoProj;
+
+            IntersectionInfos infos{std::array<float,2>{float(imgProj[1]), float(imgProj[0])}, dist}; //order i,j instead of x,y
+            return infos;
+        }
+
+        return std::nullopt;
+
+    }
+
+    std::optional<IntersectionInfos> projectRayUsingBVH(Eigen::Vector3d const& origin,
+                                                        Eigen::Vector3d const& direction,
+                                                        int level = 0,
+                                                        int pixCoordI = 0,
+                                                        int pixCoordJ = 0) {
+
+        std::optional<IntersectionInfos> ret = std::nullopt;
+
+        if (level < _boudingVolumeHierarchy.size()) {
+
+            int bvhIdx = _boudingVolumeHierarchy.size()-level-1;
+            Multidim::Array<double, 3>& currentBVH = _boudingVolumeHierarchy[bvhIdx];
+
+            for (int di = 0; di < 2; di++) {
+                for (int dj = 0; dj < 2; dj++) {
+
+                    int i = pixCoordI + di;
+                    int j = pixCoordJ + dj;
+
+                    if (i >= currentBVH.shape()[0]) {
+                        continue;
+                    }
+
+                    if (j >= currentBVH.shape()[1]) {
+                        continue;
+                    }
+
+                    Eigen::Vector3d min;
+                    Eigen::Vector3d max;
+
+                    min.x() = currentBVH.atUnchecked(i,j,BVHminXidx);
+                    min.y() = currentBVH.atUnchecked(i,j,BVHminYidx);
+                    min.z() = currentBVH.atUnchecked(i,j,BVHminZidx);
+
+                    max.x() = currentBVH.atUnchecked(i,j,BVHmaxXidx);
+                    max.y() = currentBVH.atUnchecked(i,j,BVHmaxYidx);
+                    max.z() = currentBVH.atUnchecked(i,j,BVHmaxZidx);
+
+                    if (!bvhCellIntersectRay(origin, direction, min, max)) {
+                        continue;
+                    }
+
+                    std::optional<IntersectionInfos> intersectionInfos = projectRayUsingBVH(origin,
+                                                                                            direction,
+                                                                                            level+1,
+                                                                                            2*i,
+                                                                                            2*j);
+
+                    if (!intersectionInfos.has_value()) {
+                        continue;
+                    }
+
+                    if (!ret.has_value()) {
+                        ret = intersectionInfos;
+                        continue;
+                    }
+
+                    if (intersectionInfos.value().dist < ret.value().dist) {
+                        ret = intersectionInfos;
+                    }
+
+                }
+            }
+
+        } else if (level == _boudingVolumeHierarchy.size()) { //level of the dtm
+
+            int i = pixCoordI/2;
+            int j = pixCoordJ/2;
+
+            if (i >= _ecefTerrain.shape()[0]-1) {
+                return std::nullopt;
+            }
+
+            if (j >= _ecefTerrain.shape()[1]-1) {
+                return std::nullopt;
+            }
+
+            std::optional<IntersectionInfos> intersectionCand1 = rayIntersectTerrain(origin,
+                                                                                     direction,
+                                                                                     {i,i,i+1},
+                                                                                     {j,j+1,j});
+            if (intersectionCand1.has_value()) {
+                if (ret.has_value()) {
+                    if (intersectionCand1.value().dist < ret.value().dist) {
+                        ret = intersectionCand1;
+                    }
+                } else {
+                    ret = intersectionCand1;
+                }
+            }
+
+            std::optional<IntersectionInfos> intersectionCand2 = rayIntersectTerrain(origin,
+                                                                                     direction,
+                                                                                     {i,i+1,i+1},
+                                                                                     {j+1,j,j+1});
+
+            if (intersectionCand2.has_value()) {
+                if (ret.has_value()) {
+                    if (intersectionCand2.value().dist < ret.value().dist) {
+                        ret = intersectionCand2;
+                    }
+                } else {
+                    ret = intersectionCand2;
+                }
+            }
+
+        }
+
+        return ret;
 
     }
 
     GeoRasterData<TerrainT,2> const& _terrain;
     Multidim::Array<double, 3> _ecefTerrain;
+
+    //BVH for the ecef terrain.
+    //Each level is half the resolution of the previous one.
+    //The third dimension contain vectors of the form [minX, maxX, minY, maxY, minZ, maxZ]
+    //the last cells in the image are the coarser resolution;
+    std::vector<Multidim::Array<double, 3>> _boudingVolumeHierarchy;
+
     std::array<double,3> _ecefOffset; //offset to make numerical computations more stable;
 
     TerrainT _minTerrainHeight;

@@ -120,7 +120,6 @@ private Q_SLOTS:
 
     void testProjection();
     void benchmarkProjection();
-    void benchmarkOptimizedProjection();
 
 protected:
 
@@ -175,17 +174,11 @@ void testTerrainProjector::testProjection() {
     std::optional<RetType> retVal = projector.projectVectors(_terrainProjectionData.center,
                                                                   _terrainProjectionData.viewDirections);
 
-    std::optional<RetType> retOptimized = projector.projectVectorsOptimized(_terrainProjectionData.center,
-                                                                            _terrainProjectionData.viewDirections);
-
     QVERIFY(retVal.has_value());
-    QVERIFY(retOptimized.has_value());
 
     RetType projections = retVal.value();
-    RetType projectionsOpt = retOptimized.value();
 
     QCOMPARE(projections.projectedPoints.size(), _terrainProjectionData.viewDirections.size());
-    QCOMPARE(projectionsOpt.projectedPoints.size(), _terrainProjectionData.viewDirections.size());
 
     double pixTol = 0.001;
 
@@ -193,9 +186,6 @@ void testTerrainProjector::testProjection() {
 
         QVERIFY2(std::isfinite(projections.projectedPoints[i][0]), qPrintable(QString("Reprojected point x is not finite at index %1").arg(i)));
         QVERIFY2(std::isfinite(projections.projectedPoints[i][1]), qPrintable(QString("Reprojected point y is not finite at index %1").arg(i)));
-
-        QVERIFY2(std::isfinite(projectionsOpt.projectedPoints[i][0]), qPrintable(QString("ReprojectedOpt point x is not finite at index %1").arg(i)));
-        QVERIFY2(std::isfinite(projectionsOpt.projectedPoints[i][1]), qPrintable(QString("ReprojectedOpt point y is not finite at index %1").arg(i)));
 
         double deltax = std::abs(projections.projectedPoints[i][0] - _terrainProjectionData.projections[i][0]);
         double deltay = std::abs(projections.projectedPoints[i][1] - _terrainProjectionData.projections[i][1]);
@@ -245,18 +235,6 @@ void testTerrainProjector::benchmarkProjection() {
     QBENCHMARK {
         std::optional<RetType> retVal = projector.projectVectors(_terrainProjectionData.center,
                                                                  _terrainProjectionData.viewDirections);
-    };
-
-}
-void testTerrainProjector::benchmarkOptimizedProjection() {
-
-    using RetType = Geo::TerrainProjector<float>::ProjectionResults;
-
-    Geo::TerrainProjector<float> projector(_terrainProjectionData.terrain);
-
-    QBENCHMARK {
-        std::optional<RetType> retVal = projector.projectVectorsOptimized(_terrainProjectionData.center,
-                                                                          _terrainProjectionData.viewDirections);
     };
 
 }
