@@ -27,6 +27,14 @@ public:
         _terrain(terrain)
     {
 
+        if (terrain.raster.empty()) { //empty terrain, might happen with default constructed projector
+            _invGeoTransform.setConstant(0);
+            _projector = nullptr;
+            _reprojector = nullptr;
+            _ctx = nullptr;
+            return;
+        }
+
         _invGeoTransform.template block<2,2>(0,0) = Eigen::Matrix2d(terrain.geoTransform.template block<2,2>(0,0)).inverse();
         _invGeoTransform.template block<2,1>(0,2) = -_invGeoTransform.template block<2,2>(0,0)*terrain.geoTransform.template block<2,1>(0,2);
 
@@ -43,6 +51,8 @@ public:
 
         _minTerrainHeight = std::numeric_limits<double>::infinity();
         _maxTerrainHeight = -std::numeric_limits<double>::infinity();
+
+        _ecefOffset = {0,0,0};
 
         _ctx = proj_context_create();
 
@@ -145,6 +155,65 @@ public:
         return _reprojector != nullptr and _projector != nullptr;
     }
 
+    /*!
+     * \brief getTerrainAxisAlignedBoundingBox get the bounding box of the terrain
+     * \return an array {min x, max x, min y, max y, min z, max z}
+     */
+    inline std::array<double, 6> getTerrainAxisAlignedBoundingBox() const {
+
+        double minX = std::numeric_limits<double>::infinity();
+        double maxX = -std::numeric_limits<double>::infinity();
+
+        double minY = std::numeric_limits<double>::infinity();
+        double maxY = -std::numeric_limits<double>::infinity();
+
+        double minZ = std::numeric_limits<double>::infinity();
+        double maxZ = -std::numeric_limits<double>::infinity();
+
+        if (_boudingVolumeHierarchy.size() > 0) {
+            Multidim::Array<double,3> const& largestAABB = _boudingVolumeHierarchy[_boudingVolumeHierarchy.size()-1];
+
+            for (int i = 0; i < largestAABB.shape()[0]; i++) {
+                for (int j = 0; j < largestAABB.shape()[1]; j++) {
+
+                    double candMinX = largestAABB.valueUnchecked(i,j,BVHminXidx);
+                    double candMaxX = largestAABB.valueUnchecked(i,j,BVHmaxXidx);
+
+                    double candMinY = largestAABB.valueUnchecked(i,j,BVHminYidx);
+                    double candMaxY = largestAABB.valueUnchecked(i,j,BVHmaxYidx);
+
+                    double candMinZ = largestAABB.valueUnchecked(i,j,BVHminZidx);
+                    double candMaxZ = largestAABB.valueUnchecked(i,j,BVHmaxZidx);
+
+                    minX = std::min(candMinX,minX);
+                    maxX = std::max(candMaxX,maxX);
+
+                    minY = std::min(candMinY,minY);
+                    maxY = std::max(candMaxY,maxY);
+
+                    minZ = std::min(candMinZ,minZ);
+                    maxZ = std::max(candMaxZ,maxZ);
+
+                }
+            }
+        }
+
+        return {minX, maxX, minY, maxY, minZ, maxZ};
+
+    }
+
+    inline std::array<int,2> getTerrainSize() const {
+        return _terrain.raster.shape();
+    }
+
+    inline int bvhLevels() const {
+        return _boudingVolumeHierarchy.size();
+    }
+
+    inline std::array<double,3> ecefOffset() const {
+        return _ecefOffset;
+    }
+
     struct ProjectionResults {
         std::array<float,2> originMapPos;
         std::vector<std::array<float,2>> projectedPoints;
@@ -161,6 +230,10 @@ public:
      */
     std::optional<ProjectionResults> projectVectors(std::array<double,3> const& ecefOrigin,
                                                     std::vector<std::array<float,3>> const& directions) {
+
+        if (!isValid()) {
+            return std::nullopt;
+        }
 
         Eigen::Vector3d projectedCoord(ecefOrigin[0], ecefOrigin[1], ecefOrigin[2]);
 
