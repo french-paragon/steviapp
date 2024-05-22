@@ -58,6 +58,7 @@ public:
      * \param sequence
      */
     IndexedTimeSequence(std::vector<TimedElement> const& sequence) :
+        _indicesFromTimeIntervals(),
         _sequence(sequence)
     {
         rebuildIndex();
@@ -68,6 +69,7 @@ public:
      * \param sequence the sequence.
      */
     IndexedTimeSequence(std::vector<TimedElement> && sequence) :
+        _indicesFromTimeIntervals(),
         _sequence(sequence)
     {
         rebuildIndex();
@@ -120,7 +122,7 @@ public:
             nElems = _sequence.size();
         }
 
-        std::sort(_sequence.begin(), _sequence.end(), [] (TimedElement const& t1, TimedElement const& t2){
+        std::sort(_sequence.begin(), _sequence.end(), [] (TimedElement const& t1, TimedElement const& t2) -> bool {
             return t1.time < t2.time;
         });
 
