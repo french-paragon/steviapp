@@ -4,6 +4,8 @@
 #include <QApplication>
 
 #include <QPluginLoader>
+#include <QFileInfo>
+#include <QDir>
 
 #include <QVector>
 #include <QString>
@@ -206,7 +208,23 @@ void StereoVisionApplication::loadApplicationPlugins() {
 
     QVector<QString> pluginsToLoad = _requestedPlugins;
 
-    for (QString pluginPath : pluginsToLoad) {
+    for (QString rawPluginPath : pluginsToLoad) {
+
+        QString pluginPath = rawPluginPath;
+
+#ifndef NDEBUG
+        //try to see if a debug build of the plugin exist, and load it instead.
+        QFileInfo pluginPathInfos(pluginPath);
+
+        QDir dir = pluginPathInfos.dir();
+        QString debugName = pluginPathInfos.baseName() + "_d." + pluginPathInfos.completeSuffix();
+
+        QFileInfo pluginDebugPathInfos(dir.filePath(debugName));
+
+        if (pluginDebugPathInfos.exists()) {
+            pluginPath = pluginDebugPathInfos.filePath();
+        }
+#endif
 
         QPluginLoader* plugin = new QPluginLoader(pluginPath, this);
         plugin->load();
