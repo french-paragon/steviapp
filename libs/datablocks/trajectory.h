@@ -23,6 +23,22 @@ class Trajectory : public DataBlock, public GeoReferencedDataBlockInterface
     Q_INTERFACES(StereoVisionApp::GeoReferencedDataBlockInterface)
 public:
 
+    enum Representation {
+        RepText,
+        RepBinary
+    };
+
+    enum BinaryDataType {
+        SignedInt16,
+        UnsignedInt16,
+        SignedInt32,
+        UnsignedInt32,
+        SignedInt64,
+        UnsignedInt64,
+        FloatSingle,
+        FloatDouble
+    };
+
     enum VariableType {
         Position,
         Position2D,
@@ -36,7 +52,8 @@ public:
 
     enum TopocentricConvention {
         NED = Geo::TopocentricConvention::NED ,
-        ENU = Geo::TopocentricConvention::ENU
+        ENU = Geo::TopocentricConvention::ENU,
+        NWU = Geo::TopocentricConvention::NWU
     };
     Q_ENUM(TopocentricConvention)
 
@@ -75,6 +92,12 @@ public:
     using TimeTrajectoryBlock = TimeTrajectorySequence::TimedElement;
 
     /*!
+     * \brief loadPositionSequence load an IndexedTimeSequence for the orientation (in local topographic frames).
+     * \return optionnaly a TimeCartesianSequence
+     */
+    std::optional<TimeCartesianSequence> loadOrientationSequence() const;
+
+    /*!
      * \brief loadPositionSequence load an IndexedTimeSequence for the position (converted to ECEF if a geodetic conversion is defined)
      * \return optionnaly a TimeCartesianSequence
      */
@@ -92,6 +115,8 @@ public:
     /*!
      * \brief loadTrajectorySequence load the trajectory (as sequence of pose from plateform to ECEF if a geodetic conversion is defined)
      * \return optionaly a TimeTrajectorySequence
+     *
+     * If a plateform is defined (boresight and lever arm), the trajectory represent the trajectory of the plateform, else the trajectory represent the trajectory of the sensor
      */
     std::optional<TimeTrajectorySequence> loadTrajectorySequence() const;
 
@@ -99,7 +124,7 @@ public:
      * \brief loadTrajectoryProjectLocalFraneSequence load the trajectory data, and apply the conversion from ECEF to project local frame on the fly.
      * \return optionaly a TimeTrajectorySequence
      */
-    std::optional<TimeTrajectorySequence> loadTrajectoryProjectLocalFraneSequence() const;
+    std::optional<TimeTrajectorySequence> loadTrajectoryProjectLocalFrameSequence() const;
 
     virtual bool geoReferenceSupportActive() const override;
     virtual Eigen::Array<float,3, Eigen::Dynamic> getLocalPointsEcef() const override;
@@ -230,17 +255,46 @@ protected:
     QStringList _separators;
     QString _commentPattern;
 
+    struct PlateformDefinition {
+
+        Eigen::Vector3d boresight;
+        Eigen::Vector3d leverArm;
+
+    } _plateformDefinition;
+
     struct OrientationDefinition {
 
         TopocentricConvention topocentric_convention;
         AngleRepresentation angle_representation;
         AngleUnits angleUnit; //unit for the angles, if input euler angles
 
+        double timeDelta;
+        double timeScale;
+
         int orient_t_col;
         int orient_x_col;
         int orient_y_col;
         int orient_z_col;
         int orient_w_col;
+
+        int orient_x_col_std;
+        int orient_y_col_std;
+        int orient_z_col_std;
+        int orient_w_col_std;
+
+        BinaryDataType orient_t_col_type;
+        BinaryDataType orient_x_col_type;
+        BinaryDataType orient_y_col_type;
+        BinaryDataType orient_z_col_type;
+        BinaryDataType orient_w_col_type;
+
+        BinaryDataType orient_x_col_std_type;
+        BinaryDataType orient_y_col_std_type;
+        BinaryDataType orient_z_col_std_type;
+        BinaryDataType orient_w_col_std_type;
+
+        int binary_header_lenght;
+        int binary_line_lenght;
 
         int8_t sign_x;
         int8_t sign_y;
@@ -255,6 +309,10 @@ protected:
     struct PositionDefinition {
 
         QString crs_epsg;
+
+        double timeDelta;
+        double timeScale;
+
         int pos_t_col;
         int pos_x_col;
         int pos_y_col;

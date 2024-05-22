@@ -3,6 +3,7 @@
 #include <QFile>
 #include <QRegularExpression>
 #include <QJsonObject>
+#include <QJsonArray>
 
 #include <QMetaEnum>
 
@@ -13,7 +14,8 @@ namespace StereoVisionApp {
 Trajectory::Trajectory(Project* parent) :
     DataBlock(parent)
 {
-
+    _plateformDefinition.boresight.setConstant(0);
+    _plateformDefinition.leverArm.setConstant(0);
 }
 
 std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionData() const {
@@ -74,6 +76,16 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionData() const
     return ret;
 
 }
+std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadOrientationSequence() const {
+    std::vector<TimeCartesianBlock> data = loadOrientationRawData();
+
+    if (data.empty()) {
+        return std::nullopt;
+    }
+
+    return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
+
+}
 
 std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadPositionSequence() const {
     std::vector<TimeCartesianBlock> data = loadPositionData();
@@ -130,7 +142,7 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionRawData() co
 
     QFile trajFile(_positionFile);
 
-    if (trajFile.open(QIODevice::ReadOnly)) {
+    if (!trajFile.open(QIODevice::ReadOnly)) {
         return std::vector<Trajectory::TimeCartesianBlock>();
     }
 
@@ -186,10 +198,7 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionRawData() co
         bool ok = true;
 
         entry.time = splitted[_positionDefinition.pos_t_col].toDouble(&ok);
-
-        if (!ok) {
-            continue;
-        }
+        entry.time = _positionDefinition.timeScale*entry.time + _positionDefinition.timeDelta;
 
         if (!ok) {
             continue;
@@ -230,7 +239,7 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadOrientationRawData()
 
     QFile trajFile(_orientationFile);
 
-    if (trajFile.open(QIODevice::ReadOnly)) {
+    if (!trajFile.open(QIODevice::ReadOnly)) {
         return std::vector<Trajectory::TimeCartesianBlock>();
     }
 
@@ -263,7 +272,7 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadOrientationRawData()
     if (_orientationDefinition.orient_z_col > minLineElements) {
         minLineElements = _orientationDefinition.orient_z_col;
     }
-    if (_orientationDefinition.orient_w_col > minLineElements) {
+    if (_orientationDefinition.orient_w_col > minLineElements and _orientationDefinition.angle_representation == Quaternion) {
         minLineElements = _orientationDefinition.orient_w_col;
     }
 
@@ -289,6 +298,7 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadOrientationRawData()
         bool ok = true;
 
         entry.time = splitted[_orientationDefinition.orient_t_col].toDouble(&ok);
+        entry.time = _orientationDefinition.timeScale*entry.time + _orientationDefinition.timeDelta;
 
         if (!ok) {
             continue;
@@ -366,7 +376,11 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadOrientationRawData()
                         * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
                         * Eigen::AngleAxisd(x_rad, Eigen::Vector3d::UnitX());
 
-                axis = Eigen::AngleAxisd(combinedRot).axis();
+                Eigen::AngleAxisd axisAngle(combinedRot);
+
+                double angle = axisAngle.angle();
+                axis = axisAngle.axis();
+                axis *= angle;
             }
 
             if (_orientationDefinition.angle_representation == EulerZYX) {
@@ -375,7 +389,11 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadOrientationRawData()
                         * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
                         * Eigen::AngleAxisd(z_rad, Eigen::Vector3d::UnitZ());
 
-                axis = Eigen::AngleAxisd(combinedRot).axis();
+                Eigen::AngleAxisd axisAngle(combinedRot);
+
+                double angle = axisAngle.angle();
+                axis = axisAngle.axis();
+                axis *= angle;
             }
 
             entry.val.x() = axis.x();
@@ -449,6 +467,8 @@ std::vector<Trajectory::TimeTrajectoryBlock> Trajectory::loadTrajectoryData() co
         return std::vector<Trajectory::TimeTrajectoryBlock>();
     }
 
+    PoseType plateform2sensor(_plateformDefinition.boresight, _plateformDefinition.leverArm);
+
     for (int i = 0; i < posECEF.size(); i++) {
 
         Eigen::Matrix3d body2local = StereoVision::Geometry::rodriguezFormula(orientationRaw[i].val);
@@ -456,7 +476,7 @@ std::vector<Trajectory::TimeTrajectoryBlock> Trajectory::loadTrajectoryData() co
 
         trajectory[i].time = posECEF[i].time;
         StereoVision::Geometry::AffineTransform<double> transformed(local2ecef.R*body2local, local2ecef.t);
-        trajectory[i].val = PoseType(StereoVision::Geometry::inverseRodriguezFormula(transformed.R), transformed.t);
+        trajectory[i].val = PoseType(StereoVision::Geometry::inverseRodriguezFormula(transformed.R), transformed.t) * plateform2sensor;
 
     }
 
@@ -474,7 +494,7 @@ std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectorySequ
     return TimeTrajectorySequence(std::move(data));
 }
 
-std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProjectLocalFraneSequence() const {
+std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProjectLocalFrameSequence() const {
 
     std::optional<StereoVision::Geometry::AffineTransform<float>> transform2projFrame = std::nullopt;
 
@@ -500,8 +520,8 @@ std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProj
 
         for (int i = 0; i < data.size(); i++) {
 
-            PoseType pose = data[i].val;
-            pose =  poseTransform * pose;
+            PoseType pose = data[i].val; //sensor 2 ecef
+            pose =  poseTransform * pose; // plateform 2 project local
 
             data[i].val = pose;
         }
@@ -646,6 +666,10 @@ QJsonObject Trajectory::encodeJson() const {
     QJsonObject positionDefinition;
 
     positionDefinition.insert("crs_epsg", _positionDefinition.crs_epsg);
+
+    positionDefinition.insert("time_delta", _positionDefinition.timeDelta);
+    positionDefinition.insert("time_scale", _positionDefinition.timeScale);
+
     positionDefinition.insert("pos_t_col", _positionDefinition.pos_t_col);
     positionDefinition.insert("pos_x_col", _positionDefinition.pos_x_col);
     positionDefinition.insert("pos_y_col", _positionDefinition.pos_y_col);
@@ -663,6 +687,9 @@ QJsonObject Trajectory::encodeJson() const {
     e = QMetaEnum::fromType<AngleUnits>();
     orientationDefinition.insert("angleUnit", e.valueToKey(_orientationDefinition.angleUnit));
 
+    orientationDefinition.insert("time_delta", _orientationDefinition.timeDelta);
+    orientationDefinition.insert("time_scale", _orientationDefinition.timeScale);
+
     orientationDefinition.insert("pos_t_col", _orientationDefinition.orient_t_col);
     orientationDefinition.insert("pos_x_col", _orientationDefinition.orient_x_col);
     orientationDefinition.insert("pos_y_col", _orientationDefinition.orient_y_col);
@@ -677,6 +704,16 @@ QJsonObject Trajectory::encodeJson() const {
     obj.insert("orientationDefinition", orientationDefinition);
     obj.insert("orientationFile", _orientationFile);
 
+    QJsonArray separatorsStrings;
+
+    for (int i = 0; i < _separators.size(); i++) {
+        separatorsStrings.push_back(QJsonValue(_separators[i]));
+    }
+
+    obj.insert("inputDataSeparators", separatorsStrings);
+
+    obj.insert("commentPattern", _commentPattern);
+
     return obj;
 
 }
@@ -688,6 +725,18 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
 
         if (positionDefinition.contains("crs_epsg")) {
             _positionDefinition.crs_epsg = positionDefinition.value("crs_epsg").toString("");
+        }
+
+        if (positionDefinition.contains("time_delta")) {
+            _positionDefinition.timeDelta = positionDefinition.value("time_delta").toDouble(0);
+        } else {
+            _positionDefinition.timeDelta = 0;
+        }
+
+        if (positionDefinition.contains("time_scale")) {
+            _positionDefinition.timeScale = positionDefinition.value("time_scale").toDouble(1);
+        } else {
+            _positionDefinition.timeScale = 1;
         }
 
         if (positionDefinition.contains("pos_t_col")) {
@@ -785,6 +834,47 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
 
     if (data.contains("orientationFile")) {
         _orientationFile = data.value("orientationFile").toString();
+    }
+
+    if (data.contains("inputDataSeparators")) {
+        QJsonArray seps = data.value("inputDataSeparators").toArray();
+
+        _separators.clear();
+
+        for (int i = 0; i < seps.size(); i++) {
+            _separators.push_back(seps[i].toString());
+        }
+    }
+
+    if (data.contains("commentPattern")) {
+        _commentPattern = data.value("commentPattern").toString("#");
+    } else {
+        _commentPattern = "#";
+    }
+
+    if (data.contains("plateformDefinition")) {
+
+        QJsonObject plateformDefinition = data.value("plateformDefinition").toObject();
+
+        if (plateformDefinition.contains("boresight")) {
+            QJsonArray axisRep = plateformDefinition.value("boresight").toArray();
+
+            if (axisRep.size() == 3) {
+                for (int i = 0; i < 3; i++) {
+                    _plateformDefinition.boresight[i] = axisRep.at(i).toDouble();
+                }
+            }
+        }
+
+        if (plateformDefinition.contains("leverArm")) {
+            QJsonArray leverArmRep = plateformDefinition.value("leverArm").toArray();
+
+            if (leverArmRep.size() == 3) {
+                for (int i = 0; i < 3; i++) {
+                    _plateformDefinition.leverArm[i] = leverArmRep.at(i).toDouble();
+                }
+            }
+        }
     }
 
 }
