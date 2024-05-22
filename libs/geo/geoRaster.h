@@ -9,6 +9,18 @@
 namespace StereoVisionApp {
 namespace Geo {
 
+/*!
+ * \brief The WorldInfos struct contain the info of a geotransform following the esri convention for .wld files.
+ */
+struct WorldInfos {
+    double leftPixXSize;
+    double yShift;
+    double xShift;
+    double downPixYSize;
+    double posXUpperLeft;
+    double posYUpperLeft;
+};
+
 template <typename T, int nDim>
 struct GeoRasterData {
 
@@ -17,6 +29,10 @@ struct GeoRasterData {
     Multidim::Array<T, nDim> raster;
     Eigen::Matrix<double, 2,3> geoTransform;
     std::string crsInfos;
+
+    WorldInfos getWorldInfos() const {
+        return WorldInfos {geoTransform(0,0), geoTransform(0,1), geoTransform(1,0), geoTransform(1,1), geoTransform(0,2), geoTransform(1,2)};
+    }
 
 };
 
