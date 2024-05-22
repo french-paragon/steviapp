@@ -16,6 +16,7 @@ namespace Geo {
 enum TopocentricConvention {
     NED = 0, //North East Down
     ENU = 1, //East North Up
+    NWU = 2, //North West Up
 };
 
 /*!
@@ -96,6 +97,11 @@ std::optional<StereoVision::Geometry::AffineTransform<T>> getLTPC2ECEF(Eigen::Ma
     case TopocentricConvention::ENU:
         R.col(0) = eastVec;
         R.col(1) = northVec;
+        R.col(2) = upVec;
+        break;
+    case TopocentricConvention::NWU:
+        R.col(0) = northVec;
+        R.col(1) = -eastVec;
         R.col(2) = upVec;
         break;
     }
@@ -192,6 +198,11 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
         case TopocentricConvention::ENU:
             R.col(0) = eastVec;
             R.col(1) = northVec;
+            R.col(2) = upVec;
+            break;
+        case TopocentricConvention::NWU:
+            R.col(0) = northVec;
+            R.col(1) = -eastVec;
             R.col(2) = upVec;
             break;
         }
