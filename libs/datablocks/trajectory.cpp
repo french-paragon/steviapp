@@ -27,7 +27,7 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionData() const
     }
 
     if (_positionDefinition.crs_epsg.isEmpty()) {
-        return std::vector<TimeCartesianBlock>();
+        return ret; // no transformation required
     }
 
     const char* wgs84_ecef = "EPSG:4978";

@@ -26,12 +26,12 @@ public:
     TerrainProjector(GeoRasterData<TerrainT,2> const& terrain) :
         _terrain(terrain)
     {
+        _projector = nullptr;
+        _reprojector = nullptr;
+        _ctx = nullptr;
 
         if (terrain.raster.empty()) { //empty terrain, might happen with default constructed projector
             _invGeoTransform.setConstant(0);
-            _projector = nullptr;
-            _reprojector = nullptr;
-            _ctx = nullptr;
             return;
         }
 
@@ -58,15 +58,19 @@ public:
 
         const char* wgs84_ecef = "EPSG:4978"; //The WGS84 earth centered, earth fixed frame used for projection on the terrain
 
-        _projector = proj_create_crs_to_crs(_ctx, wgs84_ecef, terrain.crsInfos.c_str(), nullptr);
-        _reprojector = proj_create_crs_to_crs(_ctx, terrain.crsInfos.c_str(), wgs84_ecef, nullptr);
+        bool needReproject = terrain.crsInfos != wgs84_ecef and !terrain.crsInfos.empty();
 
-        if (_projector == nullptr) { //in case of error
-            return;
-        }
+        if (needReproject) {
+            _projector = proj_create_crs_to_crs(_ctx, wgs84_ecef, terrain.crsInfos.c_str(), nullptr);
+            _reprojector = proj_create_crs_to_crs(_ctx, terrain.crsInfos.c_str(), wgs84_ecef, nullptr);
 
-        if (_reprojector == nullptr) { //in case of error
-            return;
+            if (_projector == nullptr) { //in case of error
+                return;
+            }
+
+            if (_reprojector == nullptr) { //in case of error
+                return;
+            }
         }
 
         int nFinitePoints = 0;
@@ -97,23 +101,37 @@ public:
                 }
 
                 //reproject to ecef coordinates
-                PJ_COORD reproject = proj_trans(_reprojector, PJ_FWD, coord);
 
-                _ecefTerrain.atUnchecked(i,j,0) = reproject.v[0];
-                _ecefTerrain.atUnchecked(i,j,1) = reproject.v[1];
-                _ecefTerrain.atUnchecked(i,j,2) = reproject.v[2];
+                if (needReproject) {
+                    PJ_COORD reproject = proj_trans(_reprojector, PJ_FWD, coord);
 
-                if (terrainVal < -1e-3 or !std::isfinite(terrainVal)) { // some DTM uses large negative values to indicate invalid pixels.
-                    continue;
+                    _ecefTerrain.atUnchecked(i,j,0) = reproject.v[0];
+                    _ecefTerrain.atUnchecked(i,j,1) = reproject.v[1];
+                    _ecefTerrain.atUnchecked(i,j,2) = reproject.v[2];
+
+                    if (terrainVal < -1e-3 or !std::isfinite(terrainVal)) { // some DTM uses large negative values to indicate invalid pixels.
+                        continue;
+                    }
+
+                } else {
+
+                    _ecefTerrain.atUnchecked(i,j,0) = coord.v[0];
+                    _ecefTerrain.atUnchecked(i,j,1) = coord.v[1];
+                    _ecefTerrain.atUnchecked(i,j,2) = coord.v[2];
+
                 }
 
                 _minTerrainHeight = std::min(terrainVal, _minTerrainHeight);
                 _maxTerrainHeight = std::max(terrainVal, _maxTerrainHeight);
 
-                if (std::isfinite(reproject.v[0]) and std::isfinite(reproject.v[1]) and std::isfinite(reproject.v[2])) {
-                    _ecefOffset[0] += reproject.v[0];
-                    _ecefOffset[1] += reproject.v[1];
-                    _ecefOffset[2] += reproject.v[2];
+                if (std::isfinite(_ecefTerrain.atUnchecked(i,j,0)) and
+                        std::isfinite(_ecefTerrain.atUnchecked(i,j,1)) and
+                        std::isfinite(_ecefTerrain.atUnchecked(i,j,2))) {
+
+                    _ecefOffset[0] += _ecefTerrain.atUnchecked(i,j,0);
+                    _ecefOffset[1] += _ecefTerrain.atUnchecked(i,j,1);
+                    _ecefOffset[2] += _ecefTerrain.atUnchecked(i,j,2);
+
                     nFinitePoints++;
                 }
             }
@@ -152,6 +170,11 @@ public:
     }
 
     bool isValid() const {
+
+        if (_terrain.crsInfos.empty()) {
+            return true;
+        }
+
         return _reprojector != nullptr and _projector != nullptr;
     }
 
