@@ -309,6 +309,14 @@ void MainWindow::configureProjectWindowsMenu() {
 		}
 	}
 
+    QAction* setProjectDefaultCRS = new QAction(tr("Set project default crs"));
+
+    connect(setProjectDefaultCRS, &QAction::triggered, this, [this] () {
+        setDefaultProjectCRS(_activeProject);
+    });
+
+    ui->menuproject->addAction(setProjectDefaultCRS);
+
 	ui->menuproject->setEnabled(true);
 
 }

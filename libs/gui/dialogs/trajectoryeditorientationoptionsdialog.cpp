@@ -65,6 +65,16 @@ TrajectoryEditOrientationOptionsDialog::TrajectoryEditOrientationOptionsDialog(Q
     }
     formLayout->addRow(tr("Angle unit: "), _angleUnitBox);
 
+    _timeScaleSpinBox = new QDoubleSpinBox(this);
+    _timeDeltaSpinBox = new QDoubleSpinBox(this);
+
+    _timeScaleSpinBox->setMinimum(0);
+    _timeScaleSpinBox->setMaximum(999999999999);
+    _timeScaleSpinBox->setDecimals(6);
+
+    _timeDeltaSpinBox->setMinimum(-999999999999);
+    _timeDeltaSpinBox->setMaximum(999999999999);
+
     _timeColSpinBox = new QSpinBox(this);
     _xColSpinBox = new QSpinBox(this);
     _yColSpinBox = new QSpinBox(this);
@@ -82,6 +92,9 @@ TrajectoryEditOrientationOptionsDialog::TrajectoryEditOrientationOptionsDialog(Q
     _yColSpinBox->setMaximum(999);
     _zColSpinBox->setMaximum(999);
     _wColSpinBox->setMaximum(999);
+
+    formLayout->addRow(tr("Time scale: "), _timeScaleSpinBox);
+    formLayout->addRow(tr("Time delta: "), _timeDeltaSpinBox);
 
     formLayout->addRow(tr("Time column: "), _timeColSpinBox);
     formLayout->addRow(tr("x column: "), _xColSpinBox);
@@ -135,6 +148,9 @@ void TrajectoryEditOrientationOptionsDialog::ConfigureTrajectoryOrientationOptio
     int idxUnit = dialog._angleUnitBox->findData(traj->orientationAngleUnits());
     dialog._angleUnitBox->setCurrentIndex(idxUnit);
 
+    dialog._timeScaleSpinBox->setValue(traj->orientationTimeScale());
+    dialog._timeDeltaSpinBox->setValue(traj->orientationTimeDelta());
+
     dialog._timeColSpinBox->setValue(traj->orientationColumns(Trajectory::Axis::T));
     dialog._xColSpinBox->setValue(traj->orientationColumns(Trajectory::Axis::X));
     dialog._yColSpinBox->setValue(traj->orientationColumns(Trajectory::Axis::Y));
@@ -160,6 +176,9 @@ void TrajectoryEditOrientationOptionsDialog::ConfigureTrajectoryOrientationOptio
         traj->setOrientationAngleRepresentation(Trajectory::EulerXYZ);
         traj->setOrientationAngleUnits(Trajectory::Degree);
 
+        traj->setOrientationTimeScale(1);
+        traj->setOrientationTimeDelta(0);
+
         traj->setOrientationColumn(Trajectory::Axis::T, 0);
         traj->setOrientationColumn(Trajectory::Axis::X, 1);
         traj->setOrientationColumn(Trajectory::Axis::Y, 2);
@@ -178,6 +197,9 @@ void TrajectoryEditOrientationOptionsDialog::ConfigureTrajectoryOrientationOptio
         traj->setOrientationTopocentricConvention(dialog._topocentricConventionBox->currentData().toInt());
         traj->setOrientationAngleRepresentation(dialog._angleRepresentationBox->currentData().toInt());
         traj->setOrientationAngleUnits(dialog._angleUnitBox->currentData().toInt());
+
+        traj->setOrientationTimeScale(dialog._timeScaleSpinBox->value());
+        traj->setOrientationTimeDelta(dialog._timeDeltaSpinBox->value());
 
         traj->setOrientationColumn(Trajectory::Axis::T, dialog._timeColSpinBox->value());
         traj->setOrientationColumn(Trajectory::Axis::X, dialog._xColSpinBox->value());

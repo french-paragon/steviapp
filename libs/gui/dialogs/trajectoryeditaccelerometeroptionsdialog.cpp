@@ -1,4 +1,4 @@
-#include "trajectoryeditpositionoptionsdialog.h"
+#include "trajectoryeditaccelerometeroptionsdialog.h"
 
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -6,7 +6,6 @@
 
 #include <QLineEdit>
 #include <QSpinBox>
-#include <QDoubleSpinBox>
 
 #include <QDialogButtonBox>
 #include <QAbstractButton>
@@ -15,7 +14,7 @@
 
 namespace StereoVisionApp {
 
-TrajectoryEditPositionOptionsDialog::TrajectoryEditPositionOptionsDialog(QWidget *parent) :
+TrajectoryEditAccelerometerOptionsDialog::TrajectoryEditAccelerometerOptionsDialog(QWidget *parent) :
     QDialog(parent)
 {
 
@@ -23,11 +22,8 @@ TrajectoryEditPositionOptionsDialog::TrajectoryEditPositionOptionsDialog(QWidget
 
     QFormLayout* formLayout = new QFormLayout();
 
-    _posFileLine = new QLineEdit(this);
-    formLayout->addRow(tr("Position file: "), _posFileLine);
-
-    _epsgLine = new QLineEdit(this);
-    formLayout->addRow(tr("Position EPSG: "), _epsgLine);
+    _accFileLine = new QLineEdit(this);
+    formLayout->addRow(tr("Accelerometer file: "), _accFileLine);
 
     _timeScaleSpinBox = new QDoubleSpinBox(this);
     _timeDeltaSpinBox = new QDoubleSpinBox(this);
@@ -81,24 +77,23 @@ TrajectoryEditPositionOptionsDialog::TrajectoryEditPositionOptionsDialog(QWidget
 
 }
 
-void TrajectoryEditPositionOptionsDialog::ConfigureTrajectoryPositionOptions(Trajectory* traj, QWidget* parent) {
+void TrajectoryEditAccelerometerOptionsDialog::ConfigureTrajectoryAccelerometerOptions(Trajectory* traj, QWidget* parent) {
 
     if (traj == nullptr) {
         return;
     }
 
-    TrajectoryEditPositionOptionsDialog dialog(parent);
+    TrajectoryEditAccelerometerOptionsDialog dialog(parent);
 
-    dialog._posFileLine->setText(traj->positionFile());
-    dialog._epsgLine->setText(traj->positionEpsg());
+    dialog._accFileLine->setText(traj->accelerometerFile());
 
-    dialog._timeScaleSpinBox->setValue(traj->positionTimeScale());
-    dialog._timeDeltaSpinBox->setValue(traj->positionTimeDelta());
+    dialog._timeScaleSpinBox->setValue(traj->accelerometerTimeScale());
+    dialog._timeDeltaSpinBox->setValue(traj->accelerometerTimeDelta());
 
-    dialog._timeColSpinBox->setValue(traj->positionColumns(Trajectory::Axis::T));
-    dialog._xColSpinBox->setValue(traj->positionColumns(Trajectory::Axis::X));
-    dialog._yColSpinBox->setValue(traj->positionColumns(Trajectory::Axis::Y));
-    dialog._zColSpinBox->setValue(traj->positionColumns(Trajectory::Axis::Z));
+    dialog._timeColSpinBox->setValue(traj->accelerometerColumns(Trajectory::Axis::T));
+    dialog._xColSpinBox->setValue(traj->accelerometerColumns(Trajectory::Axis::X));
+    dialog._yColSpinBox->setValue(traj->accelerometerColumns(Trajectory::Axis::Y));
+    dialog._zColSpinBox->setValue(traj->accelerometerColumns(Trajectory::Axis::Z));
 
     int status = dialog.exec();
 
@@ -107,29 +102,27 @@ void TrajectoryEditPositionOptionsDialog::ConfigureTrajectoryPositionOptions(Tra
     }
 
     if (status == QDialogButtonBox::ResetRole) {
-        traj->setPositionFile("");
-        traj->setPositionEpsg("");
+        traj->setAccelerometerFile("");
 
-        traj->setPositionTimeScale(1);
-        traj->setPositionTimeDelta(0);
+        traj->setAccelerometerTimeScale(1);
+        traj->setAccelerometerTimeDelta(0);
 
-        traj->setPositionColumn(Trajectory::Axis::T, 0);
-        traj->setPositionColumn(Trajectory::Axis::X, 1);
-        traj->setPositionColumn(Trajectory::Axis::Y, 2);
-        traj->setPositionColumn(Trajectory::Axis::Z, 3);
+        traj->setAccelerometerColumn(Trajectory::Axis::T, 0);
+        traj->setAccelerometerColumn(Trajectory::Axis::X, 1);
+        traj->setAccelerometerColumn(Trajectory::Axis::Y, 2);
+        traj->setAccelerometerColumn(Trajectory::Axis::Z, 3);
     }
 
     if (status == QDialogButtonBox::ApplyRole) {
-        traj->setPositionFile(dialog._posFileLine->text());
-        traj->setPositionEpsg(dialog._epsgLine->text());
+        traj->setAccelerometerFile(dialog._accFileLine->text());
 
-        traj->setPositionTimeScale(dialog._timeScaleSpinBox->value());
-        traj->setPositionTimeDelta(dialog._timeDeltaSpinBox->value());
+        traj->setAccelerometerTimeScale(dialog._timeScaleSpinBox->value());
+        traj->setAccelerometerTimeDelta(dialog._timeDeltaSpinBox->value());
 
-        traj->setPositionColumn(Trajectory::Axis::T, dialog._timeColSpinBox->value());
-        traj->setPositionColumn(Trajectory::Axis::X, dialog._xColSpinBox->value());
-        traj->setPositionColumn(Trajectory::Axis::Y, dialog._yColSpinBox->value());
-        traj->setPositionColumn(Trajectory::Axis::Z, dialog._zColSpinBox->value());
+        traj->setAccelerometerColumn(Trajectory::Axis::T, dialog._timeColSpinBox->value());
+        traj->setAccelerometerColumn(Trajectory::Axis::X, dialog._xColSpinBox->value());
+        traj->setAccelerometerColumn(Trajectory::Axis::Y, dialog._yColSpinBox->value());
+        traj->setAccelerometerColumn(Trajectory::Axis::Z, dialog._zColSpinBox->value());
     }
 
 }

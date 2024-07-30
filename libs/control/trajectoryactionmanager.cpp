@@ -5,6 +5,9 @@
 #include "gui/dialogs/trajectoryeditpositionoptionsdialog.h"
 #include "gui/dialogs/trajectoryeditorientationoptionsdialog.h"
 
+#include "gui/dialogs/trajectoryeditaccelerometeroptionsdialog.h"
+#include "gui/dialogs/trajectoryeditgyrooptionsdialog.h"
+
 #include "gui/sparsealignementeditor.h"
 
 #include "gui/openGlDrawables/opengldrawabletrajectory.h"
@@ -53,6 +56,26 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
 
     });
     actions.append(setOrientationData);
+
+    QAction* setAccelerometerData = new QAction(tr("set accelerometer data"), parent);
+    connect(setAccelerometerData, &QAction::triggered, traj, [traj] () {
+
+        MainWindow* mw = MainWindow::getActiveMainWindow();
+
+        TrajectoryEditAccelerometerOptionsDialog::ConfigureTrajectoryAccelerometerOptions(traj, mw);
+
+    });
+    actions.append(setAccelerometerData);
+
+    QAction* setGyroData = new QAction(tr("set gyro data"), parent);
+    connect(setGyroData, &QAction::triggered, traj, [traj] () {
+
+        MainWindow* mw = MainWindow::getActiveMainWindow();
+
+        TrajectoryEditGyroOptionsDialog::ConfigureTrajectoryGyroOptions(traj, mw);
+
+    });
+    actions.append(setGyroData);
 
     QAction* viewTrajectory = new QAction(tr("view trajectory"), parent);
     connect(viewTrajectory, &QAction::triggered, traj, [traj] () {

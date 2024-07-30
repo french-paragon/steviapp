@@ -8,6 +8,11 @@
 
 #include "../../vision/indexed_timed_sequence.h"
 
+#ifndef NDEBUG
+#include <iostream>
+#include <ceres/jet.h>
+#endif
+
 namespace StereoVisionApp {
 
 /*!
@@ -175,6 +180,15 @@ public:
         residual[7] = errv[1];
         residual[8] = errv[2];
 
+
+#ifndef NDEBUG
+        for (int i = 0; i < 9; i++) {
+            if (!ceres::IsFinite(residual[i])) {
+                std::cout << "Error in ImuStepCost cost computation" << std::endl;
+            }
+        }
+#endif
+
         return true;
     }
 
@@ -184,6 +198,235 @@ protected:
     Eigen::Vector3d _posSpeedDelta; // int_n^{n+1} int_n^t a(t') dt' dt (in world or local frame)
     Eigen::Vector3d _speedDelta; // int_n^{n+1} a(t) dt (in world or local frame)
     double _delta_t;
+};
+
+/*!
+ * \brief The GyroStepCost class represent a measurement by an gyroscope between two poses
+ */
+class GyroStepCost {
+
+public:
+
+    template<typename Tgyro, typename TimeT>
+    static GyroStepCost* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                              TimeT t0,
+                                              TimeT t1) {
+
+        double delta_t = t1 - t0;
+
+        auto imuGyroData = GyroData.getValuesInBetweenTimes(t0, t1);
+
+        Eigen::Matrix3d Rcurrent2initial = Eigen::Matrix3d::Identity();
+
+
+        for (int j = 0; j < imuGyroData.size(); j++) {
+
+            double dt = imuGyroData[j].dt;
+
+            Eigen::Vector3d dr(imuGyroData[j].val[0], imuGyroData[j].val[1], imuGyroData[j].val[2]);
+            dr *= dt;
+
+            Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
+
+            Eigen::Matrix3d newRcurrent2initial = dR*Rcurrent2initial;
+
+            //re-constaint as R mat for numerical stability
+            Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(newRcurrent2initial);
+            Rcurrent2initial = StereoVision::Geometry::rodriguezFormula(logR);
+
+        }
+
+        return new StereoVisionApp::GyroStepCost(Rcurrent2initial, delta_t);
+
+
+    }
+
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 double delta_t);
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const r1,
+                    T* residual) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+        using V3T = Eigen::Matrix<T,3,1>;
+
+        V3T vr0(r0[0], r0[1], r0[2]);
+        V3T vr1(r1[0], r1[1], r1[2]);
+
+        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
+        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
+
+        M3T closure = Rr1.transpose() * Rr0 * _attitudeDelta;
+        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
+
+        residual[0] = res[0];
+        residual[1] = res[1];
+        residual[2] = res[2];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
+            std::cout << "Error in GyroStepCost cost computation" << std::endl;
+        }
+#endif
+
+        return true;
+
+    }
+
+protected:
+
+    Eigen::Matrix3d _attitudeDelta; // R from final pose to initial pose
+    double _delta_t;
+};
+
+/*!
+ * \brief The AccelerometerStepCost class represent a measurement by an accelerometer between three poses
+ *
+ * The benefits of doing so is that is that we do not need the speed as a learnable parameter, only the pose.
+ *
+ * The speed delta is assumed to be int_n^{n+1} int_n^{t} w(t') dt' f(t) dt
+ * Such that v_{n+1} = v{n} - g dt + R_n int_n^{n+1} int_n^{t} w(t') dt' f(t) dt
+ *
+ * where v_{n+1} and v{n} a speed expressed in world (local) frame,
+ * R_n is the attitude (R from body to world) at time n,
+ * g is the gravity,
+ * f(t) is the measured specific force and
+ * int_n^{t} w(t') dt' is the integrated relative orientation integrated from the gyro measurements.
+ *
+ * Pose are assumed to be the Body2World (or Body2Local if a locale frame is used).
+ *
+ * the three poses under consideration are at t0, t1, t2.
+ * The speeds will be computed at time (t0 + t1)/2 = n and (t1 + t2)/2 = n+1
+ * The integration has to be done between these times.
+ * The getIntegratedIMUDiff function is here to help.
+ *
+ * In addition the cost is configure with delta_t1 = t1 - t0 and delta_t2 = t2 - t1
+ */
+class AccelerometerStepCost {
+
+public:
+
+    template<typename Tgyro, typename Tacc, typename TimeT>
+    static AccelerometerStepCost* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                        IndexedTimeSequence<Tacc, TimeT> const& AccData,
+                                                        TimeT t0,
+                                                        TimeT t1,
+                                                        TimeT t2) {
+
+        double delta_t1 = t1 - t0;
+        double delta_t2 = t2 - t1;
+
+        Eigen::Vector3d speedDelta = Eigen::Vector3d::Zero();
+
+        double ti = (t1 + t0)/2;
+        double tf = (t2 + t1)/2;
+
+        auto imuAccData = AccData.getValuesInBetweenTimes(ti, tf);
+        auto imuGyroData = GyroData.getValuesInBetweenTimes(ti, tf);
+
+        Eigen::Matrix3d Rcurrent2initial = Eigen::Matrix3d::Identity();
+
+        double t_acc = 0;
+        double t_gyro = 0;
+
+        int idx_acc = 0;
+
+        for (int j = 0; j < imuGyroData.size(); j++) {
+
+            double dt = imuGyroData[j].dt;
+
+            while (t_acc < t_gyro + dt/2) {
+                double dt_acc = imuAccData[idx_acc].dt;
+
+                Eigen::Vector3d da_local(imuAccData[idx_acc].val[0], imuAccData[idx_acc].val[1], imuAccData[idx_acc].val[2]);
+
+                speedDelta += Rcurrent2initial*da_local*dt_acc;
+
+                t_acc += dt_acc;
+                idx_acc++;
+            }
+
+            Eigen::Vector3d dr(imuGyroData[j].val[0], imuGyroData[j].val[1], imuGyroData[j].val[2]);
+            dr *= dt;
+
+            Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
+
+            Rcurrent2initial = dR*Rcurrent2initial;
+
+            //re-constaint as R mat for numerical stability
+            Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(Rcurrent2initial);
+            Rcurrent2initial = StereoVision::Geometry::rodriguezFormula(logR);
+
+            t_gyro += dt;
+
+        }
+
+        return new StereoVisionApp::AccelerometerStepCost(speedDelta, delta_t1, delta_t2);
+
+    }
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                           double delta_t1,
+                           double delta_t2);
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const g,
+                    T* residual) const {
+
+
+        using M3T = Eigen::Matrix<T,3,3>;
+        using V3T = Eigen::Matrix<T,3,1>;
+
+        V3T vr0(r0[0], r0[1], r0[2]);
+        V3T vr1(r1[0], r1[1], r1[2]);
+
+        V3T vt0(t0[0], t0[1], t0[2]);
+        V3T vt1(t1[0], t1[1], t1[2]);
+        V3T vt2(t2[0], t2[1], t2[2]);
+
+        V3T vg(g[0], g[1], g[2]);
+
+        V3T vv0 = vt1 - vt0; //avg speed in first interval
+        V3T vv1 = vt2 - vt1; //avg speed in second interval
+
+        V3T vrv0 = vr1*T(0.5) + vr0*T(0.5); //orientation at the point where v0 is computed
+        M3T Rrv0 = StereoVision::Geometry::rodriguezFormula<T>(vrv0);
+
+        T spdx(_speedDelta[0]);
+        T spdy(_speedDelta[1]);
+        T spdz(_speedDelta[2]);
+        V3T vSpeedDelta(spdx, spdy, spdz);
+        V3T pred = vv0 + vg*T(_delta_tv) + Rrv0*vSpeedDelta;
+        V3T err = vv1 - pred;
+
+        residual[0] = err[0];
+        residual[1] = err[1];
+        residual[2] = err[2];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
+            std::cout << "Error in AccelerometerStepCost cost computation" << std::endl;
+        }
+#endif
+
+        return true;
+
+    }
+
+protected:
+
+    Eigen::Vector3d _speedDelta; // int_n^{n+1} int_n^{t} w(t') dt' f(t) dt
+    double _delta_t1;
+    double _delta_t2;
+    double _delta_tv;
+
 };
 
 } // namespace StereoVisionApp

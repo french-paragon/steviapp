@@ -9,6 +9,7 @@
 
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
+#include "datablocks/trajectory.h"
 #include "datablocks/dataexception.h"
 
 #include "./itemdatamodel.h"
@@ -18,13 +19,19 @@ namespace StereoVisionApp {
 const QString ImageLandmark::ImageLandmarkClassName = "StereoVisionApp::ImageLandmark";
 
 Image::Image(Project *parent) :
-	RigidBody(parent)
+    RigidBody(parent),
+    _assignedCamera(-1),
+    _assignedTrajectory(-1)
 {
 	extendDataModel();
 }
 
 qint64 Image::assignedCamera() const {
 	return _assignedCamera;
+}
+
+Camera* Image::getAssignedCamera() const {
+    return getProject()->getDataBlock<Camera>(_assignedCamera);
 }
 void Image::assignCamera(qint64 camId) {
 
@@ -37,6 +44,28 @@ void Image::assignCamera(qint64 camId) {
 	if (_assignedCamera >= 0) addRefered({_assignedCamera});
 	emit assignedCameraChanged(_assignedCamera);
 	return;
+}
+
+qint64 Image::assignedTrajectory() const {
+    return _assignedTrajectory;
+}
+
+Trajectory* Image::getAssignedTrajectory() const {
+    return getProject()->getDataBlock<Trajectory>(_assignedTrajectory);
+}
+
+void Image::assignTrajectory(qint64 trajId) {
+
+    if (trajId == _assignedTrajectory) {
+        return;
+    }
+
+    if (_assignedTrajectory >= 0) removeRefered({_assignedTrajectory});
+    _assignedTrajectory = trajId;
+    if (_assignedTrajectory >= 0) addRefered({_assignedTrajectory});
+    emit assignedTrajectoryChanged(_assignedTrajectory);
+    return;
+
 }
 
 QString Image::getImageFile() const
@@ -59,6 +88,16 @@ void Image::setImageFile(const QString &imageFile)
 		_imageFile = n.canonicalFilePath();
 		emit imageFileChanged(_imageFile);
 	}
+}
+
+std::optional<double> Image::getImageTimestamp() const {
+    return _imageTime;
+}
+void Image::setImageTimeStamp(std::optional<double> const& timing) {
+    if (timing != _imageTime) {
+        _imageTime = timing;
+        Q_EMIT imageTimeChanged(timing);
+    }
 }
 
 
@@ -272,6 +311,7 @@ QJsonObject Image::encodeJson() const {
 	obj.insert("imFile", getImageFile());
 
 	obj.insert("assignedCamera", assignedCamera());
+    obj.insert("assignedTrajectory", assignedTrajectory());
 
 	QJsonArray arr;
 
@@ -296,6 +336,10 @@ void Image::configureFromJson(QJsonObject const& data) {
 	if (data.contains("assignedCamera")) {
 		_assignedCamera = data.value("assignedCamera").toInt();
 	}
+
+    if (data.contains("assignedTrajectory")) {
+        _assignedTrajectory = data.value("assignedTrajectory").toInt();
+    }
 
 	if (data.contains("Landmarks")) {
 		QJsonArray arr = data.value("Landmarks").toArray();

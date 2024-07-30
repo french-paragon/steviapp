@@ -7,6 +7,10 @@
 #include <StereoVision/geometry/core.h>
 #include <StereoVision/geometry/rotations.h>
 
+#ifndef NDEBUG
+#include <iostream>
+#include <ceres/jet.h>
+#endif
 
 namespace StereoVisionApp {
 
@@ -53,6 +57,12 @@ public:
         residual[0] = posInWorld[0] - _t[0];
         residual[1] = posInWorld[0] - _t[1];
         residual[2] = posInWorld[0] - _t[2];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
+            std::cout << "Error in CamPosWithParametrizedLeverArmCost cost computation" << std::endl;
+        }
+#endif
 
         return true;
     }

@@ -6,6 +6,7 @@ namespace StereoVisionApp {
 class Project;
 class MainWindow;
 
+bool setDefaultProjectCRS(Project* p);
 bool estimateLocalCoordinateSystem(Project* p);
 
 } //namespace StereoVisionApp

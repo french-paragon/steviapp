@@ -142,27 +142,17 @@ QSet<qint64> Landmark::getViewingImgInList(QSet<qint64> const& included) const {
 
 bool Landmark::geoReferenceSupportActive() const {
 
-    floatParameter x = xCoord();
-    floatParameter y = yCoord();
-    floatParameter z = zCoord();
+    QString crs = getCoordinateReferenceSystemDescr();
 
-    if (!x.isSet() or !y.isSet() or !z.isSet()) {
-        return false;
-    } //we need all coordinates to georeference the point
-
-    return !_coordinatesReferenceSystem.isEmpty();
+    return !crs.isEmpty();
 }
 
 Eigen::Array<float,3, Eigen::Dynamic> Landmark::getLocalPointsEcef() const {
 
-    floatParameter x = xCoord();
-    floatParameter y = yCoord();
-    floatParameter z = zCoord();
-
     Eigen::Array<float,3, Eigen::Dynamic> ret;
     ret.resize(3,0);
 
-    std::optional<Eigen::Vector3f> optRet = getEcefCoordinates();
+    std::optional<Eigen::Vector3f> optRet = getOptimizableCoordinates();
 
     if (!optRet.has_value()) {
         return ret;
@@ -174,7 +164,7 @@ Eigen::Array<float,3, Eigen::Dynamic> Landmark::getLocalPointsEcef() const {
     return ret;
 }
 
-std::optional<Eigen::Vector3f> Landmark::getEcefCoordinates(bool optimized) const {
+std::optional<Eigen::Vector3f> Landmark::getOptimizableCoordinates(bool optimized) const {
 
     double vx;
     double vy;
@@ -203,21 +193,25 @@ std::optional<Eigen::Vector3f> Landmark::getEcefCoordinates(bool optimized) cons
 
     Eigen::Vector3f ret;
 
-    PJ_CONTEXT* ctx = proj_context_create();
+    if (geoReferenceSupportActive()) {
 
-    PJ* converter = proj_create_crs_to_crs(ctx, _coordinatesReferenceSystem.toStdString().c_str(), "EPSG:4978", nullptr);
+        PJ_CONTEXT* ctx = proj_context_create();
 
-    if (converter == 0) { //in case of error
+        QString localCoordinateSystemDescr = getCoordinateReferenceSystemDescr();
+
+        PJ* converter = proj_create_crs_to_crs(ctx, localCoordinateSystemDescr.toStdString().c_str(), "EPSG:4978", nullptr);
+
+        if (converter == 0) { //in case of error
+            proj_context_destroy(ctx);
+            return std::nullopt;
+        }
+
+        proj_trans_generic(converter, PJ_FWD, &vx, 0, 1, &vy, 0, 1, &vz, 0, 1, nullptr, 0, 1);
+
+        proj_destroy(converter);
         proj_context_destroy(ctx);
-        return std::nullopt;
     }
 
-    proj_trans_generic(converter, PJ_FWD, &vx, 0, 1, &vy, 0, 1, &vz, 0, 1, nullptr, 0, 1);
-
-    proj_destroy(converter);
-    proj_context_destroy(ctx);
-
-    ret.resize(3,1);
     ret(0,0) = vx;
     ret(1,0) = vy;
     ret(2,0) = vz;
@@ -225,40 +219,69 @@ std::optional<Eigen::Vector3f> Landmark::getEcefCoordinates(bool optimized) cons
     return ret;
 }
 
-bool Landmark::setPositionFromEcef(Eigen::Vector3f const& point, bool optimized) const {
+bool Landmark::setPositionFromEcef(Eigen::Vector3f const& point, bool optimized) {
 
     double vx = point.x();
     double vy = point.y();
     double vz = point.z();
 
-    PJ_CONTEXT* ctx = proj_context_create();
+    QString crs = getCoordinateReferenceSystemDescr();
 
-    PJ* converter = proj_create_crs_to_crs(ctx, _coordinatesReferenceSystem.toStdString().c_str(), "EPSG:4978", nullptr);
+    if (!crs.isEmpty()) {
 
-    if (converter == 0) { //in case of error
-        return false;
+        PJ_CONTEXT* ctx = proj_context_create();
+
+        PJ* converter = proj_create_crs_to_crs(ctx, "EPSG:4978", crs.toStdString().c_str(), nullptr);
+
+        if (converter == 0) { //in case of error
+            return false;
+        }
+
+        proj_trans_generic(converter, PJ_FWD, &vx, 0, 1, &vy, 0, 1, &vz, 0, 1, nullptr, 0, 1);
+
+        proj_destroy(converter);
+        proj_context_destroy(ctx);
+
     }
 
-    proj_trans_generic(converter, PJ_FWD, &vx, 0, 1, &vy, 0, 1, &vz, 0, 1, nullptr, 0, 1);
-
-    proj_destroy(converter);
-    proj_context_destroy(ctx);
-
     if (optimized) {
-        optPos().setIsSet();
-        optPos().value(0) = vx;
-        optPos().value(1) = vy;
-        optPos().value(2) = vz;
+        floatParameterGroup<3> opt_p = optPos();
+        opt_p.setIsSet();
+        opt_p.value(0) = vx;
+        opt_p.value(1) = vy;
+        opt_p.value(2) = vz;
+
+        setOptPos(opt_p);
     } else {
-        xCoord().setIsSet(vx);
-        yCoord().setIsSet(vy);
-        zCoord().setIsSet(vz);
+
+        floatParameter x = xCoord();
+        x.setIsSet(vx);
+        setXCoord(x);
+
+        floatParameter y = yCoord();
+        y.setIsSet(vy);
+        setYCoord(y);
+
+        floatParameter z = zCoord();
+        z.setIsSet(vz);
+        setZCoord(z);
     }
     return true;
 }
 
 QString Landmark::getCoordinateReferenceSystemDescr(int role) const {
     Q_UNUSED(role);
+
+    if (_coordinatesReferenceSystem.isEmpty()) {
+        Project* proj = getProject();
+
+        if (proj == nullptr) {
+            return _coordinatesReferenceSystem;
+        }
+
+        return proj->defaultProjectCRS();
+    }
+
     return _coordinatesReferenceSystem;
 }
 

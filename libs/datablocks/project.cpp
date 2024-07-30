@@ -76,7 +76,8 @@ QVector<QString> ProjectFactory::installedTypes() const
 Project::Project(QObject* parent) :
 	QAbstractItemModel(parent),
     _source(""),
-    _hasLocalCrs(false)
+    _defaultProjectCRS(""),
+    _hasLocalCoordinateFrame(false)
 {
 	connect(this, &Project::dataChanged, this, &Project::projectChanged);
 	connect(this, &Project::rowsAboutToBeInserted, this, &Project::projectChanged);
@@ -134,7 +135,8 @@ bool Project::load(QString const& inFile) {
 		}
 	}
 
-    _hasLocalCrs = false;
+    _hasLocalCoordinateFrame = false;
+    _defaultProjectCRS = "";
     if (proj.contains("metadata")) {
 
         QJsonObject metadata = proj.value("metadata").toObject();
@@ -152,8 +154,12 @@ bool Project::load(QString const& inFile) {
                 }
 
                 _ecef2local.t << t.at(0).toDouble(), t.at(1).toDouble(), t.at(2).toDouble();
-                _hasLocalCrs = true;
+                _hasLocalCoordinateFrame = true;
             }
+        }
+
+        if (metadata.contains("defaultProjectCRS")) {
+            _defaultProjectCRS = metadata.value("defaultProjectCRS").toString();
         }
 
     }
@@ -191,7 +197,7 @@ bool Project::save(QString const& outFile) {
 	}
     QJsonObject metadata;
 
-    if (_hasLocalCrs) {
+    if (_hasLocalCoordinateFrame) {
         QJsonObject localTransform;
         QJsonArray R;
         QJsonArray t;
@@ -212,6 +218,10 @@ bool Project::save(QString const& outFile) {
         localTransform.insert("t", t);
 
         metadata.insert("local_transform", localTransform);
+    }
+
+    if (!_defaultProjectCRS.isEmpty()) {
+        metadata.insert("defaultProjectCRS", _defaultProjectCRS);
     }
 
     proj.insert("metadata", metadata);

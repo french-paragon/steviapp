@@ -6,8 +6,16 @@
 #include <StereoVision/geometry/core.h>
 #include <StereoVision/geometry/rotations.h>
 
+#ifndef NDEBUG
+#include <iostream>
+#include <ceres/jet.h>
+#endif
+
 namespace StereoVisionApp {
 
+/*!
+ * \brief The LocalPointAlignementCost class measure the alignement between a point in global coordinate and its coordinate in local system
+ */
 class LocalPointAlignementCost
 {
 public:
@@ -38,6 +46,12 @@ public:
         residual[0] = closure[0];
         residual[1] = closure[1];
         residual[2] = closure[2];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
+            std::cout << "Error in LocalPointAlignementCost cost computation" << std::endl;
+        }
+#endif
 
         return true;
     }

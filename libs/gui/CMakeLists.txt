@@ -59,6 +59,8 @@ set(LIB_SRC imagewidget.cpp
             datatablevieweditor.cpp
             dialogs/trajectoryeditpositionoptionsdialog.cpp
             dialogs/trajectoryeditorientationoptionsdialog.cpp
+            dialogs/trajectoryeditaccelerometeroptionsdialog.cpp
+            dialogs/trajectoryeditgyrooptionsdialog.cpp
 )
 
 set(LIB_HEADERS
@@ -113,6 +115,8 @@ set(LIB_HEADERS_OPENGLDRAWABLES
 set(LIB_HEADERS_DIALOG
     dialogs/trajectoryeditpositionoptionsdialog.h
     dialogs/trajectoryeditorientationoptionsdialog.h
+    dialogs/trajectoryeditaccelerometeroptionsdialog.h
+    dialogs/trajectoryeditgyrooptionsdialog.h
 )
 
 if (ADD_DEVEL_TOOLS)

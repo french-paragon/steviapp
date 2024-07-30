@@ -7,6 +7,7 @@ set(LIB_SRC initialsolution.cpp
             graphroughbundleadjustementsolver.cpp
             graphsbasolver.cpp
             ceressbasolver.cpp
+            modularsbasolver.cpp
             graphstereorigsolver.cpp
             graphcameracalibrator.cpp
             imagepointssolutionmodel.cpp
@@ -31,7 +32,7 @@ set(LIB_SRC initialsolution.cpp
             edges/edgecameralandmarkdirectionalalignement.cpp
             edges/edgecamerase3leverarm.cpp
             edges/edgelocalpointcoordinates.cpp
-            costfunctors/camerase3leverarmcostfunctor.cpp
+            costfunctors/leverarmcostfunctor.cpp
             costfunctors/parametrizedxyz2uvcost.cpp
             costfunctors/localpointalignementcost.cpp
             costfunctors/camposwithparametrizedleverarmcost.cpp
@@ -39,6 +40,7 @@ set(LIB_SRC initialsolution.cpp
             costfunctors/imustepcost.cpp
             costfunctors/local3dcoalignementcost.cpp
             costfunctors/local3dtoimageuvcost.cpp
+            costfunctors/interpolatedvectorprior.cpp
 )
 
 set(LIB_HEADERS
@@ -47,6 +49,7 @@ set(LIB_HEADERS
     sbainitializer.h
     graphsbasolver.h
     ceressbasolver.h
+    modularsbasolver.h
     fixedpreoptimizedparameters.h
     landmarkpointssolutionmodel.h
     localcoordinatespointssolutionmodel.h
@@ -84,7 +87,7 @@ set(LIB_HEADERS_VERTICES
 )
 
 set(LIB_HEADERS_COST_FUNCTORS
-    costfunctors/camerase3leverarmcostfunctor.h
+    costfunctors/leverarmcostfunctor.h
     costfunctors/camposwithparametrizedleverarmcost.h
     costfunctors/parametrizedxyz2uvcost.h
     costfunctors/localpointalignementcost.h
@@ -92,6 +95,7 @@ set(LIB_HEADERS_COST_FUNCTORS
     costfunctors/imustepcost.h
     costfunctors/local3dcoalignementcost.h
     costfunctors/local3dtoimageuvcost.h
+    costfunctors/interpolatedvectorprior.h
 )
 
 add_library(

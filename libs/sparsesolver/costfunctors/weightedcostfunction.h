@@ -7,6 +7,11 @@
 
 #include <Eigen/Core>
 
+#ifndef NDEBUG
+#include <iostream>
+#include <ceres/jet.h>
+#endif
+
 namespace StereoVisionApp {
 
 template<int kNumResiduals, int... Ns>

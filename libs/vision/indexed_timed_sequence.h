@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace StereoVisionApp {
 
@@ -11,6 +12,7 @@ namespace StereoVisionApp {
  * \brief The IndexedTimeSequence class contain an indexed time sequence of elements T
  *
  * The class is meant to quickly access values in a time sequence.
+ * It uses implicit sharing to make copying and moving data around more efficently.
  */
 template<typename T, typename TimeT = double>
 class IndexedTimeSequence {
@@ -47,8 +49,8 @@ public:
     IndexedTimeSequence() :
         _initialTime(1),
         _finalTime(0),
-        _indicesFromTimeIntervals(),
-        _sequence()
+        _indicesFromTimeIntervals(std::make_shared<std::vector<int>>()),
+        _sequence(std::make_shared<std::vector<TimedElement>>())
     {
 
     }
@@ -58,8 +60,8 @@ public:
      * \param sequence
      */
     IndexedTimeSequence(std::vector<TimedElement> const& sequence) :
-        _indicesFromTimeIntervals(),
-        _sequence(sequence)
+        _indicesFromTimeIntervals(std::make_shared<std::vector<int>>()),
+        _sequence(std::make_shared<std::vector<TimedElement>>(sequence))
     {
         rebuildIndex();
     }
@@ -69,8 +71,8 @@ public:
      * \param sequence the sequence.
      */
     IndexedTimeSequence(std::vector<TimedElement> && sequence) :
-        _indicesFromTimeIntervals(),
-        _sequence(sequence)
+        _indicesFromTimeIntervals(std::make_shared<std::vector<int>>()),
+        _sequence(std::make_shared<std::vector<TimedElement>>(sequence))
     {
         rebuildIndex();
     }
@@ -106,6 +108,7 @@ public:
         _finalTime = other._finalTime;
         _indicesFromTimeIntervals = other._indicesFromTimeIntervals;
         _sequence = other._sequence;
+        return *this;
     }
 
     IndexedTimeSequence<T, TimeT>& operator= (IndexedTimeSequence<T, TimeT> && other) {
@@ -113,65 +116,82 @@ public:
         _finalTime = other._finalTime;
         _indicesFromTimeIntervals = std::move(other._indicesFromTimeIntervals);
         _sequence = std::move(other._sequence);
+        return *this;
     }
 
+    /*!
+     * \brief rebuildIndex rebuild the index
+     * \param nElements the number of elements to put in the index
+     *
+     * This function could break implicit sharing of the index data. It is not thread safe.
+     */
     void rebuildIndex(int nElements = -1) {
         int nElems = nElements;
 
         if (nElems <= 0) {
-            nElems = _sequence.size();
+            nElems = _sequence->size();
         }
 
-        std::sort(_sequence.begin(), _sequence.end(), [] (TimedElement const& t1, TimedElement const& t2) -> bool {
+        if (nElems == _indicesFromTimeIntervals->size()) {
+            return;
+        }
+
+        //if the sequence is shared it might already be sorted, if not sorted, none of the other users indexed it so it is safe to sort.
+        //it make the function not thread safe
+        std::sort(_sequence->begin(), _sequence->end(), [] (TimedElement const& t1, TimedElement const& t2) -> bool {
             return t1.time < t2.time;
         });
 
-        _initialTime = _sequence.front().time;
-        _finalTime = _sequence.back().time;
+        _initialTime = _sequence->front().time;
+        _finalTime = _sequence->back().time;
 
-        _indicesFromTimeIntervals.resize(nElems);
+        if (nElems != _indicesFromTimeIntervals->size()) {
+
+            _indicesFromTimeIntervals = std::make_shared<std::vector<int>>(nElems); //decouple the index
+        }
+
         TimeT deltaT = indexTimePerStep();
 
         int p = 0;
 
         for (int i = 0; i < nElems; i++) {
 
-            while (_sequence[p].time < _initialTime+i*deltaT) {
+            while ((*_sequence)[p].time < _initialTime+i*deltaT) {
                 p++;
             }
 
-            _indicesFromTimeIntervals[i] = p;
+            (*_indicesFromTimeIntervals)[i] = p;
         }
     }
 
     TimeT indexTimePerStep() const {
-        return (_finalTime - _initialTime)/_indicesFromTimeIntervals.size();
+        return (_finalTime - _initialTime)/_indicesFromTimeIntervals->size();
     }
 
     TimeInterpolableVals getValueAtTime(TimeT time) const {
 
         if (time <= _initialTime) {
-            return TimeInterpolableVals{0, T(), 1, _sequence.front().val};
+            return TimeInterpolableVals{0, T(), 1, _sequence->front().val};
         }
 
         if (time >= _finalTime) {
-            return TimeInterpolableVals{1, _sequence.back().val, 0, T()};
+            return TimeInterpolableVals{1, _sequence->back().val, 0, T()};
         }
 
         double deltaT = indexTimePerStep();
         double localTime = time - _initialTime;
 
         int initialIndexIdx = static_cast<int>(std::floor(localTime/deltaT));
-        int initialSearchIdx = _indicesFromTimeIntervals[initialIndexIdx];
+        int initialSearchIdx = (*_indicesFromTimeIntervals)[initialIndexIdx];
 
         initialSearchIdx = std::max(0, initialSearchIdx-1);
 
-        for (int i = initialSearchIdx; i < _sequence.size()-1; i++) {
+        for (int i = initialSearchIdx; i < _sequence->size()-1; i++) {
 
-            if (_sequence[i].time <= time and _sequence[i+1].time >= time) {
-                double timeDelta = _sequence[i+1].time - _sequence[i].time;
-                double preDelta = time - _sequence[i].time;
-                double postDelta = _sequence[i+1].time - time;
+            if ((*_sequence)[i].time <= time and (*_sequence)[i+1].time >= time) {
+                double timeDelta = (*_sequence)[i+1].time - (*_sequence)[i].time;
+                double preDelta = time - (*_sequence)[i].time;
+                double postDelta = (*_sequence)[i+1].time - time;
 
                 double wPre = preDelta/timeDelta;
                 double wPost = postDelta/timeDelta;
@@ -181,18 +201,18 @@ public:
                     wPost = 0.5;
                 }
 
-                return {wPre, _sequence[i].val, wPost, _sequence[i+1].val};
+                return {wPre, (*_sequence)[i].val, wPost, (*_sequence)[i+1].val};
             }
 
         }
 
-        return TimeInterpolableVals{1, _sequence.back().val, 0, T()};
+        return TimeInterpolableVals{1, _sequence->back().val, 0, T()};
     }
 
     std::vector<Differential> getValuesInBetweenTimes(TimeT t0, TimeT tf) const {
 
         if (t0 >= _finalTime) {
-            return std::vector<Differential>{Differential{tf - t0, _sequence.back().val}};
+            return std::vector<Differential>{Differential{tf - t0, _sequence->back().val}};
         }
 
         double deltaT = indexTimePerStep();
@@ -204,19 +224,19 @@ public:
             initialIndexIdx = 0;
         }
 
-        int initialSearchIdx = _indicesFromTimeIntervals[initialIndexIdx];
+        int initialSearchIdx = (*_indicesFromTimeIntervals)[initialIndexIdx];
 
         initialSearchIdx = std::max(0, initialSearchIdx-1);
 
         int initialIndex = initialSearchIdx;
 
-        while (initialIndex < _sequence.size() and _sequence[initialIndex].time < t0) {
+        while (initialIndex < _sequence->size() and (*_sequence)[initialIndex].time < t0) {
             initialIndex++;
         }
 
         int finalIndex = initialIndex;
 
-        while (finalIndex < _sequence.size() and _sequence[finalIndex].time < tf) {
+        while (finalIndex < _sequence->size() and (*_sequence)[finalIndex].time < tf) {
             finalIndex++;
         }
 
@@ -227,7 +247,7 @@ public:
 
         //now all the elements we need to return as differentials are within initialIndex and finalIndex
         if (finalIndex == initialIndex) {
-            return std::vector<Differential>{Differential{tf - t0, _sequence[initialIndex].val}};
+            return std::vector<Differential>{Differential{tf - t0, (*_sequence)[initialIndex].val}};
         }
 
         int nElements = finalIndex - initialIndex + 1;
@@ -239,19 +259,19 @@ public:
 
         for (int i = 0; i < nElements; i++) {
 
-            if (currentIndex+1 > _sequence.size()) {
-                ret[i] = Differential{tf - t, _sequence[currentIndex].val};
+            if (currentIndex+1 > _sequence->size()) {
+                ret[i] = Differential{tf - t, (*_sequence)[currentIndex].val};
                 break;
             }
 
-            if (_sequence[currentIndex+1].time > tf) {
-                ret[i] = Differential{tf - t, _sequence[currentIndex].val};
+            if ((*_sequence)[currentIndex+1].time > tf) {
+                ret[i] = Differential{tf - t, (*_sequence)[currentIndex].val};
                 break;
             }
 
-            ret[i] = Differential{_sequence[currentIndex+1].time - t, _sequence[currentIndex].val};
+            ret[i] = Differential{(*_sequence)[currentIndex+1].time - t, (*_sequence)[currentIndex].val};
 
-            t = _sequence[currentIndex+1].time;
+            t = (*_sequence)[currentIndex+1].time;
             currentIndex++;
         }
 
@@ -268,11 +288,11 @@ public:
     }
 
     int nPoints() const {
-        return _sequence.size();
+        return _sequence->size();
     }
 
     TimedElement operator[](int idx) {
-        return _sequence[idx];
+        return (*_sequence)[idx];
     }
 
     bool isValid() const {
@@ -284,8 +304,8 @@ protected:
     TimeT _initialTime;
     TimeT _finalTime;
 
-    std::vector<int> _indicesFromTimeIntervals;
-    std::vector<TimedElement> _sequence;
+    std::shared_ptr<std::vector<int>> _indicesFromTimeIntervals;
+    std::shared_ptr<std::vector<TimedElement>> _sequence;
 
 };
 

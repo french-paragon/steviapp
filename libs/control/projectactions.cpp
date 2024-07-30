@@ -3,9 +3,43 @@
 #include "datablocks/project.h"
 #include "datablocks/georeferenceddatablockinterface.h"
 
+#include "mainwindow.h"
+
+#include <QInputDialog>
+
 #include <limits>
 
 namespace StereoVisionApp {
+
+bool setDefaultProjectCRS(Project* p) {
+
+    if (p == nullptr) {
+        return false;
+    }
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (mw == nullptr) {
+        return false;
+    }
+
+    bool ok = true;
+
+    QString crs = QInputDialog::getText(mw,
+                                        QObject::tr("Set project default CRS"),
+                                        QObject::tr("Default Project CRS:"),
+                                        QLineEdit::Normal,
+                                        p->defaultProjectCRS(),
+                                        &ok);
+
+    if (!ok) {
+        return false;
+    }
+
+    p->setDefaultProjectCRS(crs);
+    return true;
+
+}
 
 StereoVision::Geometry::AffineTransform<float> getLocalFrameOnSphere(Eigen::Vector3f mean, float minDist) {
 

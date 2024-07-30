@@ -18,6 +18,283 @@ Trajectory::Trajectory(Project* parent) :
     _plateformDefinition.leverArm.setConstant(0);
 }
 
+std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadAngularSpeedRawData() const {
+
+    QFile angspdFile(_angularSpeedFile);
+
+    if (!angspdFile.open(QIODevice::ReadOnly)) {
+        return std::vector<Trajectory::TimeCartesianBlock>();
+    }
+
+    QString lineData;
+
+    std::vector<Trajectory::TimeCartesianBlock> ret;
+
+    int lineCount = 0;
+
+    QString sepPattern = "";
+
+    for (int i = 0; i < _separators.size(); i++) {
+        sepPattern += QRegularExpression::escape(_separators[i]);
+        if (i != _separators.size()-1) {
+            sepPattern += "|";
+        }
+    }
+
+    QRegularExpression sep(sepPattern);
+
+    //compute the minimum numbers of items in a line
+    int minLineElements = _angularSpeedDefinition.w_t_col;
+
+    if (_angularSpeedDefinition.w_x_col > minLineElements) {
+        minLineElements = _angularSpeedDefinition.w_x_col;
+    }
+    if (_angularSpeedDefinition.w_y_col > minLineElements) {
+        minLineElements = _angularSpeedDefinition.w_y_col;
+    }
+    if (_angularSpeedDefinition.w_z_col > minLineElements) {
+        minLineElements = _angularSpeedDefinition.w_z_col;
+    }
+    if (_angularSpeedDefinition.w_w_col > minLineElements and _angularSpeedDefinition.angle_representation == Quaternion) {
+        minLineElements = _angularSpeedDefinition.w_w_col;
+    }
+
+    minLineElements += 1;
+
+    while (!angspdFile.atEnd()) {
+
+        QByteArray line = angspdFile.readLine();
+        QString str = QString::fromLocal8Bit(line);
+
+        if (str.startsWith(_commentPattern)) {
+            continue;
+        }
+
+        QStringList splitted = str.split(sep, Qt::SkipEmptyParts);
+
+        if (splitted.size() < minLineElements) {
+            continue;
+        }
+
+        Trajectory::TimeCartesianBlock entry;
+
+        bool ok = true;
+
+        entry.time = splitted[_angularSpeedDefinition.w_t_col].toDouble(&ok);
+        entry.time = _angularSpeedDefinition.timeScale*entry.time + _angularSpeedDefinition.timeDelta;
+
+        if (!ok) {
+            continue;
+        }
+
+        double x;
+        double y;
+        double z;
+
+        x = splitted[_angularSpeedDefinition.w_x_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        x *= _angularSpeedDefinition.sign_x;
+
+        y = splitted[_angularSpeedDefinition.w_y_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        y *= _angularSpeedDefinition.sign_y;
+
+        z = splitted[_angularSpeedDefinition.w_z_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        z *= _angularSpeedDefinition.sign_z;
+
+        if (_angularSpeedDefinition.angle_representation == Quaternion) {
+
+            double w = splitted[_angularSpeedDefinition.w_w_col].toDouble(&ok);
+
+            if (!ok) {
+                continue;
+            }
+
+            w *= _angularSpeedDefinition.sign_w;
+
+            Eigen::Quaterniond quat(w, x, y, z);
+            Eigen::Vector3d axis = Eigen::AngleAxisd(quat).axis();
+
+            entry.val.x() = axis.x();
+            entry.val.y() = axis.y();
+            entry.val.z() = axis.z();
+
+        } else if (_angularSpeedDefinition.angle_representation == EulerXYZ or
+                _angularSpeedDefinition.angle_representation == EulerZYX) {
+
+            double x_rad = x;
+            double y_rad = y;
+            double z_rad = z;
+
+            if (_angularSpeedDefinition.angleUnit == Degree) {
+                x_rad *= M_PI/180;
+                y_rad *= M_PI/180;
+                z_rad *= M_PI/180;
+            }
+
+            if (_angularSpeedDefinition.angleUnit == Gon) {
+                x_rad *= M_PI/200;
+                y_rad *= M_PI/200;
+                z_rad *= M_PI/200;
+            }
+
+            Eigen::Vector3d axis;
+
+            if (_angularSpeedDefinition.angle_representation == EulerXYZ) {
+                Eigen::Quaterniond combinedRot =
+                        Eigen::AngleAxisd(z_rad, Eigen::Vector3d::UnitZ())
+                        * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
+                        * Eigen::AngleAxisd(x_rad, Eigen::Vector3d::UnitX());
+
+                Eigen::AngleAxisd axisAngle(combinedRot);
+
+                double angle = axisAngle.angle();
+                axis = axisAngle.axis();
+                axis *= angle;
+            }
+
+            if (_angularSpeedDefinition.angle_representation == EulerZYX) {
+                Eigen::Quaterniond combinedRot =
+                        Eigen::AngleAxisd(x_rad, Eigen::Vector3d::UnitX())
+                        * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
+                        * Eigen::AngleAxisd(z_rad, Eigen::Vector3d::UnitZ());
+
+                Eigen::AngleAxisd axisAngle(combinedRot);
+
+                double angle = axisAngle.angle();
+                axis = axisAngle.axis();
+                axis *= angle;
+            }
+
+            entry.val.x() = axis.x();
+            entry.val.y() = axis.y();
+            entry.val.z() = axis.z();
+
+        } else {
+
+            entry.val.x() = x;
+            entry.val.y() = y;
+            entry.val.z() = z;
+
+        }
+
+        ret.push_back(entry);
+
+        lineCount++;
+
+    }
+
+    return ret;
+
+}
+
+std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadAccelerationRawData() const {
+
+    QFile accFile(_accelerationFile);
+
+    if (!accFile.open(QIODevice::ReadOnly)) {
+        return std::vector<Trajectory::TimeCartesianBlock>();
+    }
+
+    QString lineData;
+
+    std::vector<Trajectory::TimeCartesianBlock> ret;
+
+    int lineCount = 0;
+
+    QString sepPattern = "";
+
+    for (int i = 0; i < _separators.size(); i++) {
+        sepPattern += QRegularExpression::escape(_separators[i]);
+        if (i != _separators.size()-1) {
+            sepPattern += "|";
+        }
+    }
+
+    QRegularExpression sep(sepPattern);
+
+    //compute the minimum numbers of items in a line
+    int minLineElements = _accelerationDefinition.acc_t_col;
+
+    if (_accelerationDefinition.acc_x_col > minLineElements) {
+        minLineElements = _accelerationDefinition.acc_x_col;
+    }
+    if (_accelerationDefinition.acc_y_col > minLineElements) {
+        minLineElements = _accelerationDefinition.acc_y_col;
+    }
+    if (_accelerationDefinition.acc_z_col > minLineElements) {
+        minLineElements = _accelerationDefinition.acc_z_col;
+    }
+
+    minLineElements += 1;
+
+    while (!accFile.atEnd()) {
+
+        QByteArray line = accFile.readLine();
+        QString str = QString::fromLocal8Bit(line);
+
+        if (str.startsWith(_commentPattern)) {
+            continue;
+        }
+
+        QStringList splitted = str.split(sep, Qt::SkipEmptyParts);
+
+        if (splitted.size() < minLineElements) {
+            continue;
+        }
+
+        Trajectory::TimeCartesianBlock entry;
+
+        bool ok = true;
+
+        entry.time = splitted[_accelerationDefinition.acc_t_col].toDouble(&ok);
+        entry.time = _accelerationDefinition.timeScale*entry.time + _accelerationDefinition.timeDelta;
+
+        if (!ok) {
+            continue;
+        }
+
+        entry.val.x() = splitted[_accelerationDefinition.acc_x_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        entry.val.y() = splitted[_accelerationDefinition.acc_y_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        entry.val.z() = splitted[_accelerationDefinition.acc_z_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        ret.push_back(entry);
+
+        lineCount++;
+
+    }
+
+    return ret;
+
+}
+
 std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionData() const {
 
     std::vector<TimeCartesianBlock> ret = loadPositionRawData();
@@ -76,6 +353,32 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionData() const
     return ret;
 
 }
+
+
+std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadAngularSpeedSequence() const {
+
+    std::vector<TimeCartesianBlock> data = loadAngularSpeedRawData();
+
+    if (data.empty()) {
+        return std::nullopt;
+    }
+
+    return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
+
+}
+
+std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadAccelerationSequence() const {
+
+    std::vector<TimeCartesianBlock> data = loadAccelerationRawData();
+
+    if (data.empty()) {
+        return std::nullopt;
+    }
+
+    return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
+
+}
+
 std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadOrientationSequence() const {
     std::vector<TimeCartesianBlock> data = loadOrientationRawData();
 
@@ -485,13 +788,19 @@ std::vector<Trajectory::TimeTrajectoryBlock> Trajectory::loadTrajectoryData() co
 
 std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectorySequence() const {
 
+    if (_trajectoryCache.has_value()) {
+        return _trajectoryCache;
+    }
+
     std::vector<TimeTrajectoryBlock> data = loadTrajectoryData();
 
     if (data.empty()) {
         return std::nullopt;
     }
 
-    return TimeTrajectorySequence(std::move(data));
+    _trajectoryCache = TimeTrajectorySequence(std::move(data));
+
+    return _trajectoryCache;
 }
 
 std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProjectLocalFrameSequence() const {
@@ -542,10 +851,14 @@ Eigen::Array<float,3, Eigen::Dynamic> Trajectory::getLocalPointsEcef() const  {
 
     Eigen::Array<float,3, Eigen::Dynamic> ret;
 
+    if (positionData.size() == 0) {
+        return ret;
+    }
+
     ret.resize(3,1);
-    ret.col(0) = positionData[0].val.x();
-    ret.col(1) = positionData[0].val.y();
-    ret.col(2) = positionData[0].val.z();
+    ret(0,0) = positionData[0].val.x();
+    ret(1,0) = positionData[0].val.y();
+    ret(2,0) = positionData[0].val.z();
 
     return ret;
 }
@@ -570,6 +883,20 @@ void Trajectory::setPositionEpsg(QString const& epsg) {
 
     if (epsg != _positionDefinition.crs_epsg) {
         _positionDefinition.crs_epsg = epsg;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setPositionTimeScale(double scale) {
+    if (_positionDefinition.timeScale != scale) {
+        _positionDefinition.timeScale = scale;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setPositionTimeDelta(double delta) {
+    if (_positionDefinition.timeDelta != delta) {
+        _positionDefinition.timeDelta = delta;
         Q_EMIT trajectoryDataChanged();
     }
 }
@@ -604,6 +931,59 @@ void Trajectory::setPositionColumn(Axis axis, int col) {
         break;
     }
 }
+void Trajectory::setAccelerometerFile(QString const& path) {
+    if (path != _accelerationFile) {
+        _accelerationFile = path;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setAccelerometerTimeScale(double scale) {
+    if (_accelerationDefinition.timeScale != scale) {
+        _accelerationDefinition.timeScale = scale;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setAccelerometerTimeDelta(double delta) {
+    if (_accelerationDefinition.timeDelta != delta) {
+        _accelerationDefinition.timeDelta = delta;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setAccelerometerColumn(Axis axis, int col) {
+    switch (axis) {
+    case T:
+        if (col != _accelerationDefinition.acc_t_col){
+            _accelerationDefinition.acc_t_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case X:
+        if (col != _accelerationDefinition.acc_x_col) {
+            _accelerationDefinition.acc_x_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Y:
+        if (col != _accelerationDefinition.acc_y_col) {
+            _accelerationDefinition.acc_y_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Z:
+        if (col != _accelerationDefinition.acc_z_col) {
+            _accelerationDefinition.acc_z_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    default:
+        break;
+    }
+
+}
+
 void Trajectory::setOrientationFile(QString const& path) {
     _orientationFile = path;
 }
@@ -618,6 +998,20 @@ void Trajectory::setOrientationAngleRepresentation(AngleRepresentation represent
 
 void Trajectory::setOrientationAngleUnits(AngleUnits units) {
     _orientationDefinition.angleUnit = units;
+}
+
+void Trajectory::setOrientationTimeScale(double scale) {
+    if (_orientationDefinition.timeScale != scale) {
+        _orientationDefinition.timeScale = scale;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setOrientationTimeDelta(double delta){
+    if (_orientationDefinition.timeDelta != delta) {
+        _orientationDefinition.timeDelta = delta;
+        Q_EMIT trajectoryDataChanged();
+    }
 }
 
 void Trajectory::setOrientationColumn(Axis axis, int col) {
@@ -659,9 +1053,116 @@ void Trajectory::setOrientationSign(Axis axis, int sign) {
     }
 }
 
+void Trajectory::setGyroFile(QString const& path) {
+    if (_angularSpeedFile != path) {
+        _angularSpeedFile = path;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setGyroAngleRepresentation(AngleRepresentation representation) {
+    _angularSpeedDefinition.angle_representation = representation;
+}
+
+void Trajectory::setGyroAngleUnits(AngleUnits units) {
+    _angularSpeedDefinition.angleUnit = units;
+}
+
+void Trajectory::setGyroTimeScale(double scale) {
+    if (_angularSpeedDefinition.timeScale != scale) {
+        _angularSpeedDefinition.timeScale = scale;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setGyroTimeDelta(double delta) {
+    if (_angularSpeedDefinition.timeDelta != delta) {
+        _angularSpeedDefinition.timeDelta = delta;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setGyroColumn(Axis axis, int col) {
+    switch (axis) {
+    case T:
+        _angularSpeedDefinition.w_t_col = col;
+        break;
+    case X:
+        _angularSpeedDefinition.w_x_col = col;
+        break;
+    case Y:
+        _angularSpeedDefinition.w_y_col = col;
+        break;
+    case Z:
+        _angularSpeedDefinition.w_z_col = col;
+        break;
+    case W:
+        _angularSpeedDefinition.w_w_col = col;
+        break;
+    }
+
+}
+
+void Trajectory::setGyroSign(Axis axis, int sign) {
+    switch (axis) {
+    case T:
+        return;
+    case X:
+        _angularSpeedDefinition.sign_x = sign;
+        break;
+    case Y:
+        _angularSpeedDefinition.sign_y = sign;
+        break;
+    case Z:
+        _angularSpeedDefinition.sign_z = sign;
+        break;
+    case W:
+        _angularSpeedDefinition.sign_w = sign;
+        break;
+    }
+
+}
+
 QJsonObject Trajectory::encodeJson() const {
 
     QJsonObject obj;
+
+    QJsonObject accelerationDefinition;
+
+    accelerationDefinition.insert("time_delta", _accelerationDefinition.timeDelta);
+    accelerationDefinition.insert("time_scale", _accelerationDefinition.timeScale);
+
+    accelerationDefinition.insert("acc_t_col", _accelerationDefinition.acc_t_col);
+    accelerationDefinition.insert("acc_x_col", _accelerationDefinition.acc_x_col);
+    accelerationDefinition.insert("acc_y_col", _accelerationDefinition.acc_y_col);
+    accelerationDefinition.insert("acc_z_col", _accelerationDefinition.acc_z_col);
+
+    obj.insert("accelerationDefinition", accelerationDefinition);
+    obj.insert("accelerationFile", _accelerationFile);
+
+    QJsonObject angularSpeedDefinition;
+
+    QMetaEnum e = QMetaEnum::fromType<AngleRepresentation>();
+    angularSpeedDefinition.insert("angle_representation", e.valueToKey(_angularSpeedDefinition.angle_representation));
+    e = QMetaEnum::fromType<AngleUnits>();
+    angularSpeedDefinition.insert("angleUnit", e.valueToKey(_angularSpeedDefinition.angleUnit));
+
+    angularSpeedDefinition.insert("time_delta", _angularSpeedDefinition.timeDelta);
+    angularSpeedDefinition.insert("time_scale", _angularSpeedDefinition.timeScale);
+
+    angularSpeedDefinition.insert("pos_t_col", _angularSpeedDefinition.w_t_col);
+    angularSpeedDefinition.insert("pos_x_col", _angularSpeedDefinition.w_x_col);
+    angularSpeedDefinition.insert("pos_y_col", _angularSpeedDefinition.w_y_col);
+    angularSpeedDefinition.insert("pos_z_col", _angularSpeedDefinition.w_z_col);
+    angularSpeedDefinition.insert("pos_w_col", _angularSpeedDefinition.w_w_col);
+
+    angularSpeedDefinition.insert("sign_x", _angularSpeedDefinition.sign_x);
+    angularSpeedDefinition.insert("sign_y", _angularSpeedDefinition.sign_y);
+    angularSpeedDefinition.insert("sign_z", _angularSpeedDefinition.sign_z);
+    angularSpeedDefinition.insert("sign_w", _angularSpeedDefinition.sign_w);
+
+    obj.insert("angularSpeedDefinition", angularSpeedDefinition);
+    obj.insert("angularSpeedFile", _angularSpeedFile);
 
     QJsonObject positionDefinition;
 
@@ -680,7 +1181,7 @@ QJsonObject Trajectory::encodeJson() const {
 
     QJsonObject orientationDefinition;
 
-    QMetaEnum e = QMetaEnum::fromType<TopocentricConvention>();
+    e = QMetaEnum::fromType<TopocentricConvention>();
     orientationDefinition.insert("topocentric_convention", e.valueToKey(_orientationDefinition.topocentric_convention));
     e = QMetaEnum::fromType<AngleRepresentation>();
     orientationDefinition.insert("angle_representation", e.valueToKey(_orientationDefinition.angle_representation));
@@ -718,6 +1219,120 @@ QJsonObject Trajectory::encodeJson() const {
 
 }
 void Trajectory::configureFromJson(QJsonObject const& data) {
+
+    if (data.contains("accelerationDefinition")) {
+
+        QJsonObject accelerationDefinition = data.value("accelerationDefinition").toObject();
+
+        if (accelerationDefinition.contains("time_delta")) {
+            _accelerationDefinition.timeDelta = accelerationDefinition.value("time_delta").toDouble(0);
+        } else {
+            _accelerationDefinition.timeDelta = 0;
+        }
+
+        if (accelerationDefinition.contains("time_scale")) {
+            _accelerationDefinition.timeScale = accelerationDefinition.value("time_scale").toDouble(1);
+        } else {
+            _accelerationDefinition.timeScale = 1;
+        }
+
+        if (accelerationDefinition.contains("acc_t_col")) {
+            _accelerationDefinition.acc_t_col = accelerationDefinition.value("acc_t_col").toInt(-1);
+        }
+
+        if (accelerationDefinition.contains("acc_x_col")) {
+            _accelerationDefinition.acc_x_col = accelerationDefinition.value("acc_x_col").toInt(-1);
+        }
+
+        if (accelerationDefinition.contains("acc_y_col")) {
+            _accelerationDefinition.acc_y_col = accelerationDefinition.value("acc_y_col").toInt(-1);
+        }
+
+        if (accelerationDefinition.contains("acc_z_col")) {
+            _accelerationDefinition.acc_z_col = accelerationDefinition.value("acc_z_col").toInt(-1);
+        }
+
+    }
+
+    if (data.contains("accelerationFile")) {
+        _accelerationFile = data.value("accelerationFile").toString();
+    }
+
+    if (data.contains("angularSpeedDefinition")) {
+
+        QJsonObject angularSpeedDefinition = data.value("angularSpeedDefinition").toObject();
+
+        if (angularSpeedDefinition.contains("time_delta")) {
+            _angularSpeedDefinition.timeDelta = angularSpeedDefinition.value("time_delta").toDouble(0);
+        } else {
+            _angularSpeedDefinition.timeDelta = 0;
+        }
+
+        if (angularSpeedDefinition.contains("time_scale")) {
+            _angularSpeedDefinition.timeScale = angularSpeedDefinition.value("time_scale").toDouble(1);
+        } else {
+            _angularSpeedDefinition.timeScale = 1;
+        }
+
+        if (angularSpeedDefinition.contains("angle_representation")) {
+
+            QMetaEnum e = QMetaEnum::fromType<AngleRepresentation>();
+            bool ok = true;
+            int val = e.keysToValue(angularSpeedDefinition.value("angle_representation").toString().toLocal8Bit().data(), &ok);
+
+            if (ok) {
+                _angularSpeedDefinition.angle_representation = static_cast<AngleRepresentation>(val);
+            } else {
+                _angularSpeedDefinition.angle_representation = AxisAngle; //default
+            }
+        }
+        if (angularSpeedDefinition.contains("angleUnit")) {
+
+            QMetaEnum e = QMetaEnum::fromType<AngleUnits>();
+            bool ok = true;
+            int val = e.keysToValue(angularSpeedDefinition.value("angleUnit").toString().toLocal8Bit().data(), &ok);
+
+            if (ok) {
+                _angularSpeedDefinition.angleUnit = static_cast<AngleUnits>(val);
+            } else {
+                _angularSpeedDefinition.angleUnit = Degree; //default
+            }
+        }
+
+        if (angularSpeedDefinition.contains("pos_t_col")) {
+            _angularSpeedDefinition.w_t_col = angularSpeedDefinition.value("pos_t_col").toInt();
+        }
+        if (angularSpeedDefinition.contains("pos_x_col")) {
+            _angularSpeedDefinition.w_x_col = angularSpeedDefinition.value("pos_x_col").toInt();
+        }
+        if (angularSpeedDefinition.contains("pos_y_col")) {
+            _angularSpeedDefinition.w_y_col = angularSpeedDefinition.value("pos_y_col").toInt();
+        }
+        if (angularSpeedDefinition.contains("pos_z_col")) {
+            _angularSpeedDefinition.w_z_col = angularSpeedDefinition.value("pos_z_col").toInt();
+        }
+        if (angularSpeedDefinition.contains("pos_w_col")) {
+            _angularSpeedDefinition.w_w_col = angularSpeedDefinition.value("pos_w_col").toInt();
+        }
+
+        if (angularSpeedDefinition.contains("sign_x")) {
+            _angularSpeedDefinition.sign_x = angularSpeedDefinition.value("sign_x").toInt();
+        }
+        if (angularSpeedDefinition.contains("sign_y")) {
+            _angularSpeedDefinition.sign_y = angularSpeedDefinition.value("sign_y").toInt();
+        }
+        if (angularSpeedDefinition.contains("sign_z")) {
+            _angularSpeedDefinition.sign_z = angularSpeedDefinition.value("sign_z").toInt();
+        }
+        if (angularSpeedDefinition.contains("sign_w")) {
+            _angularSpeedDefinition.sign_w = angularSpeedDefinition.value("sign_w").toInt();
+        }
+
+    }
+
+    if (data.contains("angularSpeedFile")) {
+        _angularSpeedFile = data.value("angularSpeedFile").toString();
+    }
 
     if (data.contains("positionDefinition")) {
 
@@ -764,6 +1379,18 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
     if (data.contains("orientationDefinition")) {
 
         QJsonObject orientationDefinition = data.value("orientationDefinition").toObject();
+
+        if (orientationDefinition.contains("time_delta")) {
+            _orientationDefinition.timeDelta = orientationDefinition.value("time_delta").toDouble(0);
+        } else {
+            _orientationDefinition.timeDelta = 0;
+        }
+
+        if (orientationDefinition.contains("time_scale")) {
+            _orientationDefinition.timeScale = orientationDefinition.value("time_scale").toDouble(1);
+        } else {
+            _orientationDefinition.timeScale = 1;
+        }
 
         if (orientationDefinition.contains("topocentric_convention")) {
             QMetaEnum e = QMetaEnum::fromType<TopocentricConvention>();
@@ -846,8 +1473,16 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         }
     }
 
+    if (_separators.isEmpty()) { //default value
+        _separators.push_back(",");
+    }
+
     if (data.contains("commentPattern")) {
         _commentPattern = data.value("commentPattern").toString("#");
+
+        if (_commentPattern.isEmpty()) { //default value
+            _commentPattern = "#";
+        }
     } else {
         _commentPattern = "#";
     }

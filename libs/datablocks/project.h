@@ -114,8 +114,23 @@ public:
 
 	const QVector<QString> &installedTypes() const;
 
+    inline QString defaultProjectCRS() const {
+        return _defaultProjectCRS;
+    }
+
+    inline void setDefaultProjectCRS(QString defaultProjectCRS) {
+        _defaultProjectCRS = defaultProjectCRS;
+    }
+
+    /*!
+     * \brief hasLocalCoordinateFrame indicate that the project has a local coordinate frame for optimisation
+     * \return true if the local coordinate system exist.
+     *
+     * The local coordinate frame is usefull mostly when working with goegraphic coordinates.
+     * The optimization will be done in a shifted ECEF frame, rather than ECEF, for numerical stability.
+     */
     inline bool hasLocalCoordinateFrame() const {
-        return _hasLocalCrs;
+        return _hasLocalCoordinateFrame;
     }
 
     inline StereoVision::Geometry::AffineTransform<float> ecef2local() const {
@@ -123,7 +138,7 @@ public:
     }
 
     inline void setLocalCoordinateFrame(StereoVision::Geometry::AffineTransform<float> const& reference2local) {
-        _hasLocalCrs = true;
+        _hasLocalCoordinateFrame = true;
         _ecef2local = reference2local;
 
         Q_EMIT projectDataChanged();
@@ -168,7 +183,8 @@ protected:
 
 	QString _source;
 
-    bool _hasLocalCrs; //indicate if the project has a local crs
+    QString _defaultProjectCRS;
+    bool _hasLocalCoordinateFrame; //indicate if the project has a local crs
     StereoVision::Geometry::AffineTransform<float> _ecef2local; //represent the transformation from world (ECEF) and local coordinate system
 
 	friend class ProjectFactory;

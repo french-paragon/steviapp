@@ -6,6 +6,7 @@
 
 class QLineEdit;
 class QSpinBox;
+class QDoubleSpinBox;
 
 namespace StereoVisionApp {
 
@@ -29,6 +30,9 @@ protected:
     QLineEdit* _posFileLine;
 
     QLineEdit* _epsgLine;
+
+    QDoubleSpinBox* _timeScaleSpinBox;
+    QDoubleSpinBox* _timeDeltaSpinBox;
 
     QSpinBox* _timeColSpinBox;
     QSpinBox* _xColSpinBox;

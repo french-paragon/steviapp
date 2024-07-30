@@ -7,6 +7,11 @@
 #include <StereoVision/geometry/rotations.h>
 #include <StereoVision/geometry/alignement.h>
 
+#ifndef NDEBUG
+#include <iostream>
+#include <ceres/jet.h>
+#endif
+
 namespace StereoVisionApp {
 
 class ParametrizedXYZ2UVCost
@@ -76,6 +81,12 @@ public:
 
         residual[0] = _info(0,0)*error[0] + _info(0,1)*error[1];
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
+            std::cout << "Error in ParametrizedXYZ2UVCost cost computation" << std::endl;
+        }
+#endif
 
         return true;
 

@@ -14,18 +14,28 @@ namespace StereoVisionApp {
 
 class Landmark;
 class ImageLandmark;
+class Camera;
+class Trajectory;
 
 class Image : public RigidBody
 {
 	Q_OBJECT
 public:
-	Image(Project* parent = nullptr);
+    Image(Project* parent = nullptr);
 
-	qint64 assignedCamera() const;
-	void assignCamera(qint64 camId);
+    qint64 assignedCamera() const;
+    Camera* getAssignedCamera() const;
+    void assignCamera(qint64 camId);
+
+    qint64 assignedTrajectory() const;
+    Trajectory* getAssignedTrajectory() const;
+    void assignTrajectory(qint64 trajId);
 
 	QString getImageFile() const;
 	void setImageFile(const QString &imageFile);
+
+    std::optional<double> getImageTimestamp() const;
+    void setImageTimeStamp(std::optional<double> const& timing);
 
 	qint64 addImageLandmark(const QPointF &coordinates, bool uncertain = false, qreal sigma_pos = 1.0);
 	qint64 addImageLandmark(const QPointF &coordinates, qint64 attacheLandmarkId, bool uncertain = false, qreal sigma_pos = 1.0);
@@ -44,16 +54,18 @@ public:
 	bool hasOptimizedParameters() const override;
 
 	QJsonObject getJsonRepresentation() const override;
-	void setParametersFromJsonRepresentation(QJsonObject const& rep) override;
+    void setParametersFromJsonRepresentation(QJsonObject const& rep) override;
 
 Q_SIGNALS:
 
 	void assignedCameraChanged(qint64 id);
+    void assignedTrajectoryChanged(qint64 id);
 
 	void pointAdded(qint64 pt);
 	void pointRemoved(qint64 pt);
 
-	void imageFileChanged(QString fName);
+    void imageFileChanged(QString fName);
+    void imageTimeChanged(std::optional<double> fName);
 
 
 protected:
@@ -64,8 +76,10 @@ protected:
 	void extendDataModel();
 
 	qint64 _assignedCamera;
+    qint64 _assignedTrajectory; //the trajectory the image has been taken from.
 
 	QString _imageFile;
+    std::optional<double> _imageTime;
 };
 
 class ImageLandmark : public DataBlock

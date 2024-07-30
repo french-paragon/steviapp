@@ -16,6 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp -march=native -ftree-vectorize")
 
 #options
@@ -93,8 +94,7 @@ pkg_check_modules(PROJ REQUIRED IMPORTED_TARGET proj)
 add_library(PROJ::proj ALIAS PkgConfig::PROJ)
 #TODO: check when the ubuntu repos update to the PROJ 9 release, which should include a cmake package
 
-pkg_check_modules(GDAL REQUIRED IMPORTED_TARGET gdal)
-add_library(GDAL::GDAL ALIAS PkgConfig::GDAL)
+find_package(GDAL REQUIRED)
 #TODO: check when the ubuntu repos include the proper cmake configuration files in their repos
 
 find_package(glog REQUIRED)

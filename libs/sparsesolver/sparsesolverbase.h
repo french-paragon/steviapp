@@ -12,7 +12,7 @@ class Project;
 class SparseSolverBase : public SteppedProcess
 {
 public:
-	SparseSolverBase(Project* p,QObject *parent = nullptr);
+    SparseSolverBase(Project* p, QObject *parent = nullptr);
 
 	int numberOfSteps() override;
 
@@ -24,15 +24,17 @@ public:
 
 	virtual bool hasUncertaintyStep() const = 0;
 
-	QString currentStepName() override;
+    QString currentStepName() override;
 
-        inline FixedParameters getFixedParametersFlag() const {
-            return _fixedParameters;
-        }
+    inline FixedParameters getFixedParametersFlag() const {
+        return _fixedParameters;
+    }
 
-        inline void setFixedParametersFlag(FixedParameters fixedParameters) {
-            _fixedParameters = fixedParameters;
-        }
+    inline void setFixedParametersFlag(FixedParameters fixedParameters) {
+        _fixedParameters = fixedParameters;
+    }
+
+    inline Project* currentProject() const { return _currentProject; }
 
 protected:
 

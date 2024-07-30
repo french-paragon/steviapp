@@ -7,9 +7,17 @@
 #include <StereoVision/geometry/rotations.h>
 #include <StereoVision/geometry/alignement.h>
 
+#ifndef NDEBUG
+#include <iostream>
+#include <ceres/jet.h>
+#endif
+
 
 namespace StereoVisionApp {
 
+/*!
+ * \brief The Local3DtoImageUVCost class measure the alignement between a 3D point in a local frame and its uv projection in a pinhole camera.
+ */
 class Local3DtoImageUVCost
 {
 public:
@@ -88,6 +96,12 @@ public:
 
         residual[0] = _info(0,0)*error[0] + _info(0,1)*error[1];
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
+            std::cout << "Error in Local3DtoImageUVCost cost computation" << std::endl;
+        }
+#endif
 
         return true;
 

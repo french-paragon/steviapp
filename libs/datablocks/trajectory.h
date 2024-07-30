@@ -92,6 +92,18 @@ public:
     using TimeTrajectoryBlock = TimeTrajectorySequence::TimedElement;
 
     /*!
+     * \brief loadAngularSpeedSequence load an IndexedTimeSequence for the angular speed (in body frame).
+     * \return optionnaly a TimeCartesianSequence
+     */
+    std::optional<TimeCartesianSequence> loadAngularSpeedSequence() const;
+
+    /*!
+     * \brief loadAccelerationSequence load an IndexedTimeSequence for the acceleration (in body frame)
+     * \return optionnaly a TimeCartesianSequence
+     */
+    std::optional<TimeCartesianSequence> loadAccelerationSequence() const;
+
+    /*!
      * \brief loadPositionSequence load an IndexedTimeSequence for the orientation (in local topographic frames).
      * \return optionnaly a TimeCartesianSequence
      */
@@ -140,6 +152,18 @@ public:
     }
     void setPositionEpsg(QString const& epsg);
 
+    inline double positionTimeScale() {
+        return _positionDefinition.timeScale;
+    }
+
+    void setPositionTimeScale(double scale);
+
+    inline double positionTimeDelta() {
+        return _positionDefinition.timeDelta;
+    }
+
+    void setPositionTimeDelta(double delta);
+
     inline int positionColumns(Axis axis) const {
         switch (axis) {
         case T:
@@ -155,6 +179,39 @@ public:
         }
     }
     void setPositionColumn(Axis axis, int col);
+
+    inline QString accelerometerFile() const {
+        return _accelerationFile;
+    }
+    void setAccelerometerFile(QString const& path);
+
+    inline double accelerometerTimeScale() {
+        return _accelerationDefinition.timeScale;
+    }
+
+    void setAccelerometerTimeScale(double scale);
+
+    inline double accelerometerTimeDelta() {
+        return _accelerationDefinition.timeDelta;
+    }
+
+    void setAccelerometerTimeDelta(double delta);
+
+    inline int accelerometerColumns(Axis axis) const {
+        switch (axis) {
+        case T:
+            return _accelerationDefinition.acc_t_col;
+        case X:
+            return _accelerationDefinition.acc_x_col;
+        case Y:
+            return _accelerationDefinition.acc_y_col;
+        case Z:
+            return _accelerationDefinition.acc_z_col;
+        default:
+            return -1;
+        }
+    }
+    void setAccelerometerColumn(Axis axis, int col);
 
 
     inline QString orientationFile() const {
@@ -185,6 +242,18 @@ public:
     inline void setOrientationAngleUnits(int units) {
         return setOrientationAngleUnits(static_cast<AngleUnits>(units));
     }
+
+    inline double orientationTimeScale() {
+        return _orientationDefinition.timeScale;
+    }
+
+    void setOrientationTimeScale(double scale);
+
+    inline double orientationTimeDelta() {
+        return _orientationDefinition.timeDelta;
+    }
+
+    void setOrientationTimeDelta(double delta);
 
     inline int orientationColumns(Axis axis) const {
         switch (axis) {
@@ -218,10 +287,90 @@ public:
     }
     void setOrientationSign(Axis axis, int sign);
 
+
+    inline QString gyroFile() const {
+        return _angularSpeedFile;
+    }
+    void setGyroFile(QString const& path);
+
+
+    inline AngleRepresentation gyroAngleRepresentation() const {
+        return _angularSpeedDefinition.angle_representation;
+    }
+    void setGyroAngleRepresentation(AngleRepresentation representation);
+    inline void setGyroAngleRepresentation(int representation) {
+        return setGyroAngleRepresentation(static_cast<AngleRepresentation>(representation));
+    }
+
+    inline AngleUnits gyroAngleUnits() const {
+        return _angularSpeedDefinition.angleUnit;
+    }
+    void setGyroAngleUnits(AngleUnits units);
+    inline void setGyroAngleUnits(int units) {
+        return setGyroAngleUnits(static_cast<AngleUnits>(units));
+    }
+
+    inline double gyroTimeScale() {
+        return _angularSpeedDefinition.timeScale;
+    }
+
+    void setGyroTimeScale(double scale);
+
+    inline double gyroTimeDelta() {
+        return _angularSpeedDefinition.timeDelta;
+    }
+
+    void setGyroTimeDelta(double delta);
+
+    inline int gyroColumns(Axis axis) const {
+        switch (axis) {
+        case T:
+            return _angularSpeedDefinition.w_t_col;
+        case X:
+            return _angularSpeedDefinition.w_x_col;
+        case Y:
+            return _angularSpeedDefinition.w_y_col;
+        case Z:
+            return _angularSpeedDefinition.w_z_col;
+        case W:
+            return _angularSpeedDefinition.w_w_col;
+        }
+    }
+    void setGyroColumn(Axis axis, int col);
+
+    inline int gyroSign(Axis axis) {
+        switch (axis) {
+        case T:
+            return 1;
+        case X:
+            return (_angularSpeedDefinition.sign_x > 0) ? 1 : -1;
+        case Y:
+            return (_angularSpeedDefinition.sign_y > 0) ? 1 : -1;
+        case Z:
+            return (_angularSpeedDefinition.sign_z > 0) ? 1 : -1;
+        case W:
+            return (_angularSpeedDefinition.sign_w > 0) ? 1 : -1;
+        }
+    }
+    void setGyroSign(Axis axis, int sign);
+
 Q_SIGNALS:
     void trajectoryDataChanged();
 
 protected:
+
+
+    /*!
+     * \brief loadAngularSpeedRawData load the angular speed data (in body frame)
+     * \return the data as TimeCartesianBlocks representing an angular speed, or empty vector if failed to load
+     */
+    std::vector<TimeCartesianBlock> loadAngularSpeedRawData() const;
+
+    /*!
+     * \brief loadAccelerationRawData load the acceleration data (in body frame)
+     * \return the data as TimeCartesianBlocks, or empty vector if failed to load
+     */
+    std::vector<TimeCartesianBlock> loadAccelerationRawData() const;
 
     /*!
      * \brief loadPositionData load the position data (including geodetic conversion if defined properly)
@@ -236,7 +385,7 @@ protected:
     std::vector<TimeCartesianBlock> loadPositionRawData() const;
 
     /*!
-     * \brief loadPositionRawData load the orientation raw data (i.e. without any conversion from local topometric frame).
+     * \brief loadOrientationRawData load the orientation raw data (i.e. without any conversion from local topometric frame).
      * \return a vector of time orientation blocks (represented as axis angles)
      */
     std::vector<TimeCartesianBlock> loadOrientationRawData() const;
@@ -321,6 +470,45 @@ protected:
     } _positionDefinition;
 
     QString _positionFile;
+
+    struct AccelerometerDefinition {
+
+        double timeDelta;
+        double timeScale;
+
+        int acc_t_col;
+        int acc_x_col;
+        int acc_y_col;
+        int acc_z_col;
+
+    } _accelerationDefinition;
+
+    QString _accelerationFile;
+
+    struct AngularSpeedDefinition {
+
+        AngleRepresentation angle_representation;
+        AngleUnits angleUnit; //unit for the angles, if input euler angles
+
+        double timeDelta;
+        double timeScale;
+
+        int w_t_col;
+        int w_x_col;
+        int w_y_col;
+        int w_z_col;
+        int w_w_col;
+
+        int8_t sign_x;
+        int8_t sign_y;
+        int8_t sign_z;
+        int8_t sign_w;
+
+    } _angularSpeedDefinition;
+
+    QString _angularSpeedFile;
+
+    mutable std::optional<TimeTrajectorySequence> _trajectoryCache;
 };
 
 class TrajectoryFactory : public DataBlockFactory

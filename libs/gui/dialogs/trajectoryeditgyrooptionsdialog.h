@@ -1,5 +1,5 @@
-#ifndef STEREOVISIONAPP_TRAJECTORYEDITORIENTATIONOPTIONSDIALOG_H
-#define STEREOVISIONAPP_TRAJECTORYEDITORIENTATIONOPTIONSDIALOG_H
+#ifndef STEREOVISIONAPP_TRAJECTORYEDITGYROOPTIONSDIALOG_H
+#define STEREOVISIONAPP_TRAJECTORYEDITGYROOPTIONSDIALOG_H
 
 #include <QWidget>
 #include <QDialog>
@@ -14,24 +14,22 @@ namespace StereoVisionApp {
 
 class Trajectory;
 
-class TrajectoryEditOrientationOptionsDialog : public QDialog
+class TrajectoryEditGyroOptionsDialog : public QDialog
 {
-    Q_OBJECT
 public:
-    TrajectoryEditOrientationOptionsDialog(QWidget* parent = nullptr);
+    TrajectoryEditGyroOptionsDialog(QWidget* parent = nullptr);
 
     /*!
      * \brief ConfigureTrajectoryPositionOptions configure the options for the positions for a trajectory
      * \param traj the trajectory to configure
      * \param parent the parent for the dialog
      */
-    static void ConfigureTrajectoryOrientationOptions(Trajectory* traj, QWidget* parent);
+    static void ConfigureTrajectoryGyroOptions(Trajectory* traj, QWidget* parent);
 
 protected:
 
-    QLineEdit* _orientationFileLine;
+    QLineEdit* _gyroFileLine;
 
-    QComboBox* _topocentricConventionBox;
     QComboBox* _angleRepresentationBox;
     QComboBox* _angleUnitBox;
 
@@ -52,4 +50,4 @@ protected:
 
 } // namespace StereoVisionApp
 
-#endif // STEREOVISIONAPP_TRAJECTORYEDITORIENTATIONOPTIONSDIALOG_H
+#endif // STEREOVISIONAPP_TRAJECTORYEDITGYROOPTIONSDIALOG_H
