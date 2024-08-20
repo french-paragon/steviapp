@@ -155,11 +155,11 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
         PJ_COORD geoPos = proj_trans(ecef2latLon, PJ_FWD, ecefPos);
 
         PJ_COORD posUpN = geoPos;
-        posUpN.lpz.phi += 1e-5; //approximately 1m at sea level
+        posUpN.lpz.lam += 1e-5; //approximately 1m at sea level
         PJ_COORD posUpNEcef = proj_trans(latLon2ecef, PJ_FWD, posUpN);
 
         PJ_COORD posDownS = geoPos;
-        posDownS.lpz.phi -= 1e-5; //approximately 1m at sea level
+        posDownS.lpz.lam -= 1e-5; //approximately 1m at sea level
         PJ_COORD posDownSEcef = proj_trans(latLon2ecef, PJ_FWD, posDownS);
 
         PJ_COORD posUp = geoPos;
@@ -171,9 +171,9 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
                               posUpEcef.xyz.z - ecefPos.xyz.z);
         upVec.normalize();
 
-        Eigen::Vector3d northVec(posUpNEcef.xyz.x - posDownS.xyz.x,
-                                 posUpNEcef.xyz.y - posDownS.xyz.y,
-                                 posUpNEcef.xyz.z - posDownS.xyz.z);
+        Eigen::Vector3d northVec(posUpNEcef.xyz.x - posDownSEcef.xyz.x,
+                                 posUpNEcef.xyz.y - posDownSEcef.xyz.y,
+                                 posUpNEcef.xyz.z - posDownSEcef.xyz.z);
         double res = northVec.dot(upVec);
         northVec -= res*upVec;
 
