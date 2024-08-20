@@ -122,6 +122,13 @@ public:
      * This function is used mostly to display the trajectory in view widgets
      */
     std::vector<Eigen::Vector3f> loadTrajectoryPathInProjectLocalFrame() const;
+    /*!
+     * \brief loadTrajectoryInProjectLocalFrame load the pose data, and apply the conversion from ECEF to project local frame on the fly.
+     * \return a vector of StereoVision::Geometry::AffineTransform<float>
+     *
+     * This function is used mostly to display the trajectory in view widgets
+     */
+    std::vector<StereoVision::Geometry::AffineTransform<float>> loadTrajectoryInProjectLocalFrame() const;
 
 
     /*!

@@ -19,8 +19,8 @@ public:
     void paintGL(QMatrix4x4 const& modelView, QMatrix4x4 const& projectionView);
     void clearViewRessources();
 
-    void setTrajectory(const Trajectory * trajectory);
-    void setTrajectory(const std::vector<StereoVision::Geometry::AffineTransform<float> > &trajectory);
+    void setTrajectory(const Trajectory * trajectory, int orientationHandles = 9);
+    void setTrajectory(const std::vector<StereoVision::Geometry::AffineTransform<float> > &trajectory, int orientationHandles = 9);
     void setTrajectory(const std::vector<Eigen::Vector3f> &trajectory);
     void clearTrajectory();
 
@@ -51,10 +51,18 @@ protected:
     QOpenGLBuffer _traj_buffer;
     QOpenGLBuffer _idx_buffer;
 
+    QOpenGLBuffer _handle_buffer;
+    QOpenGLBuffer _handle_idx_buffer;
+
     QColor _baseColor;
     QColor _highlightSegmentColor;
 
     QOpenGLShaderProgram* _trajectoryProgram;
+
+    std::vector<QMatrix4x4> _traj_orient_steps; //list of orientation
+
+    std::vector<GLfloat> _orient_steps_pos;
+    std::vector<GLint> _orient_steps_idxs;
 
     std::vector<GLfloat> _traj_pos;
     std::vector<GLint> _traj_idxs;

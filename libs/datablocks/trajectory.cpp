@@ -440,6 +440,46 @@ std::vector<Eigen::Vector3f> Trajectory::loadTrajectoryPathInProjectLocalFrame()
     return path;
 
 }
+std::vector<StereoVision::Geometry::AffineTransform<float>> Trajectory::loadTrajectoryInProjectLocalFrame() const {
+
+    std::optional<StereoVision::Geometry::AffineTransform<float>> transform2projFrame = std::nullopt;
+
+    Project* proj = getProject();
+
+    if (proj != nullptr) {
+        if (proj->hasLocalCoordinateFrame()) {
+            transform2projFrame = proj->ecef2local();
+        }
+    }
+
+    std::vector<TimeTrajectoryBlock> data = loadTrajectoryData();
+
+    std::vector<StereoVision::Geometry::AffineTransform<float>> path(data.size());
+
+
+    if (transform2projFrame.has_value()) {
+
+        for (int i = 0; i < data.size(); i++) {
+
+            StereoVision::Geometry::AffineTransform<float> pose = data[i].val.cast<float>().toAffineTransform();
+            pose = transform2projFrame.value() * pose;
+
+            path[i] = pose;
+        }
+
+    } else {
+
+        for (int i = 0; i < data.size(); i++) {
+
+            StereoVision::Geometry::AffineTransform<float> pose = data[i].val.cast<float>().toAffineTransform();
+
+            path[i] = pose;
+        }
+    }
+
+    return path;
+
+}
 
 std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionRawData() const {
 

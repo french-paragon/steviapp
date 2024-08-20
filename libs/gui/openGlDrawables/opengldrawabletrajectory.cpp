@@ -20,6 +20,46 @@ OpenGlDrawableTrajectory::OpenGlDrawableTrajectory(StereoVisionApp::OpenGl3DScen
     _baseColor = QColor(50,100,250);
     _highlightSegmentColor = QColor(250,150,100);
 
+    //init the handle model:
+
+    _orient_steps_pos.resize(18);
+    _orient_steps_idxs.resize(6);
+
+    constexpr float baseScale = 5;
+
+    //x axis
+    _orient_steps_pos[0] = 1*baseScale;
+    _orient_steps_pos[1] = -1*baseScale;
+    _orient_steps_pos[2] = -1*baseScale;
+    _orient_steps_pos[3] = -1*baseScale;
+    _orient_steps_pos[4] = -1*baseScale;
+    _orient_steps_pos[5] = -1*baseScale;
+
+    _orient_steps_idxs[0] = 0;
+    _orient_steps_idxs[1] = 0;
+
+    //y axis
+    _orient_steps_pos[6] = -1*baseScale;
+    _orient_steps_pos[7] = 1*baseScale;
+    _orient_steps_pos[8] = -1*baseScale;
+    _orient_steps_pos[9] = -1*baseScale;
+    _orient_steps_pos[10] = -1*baseScale;
+    _orient_steps_pos[11] = -1*baseScale;
+
+    _orient_steps_idxs[2] = 1;
+    _orient_steps_idxs[3] = 1;
+
+    //z axis
+    _orient_steps_pos[12] = -1*baseScale;
+    _orient_steps_pos[13] = -1*baseScale;
+    _orient_steps_pos[14] = 1*baseScale;
+    _orient_steps_pos[15] = -1*baseScale;
+    _orient_steps_pos[16] = -1*baseScale;
+    _orient_steps_pos[17] = -1*baseScale;
+
+    _orient_steps_idxs[4] = 2;
+    _orient_steps_idxs[5] = 2;
+
 }
 
 void OpenGlDrawableTrajectory::initializeGL() {
@@ -31,6 +71,18 @@ void OpenGlDrawableTrajectory::initializeGL() {
 
     _idx_buffer.create();
     _idx_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
+
+    _handle_buffer.create();
+    _handle_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
+    _handle_buffer.bind();
+
+    _handle_buffer.allocate(_orient_steps_pos.data(), _orient_steps_pos.size()*sizeof (GLfloat));
+
+    _handle_idx_buffer.create();
+    _handle_idx_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
+    _handle_idx_buffer.bind();
+
+    _handle_idx_buffer.allocate(_orient_steps_idxs.data(), _orient_steps_idxs.size()*sizeof (GLfloat));
 
     _trajectoryProgram = new QOpenGLShaderProgram();
     _trajectoryProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/trajectoryViewerLine.vert");
@@ -88,7 +140,27 @@ void OpenGlDrawableTrajectory::paintGL(QMatrix4x4 const& modelView, QMatrix4x4 c
             _trajectoryProgram->setUniformValue("baseColor", _baseColor);
             _trajectoryProgram->setUniformValue("segmentColor", _highlightSegmentColor);
 
+            _trajectoryProgram->setUniformValue("mode", 0); //trajectory mode
+
             f->glDrawArrays(GL_LINE_STRIP, 0, _traj_idxs.size());
+
+            _trajectoryProgram->setUniformValue("mode", 1); //orientation handles mode
+
+
+            _handle_buffer.bind();
+
+            _trajectoryProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
+            _trajectoryProgram->enableAttributeArray(vertexLocation);
+
+            _handle_idx_buffer.bind();
+
+            ef->glVertexAttribIPointer(idxsLocation, 1, GL_INT, 0, 0);
+            _trajectoryProgram->enableAttributeArray(idxsLocation);
+
+            for (QMatrix4x4 pose : _traj_orient_steps) {
+                _trajectoryProgram->setUniformValue("matrixHandleTransform", pose);
+                f->glDrawArrays(GL_LINES, 0, _orient_steps_idxs.size());
+            }
 
             _scene_vao.release();
             _traj_buffer.release();
@@ -112,10 +184,10 @@ void OpenGlDrawableTrajectory::clearViewRessources() {
     _scene_vao.destroy();
 }
 
-void OpenGlDrawableTrajectory::setTrajectory(const Trajectory * trajectory) {
+void OpenGlDrawableTrajectory::setTrajectory(const Trajectory * trajectory, int orientationHandles) {
 
-    std::vector<Eigen::Vector3f> trajData = trajectory->loadTrajectoryPathInProjectLocalFrame(); //get the trajectory
-    setTrajectory(trajData);
+    std::vector<StereoVision::Geometry::AffineTransform<float>> trajData = trajectory->loadTrajectoryInProjectLocalFrame(); //get the trajectory
+    setTrajectory(trajData, orientationHandles);
 
 }
 
@@ -123,9 +195,11 @@ void OpenGlDrawableTrajectory::setTrajectory(const Trajectory * trajectory) {
  * \brief OpenGlDrawableTrajectory::setTrajectory set the trajectory that is displayed
  * \param trajectory the trajectory, as a series of body to world transforms
  */
-void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry::AffineTransform<float>> const& trajectory) {
+void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry::AffineTransform<float>> const& trajectory, int orientationHandles) {
 
     _segment_end = trajectory.size();
+
+    _traj_orient_steps.clear();
 
     _traj_pos.clear();
     _traj_pos.resize(trajectory.size()*3);
@@ -144,6 +218,23 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
         j++;
     }
 
+    for (int i = 0; i < orientationHandles; i++) {
+        int orientIdx = i*float(trajectory.size()-1)/std::max(1,orientationHandles);
+
+        StereoVision::Geometry::AffineTransform<float> const& transform = trajectory[orientIdx];
+
+        Eigen::Matrix3f const& R = transform.R;
+        Eigen::Vector3f const& t = transform.t;
+
+        QMatrix4x4 matr(
+                    R(0,0), R(0,1), R(0,2), t[0],
+                    R(1,0), R(1,1), R(1,2), t[1],
+                    R(2,0), R(2,1), R(2,2), t[2],
+                    0,      0,      0,      1);
+
+        _traj_orient_steps.push_back(matr);
+    }
+
     _has_data = true;
     _has_to_reset_gl_buffers = true;
 
@@ -157,6 +248,8 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
 void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> &trajectory) {
 
     _segment_end = trajectory.size();
+
+    _traj_orient_steps.clear();
 
     _traj_pos.clear();
     _traj_pos.resize(trajectory.size()*3);
