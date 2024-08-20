@@ -47,7 +47,8 @@ void OpenGlDrawable::processHoover(int code) {
 
 OpenGl3DSceneViewWidget::OpenGl3DSceneViewWidget(QWidget *parent) :
     QOpenGLWidget(parent),
-    _nextAvailableDrawableId(1)
+    _nextAvailableDrawableId(1),
+    _isInitialized(false)
 {
 
     _min_view_distance = 0.01;
@@ -120,6 +121,12 @@ void OpenGl3DSceneViewWidget::addDrawable(OpenGlDrawable* drawable) {
     connect(drawable, &OpenGlDrawable::updateRequested, this, [this] () {
         update();
     });
+
+    if (_isInitialized) { //the drawable needs to be initialized manually
+        makeCurrent();
+        drawable->initializeGL();
+        update();
+    }
 }
 void OpenGl3DSceneViewWidget::removeDrawable(OpenGlDrawable* drawable) {
 
@@ -276,6 +283,8 @@ void OpenGl3DSceneViewWidget::initializeGL() {
     }
 
     initializeObjectIdMaskPart();
+
+    _isInitialized = true;
 }
 void OpenGl3DSceneViewWidget::paintGL() {
 

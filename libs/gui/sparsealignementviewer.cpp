@@ -349,16 +349,22 @@ void SparseAlignementViewer::clearInterface() {
 
 void SparseAlignementViewer::setSceneScale(float sceneScale)
 {
-    _sceneScale = sceneScale;
-    _drawableLandmarks->setSceneScale(sceneScale);
-    _drawableCameras->setSceneScale(sceneScale);
+    if (_sceneScale != sceneScale) {
+        _sceneScale = sceneScale;
+        _drawableLandmarks->setSceneScale(sceneScale);
+        _drawableCameras->setSceneScale(sceneScale);
+        Q_EMIT sceneScaleChanged(_sceneScale);
+    }
 }
 
 void SparseAlignementViewer::setCamScale(float camScale)
 {
-    _camScale = camScale;
-    _drawableCameras->setCamScale(camScale);
-    _drawableLocalSystems->setCoordinatesScale(camScale);
+    if (_camScale != camScale) {
+        _camScale = camScale;
+        _drawableCameras->setCamScale(camScale);
+        _drawableLocalSystems->setCoordinatesScale(camScale);
+        Q_EMIT camScaleChanged(_camScale);
+    }
 }
 
 void SparseAlignementViewer::scaleCamerasIn(float steps) {

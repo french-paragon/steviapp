@@ -105,6 +105,8 @@ protected:
     float _x_delta;
     float _y_delta;
 
+    bool _isInitialized;
+
 private:
 
     int _nextAvailableDrawableId;

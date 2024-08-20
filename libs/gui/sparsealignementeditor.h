@@ -30,6 +30,9 @@ public:
 	void reloadLandmarks();
 	void clearLandmarks();
 
+    float sceneScale() const;
+    float camScale() const;
+
     /*!
      * \brief addDrawable add a drawable to the editor
      * \param name the name for the editor
@@ -56,6 +59,11 @@ public:
      * The associated drawable will be deleted
      */
     void removeDrawable(QString const& name);
+
+Q_SIGNALS:
+
+    void sceneScaleChanged(float sceneScale);
+    void camScaleChanged(float camScale);
 
 protected:
 

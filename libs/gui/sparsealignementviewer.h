@@ -109,7 +109,13 @@ public:
     void clearInterface();
 
     void setSceneScale(float sceneScale);
+    inline float sceneScale() const {
+        return _sceneScale;
+    }
     void setCamScale(float camScale);
+    inline float camScale() const {
+        return _camScale;
+    }
 
     void scaleCamerasIn(float steps = 1);
     void scaleCamerasOut(float steps = 1);
@@ -127,6 +133,9 @@ public:
     void clearLandmarks();
 
 Q_SIGNALS:
+
+    void sceneScaleChanged(float sceneScale);
+    void camScaleChanged(float camScale);
 
 	void sendStatusMessage(QString msg);
 

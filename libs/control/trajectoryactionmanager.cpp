@@ -105,6 +105,11 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
 
         if (drawable == nullptr) {
             drawableTrajectory = new OpenGlDrawableTrajectory();
+            drawableTrajectory->setSceneScale(sae->sceneScale());
+
+            connect(sae, &SparseAlignementEditor::sceneScaleChanged,
+                    drawableTrajectory, &OpenGlDrawableTrajectory::setSceneScale);
+
             sae->addDrawable(traj_drawable_name, drawableTrajectory);
 
         } else if (drawableTrajectory == nullptr) {

@@ -20,6 +20,12 @@ SparseAlignementEditor::SparseAlignementEditor(QWidget *parent) :
 
 	connect(ui->widget, &SparseAlignementViewer::sendStatusMessage,
 			this, &SparseAlignementEditor::sendStatusMessage);
+
+    connect(ui->widget, &SparseAlignementViewer::sceneScaleChanged,
+            this, &SparseAlignementEditor::sceneScaleChanged);
+
+    connect(ui->widget, &SparseAlignementViewer::camScaleChanged,
+            this, &SparseAlignementEditor::camScaleChanged);
 }
 
 SparseAlignementEditor::~SparseAlignementEditor()
@@ -37,6 +43,13 @@ void SparseAlignementEditor::reloadLandmarks() {
 }
 void SparseAlignementEditor::clearLandmarks() {
 	ui->widget->clearLandmarks();
+}
+
+float SparseAlignementEditor::sceneScale() const {
+    return ui->widget->sceneScale();
+}
+float SparseAlignementEditor::camScale() const {
+    return ui->widget->camScale();
 }
 
 bool SparseAlignementEditor::addDrawable(QString const& name, OpenGlDrawable* drawable) {

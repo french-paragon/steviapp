@@ -16,6 +16,10 @@ OpenGlDrawableTrajectory::OpenGlDrawableTrajectory(StereoVisionApp::OpenGl3DScen
     _segment_end(1000)
 {
 
+    //default colors
+    _baseColor = QColor(50,100,250);
+    _highlightSegmentColor = QColor(250,150,100);
+
 }
 
 void OpenGlDrawableTrajectory::initializeGL() {
@@ -173,6 +177,9 @@ void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> 
 
     _has_data = true;
     _has_to_reset_gl_buffers = true;
+
+    _segment_start = 0;
+    _segment_end = _traj_idxs.size();
 
     Q_EMIT updateRequested();
 }
