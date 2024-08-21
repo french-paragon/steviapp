@@ -161,15 +161,35 @@ QMatrix4x4 ProjectSparseAlignementDataInterface::getLocalSystemTransform(int idx
 
 QVector3D ProjectSparseAlignementDataInterface::getPointPos(int idx) const {
 
+    if (_currentProject == nullptr) {
+        return QVector3D(std::nanf(""), std::nanf(""), std::nanf(""));
+    }
+
 	QVector3D ret;
 
 	qint64 lmId = _loadedLandmarks.at(idx);
 
 	Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(lmId));
 
-	ret.setX(lm->optPos().value(0));
-	ret.setY(lm->optPos().value(1));
-	ret.setZ(lm->optPos().value(2));
+    if (lm == nullptr) {
+        return QVector3D(std::nanf(""), std::nanf(""), std::nanf(""));
+    }
+
+    std::optional<Eigen::Vector3f> optLocalPos = lm->getOptimizableCoordinates(true);
+
+    if (!optLocalPos.has_value()) {
+        return QVector3D(std::nanf(""), std::nanf(""), std::nanf(""));
+    }
+
+    Eigen::Vector3f& localPos = optLocalPos.value();
+
+    if (_currentProject->hasLocalCoordinateFrame()) {
+        localPos = _currentProject->ecef2local()*localPos;
+    }
+
+    ret.setX(localPos.x());
+    ret.setY(localPos.y());
+    ret.setZ(localPos.z());
 
 	return ret;
 

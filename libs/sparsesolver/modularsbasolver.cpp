@@ -622,6 +622,10 @@ bool ModularSBASolver::std_step() {
 }
 bool ModularSBASolver::writeResults() {
 
+    if (_currentProject == nullptr) {
+        return false;
+    }
+
     bool ok = true;
 
     logErrors("after_opt.log");
@@ -642,6 +646,16 @@ bool ModularSBASolver::writeResults() {
         }
     }
 
+    StereoVision::Geometry::AffineTransform<float> ecef2local;
+
+    if (_currentProject->hasLocalCoordinateFrame()) {
+        ecef2local = _currentProject->ecef2local();
+    }
+
+    StereoVision::Geometry::AffineTransform<float>
+            local2ecef(ecef2local.R.transpose(),
+                       -ecef2local.R.transpose()*ecef2local.t);
+
     for (qint64 id : _LandmarkParametersIndex.keys()) {
 
         Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
@@ -652,12 +666,30 @@ bool ModularSBASolver::writeResults() {
 
         LandmarkNode& lm_p = _LandmarkParameters[_LandmarkParametersIndex[id]];
 
-        floatParameterGroup<3> pos;
-        pos.value(0) = static_cast<float>(lm_p.pos[0]);
-        pos.value(1) = static_cast<float>(lm_p.pos[1]);
-        pos.value(2) = static_cast<float>(lm_p.pos[2]);
-        pos.setIsSet();
-        lm->setOptPos(pos);
+        if (lm->geoReferenceSupportActive()) {
+
+            Eigen::Vector3f pos;
+
+            pos[0] = lm_p.pos[0];
+            pos[1] = lm_p.pos[1];
+            pos[2] = lm_p.pos[2];
+
+            if (_currentProject->hasLocalCoordinateFrame()) {
+                Eigen::Vector3f tmp = local2ecef*pos;
+                pos = tmp;
+            }
+
+            lm->setPositionFromEcef(pos);
+
+        } else {
+
+            floatParameterGroup<3> pos;
+            pos.value(0) = static_cast<float>(lm_p.pos[0]);
+            pos.value(1) = static_cast<float>(lm_p.pos[1]);
+            pos.value(2) = static_cast<float>(lm_p.pos[2]);
+            pos.setIsSet();
+            lm->setOptPos(pos);
+        }
 
     }
 
