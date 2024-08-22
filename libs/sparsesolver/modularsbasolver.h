@@ -105,18 +105,35 @@ public:
     /*!
      * \brief The ErrorBlockLogger class represent a logger for an error block
      */
-    class ErrorBlockLogger {
+    class ValueBlockLogger {
     public:
-        ErrorBlockLogger();
-        virtual ~ErrorBlockLogger();
+        ValueBlockLogger();
+        virtual ~ValueBlockLogger();
 
         virtual QVector<double> getErrors() const = 0;
         QTextStream& log(QTextStream& stream) const;
 
     };
 
+    template<int nVals>
+    class ParamsValsLogger : public ValueBlockLogger {
+
+    public:
+        ParamsValsLogger(double* vals) {
+            _vals = vals;
+        }
+
+        virtual QVector<double> getErrors() const {
+
+            return QVector<double>(_vals, _vals+nVals);
+        }
+
+    protected:
+        double* _vals;
+    };
+
     template<int nArgs, int errDims>
-    class AutoErrorBlockLogger : public ErrorBlockLogger {
+    class AutoErrorBlockLogger : public ValueBlockLogger {
 
     public:
         using FuncType = ceres::CostFunction*;
@@ -320,8 +337,8 @@ public:
     }
 
     void enableLogging(QString loggingDirPath);
-    void logErrors(QString fileName);
-    void addLogger(QString const& loggerName, ErrorBlockLogger* logger);
+    void logDatas(QString fileName);
+    void addLogger(QString const& loggerName, ValueBlockLogger* logger);
 
 protected:
 
@@ -343,7 +360,7 @@ protected:
     std::vector<SBAModule*> _modules;
     QVector<ProjectorModule*> _projectors;
 
-    QMap<QString, ErrorBlockLogger*> _loggers;
+    QMap<QString, ValueBlockLogger*> _loggers;
     QString _loggingDir;
 
     QMap<qint64, int> _frameProjectorsAssociations;

@@ -76,7 +76,7 @@ ModularSBASolver::~ModularSBASolver() {
         delete proj;
     }
 
-    for (ErrorBlockLogger* logger : _loggers) {
+    for (ValueBlockLogger* logger : _loggers) {
         delete logger;
     }
 
@@ -177,29 +177,31 @@ ModularSBASolver::LandmarkNode* ModularSBASolver::getNodeForLandmark(qint64 lmId
 
     _problem.AddParameterBlock(lmNode->pos.data(), lmNode->pos.size());
 
+    QString paramLogName = QString("Position for landmark %1").arg(lm->objectName());
+
+    addLogger(paramLogName, new ParamsValsLogger<3>(lmNode->pos.data()));
+
     constexpr bool optimized = true;
     constexpr bool notOptimized = false;
 
-    //get the initial optimization value in optimization frame.
+    //get the initial optimization value in optimization frame (ecef for georeferenced).
     std::optional<Eigen::Vector3f> coordInitial = lm->getOptimizableCoordinates(optimized);
 
     if (!coordInitial.has_value()) {
         coordInitial = lm->getOptimizableCoordinates(notOptimized);
     }
 
-    Eigen::Vector3f vecInitial;
+    Eigen::Vector3d vecInitial;
 
     if (coordInitial.has_value()) {
-        vecInitial = coordInitial.value();
+        vecInitial = coordInitial.value().cast<double>();
     }
 
     //move to local optimization frame
-    if (_currentProject->hasLocalCoordinateFrame()) {
-        vecInitial = _currentProject->ecef2local()*vecInitial;
-    }
+    vecInitial = getTransform2LocalFrame()*vecInitial;
 
     if (!coordInitial.has_value()) {
-        vecInitial = Eigen::Vector3f::Zero();
+        vecInitial = Eigen::Vector3d::Zero();
     }
 
     lmNode->pos[0] = vecInitial.x();
@@ -210,11 +212,9 @@ ModularSBASolver::LandmarkNode* ModularSBASolver::getNodeForLandmark(qint64 lmId
 
     if (coordPrior.has_value()) {
 
-        Eigen::Vector3f& vecPrior = coordPrior.value();
+        Eigen::Vector3d vecPrior = coordPrior.value().cast<double>();
 
-        if (_currentProject->hasLocalCoordinateFrame()) {
-            vecPrior = _currentProject->ecef2local()*vecPrior;
-        }
+        vecPrior = getTransform2LocalFrame()*vecPrior;
 
         ceres::Vector m;
         m.resize(3);
@@ -502,7 +502,7 @@ StereoVision::Geometry::AffineTransform<double> ModularSBASolver::getTransform2L
 void ModularSBASolver::enableLogging(QString loggingDirPath) {
     _loggingDir = loggingDirPath;
 }
-void ModularSBASolver::logErrors(QString fileName) {
+void ModularSBASolver::logDatas(QString fileName) {
 
     if (_loggingDir.isEmpty() or _loggers.isEmpty()) {
         return;
@@ -541,7 +541,7 @@ void ModularSBASolver::logErrors(QString fileName) {
     errorStream.flush();
 
 }
-void ModularSBASolver::addLogger(QString const& loggerName, ErrorBlockLogger* logger) {
+void ModularSBASolver::addLogger(QString const& loggerName, ValueBlockLogger* logger) {
     if (_loggers.values().contains(logger)) {
         return;
     }
@@ -583,7 +583,7 @@ bool ModularSBASolver::init() {
         }
     }
 
-    logErrors("after_init.log");
+    logDatas("after_init.log");
     return true;
 }
 bool ModularSBASolver::opt_step() {
@@ -628,7 +628,7 @@ bool ModularSBASolver::writeResults() {
 
     bool ok = true;
 
-    logErrors("after_opt.log");
+    logDatas("after_opt.log");
 
     for (SBAModule* module : _modules) {
         ok = module->writeResults(this);
@@ -646,13 +646,9 @@ bool ModularSBASolver::writeResults() {
         }
     }
 
-    StereoVision::Geometry::AffineTransform<float> ecef2local;
+    StereoVision::Geometry::AffineTransform<double> ecef2local = getTransform2LocalFrame();
 
-    if (_currentProject->hasLocalCoordinateFrame()) {
-        ecef2local = _currentProject->ecef2local();
-    }
-
-    StereoVision::Geometry::AffineTransform<float>
+    StereoVision::Geometry::AffineTransform<double>
             local2ecef(ecef2local.R.transpose(),
                        -ecef2local.R.transpose()*ecef2local.t);
 
@@ -668,18 +664,17 @@ bool ModularSBASolver::writeResults() {
 
         if (lm->geoReferenceSupportActive()) {
 
-            Eigen::Vector3f pos;
+            Eigen::Vector3d pos;
 
             pos[0] = lm_p.pos[0];
             pos[1] = lm_p.pos[1];
             pos[2] = lm_p.pos[2];
 
-            if (_currentProject->hasLocalCoordinateFrame()) {
-                Eigen::Vector3f tmp = local2ecef*pos;
-                pos = tmp;
-            }
+            Eigen::Vector3d tmp = local2ecef*pos;
+            pos = tmp;
 
-            lm->setPositionFromEcef(pos);
+            constexpr bool optimized = true;
+            lm->setPositionFromEcef(pos.cast<float>(), optimized);
 
         } else {
 
@@ -788,13 +783,13 @@ ModularSBASolver::ProjectorModule::ProjectorModule() {
 ModularSBASolver::ProjectorModule::~ProjectorModule() {
 
 }
-ModularSBASolver::ErrorBlockLogger::ErrorBlockLogger() {
+ModularSBASolver::ValueBlockLogger::ValueBlockLogger() {
 
 }
-ModularSBASolver::ErrorBlockLogger::~ErrorBlockLogger() {
+ModularSBASolver::ValueBlockLogger::~ValueBlockLogger() {
 
 }
-QTextStream& ModularSBASolver::ErrorBlockLogger::log(QTextStream& stream) const {
+QTextStream& ModularSBASolver::ValueBlockLogger::log(QTextStream& stream) const {
     QVector<double> errors = getErrors();
 
     for (double& err : errors) {
