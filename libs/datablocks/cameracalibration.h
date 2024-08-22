@@ -136,9 +136,7 @@ protected:
 	QMap<qint64, ImgInfos> _imagesInfos;
 	QMap<qint64, floatParameterGroup<6>> _camerasLocations;
 
-	CameraCalibrationImageList* _imageList;
-
-	QList<CameraCalibrationWorker*> _worker_queue;
+    CameraCalibrationImageList* _imageList;
 
 	mutable QMutex _workersSyncMutex;
 
@@ -151,22 +149,6 @@ protected:
 
 	float _grid_size;
 
-};
-
-class CameraCalibrationWorker : public QThread
-{
-	Q_OBJECT
-public:
-	explicit CameraCalibrationWorker(CameraCalibration* parent, qint64 imgId, QString imageFile);
-
-	void run() override;
-	void endWorker();
-
-private:
-
-	CameraCalibration* _calibration;
-	qint64 _imgId;
-	QString _imageFile;
 };
 
 class CameraCalibrationImageList : public QAbstractListModel
