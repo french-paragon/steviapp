@@ -19,6 +19,8 @@ set(LIB_SRC imagewidget.cpp
             imagepointdetailseditor.ui
             landmarkpointdetailseditor.cpp
             landmarkpointdetailseditor.ui
+            trajectoryoptanalysiseditor.h
+            trajectoryoptanalysiseditor.cpp
             localcoordinatesystempointdetailseditor.cpp
             localcoordinatesystempointdetailseditor.ui
             opengl3dsceneviewwidget.cpp
@@ -138,7 +140,7 @@ add_library(
 
 
 target_link_libraries(${GUI_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} StereoVision::qImageWidget)
+target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${QCUSTOMPLOT_LIB} StereoVision::qImageWidget)
 
 install_stereovisionapp_sdklib(${GUI_LIB})
 

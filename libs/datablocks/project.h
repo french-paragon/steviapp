@@ -291,6 +291,9 @@ public:
 	 */
     virtual void setParametersFromJsonRepresentation(QJsonObject const& rep);
 
+    virtual QJsonObject encodeJson() const = 0;
+    virtual void configureFromJson(QJsonObject const& data) = 0;
+
 Q_SIGNALS:
 
 	/*!
@@ -327,10 +330,7 @@ protected:
 	virtual qint64 nextAvailableId() const;
 
 	QJsonObject toJson() const;
-	void setFromJson(QJsonObject const& obj);
-
-	virtual QJsonObject encodeJson() const = 0;
-	virtual void configureFromJson(QJsonObject const& data) = 0;
+    void setFromJson(QJsonObject const& obj);
 
 	void buildDataModel();
 

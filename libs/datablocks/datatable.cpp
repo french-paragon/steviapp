@@ -9,7 +9,13 @@ namespace StereoVisionApp {
 DataTable::DataTable(Project *parent) :
     DataBlock(parent)
 {
+    connect(this, &DataTable::dataChanged, this, &DataBlock::datablockChanged);
+}
 
+DataTable::DataTable(DataBlock *parent) :
+    DataBlock(parent)
+{
+    connect(this, &DataTable::dataChanged, this, &DataBlock::datablockChanged);
 }
 
 bool DataTable::hasOptimizedParameters() const {

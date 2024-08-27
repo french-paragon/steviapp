@@ -28,6 +28,7 @@ set(LIB_SRC
         localcoordinatesystemactions.cpp
         fixedstereosequenceactions.cpp
         fixedstereosequenceactionmanager.cpp
+        trajectoryactions.cpp
         trajectoryactionmanager.cpp
         projectactions.cpp
 )
@@ -58,6 +59,7 @@ set(LIB_HEADERS
     localcoordinatesystemactions.h
     fixedstereosequenceactions.h
     fixedstereosequenceactionmanager.h
+    trajectoryactions.h
     trajectoryactionmanager.h
     projectactions.h
 )

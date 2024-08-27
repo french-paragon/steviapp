@@ -9,10 +9,21 @@
 
 #include "geo/localframes.h"
 
+#include "datablocks/datatable.h"
+
 namespace StereoVisionApp {
 
+const char* Trajectory::OptDataTimeHeader = "Time";
+const char* Trajectory::OptDataPosXHeader = "Trajectory X coordinate";
+const char* Trajectory::OptDataPosYHeader = "Trajectory Y coordinate";
+const char* Trajectory::OptDataPosZHeader = "Trajectory Z coordinate";
+const char* Trajectory::OptDataRotXHeader = "Trajectory X orientation";
+const char* Trajectory::OptDataRotYHeader = "Trajectory Y orientation";
+const char* Trajectory::OptDataRotZHeader = "Trajectory Z orientation";
+
 Trajectory::Trajectory(Project* parent) :
-    DataBlock(parent)
+    DataBlock(parent),
+    _optimizedTrajectoryData(nullptr)
 {
     _plateformDefinition.boresight.setConstant(0);
     _plateformDefinition.leverArm.setConstant(0);
@@ -440,7 +451,41 @@ std::vector<Eigen::Vector3f> Trajectory::loadTrajectoryPathInProjectLocalFrame()
     return path;
 
 }
-std::vector<StereoVision::Geometry::AffineTransform<float>> Trajectory::loadTrajectoryInProjectLocalFrame() const {
+std::vector<StereoVision::Geometry::AffineTransform<float>> Trajectory::loadTrajectoryInProjectLocalFrame(bool optimized) const {
+
+    if (optimized) {
+
+        if (_optimizedTrajectoryData == nullptr) {
+            return std::vector<StereoVision::Geometry::AffineTransform<float>>();
+        }
+
+        int nRows = _optimizedTrajectoryData->nRows();
+
+        std::vector<StereoVision::Geometry::AffineTransform<float>> data;
+        data.reserve(nRows);
+
+        for (int i = 0; i < nRows; i++) {
+
+            StereoVision::Geometry::AffineTransform<float> transform;
+
+            transform.t.x() = _optimizedTrajectoryData->getData(OptDataPosXHeader, i).toDouble();
+            transform.t.y() = _optimizedTrajectoryData->getData(OptDataPosYHeader, i).toDouble();
+            transform.t.z() = _optimizedTrajectoryData->getData(OptDataPosZHeader, i).toDouble();
+
+            Eigen::Vector3f r;
+
+            r.x() = _optimizedTrajectoryData->getData(OptDataRotXHeader, i).toDouble();
+            r.y() = _optimizedTrajectoryData->getData(OptDataRotYHeader, i).toDouble();
+            r.z() = _optimizedTrajectoryData->getData(OptDataRotZHeader, i).toDouble();
+
+            transform.R = StereoVision::Geometry::rodriguezFormula(r);
+
+            data.push_back(transform);
+
+        }
+
+        return data;
+    }
 
     std::optional<StereoVision::Geometry::AffineTransform<float>> transform2projFrame = std::nullopt;
 
@@ -881,6 +926,38 @@ std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProj
 
 }
 
+std::optional<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectory() const {
+
+    if (_optimizedTrajectoryData == nullptr) {
+        return std::nullopt;
+    }
+
+    int nRows = _optimizedTrajectoryData->nRows();
+
+    std::vector<Trajectory::TimeTrajectorySequence::TimedElement> data;
+    data.reserve(nRows);
+
+    for (int i = 0; i < nRows; i++) {
+
+        Trajectory::TimeTrajectorySequence::TimedElement elem;
+
+        elem.time = _optimizedTrajectoryData->getData(OptDataTimeHeader, i).toDouble();
+
+        elem.val.t.x() = _optimizedTrajectoryData->getData(OptDataPosXHeader, i).toDouble();
+        elem.val.t.y() = _optimizedTrajectoryData->getData(OptDataPosYHeader, i).toDouble();
+        elem.val.t.z() = _optimizedTrajectoryData->getData(OptDataPosZHeader, i).toDouble();
+
+        elem.val.r.x() = _optimizedTrajectoryData->getData(OptDataRotXHeader, i).toDouble();
+        elem.val.r.y() = _optimizedTrajectoryData->getData(OptDataRotYHeader, i).toDouble();
+        elem.val.r.z() = _optimizedTrajectoryData->getData(OptDataRotZHeader, i).toDouble();
+
+        data.push_back(elem);
+
+    }
+
+    return Trajectory::TimeTrajectorySequence(data);
+}
+
 bool Trajectory::geoReferenceSupportActive() const  {
     return !_positionDefinition.crs_epsg.isEmpty();
 }
@@ -1163,6 +1240,26 @@ void Trajectory::setGyroSign(Axis axis, int sign) {
 
 }
 
+DataTable* Trajectory::getOptimizedDataTable() {
+
+    if (_optimizedTrajectoryData == nullptr) {
+        _optimizedTrajectoryData = new DataTable(this);
+
+        connect(_optimizedTrajectoryData, &DataBlock::datablockChanged,
+                this, &Trajectory::optimizedTrajectoryDataChanged);
+    }
+
+    return _optimizedTrajectoryData;
+
+}
+bool Trajectory::hasOptimizedTrajectory() const {
+    if (_optimizedTrajectoryData == nullptr) {
+        return false;
+    }
+
+    return _optimizedTrajectoryData->nRows() > 0;
+}
+
 QJsonObject Trajectory::encodeJson() const {
 
     QJsonObject obj;
@@ -1244,6 +1341,10 @@ QJsonObject Trajectory::encodeJson() const {
 
     obj.insert("orientationDefinition", orientationDefinition);
     obj.insert("orientationFile", _orientationFile);
+
+    if (_optimizedTrajectoryData != nullptr) {
+        obj.insert("optimizedTrajectory", static_cast<DataBlock*>(_optimizedTrajectoryData)->encodeJson());
+    }
 
     QJsonArray separatorsStrings;
 
@@ -1525,6 +1626,18 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         }
     } else {
         _commentPattern = "#";
+    }
+
+    if (data.contains("optimizedTrajectory")) {
+        QJsonValue val = data.value("optimizedTrajectory");
+
+        if (val.isObject()) {
+
+            QJsonObject jsonObj = val.toObject();
+
+            DataBlock* optimizedTrajectory = getOptimizedDataTable();
+            optimizedTrajectory->configureFromJson(jsonObj);
+        }
     }
 
     if (data.contains("plateformDefinition")) {

@@ -19,6 +19,10 @@ uniform float segmentEnd;
 uniform vec4 baseColor;
 uniform vec4 segmentColor;
 
+uniform vec4 orientHandleXColor;
+uniform vec4 orientHandleYColor;
+uniform vec4 orientHandleZColor;
+
 void main(void)
 {
     if (mode == 0) { //drawing the lines
@@ -40,14 +44,14 @@ void main(void)
         gl_Position = matrixViewProjection * p;
         gl_PointSize = 4.0;
 
-        segment_color = vec4(1,0,0,1); //red for x axis (default)
+        segment_color = orientHandleXColor; //red for x axis (default)
 
         if (in_id == 1) { //green for y axis
-            segment_color = vec4(0,1,0,1);
+            segment_color = orientHandleYColor;
         }
 
         if (in_id == 2) { //blue for z axis
-            segment_color = vec4(0,0,1,1);
+            segment_color = orientHandleZColor;
         }
     }
 }

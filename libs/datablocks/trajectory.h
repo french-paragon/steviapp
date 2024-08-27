@@ -14,6 +14,8 @@
 
 namespace StereoVisionApp {
 
+class DataTable;
+
 /*!
  * \brief The Trajectory class encode informations about a trajecory stored in a csv file
  */
@@ -22,6 +24,14 @@ class Trajectory : public DataBlock, public GeoReferencedDataBlockInterface
     Q_OBJECT
     Q_INTERFACES(StereoVisionApp::GeoReferencedDataBlockInterface)
 public:
+
+    static const char* OptDataTimeHeader;
+    static const char* OptDataPosXHeader;
+    static const char* OptDataPosYHeader;
+    static const char* OptDataPosZHeader;
+    static const char* OptDataRotXHeader;
+    static const char* OptDataRotYHeader;
+    static const char* OptDataRotZHeader;
 
     enum Representation {
         RepText,
@@ -128,7 +138,7 @@ public:
      *
      * This function is used mostly to display the trajectory in view widgets
      */
-    std::vector<StereoVision::Geometry::AffineTransform<float>> loadTrajectoryInProjectLocalFrame() const;
+    std::vector<StereoVision::Geometry::AffineTransform<float>> loadTrajectoryInProjectLocalFrame(bool optimized = false) const;
 
 
     /*!
@@ -144,6 +154,12 @@ public:
      * \return optionaly a TimeTrajectorySequence
      */
     std::optional<TimeTrajectorySequence> loadTrajectoryProjectLocalFrameSequence() const;
+
+    /*!
+     * \brief optimizedTrajectory return the optimized trajectory, if it is set. The optimized trajectory will be in the project local frame
+     * \return optionaly a TimeTrajectorySequence
+     */
+    std::optional<TimeTrajectorySequence> optimizedTrajectory() const;
 
     virtual bool geoReferenceSupportActive() const override;
     virtual Eigen::Array<float,3, Eigen::Dynamic> getLocalPointsEcef() const override;
@@ -361,8 +377,12 @@ public:
     }
     void setGyroSign(Axis axis, int sign);
 
+    DataTable* getOptimizedDataTable();
+    bool hasOptimizedTrajectory() const;
+
 Q_SIGNALS:
     void trajectoryDataChanged();
+    void optimizedTrajectoryDataChanged();
 
 protected:
 
@@ -516,6 +536,8 @@ protected:
     QString _angularSpeedFile;
 
     mutable std::optional<TimeTrajectorySequence> _trajectoryCache;
+
+    DataTable* _optimizedTrajectoryData;
 };
 
 class TrajectoryFactory : public DataBlockFactory

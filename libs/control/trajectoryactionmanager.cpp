@@ -9,10 +9,13 @@
 #include "gui/dialogs/trajectoryeditgyrooptionsdialog.h"
 
 #include "gui/sparsealignementeditor.h"
+#include "gui/trajectoryoptanalysiseditor.h"
 
 #include "gui/openGlDrawables/opengldrawabletrajectory.h"
 
 #include "control/mainwindow.h"
+
+#include "trajectoryactions.h"
 
 #include <QAction>
 
@@ -77,55 +80,38 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
     });
     actions.append(setGyroData);
 
-    QAction* viewTrajectory = new QAction(tr("view trajectory"), parent);
-    connect(viewTrajectory, &QAction::triggered, traj, [traj] () {
-
-        MainWindow* mw = MainWindow::getActiveMainWindow();
-
-        if (traj == nullptr) {
-            return;
-        }
-
-        if (mw == nullptr) {
-            return; //need main windows to display trajectory
-        }
-
-        StereoVisionApp::Editor* e = mw->openEditor(SparseAlignementEditor::staticMetaObject.className());
-
-        SparseAlignementEditor* sae = qobject_cast<SparseAlignementEditor*>(e);
-
-        if (sae == nullptr) {
-            return;
-        }
-
-        QString traj_drawable_name = QString("TrajectoryView_%1").arg(traj->objectName());
-
-        OpenGlDrawable* drawable = sae->getDrawable(traj_drawable_name);
-        OpenGlDrawableTrajectory* drawableTrajectory = qobject_cast<OpenGlDrawableTrajectory*>(drawable);
-
-        if (drawable == nullptr) {
-            drawableTrajectory = new OpenGlDrawableTrajectory();
-            drawableTrajectory->setSceneScale(sae->sceneScale());
-
-            connect(sae, &SparseAlignementEditor::sceneScaleChanged,
-                    drawableTrajectory, &OpenGlDrawableTrajectory::setSceneScale);
-
-            sae->addDrawable(traj_drawable_name, drawableTrajectory);
-
-        } else if (drawableTrajectory == nullptr) {
-            //a drawable already exist with the name and is not a OpenGlDrawableTrajectory
-
-            return; //error, this is not supposed to happen
-
-        }
-
-        drawableTrajectory->setTrajectory(traj);
-
-        QObject::connect(traj, &Trajectory::trajectoryDataChanged, drawableTrajectory, [drawableTrajectory, traj] () {
-            drawableTrajectory->setTrajectory(traj);
-        });
+    QAction* viewTrajectoryAction = new QAction(tr("view trajectory"), parent);
+    connect(viewTrajectoryAction, &QAction::triggered, traj, [traj] () {
+        viewTrajectory(traj,false);
     });
-    actions.append(viewTrajectory);
+    actions.append(viewTrajectoryAction);
+
+    if (traj->hasOptimizedTrajectory()) {
+
+        QAction* viewOptTrajectoryAction = new QAction(tr("view optimized trajectory"), parent);
+        connect(viewOptTrajectoryAction, &QAction::triggered, traj, [traj] () {
+            viewTrajectory(traj,true);
+        });
+        actions.append(viewOptTrajectoryAction);
+
+        QAction* analyzeOptTrajectoryAction = new QAction(tr("analyze optimized trajectory"), parent);
+        connect(analyzeOptTrajectoryAction, &QAction::triggered, traj, [traj] () {
+
+            MainWindow* mw = MainWindow::getActiveMainWindow();
+
+            Editor* editor = mw->openEditor(TrajectoryOptAnalysisEditor::staticMetaObject.className());
+
+            TrajectoryOptAnalysisEditor* toae = qobject_cast<TrajectoryOptAnalysisEditor*>(editor);
+
+            if (toae == nullptr) {
+                return;
+            }
+
+            toae->setTrajectory(traj);
+        });
+        actions.append(analyzeOptTrajectoryAction);
+
+    }
 
     return actions;
 }

@@ -17,7 +17,8 @@ class DataTable : public DataBlock
     Q_OBJECT
 
 public:
-    DataTable(Project* parent);
+    explicit DataTable(Project* parent);
+    explicit DataTable(DataBlock *parent = nullptr);
 
     bool hasOptimizedParameters() const override;
 

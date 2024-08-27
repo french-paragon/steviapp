@@ -35,6 +35,7 @@
 #include "gui/cameracalibrationeditor.h"
 #include "gui/cameracalibrationsparsealignementeditor.h"
 #include "gui/fixedstereosequenceeditor.h"
+#include "gui/trajectoryoptanalysiseditor.h"
 
 #ifdef STEVIAPP_DEVEL_TOOLS
 #include "gui/cornerdetectortesteditor.h"
@@ -142,6 +143,7 @@ int main(int argc, char *argv[])
 		w->installEditor(new StereoVisionApp::LandmarkPointDetailsEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::LocalCoordinateSystemPointDetailsEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::TrajectoryOptAnalysisEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::LensEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::CameraCalibrationSparseAlignementEditorFactory(&a));

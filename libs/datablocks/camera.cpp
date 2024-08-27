@@ -804,7 +804,7 @@ void Camera::extendDataModel() {
 
 	ItemDataModel::Category* op = _dataModel->addCategory(tr("Optimized parameters"));
 
-	op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Focal lenght [px]"),
+    op->addCatProperty<floatParameter, Camera, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal> (tr("Focal length [px]"),
 																												&Camera::optimizedFLen,
 																												nullptr,
 																												&Camera::optimizedFLenChanged);

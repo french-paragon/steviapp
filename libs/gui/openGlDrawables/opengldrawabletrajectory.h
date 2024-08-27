@@ -3,6 +3,7 @@
 
 #include "../opengl3dsceneviewwidget.h"
 
+#include <StereoVision/geometry/core.h>
 #include <StereoVision/geometry/rotations.h>
 
 namespace StereoVisionApp {
@@ -13,13 +14,17 @@ class OpenGlDrawableTrajectory : public StereoVisionApp::OpenGlDrawable
 {
     Q_OBJECT
 public:
+
+    static const QColor defaultBaseColor;
+    static const QColor defaultHighlightColor;
+
     OpenGlDrawableTrajectory(StereoVisionApp::OpenGl3DSceneViewWidget* parent = nullptr);
 
     void initializeGL();
     void paintGL(QMatrix4x4 const& modelView, QMatrix4x4 const& projectionView);
     void clearViewRessources();
 
-    void setTrajectory(const Trajectory * trajectory, int orientationHandles = 9);
+    void setTrajectory(const Trajectory * trajectory, bool optimized = false, int orientationHandles = 9);
     void setTrajectory(const std::vector<StereoVision::Geometry::AffineTransform<float> > &trajectory, int orientationHandles = 9);
     void setTrajectory(const std::vector<Eigen::Vector3f> &trajectory);
     void clearTrajectory();
@@ -34,6 +39,9 @@ public:
 
     const QColor &highlightSegmentColor() const;
     void setHighlightSegmentColor(const QColor &newHighlightSegmentColor);
+
+    const QColor &orientHandleColor(StereoVision::Geometry::Axis axis) const;
+    void setOrientHandleColor(StereoVision::Geometry::Axis axis, const QColor &newHandleColor);
 
 protected:
 
@@ -56,6 +64,10 @@ protected:
 
     QColor _baseColor;
     QColor _highlightSegmentColor;
+
+    QColor _orientHandleXColor;
+    QColor _orientHandleYColor;
+    QColor _orientHandleZColor;
 
     QOpenGLShaderProgram* _trajectoryProgram;
 

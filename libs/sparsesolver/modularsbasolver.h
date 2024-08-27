@@ -200,7 +200,6 @@ public:
     struct TrajectoryNode {
         qint64 trajId;
         std::vector<TrajectoryPoseNode> nodes;
-        qint64 resultTableId;
 
         /*!
          * \brief getNodeForTime get the index of the node just before a set time

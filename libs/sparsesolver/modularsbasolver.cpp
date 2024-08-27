@@ -447,7 +447,6 @@ ModularSBASolver::TrajectoryNode* ModularSBASolver::getNodeForTrajectory(qint64 
     _trajectoryParameters.emplace_back();
     _trajectoryParametersIndex[trajId] = idx;
     _trajectoryParameters[idx].trajId = trajId;
-    _trajectoryParameters[idx].resultTableId = -1;
     return &_trajectoryParameters[idx];
 
 }
@@ -1549,17 +1548,10 @@ bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
             continue;
         }
 
-        StereoVisionApp::DataTable* resultDataTable = currentProject->getDataBlock<StereoVisionApp::DataTable>(node->resultTableId);
+        StereoVisionApp::DataTable* resultDataTable = trajectory->getOptimizedDataTable();
 
         if (resultDataTable == nullptr) {
-            node->resultTableId = currentProject->createDataBlock(StereoVisionApp::DataTable::staticMetaObject.className());
-
-            if (node->resultTableId <= 0) {
-                continue;
-            }
-
-            resultDataTable = currentProject->getDataBlock<StereoVisionApp::DataTable>(node->resultTableId);
-            resultDataTable->setObjectName(QString("Optimization results for \"%1\"").arg(trajectory->objectName()));
+            continue;
         }
 
         QVector<QVariant> finalTimes;
@@ -1597,15 +1589,15 @@ bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
 
         QMap<QString, QVector<QVariant>> data;
 
-        data.insert("Time", finalTimes);
+        data.insert(Trajectory::OptDataTimeHeader, finalTimes);
 
-        data.insert("Trajectory X coordinate", finalTrajPosX);
-        data.insert("Trajectory Y coordinate", finalTrajPosY);
-        data.insert("Trajectory Z coordinate", finalTrajPosZ);
+        data.insert(Trajectory::OptDataPosXHeader, finalTrajPosX);
+        data.insert(Trajectory::OptDataPosYHeader, finalTrajPosY);
+        data.insert(Trajectory::OptDataPosZHeader, finalTrajPosZ);
 
-        data.insert("Trajectory X orientation", finalTrajOrientX);
-        data.insert("Trajectory Y orientation", finalTrajOrientY);
-        data.insert("Trajectory Z orientation", finalTrajOrientZ);
+        data.insert(Trajectory::OptDataRotXHeader, finalTrajOrientX);
+        data.insert(Trajectory::OptDataRotYHeader, finalTrajOrientY);
+        data.insert(Trajectory::OptDataRotZHeader, finalTrajOrientZ);
 
         resultDataTable->setData(data);
 

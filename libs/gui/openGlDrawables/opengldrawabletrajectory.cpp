@@ -12,13 +12,17 @@ namespace StereoVisionApp {
 OpenGlDrawableTrajectory::OpenGlDrawableTrajectory(StereoVisionApp::OpenGl3DSceneViewWidget* parent) :
     StereoVisionApp::OpenGlDrawable(parent),
     _has_data(false),
-    _segment_start(0),
-    _segment_end(1000)
+    _segment_start(-1),
+    _segment_end(-1)
 {
 
     //default colors
     _baseColor = QColor(50,100,250);
     _highlightSegmentColor = QColor(250,150,100);
+
+    _orientHandleXColor = QColor(255,0,0);
+    _orientHandleYColor = QColor(0,255,0);
+    _orientHandleZColor = QColor(0,0,255);
 
     //init the handle model:
 
@@ -140,6 +144,10 @@ void OpenGlDrawableTrajectory::paintGL(QMatrix4x4 const& modelView, QMatrix4x4 c
             _trajectoryProgram->setUniformValue("baseColor", _baseColor);
             _trajectoryProgram->setUniformValue("segmentColor", _highlightSegmentColor);
 
+            _trajectoryProgram->setUniformValue("orientHandleXColor", _orientHandleXColor);
+            _trajectoryProgram->setUniformValue("orientHandleYColor", _orientHandleYColor);
+            _trajectoryProgram->setUniformValue("orientHandleZColor", _orientHandleZColor);
+
             _trajectoryProgram->setUniformValue("mode", 0); //trajectory mode
 
             f->glDrawArrays(GL_LINE_STRIP, 0, _traj_idxs.size());
@@ -184,9 +192,9 @@ void OpenGlDrawableTrajectory::clearViewRessources() {
     _scene_vao.destroy();
 }
 
-void OpenGlDrawableTrajectory::setTrajectory(const Trajectory * trajectory, int orientationHandles) {
+void OpenGlDrawableTrajectory::setTrajectory(const Trajectory * trajectory, bool optimized, int orientationHandles) {
 
-    std::vector<StereoVision::Geometry::AffineTransform<float>> trajData = trajectory->loadTrajectoryInProjectLocalFrame(); //get the trajectory
+    std::vector<StereoVision::Geometry::AffineTransform<float>> trajData = trajectory->loadTrajectoryInProjectLocalFrame(optimized); //get the trajectory
     setTrajectory(trajData, orientationHandles);
 
 }
@@ -197,7 +205,7 @@ void OpenGlDrawableTrajectory::setTrajectory(const Trajectory * trajectory, int 
  */
 void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry::AffineTransform<float>> const& trajectory, int orientationHandles) {
 
-    _segment_end = trajectory.size();
+    //_segment_end = trajectory.size();
 
     _traj_orient_steps.clear();
 
@@ -247,7 +255,7 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
  */
 void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> &trajectory) {
 
-    _segment_end = trajectory.size();
+    //_segment_end = trajectory.size();
 
     _traj_orient_steps.clear();
 
@@ -272,7 +280,7 @@ void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> 
     _has_to_reset_gl_buffers = true;
 
     _segment_start = 0;
-    _segment_end = _traj_idxs.size();
+    //_segment_end = _traj_idxs.size();
 
     Q_EMIT updateRequested();
 }
@@ -325,6 +333,33 @@ const QColor &OpenGlDrawableTrajectory::highlightSegmentColor() const
 void OpenGlDrawableTrajectory::setHighlightSegmentColor(const QColor &newHighlightSegmentColor)
 {
     _highlightSegmentColor = newHighlightSegmentColor;
+}
+
+const QColor &OpenGlDrawableTrajectory::orientHandleColor(StereoVision::Geometry::Axis axis) const {
+
+    switch (axis) {
+    case StereoVision::Geometry::Axis::X :
+        return _orientHandleXColor;
+    case StereoVision::Geometry::Axis::Y :
+        return _orientHandleYColor;
+    case StereoVision::Geometry::Axis::Z :
+        return _orientHandleZColor;
+    }
+
+    return _orientHandleXColor;
+}
+void OpenGlDrawableTrajectory::setOrientHandleColor(StereoVision::Geometry::Axis axis, const QColor &newHandleColor) {
+    switch (axis) {
+    case StereoVision::Geometry::Axis::X :
+        _orientHandleXColor = newHandleColor;
+        break;
+    case StereoVision::Geometry::Axis::Y :
+        _orientHandleYColor = newHandleColor;
+        break;
+    case StereoVision::Geometry::Axis::Z :
+        _orientHandleZColor = newHandleColor;
+        break;
+    }
 }
 
 } // namespace StereoVisionApp
