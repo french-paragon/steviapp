@@ -201,7 +201,7 @@ public:
                     wPost = 0.5;
                 }
 
-                return {wPre, (*_sequence)[i].val, wPost, (*_sequence)[i+1].val};
+                return {wPost, (*_sequence)[i].val, wPre, (*_sequence)[i+1].val};
             }
 
         }
