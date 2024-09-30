@@ -910,14 +910,19 @@ std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProj
     if (transform2projFrame.has_value()) {
 
         StereoVision::Geometry::AffineTransform<double> transform = transform2projFrame.value().cast<double>();
-        PoseType poseTransform(StereoVision::Geometry::inverseRodriguezFormula(transform.R), transform.t);
 
         for (int i = 0; i < data.size(); i++) {
 
             PoseType pose = data[i].val; //sensor 2 ecef
-            pose =  poseTransform * pose; // plateform 2 project local
+            // plateform 2 project local
 
-            data[i].val = pose;
+            Eigen::Vector3d pos = transform*pose.t;
+
+            Eigen::Vector3d rot = pose.r;
+            Eigen::Matrix3d R = transform.R*StereoVision::Geometry::rodriguezFormula<double>(rot);
+            rot = StereoVision::Geometry::inverseRodriguezFormula<double>(R);
+
+            data[i].val = PoseType(rot, pos);
         }
 
     }
