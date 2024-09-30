@@ -1,0 +1,3 @@
+add_executable(testIndexedTimeSequence testIndexedTimeSequence.cpp)
+target_link_libraries(testIndexedTimeSequence Qt${QT_VERSION_MAJOR}::Test StereoVision::stevi)
+add_test(TestIndexedTimeSequence testIndexedTimeSequence.cpp)
