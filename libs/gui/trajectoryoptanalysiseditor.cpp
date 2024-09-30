@@ -150,14 +150,17 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
     double maxAbsRotError = 0;
 
     for (int i = 0; i < nSamples; i++) {
-        times[i] = minTime + i*((maxTime - minTime)/(nSamples-1));
 
-        auto interpTraj = traj.getValueAtTime(times[i]);
+        double time = minTime + i*((maxTime - minTime)/(nSamples-1));
+
+        times[i] = time;
+
+        auto interpTraj = traj.getValueAtTime(time);
 
         StereoVision::Geometry::RigidBodyTransform<double> initial =
                 interpTraj.weigthLower*interpTraj.valLower + interpTraj.weigthUpper*interpTraj.valUpper;
 
-        auto interpOptTraj = optTraj.getValueAtTime(times[i]);
+        auto interpOptTraj = optTraj.getValueAtTime(time);
 
         StereoVision::Geometry::RigidBodyTransform<double> opt =
                 interpOptTraj.weigthLower*interpOptTraj.valLower + interpOptTraj.weigthUpper*interpOptTraj.valUpper;

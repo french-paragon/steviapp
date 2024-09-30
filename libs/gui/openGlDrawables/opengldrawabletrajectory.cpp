@@ -215,6 +215,16 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
     _traj_idxs.clear();
     _traj_idxs.resize(trajectory.size());
 
+    if (trajectory.empty()) {
+
+        _has_data = true;
+        _has_to_reset_gl_buffers = true;
+
+        Q_EMIT updateRequested();
+
+        return;
+    }
+
     int i = 0;
     int j = 0;
     for (StereoVision::Geometry::AffineTransform<float> pose : trajectory) {
@@ -264,6 +274,18 @@ void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> 
 
     _traj_idxs.clear();
     _traj_idxs.resize(trajectory.size());
+
+    if (trajectory.empty()) {
+
+        _has_data = true;
+        _has_to_reset_gl_buffers = true;
+
+        _segment_start = 0;
+
+        Q_EMIT updateRequested();
+
+        return;
+    }
 
     int i = 0;
     int j = 0;
