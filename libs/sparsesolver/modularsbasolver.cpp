@@ -1251,6 +1251,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
     }
 
     _gravity = {0,0,9.81};
+    problem.AddParameterBlock(_gravity.data(), _gravity.size());
 
     QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
 
@@ -1314,22 +1315,20 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
         int nSteps = std::ceil(duration/_integrationTime)+1;
         double stepTime = duration/nSteps;
 
-        int nTrajLoggers = std::min(100,nSteps);
+        int nTrajLoggers = std::min(500,nSteps);
         int trajLoggersSteps = nSteps/nTrajLoggers;
 
         trajNode->nodes.resize(nSteps);
 
         int currentGPSNode = 0;
 
+        int nAlignChar = std::ceil(std::log10(nSteps));
+
         for (int i = 0; i < nSteps; i++) {
 
             double time = minTime + i*stepTime;
 
             trajNode->nodes[i].time = time;
-
-            if (i == 0) { //need at least two nodes for first order cost function
-                continue;
-            }
 
             //GPS initilation and cost
             auto interpolatablePos = optGps.value().getValueAtTime(time);
@@ -1351,6 +1350,11 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             problem.AddParameterBlock(trajNode->nodes[i].t.data(), trajNode->nodes[i].t.size());
             problem.AddParameterBlock(trajNode->nodes[i].rAxis.data(), trajNode->nodes[i].rAxis.size());
 
+            if (i == 0) { //need at least two nodes for first order cost function
+                continue;
+            }
+
+            //gps observations
             if (i > 0 and _gpsAccuracy > 1e-5) {
 
                 double t1 = trajNode->nodes[i-1].time;
@@ -1382,6 +1386,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     infos(i,i) = 1/_gpsAccuracy;
                 }
 
+                //add gps based trajectory priors
                 if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
 
                     ceres::NormalPrior* gpsPrior = new ceres::NormalPrior(infos, vec);
@@ -1402,7 +1407,14 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
 
                         if ((i+1)%trajLoggersSteps == 0) {
-                            QString loggerName = QString("GPS time %1").arg(gpsObs_t, 0, 'f', 2);
+
+                            QString posLoggerName = QString("Trajectory \"%1\" Position index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                            solver->addLogger(posLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].t.data()));
+
+                            QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                            solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
+
+                            QString loggerName = QString("GPS trajectory \"%1\" time %2").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
                             solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(gpsPrior, params));
                         }
 
@@ -1426,7 +1438,14 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                                              params.size());
 
                     if ((i+1)%trajLoggersSteps == 0) {
-                        QString loggerName = QString("GPS time %1").arg(gpsObs_t, 0, 'f', 2);
+
+                        QString posLoggerName = QString("Trajectory \"%1\" Position index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                        solver->addLogger(posLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].t.data()));
+
+                        QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                        solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
+
+                        QString loggerName = QString("GPS trajectory \"%1\" time %2 (interpolated)").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(interpolatedPrior, params));
                     }
 
@@ -1466,13 +1485,12 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                                           params.size());
 
                 if ((i+1)%trajLoggersSteps == 0) {
-                    QString loggerName = QString("Gyro step time %1").arg(time, 0, 'f', 2);
+                    QString loggerName = QString("Gyro trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                     solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(gyroStepCostFunction, params));
                 }
             }
 
             //accelerometer cost
-
 
             if (optGyro.has_value() and optImu.has_value()) {
                 if (i == 0 or i == 1) { //need at least three nodes for second order cost function
@@ -1513,10 +1531,11 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
 
                 if ((i+1)%trajLoggersSteps == 0) {
-                    QString loggerName = QString("Accelerometer step time %1").arg(time, 0, 'f', 2);
+                    QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                     solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<6,3>(accStepCostFunction, params));
                 }
             }
+
         }
     }
 

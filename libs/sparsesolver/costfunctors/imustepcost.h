@@ -340,9 +340,9 @@ public:
             while (t_acc < t_gyro + dt/2) {
                 double dt_acc = imuAccData[idx_acc].dt;
 
-                Eigen::Vector3d da_local(imuAccData[idx_acc].val[0], imuAccData[idx_acc].val[1], imuAccData[idx_acc].val[2]);
+                Eigen::Vector3d acceleration_local(imuAccData[idx_acc].val[0], imuAccData[idx_acc].val[1], imuAccData[idx_acc].val[2]);
 
-                speedDelta += Rcurrent2initial*da_local*dt_acc;
+                speedDelta += Rcurrent2initial*acceleration_local*dt_acc;
 
                 t_acc += dt_acc;
                 idx_acc++;
@@ -393,17 +393,25 @@ public:
 
         V3T vg(g[0], g[1], g[2]);
 
-        V3T vv0 = vt1 - vt0; //avg speed in first interval
-        V3T vv1 = vt2 - vt1; //avg speed in second interval
+        V3T vv0 = (vt1 - vt0)/T(_delta_t1); //avg speed in first interval
+        V3T vv1 = (vt2 - vt1)/T(_delta_t2); //avg speed in second interval
 
-        V3T vrv0 = vr1*T(0.5) + vr0*T(0.5); //orientation at the point where v0 is computed
-        M3T Rrv0 = StereoVision::Geometry::rodriguezFormula<T>(vrv0);
+        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0);
+        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1);
+        M3T deltaR = Rr1*Rr0.transpose();
+        V3T vrv0 = StereoVision::Geometry::inverseRodriguezFormula<T>(deltaR)*T(0.5);
+        M3T Rrv0 = StereoVision::Geometry::rodriguezFormula<T>(vrv0)*Rr0;
+
+        //platform2world orientation at (t0 + t1)/2
 
         T spdx(_speedDelta[0]);
         T spdy(_speedDelta[1]);
         T spdz(_speedDelta[2]);
         V3T vSpeedDelta(spdx, spdy, spdz);
-        V3T pred = vv0 + vg*T(_delta_tv) + Rrv0*vSpeedDelta;
+        V3T gCorr = vg*T(_delta_tv);
+        V3T alignedSpeedDelta = Rrv0*vSpeedDelta;
+        V3T corr = gCorr + alignedSpeedDelta;
+        V3T pred = vv0 + corr;
         V3T err = vv1 - pred;
 
         residual[0] = err[0];
