@@ -218,6 +218,14 @@ public:
         return _accelerationDefinition.timeDelta;
     }
 
+    inline void setAccelerometerMounting(StereoVision::Geometry::AffineTransform<double> mounting) {
+        _accelerometerMounting = mounting;
+    }
+
+    inline StereoVision::Geometry::AffineTransform<double> accelerometerMounting() const {
+        return _accelerometerMounting;
+    }
+
     void setAccelerometerTimeDelta(double delta);
 
     inline int accelerometerColumns(Axis axis) const {
@@ -377,6 +385,14 @@ public:
     }
     void setGyroSign(Axis axis, int sign);
 
+    inline void setGyroMounting(StereoVision::Geometry::AffineTransform<double> mounting) {
+        _gyroMounting = mounting;
+    }
+
+    inline StereoVision::Geometry::AffineTransform<double> gyroMounting() const {
+        return _gyroMounting;
+    }
+
     DataTable* getOptimizedDataTable();
     bool hasOptimizedTrajectory() const;
 
@@ -510,6 +526,7 @@ protected:
 
     } _accelerationDefinition;
 
+    StereoVision::Geometry::AffineTransform<double> _accelerometerMounting;
     QString _accelerationFile;
 
     struct AngularSpeedDefinition {
@@ -533,6 +550,7 @@ protected:
 
     } _angularSpeedDefinition;
 
+    StereoVision::Geometry::AffineTransform<double> _gyroMounting;
     QString _angularSpeedFile;
 
     mutable std::optional<TimeTrajectorySequence> _trajectoryCache;

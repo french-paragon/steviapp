@@ -10,6 +10,7 @@
 #include "geo/localframes.h"
 
 #include "datablocks/datatable.h"
+#include "datablocks/io/jsonconversionsutils.h"
 
 namespace StereoVisionApp {
 
@@ -27,6 +28,12 @@ Trajectory::Trajectory(Project* parent) :
 {
     _plateformDefinition.boresight.setConstant(0);
     _plateformDefinition.leverArm.setConstant(0);
+
+    _accelerometerMounting.R = Eigen::Matrix3d::Identity();
+    _accelerometerMounting.t.setZero();
+
+    _gyroMounting.R = Eigen::Matrix3d::Identity();
+    _gyroMounting.t.setZero();
 }
 
 std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadAngularSpeedRawData() const {
@@ -374,6 +381,10 @@ std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadAngularSpeedSeq
         return std::nullopt;
     }
 
+    for (TimeCartesianBlock & block : data) {
+        block.val = _gyroMounting*block.val;
+    }
+
     return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
 
 }
@@ -384,6 +395,10 @@ std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadAccelerationSeq
 
     if (data.empty()) {
         return std::nullopt;
+    }
+
+    for (TimeCartesianBlock & block : data) {
+        block.val = _accelerometerMounting*block.val;
     }
 
     return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
@@ -1279,6 +1294,10 @@ QJsonObject Trajectory::encodeJson() const {
     accelerationDefinition.insert("acc_y_col", _accelerationDefinition.acc_y_col);
     accelerationDefinition.insert("acc_z_col", _accelerationDefinition.acc_z_col);
 
+    QJsonObject accMountingObj = affineTransform2json(_accelerometerMounting);
+
+    accelerationDefinition.insert("mounting", accMountingObj);
+
     obj.insert("accelerationDefinition", accelerationDefinition);
     obj.insert("accelerationFile", _accelerationFile);
 
@@ -1302,6 +1321,9 @@ QJsonObject Trajectory::encodeJson() const {
     angularSpeedDefinition.insert("sign_y", _angularSpeedDefinition.sign_y);
     angularSpeedDefinition.insert("sign_z", _angularSpeedDefinition.sign_z);
     angularSpeedDefinition.insert("sign_w", _angularSpeedDefinition.sign_w);
+
+    QJsonObject gyroMountingObj = affineTransform2json(_gyroMounting);
+    angularSpeedDefinition.insert("mounting", gyroMountingObj);
 
     obj.insert("angularSpeedDefinition", angularSpeedDefinition);
     obj.insert("angularSpeedFile", _angularSpeedFile);
@@ -1398,6 +1420,13 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
             _accelerationDefinition.acc_z_col = accelerationDefinition.value("acc_z_col").toInt(-1);
         }
 
+        if (accelerationDefinition.contains("mounting")) {
+            auto accMounting = json2affineTransform<double>(accelerationDefinition.value("mounting").toObject());
+            if (accMounting.has_value()) {
+                _accelerometerMounting = accMounting.value();
+            }
+        }
+
     }
 
     if (data.contains("accelerationFile")) {
@@ -1472,6 +1501,13 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         }
         if (angularSpeedDefinition.contains("sign_w")) {
             _angularSpeedDefinition.sign_w = angularSpeedDefinition.value("sign_w").toInt();
+        }
+
+        if (angularSpeedDefinition.contains("mounting")) {
+            auto gyroMounting = json2affineTransform<double>(angularSpeedDefinition.value("mounting").toObject());
+            if (gyroMounting.has_value()) {
+                _gyroMounting = gyroMounting.value();
+            }
         }
 
     }

@@ -7,6 +7,8 @@
 #include "gui/editor.h"
 #include "gui/sparsealignementeditor.h"
 
+#include "gui/inputsWidgets/rigidbodytransforminputwidget.h"
+
 #include "gui/opengl3dsceneviewwidget.h"
 #include "gui/openGlDrawables/opengldrawabletrajectory.h"
 
@@ -80,6 +82,62 @@ void viewTrajectory(Trajectory* traj, bool optimized) {
     QObject::connect(traj, &Trajectory::trajectoryDataChanged, drawableTrajectory, [drawableTrajectory, traj] () {
         drawableTrajectory->setTrajectory(traj);
     });
+}
+
+void setLeverArm(Trajectory* traj) {
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (traj == nullptr) {
+        return;
+    }
+
+    if (mw == nullptr) {
+        return; //need main windows to display trajectory
+    }
+
+}
+void setAccelerometerMounting(Trajectory* traj) {
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (traj == nullptr) {
+        return;
+    }
+
+    if (mw == nullptr) {
+        return; //need main windows to display trajectory
+    }
+
+    auto transform = RigidBodyTransformInputDialog::inputAffineTransform(QObject::tr("Accelerometer mounting"), mw);
+
+    if (!transform.has_value()) {
+        return;
+    }
+
+    traj->setAccelerometerMounting(transform.value());
+
+}
+void setGyroMounting(Trajectory* traj) {
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (traj == nullptr) {
+        return;
+    }
+
+    if (mw == nullptr) {
+        return; //need main windows to display trajectory
+    }
+
+    auto transform = RigidBodyTransformInputDialog::inputAffineTransform(QObject::tr("Gyro mounting"), mw);
+
+    if (!transform.has_value()) {
+        return;
+    }
+
+    traj->setGyroMounting(transform.value());
+
 }
 
 } // namespace StereoVisionApp

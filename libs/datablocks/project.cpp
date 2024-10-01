@@ -13,6 +13,7 @@
 #include <algorithm>
 
 #include "./itemdatamodel.h"
+#include "./io/jsonconversionsutils.h"
 
 namespace StereoVisionApp {
 
@@ -144,16 +145,9 @@ bool Project::load(QString const& inFile) {
         if (metadata.contains("local_transform")) {
             QJsonObject local = metadata.value("local_transform").toObject();
 
-            if (local.contains("R") and local.contains("t")) {
-                QJsonArray R = local.value("R").toArray();
-                QJsonArray t = local.value("t").toArray();
-
-                for (int i = 0; i < 3; i++) {
-                    QJsonArray row = R.at(i).toArray();
-                    _ecef2local.R.row(i) << row.at(0).toDouble(), row.at(1).toDouble(), row.at(2).toDouble();
-                }
-
-                _ecef2local.t << t.at(0).toDouble(), t.at(1).toDouble(), t.at(2).toDouble();
+            auto ecef2local = json2affineTransform<float>(local);
+            if (ecef2local.has_value()) {
+                _ecef2local = ecef2local.value();
                 _hasLocalCoordinateFrame = true;
             }
         }
@@ -198,24 +192,7 @@ bool Project::save(QString const& outFile) {
     QJsonObject metadata;
 
     if (_hasLocalCoordinateFrame) {
-        QJsonObject localTransform;
-        QJsonArray R;
-        QJsonArray t;
-
-        for (int i = 0; i < 3; i++) {
-            QJsonArray R_row;
-
-            for (int j = 0; j < 3; j++) {
-                R_row.push_back(_ecef2local.R(i,j));
-            }
-
-            R.push_back(R_row);
-
-            t.push_back(_ecef2local.t[i]);
-        }
-
-        localTransform.insert("R", R);
-        localTransform.insert("t", t);
+        QJsonObject localTransform = affineTransform2json(_ecef2local);
 
         metadata.insert("local_transform", localTransform);
     }

@@ -70,6 +70,12 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
     });
     actions.append(setAccelerometerData);
 
+    QAction* accMountingAction = new QAction(tr("Set accelerometer mounting"), parent);
+    connect(accMountingAction, &QAction::triggered, traj, [traj] () {
+        setAccelerometerMounting(traj);
+    });
+    actions.append(accMountingAction);
+
     QAction* setGyroData = new QAction(tr("set gyro data"), parent);
     connect(setGyroData, &QAction::triggered, traj, [traj] () {
 
@@ -79,6 +85,12 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
 
     });
     actions.append(setGyroData);
+
+    QAction* gyroMountingAction = new QAction(tr("Set gyro mounting"), parent);
+    connect(gyroMountingAction, &QAction::triggered, traj, [traj] () {
+        setGyroMounting(traj);
+    });
+    actions.append(gyroMountingAction);
 
     QAction* viewTrajectoryAction = new QAction(tr("view trajectory"), parent);
     connect(viewTrajectoryAction, &QAction::triggered, traj, [traj] () {

@@ -8,6 +8,10 @@ class Trajectory;
 
 void viewTrajectory(Trajectory* traj, bool optimized);
 
+void setLeverArm(Trajectory* traj);
+void setAccelerometerMounting(Trajectory* traj);
+void setGyroMounting(Trajectory* traj);
+
 } // namespace StereoVisionApp
 
 #endif // STEREOVISIONAPP_TRAJECTORYACTIONS_H

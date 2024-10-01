@@ -23,6 +23,7 @@ set(LIB_SRC floatparameter.cpp
             datatable.cpp
             io/collada_export_filter.cpp
             io/collada_export_filter.h
+            io/jsonconversionsutils.h
 )
 
 set(LIB_HEADERS
