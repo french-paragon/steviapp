@@ -202,7 +202,18 @@ public:
         vt1 << t2[0], t2[1], t2[2];
 
         VecType vti = T(_w1)*vt1 + T(_w2)*vt2;
-        MatType MRi = StereoVision::Geometry::rodriguezFormula<T>(T(_w1)*vr1 + T(_w2)*vr2);
+
+        MatType pose_R1 = StereoVision::Geometry::rodriguezFormula<T>(vr1);
+        MatType pose_R2 = StereoVision::Geometry::rodriguezFormula<T>(vr2);
+
+        MatType pose_RDelta = pose_R1.transpose()*pose_R2;
+
+        VecType pose_RDeltaLog = StereoVision::Geometry::inverseRodriguezFormula<T>(pose_RDelta);
+        pose_RDeltaLog *= T(_w2);
+
+        MatType pose_RDeltaInterp = StereoVision::Geometry::rodriguezFormula<T>(pose_RDeltaLog);
+
+        MatType MRi = pose_R1*pose_RDeltaInterp;
 
         VecType vr;
         vr2 << r2[0], r2[1], r2[2];
@@ -293,7 +304,18 @@ public:
         vt1 << t2[0], t2[1], t2[2];
 
         VecType vti = T(_w1)*vt1 + T(_w2)*vt2;
-        MatType MRi = StereoVision::Geometry::rodriguezFormula<T>(T(_w1)*vr1 + T(_w2)*vr2);
+
+        MatType pose_R1 = StereoVision::Geometry::rodriguezFormula<T>(vr1);
+        MatType pose_R2 = StereoVision::Geometry::rodriguezFormula<T>(vr2);
+
+        MatType pose_RDelta = pose_R1.transpose()*pose_R2;
+
+        VecType pose_RDeltaLog = StereoVision::Geometry::inverseRodriguezFormula<T>(pose_RDelta);
+        pose_RDeltaLog *= T(_w2);
+
+        MatType pose_RDeltaInterp = StereoVision::Geometry::rodriguezFormula<T>(pose_RDeltaLog);
+
+        MatType MRi = pose_R1*pose_RDeltaInterp;
 
         VecType vr;
         vr2 << r2[0], r2[1], r2[2];
