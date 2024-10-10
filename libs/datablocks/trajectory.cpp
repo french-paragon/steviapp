@@ -10,6 +10,7 @@
 #include "geo/localframes.h"
 
 #include "datablocks/datatable.h"
+#include "datablocks/itemdatamodel.h"
 #include "datablocks/io/jsonconversionsutils.h"
 
 namespace StereoVisionApp {
@@ -34,6 +35,11 @@ Trajectory::Trajectory(Project* parent) :
 
     _gyroMounting.R = Eigen::Matrix3d::Identity();
     _gyroMounting.t.setZero();
+
+    _accelerometerId = 1;
+    _gyroId = 1;
+
+    extendDataModel();
 }
 
 std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadAngularSpeedRawData() const {
@@ -1121,6 +1127,52 @@ void Trajectory::setAccelerometerColumn(Axis axis, int col) {
 
 }
 
+floatParameter Trajectory::optAccelerometerBiasX() const {
+    return _accelerometerParameters._o_biasX;
+}
+floatParameter Trajectory::optAccelerometerBiasY() const {
+    return _accelerometerParameters._o_biasY;
+}
+floatParameter Trajectory::optAccelerometerBiasZ() const {
+    return _accelerometerParameters._o_biasZ;
+}
+
+void Trajectory::setOptAccelerometerBiasX(floatParameter const& biasX) {
+
+    if (!_accelerometerParameters._o_biasX.isApproximatlyEqual(biasX)) {
+        _accelerometerParameters._o_biasX = biasX;
+        Q_EMIT accelerometerBiasXChanged();
+    }
+
+}
+void Trajectory::setOptAccelerometerBiasY(floatParameter const& biasY) {
+
+    if (!_accelerometerParameters._o_biasY.isApproximatlyEqual(biasY)) {
+        _accelerometerParameters._o_biasY = biasY;
+        Q_EMIT accelerometerBiasYChanged();
+    }
+
+}
+void Trajectory::setOptAccelerometerBiasZ(floatParameter const& biasZ) {
+
+    if (!_accelerometerParameters._o_biasZ.isApproximatlyEqual(biasZ)) {
+        _accelerometerParameters._o_biasZ = biasZ;
+        Q_EMIT accelerometerBiasZChanged();
+    }
+
+}
+
+floatParameter Trajectory::optAccelerometerScale() const {
+    return _accelerometerParameters._o_scale;
+}
+
+void Trajectory::setOptAccelerometerScale(floatParameter const& scale) {
+    if (!_accelerometerParameters._o_scale.isApproximatlyEqual(scale)) {
+        _accelerometerParameters._o_scale = scale;
+        Q_EMIT accelerometerScaleChanged();
+    }
+}
+
 void Trajectory::setOrientationFile(QString const& path) {
     _orientationFile = path;
 }
@@ -1368,6 +1420,9 @@ QJsonObject Trajectory::encodeJson() const {
 
     obj.insert("orientationDefinition", orientationDefinition);
     obj.insert("orientationFile", _orientationFile);
+
+    obj.insert("accelerometerId", _accelerometerId);
+    obj.insert("gyroId", _gyroId);
 
     if (_optimizedTrajectoryData != nullptr) {
         obj.insert("optimizedTrajectory", static_cast<DataBlock*>(_optimizedTrajectoryData)->encodeJson());
@@ -1645,6 +1700,18 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         _orientationFile = data.value("orientationFile").toString();
     }
 
+    if (data.contains("accelerometerId")) {
+        _accelerometerId = data.value("accelerometerId").toInt();
+    } else {
+        _accelerometerId = 1;
+    }
+
+    if (data.contains("gyroId")) {
+        _gyroId = data.value("gyroId").toInt();
+    } else {
+        _gyroId = 1;
+    }
+
     if (data.contains("inputDataSeparators")) {
         QJsonArray seps = data.value("inputDataSeparators").toArray();
 
@@ -1706,6 +1773,86 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         }
     }
 
+}
+
+
+
+void Trajectory::extendDataModel() {
+    ItemDataModel::Category* sensorsIdsCat = _dataModel->addCategory(tr("Sensors Ids"));
+
+    sensorsIdsCat->addCatProperty<int,
+            Trajectory,
+            false,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("Accelerometer Id"),
+                &Trajectory::accelerometerId,
+                &Trajectory::setAccelerometerId,
+                &Trajectory::accelerometerIdChanged);
+
+    sensorsIdsCat->addCatProperty<int,
+            Trajectory,
+            false,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("Gyroscope Id"),
+                &Trajectory::gyroId,
+                &Trajectory::setGyroId,
+                &Trajectory::gyroIdChanged);
+
+
+    ItemDataModel::Category* accelerometerOptIdsCat = _dataModel->addCategory(tr("Accelerometer Optimized Parameters"));
+
+    accelerometerOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("bias X"),
+                &Trajectory::optAccelerometerBiasX,
+                &Trajectory::setOptAccelerometerBiasX,
+                &Trajectory::accelerometerBiasXChanged);
+
+    accelerometerOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("bias Y"),
+                &Trajectory::optAccelerometerBiasY,
+                &Trajectory::setOptAccelerometerBiasY,
+                &Trajectory::accelerometerBiasYChanged);
+
+    accelerometerOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("bias Z"),
+                &Trajectory::optAccelerometerBiasZ,
+                &Trajectory::setOptAccelerometerBiasZ,
+                &Trajectory::accelerometerBiasZChanged);
+}
+
+int Trajectory::gyroId() const
+{
+    return _gyroId;
+}
+
+void Trajectory::setGyroId(int newGyroId)
+{
+    if (_gyroId == newGyroId)
+        return;
+    _gyroId = newGyroId;
+    Q_EMIT gyroIdChanged();
+}
+
+int Trajectory::accelerometerId() const
+{
+    return _accelerometerId;
+}
+
+void Trajectory::setAccelerometerId(int newAccelerometerId)
+{
+    if (_accelerometerId == newAccelerometerId)
+        return;
+    _accelerometerId = newAccelerometerId;
+    Q_EMIT accelerometerIdChanged();
 }
 
 TrajectoryFactory::TrajectoryFactory(QObject* parent) :

@@ -41,6 +41,7 @@ set(LIB_SRC initialsolution.cpp
             costfunctors/local3dcoalignementcost.cpp
             costfunctors/local3dtoimageuvcost.cpp
             costfunctors/interpolatedvectorprior.cpp
+            sbamodules/trajectorybasesbamodule.cpp
 )
 
 set(LIB_HEADERS
@@ -98,6 +99,10 @@ set(LIB_HEADERS_COST_FUNCTORS
     costfunctors/interpolatedvectorprior.h
 )
 
+set(LIB_HEADERS_SBA_MODULES
+    sbamodules/trajectorybasesbamodule.h
+)
+
 add_library(
     ${SOLVING_LIB}
     ${LIB_SRC}
@@ -105,6 +110,7 @@ add_library(
     ${LIB_HEADERS_EDGES}
     ${LIB_HEADERS_VERTICES}
     ${LIB_HEADERS_COST_FUNCTORS}
+    ${LIB_HEADERS_SBA_MODULES}
 )
 
 target_link_libraries(${SOLVING_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)
@@ -129,4 +135,8 @@ install(FILES ${LIB_HEADERS_VERTICES}
 
 install(FILES ${LIB_HEADERS_COST_FUNCTORS}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/costfunctors
+  )
+
+install(FILES ${LIB_HEADERS_SBA_MODULES}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/sbamodules
   )

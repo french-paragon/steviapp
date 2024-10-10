@@ -442,71 +442,7 @@ protected:
 
 };
 
-class TrajectoryBaseSBAModule : public ModularSBASolver::SBAModule
-{
 
-public:
-
-    TrajectoryBaseSBAModule(double integrationTime);
-
-    virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) override;
-    virtual bool writeResults(ModularSBASolver* solver) override;
-    virtual bool writeUncertainty(ModularSBASolver* solver) override;
-    virtual void cleanup(ModularSBASolver* solver) override;
-
-    inline double gpsAccuracy() const
-    {
-        return _gpsAccuracy;
-    }
-
-    inline void setGpsAccuracy(double newGpsAccuracy)
-    {
-        _gpsAccuracy = newGpsAccuracy;
-    }
-
-    inline double orientAccuracy() const
-    {
-        return _orientAccuracy;
-    }
-
-    inline void setOrientAccuracy(double newOrientAccuracy)
-    {
-        _orientAccuracy = newOrientAccuracy;
-    }
-
-    inline double accAccuracy() const
-    {
-        return _accAccuracy;
-    }
-
-    inline void setAccAccuracy(double newAccAccuracy)
-    {
-        _accAccuracy = newAccAccuracy;
-    }
-
-    inline double gyroAccuracy() const
-    {
-        return _gyroAccuracy;
-    }
-
-    inline void setGyroAccuracy(double newGyroAccuracy)
-    {
-        _gyroAccuracy = newGyroAccuracy;
-    }
-
-protected:
-
-    double _integrationTime;
-
-    double _gpsAccuracy;
-    double _orientAccuracy;
-
-    double _accAccuracy;
-    double _gyroAccuracy;
-
-    std::array<double,3> _gravity;
-
-};
 
 } // namespace StereoVisionApp
 

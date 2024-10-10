@@ -3,6 +3,7 @@
 
 #include <QObject>
 
+#include "./floatparameter.h"
 #include "./project.h"
 #include "./georeferenceddatablockinterface.h"
 
@@ -23,6 +24,7 @@ class Trajectory : public DataBlock, public GeoReferencedDataBlockInterface
 {
     Q_OBJECT
     Q_INTERFACES(StereoVisionApp::GeoReferencedDataBlockInterface)
+
 public:
 
     static const char* OptDataTimeHeader;
@@ -244,6 +246,18 @@ public:
     }
     void setAccelerometerColumn(Axis axis, int col);
 
+    floatParameter optAccelerometerBiasX() const;
+    floatParameter optAccelerometerBiasY() const;
+    floatParameter optAccelerometerBiasZ() const;
+
+    void setOptAccelerometerBiasX(floatParameter const& biasX);
+    void setOptAccelerometerBiasY(floatParameter const& biasY);
+    void setOptAccelerometerBiasZ(floatParameter const& biasZ);
+
+    floatParameter optAccelerometerScale() const;
+
+    void setOptAccelerometerScale(floatParameter const& scale);
+
 
     inline QString orientationFile() const {
         return _orientationFile;
@@ -396,9 +410,24 @@ public:
     DataTable* getOptimizedDataTable();
     bool hasOptimizedTrajectory() const;
 
+    int accelerometerId() const;
+    void setAccelerometerId(int newAccelerometerId);
+
+    int gyroId() const;
+    void setGyroId(int newGyroId);
+
 Q_SIGNALS:
     void trajectoryDataChanged();
     void optimizedTrajectoryDataChanged();
+
+    void accelerometerBiasXChanged();
+    void accelerometerBiasYChanged();
+    void accelerometerBiasZChanged();
+
+    void accelerometerScaleChanged();
+
+    void accelerometerIdChanged();
+    void gyroIdChanged();
 
 protected:
 
@@ -526,6 +555,14 @@ protected:
 
     } _accelerationDefinition;
 
+    struct AccelerometerParameters {
+        floatParameter _o_biasX;
+        floatParameter _o_biasY;
+        floatParameter _o_biasZ;
+        floatParameter _o_scale;
+
+    } _accelerometerParameters;
+
     StereoVision::Geometry::AffineTransform<double> _accelerometerMounting;
     QString _accelerationFile;
 
@@ -554,6 +591,9 @@ protected:
     QString _angularSpeedFile;
 
     mutable std::optional<TimeTrajectorySequence> _trajectoryCache;
+
+    int _accelerometerId;
+    int _gyroId;
 
     DataTable* _optimizedTrajectoryData;
 };

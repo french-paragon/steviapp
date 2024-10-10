@@ -22,15 +22,16 @@ GyroStepCost::GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
 
 }
 
-AccelerometerStepCost::AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
-                                               double delta_t1,
-                                               double delta_t2) :
+
+
+AccelerometerStepCostBase::AccelerometerStepCostBase(Eigen::Vector3d const& speedDelta,
+                          double delta_t1,
+                          double delta_t2) :
     _speedDelta(speedDelta),
     _delta_t1(delta_t1),
-    _delta_t2(delta_t2)
+    _delta_t2(delta_t2),
+    _delta_tv((delta_t2 + delta_t1)/2)
 {
-
-    _delta_tv = (delta_t2 + delta_t1)/2;
 
 }
 
