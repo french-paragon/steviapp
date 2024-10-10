@@ -13,7 +13,9 @@ OpenGlDrawableTrajectory::OpenGlDrawableTrajectory(StereoVisionApp::OpenGl3DScen
     StereoVisionApp::OpenGlDrawable(parent),
     _has_data(false),
     _segment_start(-1),
-    _segment_end(-1)
+    _segment_end(-1),
+    _sceneScale(1),
+    _handleScale(1)
 {
 
     //default colors
@@ -137,6 +139,7 @@ void OpenGlDrawableTrajectory::paintGL(QMatrix4x4 const& modelView, QMatrix4x4 c
 
             _trajectoryProgram->setUniformValue("matrixViewProjection", projectionView*modelView);
             _trajectoryProgram->setUniformValue("sceneScale", _sceneScale);
+            _trajectoryProgram->setUniformValue("handleScale", _handleScale);
 
             _trajectoryProgram->setUniformValue("segmentStart", _segment_start);
             _trajectoryProgram->setUniformValue("segmentEnd", _segment_end);
@@ -319,6 +322,10 @@ void OpenGlDrawableTrajectory::clearTrajectory() {
 
 void OpenGlDrawableTrajectory::setSceneScale(float newSceneScale) {
     _sceneScale = newSceneScale;
+}
+
+void OpenGlDrawableTrajectory::setHandleScale(float newHandleScale) {
+    _handleScale = newHandleScale;
 }
 
 void OpenGlDrawableTrajectory::setSegmentStart(float newSegment_start)

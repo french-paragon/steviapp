@@ -48,6 +48,7 @@ void viewTrajectory(Trajectory* traj, bool optimized) {
     if (drawable == nullptr) {
         drawableTrajectory = new OpenGlDrawableTrajectory();
         drawableTrajectory->setSceneScale(sae->sceneScale());
+        drawableTrajectory->setHandleScale(sae->camScale());
 
         if (optimized) {
             drawableTrajectory->setBaseColor(QColor(180,200,10));
@@ -62,6 +63,9 @@ void viewTrajectory(Trajectory* traj, bool optimized) {
 
         QObject::connect(sae, &SparseAlignementEditor::sceneScaleChanged,
                          drawableTrajectory, &OpenGlDrawableTrajectory::setSceneScale);
+
+        QObject::connect(sae, &SparseAlignementEditor::camScaleChanged,
+                         drawableTrajectory, &OpenGlDrawableTrajectory::setHandleScale);
 
         sae->addDrawable(traj_drawable_name, drawableTrajectory);
 

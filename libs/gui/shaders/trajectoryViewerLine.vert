@@ -7,7 +7,7 @@ uniform mat4 matrixViewProjection;
 uniform mat4 matrixHandleTransform;
 
 uniform float sceneScale;
-uniform float camScale;
+uniform float handleScale;
 
 out vec4 segment_color;
 
@@ -39,7 +39,7 @@ void main(void)
 
     } else { //drawing the orientations handles
 
-        vec4 p  = matrixHandleTransform * vec4(in_location, 1);
+        vec4 p  = matrixHandleTransform * vec4(handleScale*in_location, 1);
         p.w = 1/sceneScale;
         gl_Position = matrixViewProjection * p;
         gl_PointSize = 4.0;

@@ -30,6 +30,7 @@ public:
     void clearTrajectory();
 
     void setSceneScale(float newSceneScale);
+    void setHandleScale(float newHandleScale);
 
     void setSegmentStart(float newSegment_start);
     void setSegmentEnd(float newSegment_end);
@@ -49,6 +50,7 @@ protected:
     bool _has_to_reset_gl_buffers;
 
     float _sceneScale;
+    float _handleScale;
 
     float _segment_start;
     float _segment_end;
