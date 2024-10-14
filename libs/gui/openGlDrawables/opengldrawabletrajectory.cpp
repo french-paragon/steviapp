@@ -197,8 +197,11 @@ void OpenGlDrawableTrajectory::clearViewRessources() {
 
 void OpenGlDrawableTrajectory::setTrajectory(const Trajectory * trajectory, bool optimized, int orientationHandles) {
 
-    std::vector<StereoVision::Geometry::AffineTransform<float>> trajData = trajectory->loadTrajectoryInProjectLocalFrame(optimized); //get the trajectory
-    setTrajectory(trajData, orientationHandles);
+    StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float>>> trajData = trajectory->loadTrajectoryInProjectLocalFrame(optimized); //get the trajectory
+    if (!trajData.isValid()) {
+        return; //TODO: propagate message
+    }
+    setTrajectory(trajData.val(), orientationHandles);
 
 }
 

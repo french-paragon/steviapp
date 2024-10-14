@@ -9,7 +9,13 @@
 #include "../costfunctors/imustepcost.h"
 #include "./costfunctors/weightedcostfunction.h"
 
+#include "../sbagraphreductor.h"
+
+#include "utils/statusoptionalreturn.h"
+
 namespace StereoVisionApp {
+
+const char* TrajectoryBaseSBAModule::ModuleName = "SBAModule::Trajectory";
 
 TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double integrationTime) :
     _integrationTime(integrationTime)
@@ -92,32 +98,32 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         StereoVision::Geometry::AffineTransform<double> world2local = solver->getTransform2LocalFrame();
 
-        std::optional<Trajectory::TimeCartesianSequence> optGps = traj->loadPositionSequence(); //load in ecef
-        std::optional<Trajectory::TimeTrajectorySequence> optPose = traj->loadTrajectorySequence(); //used for initialization
+        StatusOptionalReturn<Trajectory::TimeCartesianSequence> optGps = traj->loadPositionSequence(); //load in ecef
+        StatusOptionalReturn<Trajectory::TimeTrajectorySequence> optPose = traj->loadTrajectorySequence(); //used for initialization
 
         //TODO: make initialization possible from just GPS + gyro
 
-        if (!optGps.has_value() and !optPose.has_value()) { //Canot initialize without GPS and orientation //TODO: investigate if we can initialize with
+        if (!optGps.isValid() and !optPose.isValid()) { //Canot initialize without GPS and orientation //TODO: investigate if we can initialize with
             continue;
         }
 
-        std::optional<Trajectory::TimeCartesianSequence> optGyro = traj->loadAngularSpeedSequence();
-        std::optional<Trajectory::TimeCartesianSequence> optImu = traj->loadAccelerationSequence();
+        StatusOptionalReturn<Trajectory::TimeCartesianSequence> optGyro = traj->loadAngularSpeedSequence();
+        StatusOptionalReturn<Trajectory::TimeCartesianSequence> optImu = traj->loadAccelerationSequence();
 
-        double minTime = optGps.value().sequenceStartTime();
-        double maxTime = optGps.value().sequenceEndTime();
+        double minTime = optGps.val().sequenceStartTime();
+        double maxTime = optGps.val().sequenceEndTime();
 
-        if (optGyro.has_value()) {
+        if (optGyro.isValid()) {
 
-            minTime = std::max(minTime, optGyro.value().sequenceStartTime());
-            maxTime = std::min(maxTime, optGyro.value().sequenceEndTime());
+            minTime = std::max(minTime, optGyro.val().sequenceStartTime());
+            maxTime = std::min(maxTime, optGyro.val().sequenceEndTime());
 
         }
 
-        if (optImu.has_value()) {
+        if (optImu.isValid()) {
 
-            minTime = std::max(minTime, optImu.value().sequenceStartTime());
-            maxTime = std::min(maxTime, optImu.value().sequenceEndTime());
+            minTime = std::max(minTime, optImu.val().sequenceStartTime());
+            maxTime = std::min(maxTime, optImu.val().sequenceEndTime());
 
         }
 
@@ -127,7 +133,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             continue;
         }
 
-        int nGPSNode = optGps.value().nPoints();
+        int nGPSNode = optGps.val().nPoints();
 
         if (nGPSNode <= 0) {
             continue;
@@ -152,13 +158,13 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             trajNode->nodes[i].time = time;
 
             //GPS initilation and cost
-            auto interpolatablePos = optGps.value().getValueAtTime(time);
+            auto interpolatablePos = optGps.val().getValueAtTime(time);
             Eigen::Vector3d pos =
                     interpolatablePos.weigthLower*interpolatablePos.valLower +
                     interpolatablePos.weigthUpper*interpolatablePos.valUpper;
             pos = world2local*pos;
 
-            auto interpolatablePose = optPose.value().getValueAtTime(time); //plateform to world.
+            auto interpolatablePose = optPose.val().getValueAtTime(time); //plateform to world.
             Eigen::Vector3d rot =
                     interpolatablePose.weigthLower*interpolatablePose.valLower.r +
                     interpolatablePose.weigthUpper*interpolatablePose.valUpper.r;
@@ -182,13 +188,13 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 double t2 = trajNode->nodes[i].time;
 
                 for (int g = currentGPSNode; g < nGPSNode; g++) {
-                    if (optGps.value()[g].time >= t1) {
+                    if (optGps.val()[g].time >= t1) {
                         currentGPSNode = g;
                         break;
                     }
                 }
 
-                double gpsObs_t = optGps.value()[currentGPSNode].time;
+                double gpsObs_t = optGps.val()[currentGPSNode].time;
 
                 if (gpsObs_t > t2) { // no GPS observation between  trajectory nodes
                     continue;
@@ -201,7 +207,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 Eigen::Vector3d vec;
 
                 //position in local optimization frame
-                vec = world2local*optGps.value()[currentGPSNode].val;
+                vec = world2local*optGps.val()[currentGPSNode].val;
 
                 for (int i = 0; i < 3; i++) {
                     infos(i,i) = 1/_gpsAccuracy;
@@ -276,10 +282,10 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
             //gyro cost
 
-            if (optGyro.has_value()) {
+            if (optGyro.isValid()) {
 
                 GyroStepCost* gyroStepCost =
-                        GyroStepCost::getIntegratedIMUDiff(optGyro.value(),
+                        GyroStepCost::getIntegratedIMUDiff(optGyro.val(),
                                                            trajNode->nodes[i-1].time,
                                                            trajNode->nodes[i].time);
 
@@ -313,7 +319,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
             //accelerometer cost
 
-            if (optGyro.has_value() and optImu.has_value()) {
+            if (optGyro.isValid() and optImu.isValid()) {
 
                 if (i == 0 or i == 1) { //need at least three nodes for second order cost function
                     continue;
@@ -324,8 +330,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     using AccCost = AccelerometerStepCost<true, true>;
 
                     AccCost* accStepCost =
-                            AccelerometerStepCostBase::getIntegratedIMUDiff<true, true>(optGyro.value(),
-                                                                        optImu.value(),
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<true, true>(optGyro.val(),
+                                                                        optImu.val(),
                                                                         trajNode->nodes[i-2].time,
                                                                         trajNode->nodes[i-1].time,
                                                                         trajNode->nodes[i].time);
@@ -368,8 +374,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     using AccCost = AccelerometerStepCost<true, false>;
 
                     AccCost* accStepCost =
-                            AccelerometerStepCostBase::getIntegratedIMUDiff<true, false>(optGyro.value(),
-                                                                        optImu.value(),
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<true, false>(optGyro.val(),
+                                                                        optImu.val(),
                                                                         trajNode->nodes[i-2].time,
                                                                         trajNode->nodes[i-1].time,
                                                                         trajNode->nodes[i].time);
@@ -410,8 +416,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     using AccCost = AccelerometerStepCost<false, true>;
 
                     AccCost* accStepCost =
-                            AccelerometerStepCostBase::getIntegratedIMUDiff<false, true>(optGyro.value(),
-                                                                        optImu.value(),
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<false, true>(optGyro.val(),
+                                                                        optImu.val(),
                                                                         trajNode->nodes[i-2].time,
                                                                         trajNode->nodes[i-1].time,
                                                                         trajNode->nodes[i].time);
@@ -453,8 +459,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     using AccCost = AccelerometerStepCost<false, false>;
 
                     AccCost* accStepCost =
-                            AccelerometerStepCostBase::getIntegratedIMUDiff<false, false>(optGyro.value(),
-                                                                        optImu.value(),
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<false, false>(optGyro.val(),
+                                                                        optImu.val(),
                                                                         trajNode->nodes[i-2].time,
                                                                         trajNode->nodes[i-1].time,
                                                                         trajNode->nodes[i].time);

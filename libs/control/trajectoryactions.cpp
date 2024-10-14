@@ -12,6 +12,8 @@
 #include "gui/opengl3dsceneviewwidget.h"
 #include "gui/openGlDrawables/opengldrawabletrajectory.h"
 
+#include "utils/statusoptionalreturn.h"
+
 #include <QMessageBox>
 
 namespace StereoVisionApp {
@@ -76,10 +78,13 @@ void viewTrajectory(Trajectory* traj, bool optimized) {
 
     }
 
-    std::vector<StereoVision::Geometry::AffineTransform<float>> trajData = traj->loadTrajectoryInProjectLocalFrame(optimized); //get the trajectory
-    if (trajData.empty()) {
-        QMessageBox::information(mw, QObject::tr("Empty trajectory"), QObject::tr("Empty trajectory, please ensure datasources are correctly configured!"));
+    StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float>>> trajDataOpt = traj->loadTrajectoryInProjectLocalFrame(optimized); //get the trajectory
+    if (trajDataOpt.isValid()) {
+        QMessageBox::information(mw, QObject::tr("Error loading the trajectory"), trajDataOpt.errorMessage());
     }
+
+    std::vector<StereoVision::Geometry::AffineTransform<float>>& trajData = trajDataOpt.val();
+
     constexpr int nOrientationHandles = 9;
     drawableTrajectory->setTrajectory(trajData, nOrientationHandles);
 

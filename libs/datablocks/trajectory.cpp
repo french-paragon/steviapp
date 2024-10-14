@@ -42,12 +42,14 @@ Trajectory::Trajectory(Project* parent) :
     extendDataModel();
 }
 
-std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadAngularSpeedRawData() const {
+StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::loadAngularSpeedRawData() const {
+
+    using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
 
     QFile angspdFile(_angularSpeedFile);
 
     if (!angspdFile.open(QIODevice::ReadOnly)) {
-        return std::vector<Trajectory::TimeCartesianBlock>();
+        return RType::error("Could not open the angular speed file!");
     }
 
     QString lineData;
@@ -225,12 +227,14 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadAngularSpeedRawData(
 
 }
 
-std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadAccelerationRawData() const {
+StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::loadAccelerationRawData() const {
+
+    using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
 
     QFile accFile(_accelerationFile);
 
     if (!accFile.open(QIODevice::ReadOnly)) {
-        return std::vector<Trajectory::TimeCartesianBlock>();
+        return RType::error("Could not open accelerometer file!");
     }
 
     QString lineData;
@@ -319,12 +323,20 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadAccelerationRawData(
 
 }
 
-std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionData() const {
+StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::loadPositionData() const {
 
-    std::vector<TimeCartesianBlock> ret = loadPositionRawData();
+    using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
+
+    RType retOpt = loadPositionRawData();
+
+    if (!retOpt.isValid()) {
+        return RType::error(retOpt.errorMessage());
+    }
+
+    std::vector<Trajectory::TimeCartesianBlock>& ret = retOpt.val();
 
     if (ret.empty()) {
-        return std::vector<TimeCartesianBlock>();
+        return RType::error("Empty trajectory positions!");
     }
 
     if (_positionDefinition.crs_epsg.isEmpty()) {
@@ -342,7 +354,7 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionData() const
 
     if (toEcef == 0) { //in case of error
         proj_context_destroy(ctx);
-        return std::vector<TimeCartesianBlock>();
+        return RType::error("Error when initilizing the proj transform from the trajectory to ECEF");
     }
 
     int delta_x = 1;
@@ -379,12 +391,20 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionData() const
 }
 
 
-std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadAngularSpeedSequence() const {
+StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadAngularSpeedSequence() const {
 
-    std::vector<TimeCartesianBlock> data = loadAngularSpeedRawData();
+    using RType = StatusOptionalReturn<Trajectory::TimeCartesianSequence>;
+
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> dataOpt = loadAngularSpeedRawData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    std::vector<TimeCartesianBlock>& data = dataOpt.val();
 
     if (data.empty()) {
-        return std::nullopt;
+        return RType::error("Empty trajectory!");
     }
 
     for (TimeCartesianBlock & block : data) {
@@ -395,12 +415,20 @@ std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadAngularSpeedSeq
 
 }
 
-std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadAccelerationSequence() const {
+StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadAccelerationSequence() const {
 
-    std::vector<TimeCartesianBlock> data = loadAccelerationRawData();
+    using RType = StatusOptionalReturn<Trajectory::TimeCartesianSequence>;
+
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> dataOpt = loadAccelerationRawData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    std::vector<TimeCartesianBlock>& data = dataOpt.val();
 
     if (data.empty()) {
-        return std::nullopt;
+        return RType::error("Empty trajectory!");
     }
 
     for (TimeCartesianBlock & block : data) {
@@ -411,28 +439,48 @@ std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadAccelerationSeq
 
 }
 
-std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadOrientationSequence() const {
-    std::vector<TimeCartesianBlock> data = loadOrientationRawData();
+StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadOrientationSequence() const {
+
+    using RType = StatusOptionalReturn<Trajectory::TimeCartesianSequence>;
+
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> dataOpt = loadOrientationRawData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    std::vector<TimeCartesianBlock>& data = dataOpt.val();
 
     if (data.empty()) {
-        return std::nullopt;
+        return RType::error("Empty trajectory!");
     }
 
     return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
 
 }
 
-std::optional<Trajectory::TimeCartesianSequence> Trajectory::loadPositionSequence() const {
-    std::vector<TimeCartesianBlock> data = loadPositionData();
+StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadPositionSequence() const {
+
+    using RType = StatusOptionalReturn<Trajectory::TimeCartesianSequence>;
+
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> dataOpt = loadPositionData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    std::vector<TimeCartesianBlock>& data = dataOpt.val();
 
     if (data.empty()) {
-        return std::nullopt;
+        return RType::error("Empty trajectory!");
     }
 
     return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
 }
 
-std::vector<Eigen::Vector3f> Trajectory::loadTrajectoryPathInProjectLocalFrame() const {
+StatusOptionalReturn<std::vector<Eigen::Vector3f> > Trajectory::loadTrajectoryPathInProjectLocalFrame() const {
+
+    using RType = StatusOptionalReturn<std::vector<Eigen::Vector3f> >;
 
     std::optional<StereoVision::Geometry::AffineTransform<float>> transform2projFrame = std::nullopt;
 
@@ -444,7 +492,13 @@ std::vector<Eigen::Vector3f> Trajectory::loadTrajectoryPathInProjectLocalFrame()
         }
     }
 
-    std::vector<TimeCartesianBlock> data = loadPositionData();
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> dataOpt = loadPositionData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    std::vector<TimeCartesianBlock>& data = dataOpt.val();
 
     std::vector<Eigen::Vector3f> path(data.size());
 
@@ -472,12 +526,14 @@ std::vector<Eigen::Vector3f> Trajectory::loadTrajectoryPathInProjectLocalFrame()
     return path;
 
 }
-std::vector<StereoVision::Geometry::AffineTransform<float>> Trajectory::loadTrajectoryInProjectLocalFrame(bool optimized) const {
+StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float> > > Trajectory::loadTrajectoryInProjectLocalFrame(bool optimized) const {
+
+    using RType = StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float> > >;
 
     if (optimized) {
 
         if (_optimizedTrajectoryData == nullptr) {
-            return std::vector<StereoVision::Geometry::AffineTransform<float>>();
+            return RType::error("Optimized trajectory uninitialized!");
         }
 
         int nRows = _optimizedTrajectoryData->nRows();
@@ -518,7 +574,13 @@ std::vector<StereoVision::Geometry::AffineTransform<float>> Trajectory::loadTraj
         }
     }
 
-    std::vector<TimeTrajectoryBlock> data = loadTrajectoryData();
+    StatusOptionalReturn<std::vector<TimeTrajectoryBlock>> dataOpt = loadTrajectoryData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    std::vector<TimeTrajectoryBlock>& data = dataOpt.val();
 
     std::vector<StereoVision::Geometry::AffineTransform<float>> path(data.size());
 
@@ -547,12 +609,14 @@ std::vector<StereoVision::Geometry::AffineTransform<float>> Trajectory::loadTraj
 
 }
 
-std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionRawData() const {
+StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::loadPositionRawData() const {
+
+    using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
 
     QFile trajFile(_positionFile);
 
     if (!trajFile.open(QIODevice::ReadOnly)) {
-        return std::vector<Trajectory::TimeCartesianBlock>();
+        return RType::error("Could not open position file!");
     }
 
     QString lineData;
@@ -644,12 +708,14 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadPositionRawData() co
  * \brief loadPositionRawData load the orientation raw data (i.e. without any geodetic conversion).
  * \return a vector of time orientation blocks (represented as axis angles)
  */
-std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadOrientationRawData() const {
+StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::loadOrientationRawData() const {
+
+    using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
 
     QFile trajFile(_orientationFile);
 
     if (!trajFile.open(QIODevice::ReadOnly)) {
-        return std::vector<Trajectory::TimeCartesianBlock>();
+        return RType::error("Could not open orientation file!");
     }
 
     QString lineData;
@@ -827,14 +893,27 @@ std::vector<Trajectory::TimeCartesianBlock> Trajectory::loadOrientationRawData()
 
 }
 
-std::vector<Trajectory::TimeTrajectoryBlock> Trajectory::loadTrajectoryData() const {
+StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::loadTrajectoryData() const {
+
+    using RType = StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>>;
 
     //TODO: generalize this function with interpolation
-    std::vector<TimeCartesianBlock> posECEF = loadPositionData();
-    std::vector<TimeCartesianBlock> orientationRaw = loadOrientationRawData();
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> posECEFOpt = loadPositionData();
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> orientationRawOpt = loadOrientationRawData();
+
+    if (!posECEFOpt.isValid()) {
+        return RType::error(posECEFOpt.errorMessage());
+    }
+
+    if (!orientationRawOpt.isValid()) {
+        return RType::error(posECEFOpt.errorMessage());
+    }
+
+    std::vector<TimeCartesianBlock>& posECEF = posECEFOpt.val();
+    std::vector<TimeCartesianBlock>& orientationRaw = orientationRawOpt.val();
 
     if (posECEF.size() != orientationRaw.size()) {
-        return std::vector<Trajectory::TimeTrajectoryBlock>();
+        return RType::error("Size mismatch between position and orientation data!");
     }
 
     Eigen::Array<double,3,Eigen::Dynamic> posData;
@@ -867,13 +946,13 @@ std::vector<Trajectory::TimeTrajectoryBlock> Trajectory::loadTrajectoryData() co
     auto optLocalFrames = Geo::getLTPC2ECEF(posData, wgs84ECEF, topoConv);
 
     if (!optLocalFrames.has_value()) {
-        return std::vector<Trajectory::TimeTrajectoryBlock>();
+        return RType::error("Error when evaluating trajectory local frame!");
     }
 
     std::vector<StereoVision::Geometry::AffineTransform<double>>& localFrames = optLocalFrames.value();
 
     if (localFrames.size() != posECEF.size()) {
-        return std::vector<Trajectory::TimeTrajectoryBlock>();
+        return RType::error("Mismatch in the number of local frames computed!");
     }
 
     PoseType plateform2sensor(_plateformDefinition.boresight, _plateformDefinition.leverArm);
@@ -892,24 +971,34 @@ std::vector<Trajectory::TimeTrajectoryBlock> Trajectory::loadTrajectoryData() co
     return trajectory;
 }
 
-std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectorySequence() const {
+StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectorySequence() const {
+
+    using RType = StatusOptionalReturn<Trajectory::TimeTrajectorySequence>;
 
     if (_trajectoryCache.has_value()) {
-        return _trajectoryCache;
+        return _trajectoryCache.value();
     }
 
-    std::vector<TimeTrajectoryBlock> data = loadTrajectoryData();
+    StatusOptionalReturn<std::vector<TimeTrajectoryBlock>> dataOpt = loadTrajectoryData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    std::vector<TimeTrajectoryBlock>& data = dataOpt.val();
 
     if (data.empty()) {
-        return std::nullopt;
+        return RType::error("Empty trajectory!");
     }
 
     _trajectoryCache = TimeTrajectorySequence(std::move(data));
 
-    return _trajectoryCache;
+    return _trajectoryCache.value();
 }
 
-std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProjectLocalFrameSequence() const {
+StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProjectLocalFrameSequence() const {
+
+    using RType = StatusOptionalReturn<Trajectory::TimeTrajectorySequence>;
 
     std::optional<StereoVision::Geometry::AffineTransform<float>> transform2projFrame = std::nullopt;
 
@@ -921,10 +1010,16 @@ std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProj
         }
     }
 
-    std::vector<TimeTrajectoryBlock> data = loadTrajectoryData();
+    StatusOptionalReturn<std::vector<TimeTrajectoryBlock>> dataOpt = loadTrajectoryData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    std::vector<TimeTrajectoryBlock>& data = dataOpt.val();
 
     if (data.empty()) {
-        return std::nullopt;
+        return RType::error("Empty trajectory!");
     }
 
 
@@ -952,10 +1047,12 @@ std::optional<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProj
 
 }
 
-std::optional<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectory() const {
+StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectory() const {
+
+    using RType = StatusOptionalReturn<Trajectory::TimeTrajectorySequence>;
 
     if (_optimizedTrajectoryData == nullptr) {
-        return std::nullopt;
+        return RType::error("Uninitilized optimized trajectory");
     }
 
     int nRows = _optimizedTrajectoryData->nRows();
@@ -990,9 +1087,15 @@ bool Trajectory::geoReferenceSupportActive() const  {
 
 Eigen::Array<float,3, Eigen::Dynamic> Trajectory::getLocalPointsEcef() const  {
 
-    std::vector<TimeCartesianBlock> positionData = loadPositionData();
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> positionDataOpt = loadPositionData();
 
     Eigen::Array<float,3, Eigen::Dynamic> ret;
+
+    if (!positionDataOpt.isValid()) {
+        return ret;
+    }
+
+    std::vector<TimeCartesianBlock>& positionData = positionDataOpt.val();
 
     if (positionData.size() == 0) {
         return ret;

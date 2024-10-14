@@ -95,20 +95,20 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
         valid_trajectory = false;
     } else {
 
-        std::optional<Trajectory::TimeTrajectorySequence> trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
+        StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
 
-        if (!trajOptional.has_value()) {
+        if (!trajOptional.isValid()) {
             valid_trajectory = false;
         } else {
-            traj = trajOptional.value();
+            traj = trajOptional.val();
         }
 
-        std::optional<Trajectory::TimeTrajectorySequence> optTrajOptional = _trajectory->optimizedTrajectory();
+        StatusOptionalReturn<Trajectory::TimeTrajectorySequence> optTrajOptional = _trajectory->optimizedTrajectory();
 
-       if (!optTrajOptional.has_value()) {
+       if (!optTrajOptional.isValid()) {
            valid_trajectory = false;
        } else {
-           optTraj = optTrajOptional.value();
+           optTraj = optTrajOptional.val();
        }
     }
 

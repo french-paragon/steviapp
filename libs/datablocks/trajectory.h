@@ -10,6 +10,8 @@
 #include "../geo/localframes.h"
 #include "../vision/indexed_timed_sequence.h"
 
+#include "../utils/statusoptionalreturn.h"
+
 #include <StereoVision/geometry/core.h>
 #include <StereoVision/geometry/rotations.h>
 
@@ -107,25 +109,25 @@ public:
      * \brief loadAngularSpeedSequence load an IndexedTimeSequence for the angular speed (in body frame).
      * \return optionnaly a TimeCartesianSequence
      */
-    std::optional<TimeCartesianSequence> loadAngularSpeedSequence() const;
+    StatusOptionalReturn<TimeCartesianSequence> loadAngularSpeedSequence() const;
 
     /*!
      * \brief loadAccelerationSequence load an IndexedTimeSequence for the acceleration (in body frame)
      * \return optionnaly a TimeCartesianSequence
      */
-    std::optional<TimeCartesianSequence> loadAccelerationSequence() const;
+    StatusOptionalReturn<TimeCartesianSequence> loadAccelerationSequence() const;
 
     /*!
      * \brief loadPositionSequence load an IndexedTimeSequence for the orientation (in local topographic frames).
      * \return optionnaly a TimeCartesianSequence
      */
-    std::optional<TimeCartesianSequence> loadOrientationSequence() const;
+    StatusOptionalReturn<TimeCartesianSequence> loadOrientationSequence() const;
 
     /*!
      * \brief loadPositionSequence load an IndexedTimeSequence for the position (converted to ECEF if a geodetic conversion is defined)
      * \return optionnaly a TimeCartesianSequence
      */
-    std::optional<TimeCartesianSequence> loadPositionSequence() const;
+    StatusOptionalReturn<TimeCartesianSequence> loadPositionSequence() const;
 
     /*!
      * \brief loadTrajectoryPathInProjectLocalFrame load the position data, and apply the conversion from ECEF to project local frame on the fly.
@@ -133,14 +135,14 @@ public:
      *
      * This function is used mostly to display the trajectory in view widgets
      */
-    std::vector<Eigen::Vector3f> loadTrajectoryPathInProjectLocalFrame() const;
+    StatusOptionalReturn<std::vector<Eigen::Vector3f>> loadTrajectoryPathInProjectLocalFrame() const;
     /*!
      * \brief loadTrajectoryInProjectLocalFrame load the pose data, and apply the conversion from ECEF to project local frame on the fly.
      * \return a vector of StereoVision::Geometry::AffineTransform<float>
      *
      * This function is used mostly to display the trajectory in view widgets
      */
-    std::vector<StereoVision::Geometry::AffineTransform<float>> loadTrajectoryInProjectLocalFrame(bool optimized = false) const;
+    StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float>>> loadTrajectoryInProjectLocalFrame(bool optimized = false) const;
 
 
     /*!
@@ -149,19 +151,19 @@ public:
      *
      * If a plateform is defined (boresight and lever arm), the trajectory represent the trajectory of the plateform, else the trajectory represent the trajectory of the sensor
      */
-    std::optional<TimeTrajectorySequence> loadTrajectorySequence() const;
+    StatusOptionalReturn<TimeTrajectorySequence> loadTrajectorySequence() const;
 
     /*!
      * \brief loadTrajectoryProjectLocalFraneSequence load the trajectory data, and apply the conversion from ECEF to project local frame on the fly.
      * \return optionaly a TimeTrajectorySequence
      */
-    std::optional<TimeTrajectorySequence> loadTrajectoryProjectLocalFrameSequence() const;
+    StatusOptionalReturn<TimeTrajectorySequence> loadTrajectoryProjectLocalFrameSequence() const;
 
     /*!
      * \brief optimizedTrajectory return the optimized trajectory, if it is set. The optimized trajectory will be in the project local frame
      * \return optionaly a TimeTrajectorySequence
      */
-    std::optional<TimeTrajectorySequence> optimizedTrajectory() const;
+    StatusOptionalReturn<TimeTrajectorySequence> optimizedTrajectory() const;
 
     virtual bool geoReferenceSupportActive() const override;
     virtual Eigen::Array<float,3, Eigen::Dynamic> getLocalPointsEcef() const override;
@@ -436,37 +438,37 @@ protected:
      * \brief loadAngularSpeedRawData load the angular speed data (in body frame)
      * \return the data as TimeCartesianBlocks representing an angular speed, or empty vector if failed to load
      */
-    std::vector<TimeCartesianBlock> loadAngularSpeedRawData() const;
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadAngularSpeedRawData() const;
 
     /*!
      * \brief loadAccelerationRawData load the acceleration data (in body frame)
      * \return the data as TimeCartesianBlocks, or empty vector if failed to load
      */
-    std::vector<TimeCartesianBlock> loadAccelerationRawData() const;
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadAccelerationRawData() const;
 
     /*!
      * \brief loadPositionData load the position data (including geodetic conversion if defined properly)
      * \return a vector of time position blocks
      */
-    std::vector<TimeCartesianBlock> loadPositionData() const;
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadPositionData() const;
 
     /*!
      * \brief loadPositionRawData load the position raw data (i.e. without any geodetic conversion).
      * \return a vector of time position blocks
      */
-    std::vector<TimeCartesianBlock> loadPositionRawData() const;
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadPositionRawData() const;
 
     /*!
      * \brief loadOrientationRawData load the orientation raw data (i.e. without any conversion from local topometric frame).
      * \return a vector of time orientation blocks (represented as axis angles)
      */
-    std::vector<TimeCartesianBlock> loadOrientationRawData() const;
+    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadOrientationRawData() const;
 
     /*!
      * \brief loadPositionData load the trajectory (including geodetic conversion of the position, if defined properly, and conversion of the orientation from local topometric frame)
      * \return a vector of time trajectory blocks (represented as axis angles)
      */
-    std::vector<TimeTrajectoryBlock> loadTrajectoryData() const;
+    StatusOptionalReturn<std::vector<TimeTrajectoryBlock>> loadTrajectoryData() const;
 
     QJsonObject encodeJson() const override;
     void configureFromJson(QJsonObject const& data) override;
