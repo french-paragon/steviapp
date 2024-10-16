@@ -15,6 +15,8 @@ class OpenGlDrawableTrajectory : public StereoVisionApp::OpenGlDrawable
     Q_OBJECT
 public:
 
+    static const int MAX_TRAJ_SAMPLE;
+
     static const QColor defaultBaseColor;
     static const QColor defaultHighlightColor;
 

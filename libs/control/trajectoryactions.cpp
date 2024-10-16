@@ -79,7 +79,7 @@ void viewTrajectory(Trajectory* traj, bool optimized) {
     }
 
     StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float>>> trajDataOpt = traj->loadTrajectoryInProjectLocalFrame(optimized); //get the trajectory
-    if (trajDataOpt.isValid()) {
+    if (!trajDataOpt.isValid()) {
         QMessageBox::information(mw, QObject::tr("Error loading the trajectory"), trajDataOpt.errorMessage());
     }
 

@@ -9,6 +9,8 @@
 
 namespace StereoVisionApp {
 
+const int OpenGlDrawableTrajectory::MAX_TRAJ_SAMPLE = 50000;
+
 OpenGlDrawableTrajectory::OpenGlDrawableTrajectory(StereoVisionApp::OpenGl3DSceneViewWidget* parent) :
     StereoVisionApp::OpenGlDrawable(parent),
     _has_data(false),
@@ -215,11 +217,13 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
 
     _traj_orient_steps.clear();
 
+    size_t size = std::min<size_t>(MAX_TRAJ_SAMPLE, trajectory.size());
+
     _traj_pos.clear();
-    _traj_pos.resize(trajectory.size()*3);
+    _traj_pos.resize(size*3);
 
     _traj_idxs.clear();
-    _traj_idxs.resize(trajectory.size());
+    _traj_idxs.resize(size);
 
     if (trajectory.empty()) {
 
@@ -233,7 +237,22 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
 
     int i = 0;
     int j = 0;
-    for (StereoVision::Geometry::AffineTransform<float> pose : trajectory) {
+    for (int idx = 0; idx < size; idx++) {
+
+        double percent = double(idx)/std::max<int>(1,size - 1);
+        double prog = trajectory.size()*percent;
+        int trajIdx = std::round(prog);
+
+        if (trajIdx < 0) {
+            trajIdx = 0;
+        }
+
+        if (trajIdx >= trajectory.size()) {
+            trajIdx = trajectory.size()-1;
+        }
+
+        StereoVision::Geometry::AffineTransform<float> const& pose = trajectory[trajIdx];
+
         _traj_pos[i++] = pose.t[0];
         _traj_pos[i++] = pose.t[1];
         _traj_pos[i++] = pose.t[2];
@@ -275,11 +294,13 @@ void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> 
 
     _traj_orient_steps.clear();
 
+    size_t size = std::min<size_t>(MAX_TRAJ_SAMPLE, trajectory.size());
+
     _traj_pos.clear();
-    _traj_pos.resize(trajectory.size()*3);
+    _traj_pos.resize(size*3);
 
     _traj_idxs.clear();
-    _traj_idxs.resize(trajectory.size());
+    _traj_idxs.resize(size);
 
     if (trajectory.empty()) {
 
@@ -295,10 +316,25 @@ void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> 
 
     int i = 0;
     int j = 0;
-    for (Eigen::Vector3f pos : trajectory) {
-        _traj_pos[i++] = pos[0];
-        _traj_pos[i++] = pos[1];
-        _traj_pos[i++] = pos[2];
+    for (int idx = 0; idx < size; idx++) {
+
+        double percent = (size - 1)/double(idx);
+        double prog = trajectory.size()*percent;
+        int trajIdx = std::round(prog);
+
+        if (trajIdx < 0) {
+            trajIdx = 0;
+        }
+
+        if (trajIdx >= trajectory.size()) {
+            trajIdx = trajectory.size()+1;
+        }
+
+        Eigen::Vector3f const& pose = trajectory[trajIdx];
+
+        _traj_pos[i++] = pose[0];
+        _traj_pos[i++] = pose[1];
+        _traj_pos[i++] = pose[2];
 
         _traj_idxs[j] = j;
         j++;

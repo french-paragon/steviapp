@@ -18,13 +18,15 @@ public:
     }
 
     StatusOptionalReturn(R_T const& val) :
-        _val(val)
+        _val(val),
+        _valid(true)
     {
 
     }
 
     StatusOptionalReturn(R_T && val) :
-        _val(val)
+        _val(val),
+        _valid(true)
     {
 
     }

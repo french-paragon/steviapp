@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include <QOpenGLFunctions>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOffscreenSurface>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLFramebufferObjectFormat>
@@ -10,7 +11,36 @@
 #include <QWheelEvent>
 #include <QGuiApplication>
 
+#include <QMessageBox>
+
 #include <QFileDialog>
+
+void GLAPIENTRY
+MessageCallback( GLenum source,
+                 GLenum type,
+                 GLuint id,
+                 GLenum severity,
+                 GLsizei length,
+                 const GLchar* message,
+                 const void* userParam )
+{
+    const StereoVisionApp::OpenGl3DSceneViewWidget* widget_const =
+            reinterpret_cast<const StereoVisionApp::OpenGl3DSceneViewWidget*>(userParam);
+
+    StereoVisionApp::OpenGl3DSceneViewWidget* widget =
+            const_cast<StereoVisionApp::OpenGl3DSceneViewWidget*>(widget_const);
+
+    if (widget == nullptr) {
+        fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+            type, severity, message );
+    } else {
+
+        fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+            type, severity, message );
+    }
+}
 
 namespace StereoVisionApp {
 
@@ -276,6 +306,12 @@ void OpenGl3DSceneViewWidget::initializeGL() {
     f->glEnable(GL_POINT_SMOOTH);
     f->glEnable(GL_PROGRAM_POINT_SIZE);
     f->glEnable(GL_DEPTH_TEST);
+
+    f->glEnable( GL_DEBUG_OUTPUT );
+
+    QOpenGLFunctions_4_5_Core *f45;
+    f45 = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_5_Core>();
+    f45->glDebugMessageCallback( MessageCallback, this );
 
     //initialize all drawables.
     for (OpenGlDrawable* oglDrawable : _drawables) {
