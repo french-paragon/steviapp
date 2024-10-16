@@ -2,6 +2,7 @@
 #define STEREOVISIONAPP_MODULARSBASOLVER_H
 
 #include "./sparsesolverbase.h"
+#include "./sbagraphreductor.h"
 
 #include <ceres/ceres.h>
 
@@ -16,6 +17,7 @@ class QTextStream;
 namespace StereoVisionApp {
 
 class Camera;
+class GenericSBAGraphReductor;
 
 /*!
  * \brief The ModularSBASolver class is a modular solver for bundle adjustement problems.
@@ -38,6 +40,9 @@ public:
 
         SBAModule();
         virtual ~SBAModule();
+
+        virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) = 0;
+        virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) = 0;
 
         virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) = 0;
         virtual bool writeResults(ModularSBASolver* solver) = 0;
@@ -189,7 +194,7 @@ public:
     };
 
     /*!
-     * \brief The TrajectoryPoseNode struct represent a full trajectory (a succession of poses with velocity in between.
+     * \brief The TrajectoryPoseNode struct represent an element in a trajectory
      */
     struct TrajectoryPoseNode {
         double time;
@@ -197,6 +202,9 @@ public:
         std::array<double, 3> t; //position
     };
 
+    /*!
+     * \brief The TrajectoryNode struct represent a full trajectory (a sucession of TrajectoryPoseNode)
+     */
     struct TrajectoryNode {
         qint64 trajId;
         std::vector<TrajectoryPoseNode> nodes;
@@ -339,6 +347,20 @@ public:
     void logDatas(QString fileName);
     void addLogger(QString const& loggerName, ValueBlockLogger* logger);
 
+    /*!
+     * \brief itemIsObservable indicate if an item is observable (according to the current observability graph in the SBA solver
+     * \param itemId the item id
+     * \return true if the item is considered to be observable
+     *
+     * Note that the state of observability depends on the state of the observability graph.
+     * This method is mainly aimed at being used in the SBAModules init function, to decide whether to include an item or not.
+     * The observability graph will be cleared, refilled with the addGraphReductorVariables and
+     *  addGraphReductorObservations methods of the SBAModules, and then reduced before the init methods
+     *  of the SBA modules are called.
+     *
+     */
+    bool itemIsObservable(qint64 itemId) const;
+
 protected:
 
     bool init() override;
@@ -354,6 +376,8 @@ protected:
     bool _verbose;
     bool _compute_marginals;
     bool _not_first_step;
+
+    GenericSBAGraphReductor _observabilityGraph;
 
     ceres::Problem _problem;
     std::vector<SBAModule*> _modules;
@@ -384,7 +408,12 @@ class ImageAlignementSBAModule : public ModularSBASolver::SBAModule
 
 public:
 
+    static const char* ModuleName;
+
     ImageAlignementSBAModule();
+
+    virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
+    virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
 
     virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) override;
     virtual bool writeResults(ModularSBASolver* solver) override;
@@ -442,7 +471,111 @@ protected:
 
 };
 
+/*!
+ * \brief The SBASolverModulesInterface class represent an interface to manager modules for the ModularSBASolver at the application level
+ *
+ * The class allows to register and unregister modules, as well as accessing them
+ */
+class SBASolverModulesInterface : public QObject {
+    Q_OBJECT
+public:
 
+    static const char* AppInterfaceName;
+
+    using SBASolverModuleFactory = std::function<ModularSBASolver::SBAModule*(ModularSBASolver* solver)>;
+    using SBASolverProjectorModuleFactory = std::function<ModularSBASolver::ProjectorModule*(ModularSBASolver* solver)>;
+
+    SBASolverModulesInterface(QObject* parent = nullptr);
+
+    /*!
+     * \brief registerSBAModule register a SBA module, if a module with the same name already exist, it will be removed.
+     * \param name the name of the module
+     * \param moduleFactory the factory to create modules of the sort.
+     */
+    inline void registerSBAModule(QString const& name, SBASolverModuleFactory const& moduleFactory) {
+        _modulesRegister.insert(name, moduleFactory);
+    }
+
+    /*!
+     * \brief buildSBAModule build a given SBA module
+     * \param name the name of the module
+     * \return a pointer to the module, or nullptr if no module could be created.
+     */
+    inline ModularSBASolver::SBAModule* buildSBAModule(QString const& name, ModularSBASolver* solver) const {
+        if (!_modulesRegister.contains(name)) {
+            return nullptr;
+        }
+
+        return _modulesRegister[name](solver);
+    }
+
+    /*!
+     * \brief clearSBAModule remove a factory for a certain module
+     * \param name the name of the module
+     */
+    inline void clearSBAModule(QString const& name) {
+        _modulesRegister.remove(name);
+    }
+
+    /*!
+     * \brief installedSBAModules list the installed sba modules
+     * \return the list of modules names
+     */
+    inline QStringList installedSBAModules() const {
+        return _modulesRegister.keys();
+    }
+
+    inline bool hasSBAModule(QString const& name) const {
+        return _modulesRegister.contains(name);
+    }
+
+    /*!
+     * \brief registerProjectorModule register a projector module, if a module with the same name already exist, it will be removed.
+     * \param name the name of the module
+     * \param moduleFactory the factory to create modules of the sort.
+     */
+    inline void registerProjectorModule(QString const& name, SBASolverProjectorModuleFactory const& moduleFactory) {
+        _projectorsRegister.insert(name, moduleFactory);
+    }
+
+    /*!
+     * \brief buildProjectorModule build a given projector module
+     * \param name the name of the module
+     * \return a pointer to the module, or nullptr if no module could be created.
+     */
+    inline ModularSBASolver::ProjectorModule* buildProjectorModule(QString const& name, ModularSBASolver* solver) const {
+        if (!_projectorsRegister.contains(name)) {
+            return nullptr;
+        }
+
+        return _projectorsRegister[name](solver);
+    }
+
+    /*!
+     * \brief clearProjectorModule remove a factory for a certain module
+     * \param name the name of the module
+     */
+    inline void clearProjectorModule(QString const& name) {
+        _projectorsRegister.remove(name);
+    }
+
+    /*!
+     * \brief installedProjectorModules list the installed projector modules
+     * \return the list of modules names
+     */
+    inline QStringList installedProjectorModules() const {
+        return _projectorsRegister.keys();
+    }
+
+    inline bool hasProjectorModule(QString const& name) const {
+        return _projectorsRegister.contains(name);
+    }
+
+protected:
+
+    QMap<QString, SBASolverModuleFactory> _modulesRegister;
+    QMap<QString, SBASolverProjectorModuleFactory> _projectorsRegister;
+};
 
 } // namespace StereoVisionApp
 

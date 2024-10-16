@@ -10,7 +10,12 @@ class TrajectoryBaseSBAModule : public ModularSBASolver::SBAModule
 
 public:
 
+    static const char* ModuleName;
+
     TrajectoryBaseSBAModule(double integrationTime);
+
+    virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
+    virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
 
     virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) override;
     virtual bool writeResults(ModularSBASolver* solver) override;

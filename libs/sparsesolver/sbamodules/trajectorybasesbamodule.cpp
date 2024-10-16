@@ -27,6 +27,25 @@ TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double integrationTime) :
     _accelerometersScales = std::vector<std::array<double,1>>();
 }
 
+bool TrajectoryBaseSBAModule::addGraphReductorVariables(Project* currentProject, GenericSBAGraphReductor* graphReductor) {
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
+
+    for (qint64 trajId : trajectoriesIdxs) {
+        graphReductor->insertItem(trajId, 0);
+    }
+
+    return true;
+
+}
+bool TrajectoryBaseSBAModule::addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
+    return true;
+}
+
 bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem) {
 
     Project* currentProject = solver->currentProject();

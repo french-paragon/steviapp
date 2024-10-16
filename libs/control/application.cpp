@@ -167,6 +167,22 @@ void StereoVisionApplication::loadRessources() {
     //load the plugins
     loadApplicationPlugins();
 }
+
+bool StereoVisionApplication::registerAdditionalInterface(QString const& name, QObject* interface) {
+    if (_additionalInterfaces.contains(name)) {
+        return false;
+    }
+
+    interface->setParent(this);
+
+    _additionalInterfaces.insert(name, interface);
+    return true;
+}
+
+QObject* StereoVisionApplication::getAdditionalInterface(QString const& name) const {
+    return _additionalInterfaces.value(name, nullptr);
+}
+
 int StereoVisionApplication::exec() {
 
 	if (_QtApp == nullptr) {

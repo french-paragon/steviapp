@@ -54,6 +54,8 @@
 #include "control/fixedstereosequenceactionmanager.h"
 #include "control/trajectoryactionmanager.h"
 
+#include "sparsesolver/modularsbasolver.h"
+
 #include <QDebug>
 
 #include <gdal/gdal.h>
@@ -99,6 +101,9 @@ int main(int argc, char *argv[])
 	format.setProfile(QSurfaceFormat::CoreProfile);
 	format.setSamples(4);
 	QSurfaceFormat::setDefaultFormat(format);
+
+    //app interfaces
+    a.registerAdditionalInterface(StereoVisionApp::SBASolverModulesInterface::AppInterfaceName, new StereoVisionApp::SBASolverModulesInterface(&a));
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
     StereoVisionApp::ActionManagersLibrary& aml = StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary();

@@ -554,6 +554,10 @@ void ModularSBASolver::addLogger(QString const& loggerName, ValueBlockLogger* lo
     }
 }
 
+bool ModularSBASolver::itemIsObservable(qint64 itemId) const {
+    return _observabilityGraph.isIdConstrained(itemId);
+}
+
 bool ModularSBASolver::init() {
 
     if (_currentProject == nullptr) {
@@ -568,10 +572,29 @@ bool ModularSBASolver::init() {
     _trajectoryParameters.reserve(_currentProject->countTypeInstances(Trajectory::staticMetaObject.className()));
     _leverArmParameters.reserve(_trajectoryParameters.size()*_currentProject->countTypeInstances(Camera::staticMetaObject.className()));
 
-    //reset the problem
+    //reset the problem and observability graph
+    _observabilityGraph.clear();
     _problem = ceres::Problem();
 
     bool ok = true;
+
+    for (SBAModule* module : _modules) {
+        ok = module->addGraphReductorVariables(_currentProject, &_observabilityGraph);
+
+        if (!ok) {
+            return false;
+        }
+    }
+
+    for (SBAModule* module : _modules) {
+        ok = module->addGraphReductorObservations(_currentProject, &_observabilityGraph);
+
+        if (!ok) {
+            return false;
+        }
+    }
+
+    _observabilityGraph.reduceGraph();
 
     for (SBAModule* module : _modules) {
         ok = module->init(this, _problem);
@@ -797,8 +820,77 @@ QTextStream& ModularSBASolver::ValueBlockLogger::log(QTextStream& stream) const 
     return stream;
 }
 
+const char* ImageAlignementSBAModule::ModuleName = "SBAModule::ImageAlignement";
+
 ImageAlignementSBAModule::ImageAlignementSBAModule()
 {
+
+}
+
+bool ImageAlignementSBAModule::addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    QVector<qint64> imgs_v = currentProject->getIdsByClass(ImageFactory::imageClassName());
+    QVector<qint64> lmks_v = currentProject->getIdsByClass(LandmarkFactory::landmarkClassName());
+
+    for (qint64 id : imgs_v) {
+        graphReductor->insertItem(id, 6);
+    }
+
+    for (qint64 id : lmks_v) {
+        graphReductor->insertItem(id, 3);
+    }
+
+    return true;
+
+}
+bool ImageAlignementSBAModule::addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    QVector<qint64> imgs_v = currentProject->getIdsByClass(ImageFactory::imageClassName());
+
+    for (qint64 id : imgs_v) {
+        Image* im = qobject_cast<Image*>(currentProject->getById(id));
+        if (im == nullptr) {
+            continue;
+        }
+
+        if (im->isEnabled() == false) {
+            continue;
+        }
+
+        int nSelfObs = 0;
+
+        if (im->xCoord().isSet() and im->yCoord().isSet() and im->zCoord().isSet()) {
+            nSelfObs += 3;
+        }
+
+        if(im->xRot().isSet() and im->yRot().isSet() and im->zRot().isSet()) {
+            nSelfObs += 3;
+        }
+
+        graphReductor->insertSelfObservation(id, nSelfObs);
+
+        QVector<qint64> connections = im->getAttachedLandmarksIds();
+
+        for (qint64 lmId : connections) {
+            graphReductor->insertObservation(id, lmId, 2);
+        }
+
+        qint64 trajId = im->assignedTrajectory(); //if the image has a trajectory
+
+        if (trajId >= 0) {
+            graphReductor->insertObservation(id, trajId, 6);
+        }
+    }
+
+    return true;
 
 }
 
@@ -1232,6 +1324,14 @@ bool PinholdeCamProjModule::writeUncertainty(ModularSBASolver* solver) {
 void PinholdeCamProjModule::cleanup(ModularSBASolver* solver) {
     Q_UNUSED(solver);
     return;
+}
+
+const char* SBASolverModulesInterface::AppInterfaceName = "StereoVisionApp::SBASolverModulesInterface";
+
+SBASolverModulesInterface::SBASolverModulesInterface(QObject* parent) :
+    QObject(parent)
+{
+
 }
 
 } // namespace StereoVisionApp

@@ -164,4 +164,153 @@ SBAGraphReductor::elementsSet SBAGraphReductor::reduceGraph(Project* p, bool ini
 
 }
 
+GenericSBAGraphReductor::GenericSBAGraphReductor()
+{
+
+}
+
+bool GenericSBAGraphReductor::reduceGraph() {
+
+    int nRemoved;
+
+    do {
+        nRemoved = 0;
+
+        QList<qint64> nodesIdxs = _nodes.keys();
+
+        for (qint64 id : nodesIdxs) {
+            auto& node = _nodes[id];
+            if (node.nObs < node.freedomDegrees) {
+                removeItem(id);
+                nRemoved++;
+            }
+        }
+
+    } while (nRemoved > 0);
+
+    return true;
+
+}
+
+
+bool GenericSBAGraphReductor::isIdConstrained(qint64 id) const {
+
+    if (!_nodes.contains(id)) {
+        return false;
+    }
+
+    auto& node = _nodes[id];
+
+    return node.freedomDegrees <= node.nObs;
+}
+
+bool GenericSBAGraphReductor::insertItem(qint64 id, int freedomDegrees) {
+
+    if (_nodes.contains(id)) {
+        return false;
+    }
+
+    _nodes.insert(id, node{freedomDegrees, 0});
+    return true;
+}
+
+bool GenericSBAGraphReductor::insertSelfObservation(qint64 id, int nObs) {
+
+    if (!_nodes.contains(id)) {
+        return false;
+    }
+
+    _nodes[id].nObs += nObs;
+    return true;
+}
+
+bool GenericSBAGraphReductor::insertObservation(qint64 id1, qint64 id2, int nObs) {
+
+    if (id1 == id2) {
+        return false;
+    }
+
+    if (!_nodes.contains(id1) or !_nodes.contains(id2)) {
+        return false;
+    }
+
+    qint64 min = std::min(id1, id2);
+    qint64 max = std::max(id1, id2);
+
+    QPair<qint64, qint64> idx(min, max);
+
+    if (!_observations.contains(idx)) {
+        _observations.insert(idx, 0);
+        _edges.insert(id1, id2);
+        _edges.insert(id2, id1);
+    }
+
+    _observations[idx] += nObs;
+    _nodes[id1].nObs += nObs;
+    _nodes[id2].nObs += nObs;
+    return true;
+
+}
+
+bool GenericSBAGraphReductor::removeSelfObservation(qint64 id, int nObs) {
+    if (!_nodes.contains(id)) {
+        return false;
+    }
+
+    auto & node = _nodes[id];
+
+    int externalObs = 0;
+    QList<qint64> connections = _edges.values(id);
+
+    for (qint64 cid : connections) {
+
+        qint64 min = std::min(id, cid);
+        qint64 max = std::max(id, cid);
+
+        QPair<qint64, qint64> idx(min, max);
+        externalObs += _observations[idx];
+    }
+
+    if (node.nObs < externalObs + nObs) {
+        return false;
+    }
+
+    node.nObs -= nObs;
+    return true;
+}
+
+bool GenericSBAGraphReductor::removeItem(qint64 id) {
+
+    if (!_nodes.contains(id)) {
+        return false;
+    }
+
+    _nodes.remove(id);
+    QList<qint64> connections = _edges.values(id);
+
+    for (qint64 cid : connections) {
+
+        qint64 min = std::min(id, cid);
+        qint64 max = std::max(id, cid);
+
+        QPair<qint64, qint64> idx(min, max);
+
+        int nObs = _observations[idx];
+        _nodes[cid].nObs -= nObs;
+        _observations.remove(idx);
+        _edges.remove(cid,id);
+
+    }
+
+    _edges.remove(id);
+    return true;
+
+}
+
+void GenericSBAGraphReductor::clear() {
+    _nodes.clear();
+    _edges.clear();
+    _observations.clear();
+}
+
 } // namespace StereoVisionApp

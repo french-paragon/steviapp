@@ -2,6 +2,7 @@
 
 #include "datablocks/project.h"
 #include "mainwindow.h"
+#include "application.h"
 
 #include "gui/solutioninitconfigdialog.h"
 #include "gui/sparsesolverconfigdialog.h"
@@ -15,6 +16,8 @@
 #include "sparsesolver/graphstereorigsolver.h"
 #include "sparsesolver/sbagraphreductor.h"
 #include "sparsesolver/sbainitializer.h"
+#include "sparsesolver/modularsbasolver.h"
+#include "sparsesolver/sbamodules/trajectorybasesbamodule.h"
 
 #include "datablocks/landmark.h"
 #include "datablocks/image.h"
@@ -23,6 +26,7 @@
 
 #include <QThread>
 #include <QMessageBox>
+#include <QTextStream>
 
 #include <eigen3/Eigen/Geometry>
 
@@ -373,7 +377,96 @@ void initMonoStereoRigSolution(Project* p, MainWindow* w) {
 	}
 }
 
+void checkBasicSBAModulesRegistration(SBASolverModulesInterface* interface) {
+
+    if (!interface->hasSBAModule(TrajectoryBaseSBAModule::ModuleName)) {
+        interface->registerSBAModule(TrajectoryBaseSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+
+            double gpsAccuracy = 0.02;
+            double angularAccuracy = 0.1;
+            double gyroAccuracy = 0.1;
+            double accAccuracy = 0.5;
+            double tiePointAccuracy = 0.5;
+
+            double integrationtime = 0.5; //half a second
+
+            StereoVisionApp::TrajectoryBaseSBAModule* trajectoryModule =
+                    new StereoVisionApp::TrajectoryBaseSBAModule(integrationtime);
+
+            trajectoryModule->setGpsAccuracy(gpsAccuracy);
+            trajectoryModule->setOrientAccuracy(angularAccuracy);
+            trajectoryModule->setGyroAccuracy(gyroAccuracy);
+            trajectoryModule->setAccAccuracy(accAccuracy);
+
+            return trajectoryModule;
+        });
+    }
+
+    if (!interface->hasSBAModule(ImageAlignementSBAModule::ModuleName)) {
+        interface->registerSBAModule(ImageAlignementSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+            return new ImageAlignementSBAModule();
+        });
+    }
+}
+
+void configureModularSBASolverInterfaces(SBASolverModulesInterface* interface, ModularSBASolver* solver) {
+
+
+    ModularSBASolver::SBAModule* traj_module = interface->buildSBAModule(TrajectoryBaseSBAModule::ModuleName, solver);
+
+    if (traj_module != nullptr) {
+        solver->addModule(traj_module);
+    }
+
+    for (QString & moduleName : interface->installedSBAModules()) {
+
+        if (moduleName == TrajectoryBaseSBAModule::ModuleName) {
+            continue; //trajectory has already been registered (it is expected to be registered first).
+        }
+
+        ModularSBASolver::SBAModule* module = interface->buildSBAModule(moduleName, solver);
+
+        if (module != nullptr) {
+            solver->addModule(module);
+        }
+    }
+}
+
 void solveSparse(Project* p, MainWindow *w, int pnStep) {
+
+    //initial checks
+
+    StereoVisionApplication* application = StereoVisionApplication::GetAppInstance();
+
+    if (application == nullptr) {
+        return;
+    }
+
+    StereoVisionApp::Project* project = application->getCurrentProject();
+
+    if (project == nullptr) {
+        return;
+    }
+
+    QObject* interface = application->getAdditionalInterface(SBASolverModulesInterface::AppInterfaceName);
+
+    if (interface == nullptr) { // SBASolverModulesInterface not installed yet
+
+        interface = new SBASolverModulesInterface(application);
+
+        application->registerAdditionalInterface(SBASolverModulesInterface::AppInterfaceName, interface);
+
+    }
+
+    SBASolverModulesInterface* sbamodulesinterface = qobject_cast<SBASolverModulesInterface*>(interface);
+
+    if (sbamodulesinterface == nullptr) {
+        return;
+    }
+
+    checkBasicSBAModulesRegistration(sbamodulesinterface);
+
+    //gui input
 
 	bool computeUncertainty = true;
 	bool useSparseOptimizer = true;
@@ -408,10 +501,17 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		return;
 	}
 
-    CeresSBASolver* solver = new CeresSBASolver(p, computeUncertainty, useSparseOptimizer, verbose);
+    ModularSBASolver* solver = new ModularSBASolver(p, computeUncertainty, useSparseOptimizer, verbose);
 
 	solver->setOptimizationSteps(nSteps);
 	solver->setFixedParametersFlag(fixedParameters);
+
+    QFileInfo projSourceInfos(project->source());
+
+    QDir projDir = projSourceInfos.dir();
+    solver->enableLogging(projDir.filePath("logging")); //TODO: add option in the dialog to select logs locations
+
+    configureModularSBASolverInterfaces(sbamodulesinterface, solver);
 
 	QThread* t = new QThread();
 
@@ -452,14 +552,51 @@ void solveSparseHeadless(Project* p,
 				 int nSteps,
 				 FixedParameters fixed) {
 
+    StereoVisionApplication* application = StereoVisionApplication::GetAppInstance();
+
+    if (application == nullptr) {
+        return;
+    }
+
+    StereoVisionApp::Project* project = application->getCurrentProject();
+
+    if (project == nullptr) {
+        return;
+    }
+
+    QObject* interface = application->getAdditionalInterface(SBASolverModulesInterface::AppInterfaceName);
+
+    if (interface == nullptr) { // SBASolverModulesInterface not installed yet
+
+        interface = new SBASolverModulesInterface(application);
+
+        application->registerAdditionalInterface(SBASolverModulesInterface::AppInterfaceName, interface);
+
+    }
+
+    SBASolverModulesInterface* sbamodulesinterface = qobject_cast<SBASolverModulesInterface*>(interface);
+
+    if (sbamodulesinterface == nullptr) {
+        return;
+    }
+
+    checkBasicSBAModulesRegistration(sbamodulesinterface);
+
 	if (nSteps <= 0) {
 		return;
 	}
 
-    CeresSBASolver* solver = new CeresSBASolver(p, computeUncertainty, useSparseOptimizer);
+    ModularSBASolver* solver = new ModularSBASolver(p, computeUncertainty, useSparseOptimizer);
 
 	solver->setOptimizationSteps(nSteps);
 	solver->setFixedParametersFlag(fixed);
+
+    QFileInfo projSourceInfos(project->source());
+
+    QDir projDir = projSourceInfos.dir();
+    solver->enableLogging(projDir.filePath("logging"));
+
+    configureModularSBASolverInterfaces(sbamodulesinterface, solver);
 
 	solver->run();
 

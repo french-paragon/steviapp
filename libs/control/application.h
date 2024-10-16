@@ -2,6 +2,7 @@
 #define STEREOVISIONAPP_APPLICATION_H
 
 #include <QObject>
+#include <QMap>
 
 class QCoreApplication;
 
@@ -32,6 +33,24 @@ public:
      * \brief loadRessources load some ressources, like application plugins.
      */
     void loadRessources();
+
+    /*!
+     * \brief registerAdditionalInterface register a QObject as an arbitrary interface in the app.
+     * \param name the name of the interface
+     * \param interface the interface to register, the application takes ownership of the interface on success
+     * \return true if the interface could be registered, false otherwise (e.g. if an interface with such a name already exist).
+     *
+     * The interface is an arbitrary QObject, these can be casted safely using qobject_cast.
+     * This allow to extend the application with arbitrary functions that can be accessed in a safe way.
+     */
+    bool registerAdditionalInterface(QString const& name, QObject* interface);
+
+    /*!
+     * \brief getAdditionalInterface get an additional interface of the application
+     * \param name the name that was used to register the interface.
+     * \return a pointer to the interface, or nullptr in case of error (e.g. if the interface is not installed.
+     */
+    QObject* getAdditionalInterface(QString const& name) const;
 
 	/*!
 	 * \brief exec start the application event loop
@@ -68,6 +87,8 @@ protected:
 	QStringList _scriptsargs;
 	QString _openProjectFile;
     QVector<QString> _requestedPlugins;
+
+    QMap<QString, QObject*> _additionalInterfaces;
 
     bool _ressource_load_flag;
 };
