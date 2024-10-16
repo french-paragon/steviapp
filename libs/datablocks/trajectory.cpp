@@ -333,7 +333,7 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
         return RType::error(retOpt.errorMessage());
     }
 
-    std::vector<Trajectory::TimeCartesianBlock>& ret = retOpt.val();
+    std::vector<Trajectory::TimeCartesianBlock>& ret = retOpt.value();
 
     if (ret.empty()) {
         return RType::error("Empty trajectory positions!");
@@ -401,7 +401,7 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadAngularS
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeCartesianBlock>& data = dataOpt.val();
+    std::vector<TimeCartesianBlock>& data = dataOpt.value();
 
     if (data.empty()) {
         return RType::error("Empty trajectory!");
@@ -425,7 +425,7 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadAccelera
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeCartesianBlock>& data = dataOpt.val();
+    std::vector<TimeCartesianBlock>& data = dataOpt.value();
 
     if (data.empty()) {
         return RType::error("Empty trajectory!");
@@ -449,7 +449,7 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadOrientat
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeCartesianBlock>& data = dataOpt.val();
+    std::vector<TimeCartesianBlock>& data = dataOpt.value();
 
     if (data.empty()) {
         return RType::error("Empty trajectory!");
@@ -469,7 +469,7 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadPosition
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeCartesianBlock>& data = dataOpt.val();
+    std::vector<TimeCartesianBlock>& data = dataOpt.value();
 
     if (data.empty()) {
         return RType::error("Empty trajectory!");
@@ -498,7 +498,7 @@ StatusOptionalReturn<std::vector<Eigen::Vector3f> > Trajectory::loadTrajectoryPa
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeCartesianBlock>& data = dataOpt.val();
+    std::vector<TimeCartesianBlock>& data = dataOpt.value();
 
     std::vector<Eigen::Vector3f> path(data.size());
 
@@ -580,7 +580,7 @@ StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float> 
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeTrajectoryBlock>& data = dataOpt.val();
+    std::vector<TimeTrajectoryBlock>& data = dataOpt.value();
 
     std::vector<StereoVision::Geometry::AffineTransform<float>> path(data.size());
 
@@ -909,8 +909,8 @@ StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::l
         return RType::error(posECEFOpt.errorMessage());
     }
 
-    std::vector<TimeCartesianBlock>& posECEF = posECEFOpt.val();
-    std::vector<TimeCartesianBlock>& orientationRaw = orientationRawOpt.val();
+    std::vector<TimeCartesianBlock>& posECEF = posECEFOpt.value();
+    std::vector<TimeCartesianBlock>& orientationRaw = orientationRawOpt.value();
 
     if (posECEF.size() != orientationRaw.size()) {
         return RType::error("Size mismatch between position and orientation data!");
@@ -985,7 +985,7 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeTrajectoryBlock>& data = dataOpt.val();
+    std::vector<TimeTrajectoryBlock>& data = dataOpt.value();
 
     if (data.empty()) {
         return RType::error("Empty trajectory!");
@@ -1016,7 +1016,7 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeTrajectoryBlock>& data = dataOpt.val();
+    std::vector<TimeTrajectoryBlock>& data = dataOpt.value();
 
     if (data.empty()) {
         return RType::error("Empty trajectory!");
@@ -1095,7 +1095,7 @@ Eigen::Array<float,3, Eigen::Dynamic> Trajectory::getLocalPointsEcef() const  {
         return ret;
     }
 
-    std::vector<TimeCartesianBlock>& positionData = positionDataOpt.val();
+    std::vector<TimeCartesianBlock>& positionData = positionDataOpt.value();
 
     if (positionData.size() == 0) {
         return ret;

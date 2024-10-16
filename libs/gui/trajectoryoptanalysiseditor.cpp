@@ -100,7 +100,7 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
         if (!trajOptional.isValid()) {
             valid_trajectory = false;
         } else {
-            traj = trajOptional.val();
+            traj = trajOptional.value();
         }
 
         StatusOptionalReturn<Trajectory::TimeTrajectorySequence> optTrajOptional = _trajectory->optimizedTrajectory();
@@ -108,7 +108,7 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
        if (!optTrajOptional.isValid()) {
            valid_trajectory = false;
        } else {
-           optTraj = optTrajOptional.val();
+           optTraj = optTrajOptional.value();
        }
     }
 

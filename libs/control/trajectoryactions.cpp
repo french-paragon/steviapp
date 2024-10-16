@@ -83,7 +83,7 @@ void viewTrajectory(Trajectory* traj, bool optimized) {
         QMessageBox::information(mw, QObject::tr("Error loading the trajectory"), trajDataOpt.errorMessage());
     }
 
-    std::vector<StereoVision::Geometry::AffineTransform<float>>& trajData = trajDataOpt.val();
+    std::vector<StereoVision::Geometry::AffineTransform<float>>& trajData = trajDataOpt.value();
 
     constexpr int nOrientationHandles = 9;
     drawableTrajectory->setTrajectory(trajData, nOrientationHandles);

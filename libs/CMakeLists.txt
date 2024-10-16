@@ -37,6 +37,7 @@ macro(install_stereovisionapp_lib target)
       )
 endmacro()
 
+add_stereovisionapp_libdirectory(utils)
 add_stereovisionapp_libdirectory(datablocks)
 add_stereovisionapp_libdirectory(processing)
 add_stereovisionapp_libdirectory(sparsesolver)

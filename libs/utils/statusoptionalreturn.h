@@ -33,7 +33,7 @@ public:
         return _valid;
     }
 
-    inline R_T& val() {
+    inline R_T& value() {
         return _val;
     }
 

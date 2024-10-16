@@ -201,7 +201,7 @@ void OpenGlDrawableTrajectory::setTrajectory(const Trajectory * trajectory, bool
     if (!trajData.isValid()) {
         return; //TODO: propagate message
     }
-    setTrajectory(trajData.val(), orientationHandles);
+    setTrajectory(trajData.value(), orientationHandles);
 
 }
 
