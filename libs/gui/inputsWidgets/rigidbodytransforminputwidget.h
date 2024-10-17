@@ -62,8 +62,14 @@ class RigidBodyTransformInputDialog : public QDialog
 public:
     RigidBodyTransformInputDialog(QWidget* parent = nullptr);
 
-    static std::optional<StereoVision::Geometry::AffineTransform<double>> inputAffineTransform(QString title, QWidget* parent = nullptr);
-    static std::optional<StereoVision::Geometry::RigidBodyTransform<double>> inputRigidTransform(QString title, QWidget* parent = nullptr);
+    static std::optional<StereoVision::Geometry::AffineTransform<double>> inputAffineTransform(QString title,
+                                                                                               QWidget* parent = nullptr,
+                                                                                               StereoVision::Geometry::AffineTransform<double> input =
+            StereoVision::Geometry::AffineTransform<double>(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero()));
+    static std::optional<StereoVision::Geometry::RigidBodyTransform<double>> inputRigidTransform(QString title,
+                                                                                                 QWidget* parent = nullptr,
+                                                                                                 StereoVision::Geometry::RigidBodyTransform<double> input =
+              StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero()));
 
     inline StereoVision::Geometry::AffineTransform<double> getAffineTransform() const {
         return _widget->getAffineTransform();

@@ -118,7 +118,9 @@ void setAccelerometerMounting(Trajectory* traj) {
         return; //need main windows to display trajectory
     }
 
-    auto transform = RigidBodyTransformInputDialog::inputAffineTransform(QObject::tr("Accelerometer mounting"), mw);
+    auto mounting = traj->accelerometerMounting();
+
+    auto transform = RigidBodyTransformInputDialog::inputAffineTransform(QObject::tr("Accelerometer mounting"), mw, mounting);
 
     if (!transform.has_value()) {
         return;
@@ -139,7 +141,9 @@ void setGyroMounting(Trajectory* traj) {
         return; //need main windows to display trajectory
     }
 
-    auto transform = RigidBodyTransformInputDialog::inputAffineTransform(QObject::tr("Gyro mounting"), mw);
+    auto mounting = traj->gyroMounting();
+
+    auto transform = RigidBodyTransformInputDialog::inputAffineTransform(QObject::tr("Gyro mounting"), mw, mounting);
 
     if (!transform.has_value()) {
         return;

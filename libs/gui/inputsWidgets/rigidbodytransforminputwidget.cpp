@@ -226,11 +226,15 @@ RigidBodyTransformInputDialog::RigidBodyTransformInputDialog(QWidget* parent) :
 
 }
 
-std::optional<StereoVision::Geometry::AffineTransform<double>> RigidBodyTransformInputDialog::inputAffineTransform(QString title, QWidget* parent) {
+std::optional<StereoVision::Geometry::AffineTransform<double>> RigidBodyTransformInputDialog::inputAffineTransform(QString title,
+                                                                                                                   QWidget* parent,
+                                                                                                                   StereoVision::Geometry::AffineTransform<double> input) {
 
     RigidBodyTransformInputDialog dialog(parent);
     dialog.setWindowTitle(title);
     dialog.setModal(true);
+
+    dialog.setAffineTransform(input);
 
     dialog.exec();
 
@@ -244,11 +248,15 @@ std::optional<StereoVision::Geometry::AffineTransform<double>> RigidBodyTransfor
 
 }
 
-std::optional<StereoVision::Geometry::RigidBodyTransform<double>> RigidBodyTransformInputDialog::inputRigidTransform(QString title, QWidget* parent) {
+std::optional<StereoVision::Geometry::RigidBodyTransform<double>> RigidBodyTransformInputDialog::inputRigidTransform(QString title,
+                                                                                                                     QWidget* parent,
+                                                                                                                     StereoVision::Geometry::RigidBodyTransform<double> input) {
 
     RigidBodyTransformInputDialog dialog(parent);
     dialog.setWindowTitle(title);
     dialog.setModal(true);
+
+    dialog.setRigidBodyTransform(input);
 
     dialog.exec();
 
