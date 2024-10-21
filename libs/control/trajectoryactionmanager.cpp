@@ -10,6 +10,7 @@
 
 #include "gui/sparsealignementeditor.h"
 #include "gui/trajectoryoptanalysiseditor.h"
+#include "gui/trajectoryalignementanalysiseditor.h"
 
 #include "gui/openGlDrawables/opengldrawabletrajectory.h"
 
@@ -124,6 +125,23 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
         actions.append(analyzeOptTrajectoryAction);
 
     }
+
+    QAction* analyzeTrajectoryAlignmentAction = new QAction(tr("analyze trajectory alignment"), parent);
+    connect(analyzeTrajectoryAlignmentAction, &QAction::triggered, traj, [traj] () {
+
+        MainWindow* mw = MainWindow::getActiveMainWindow();
+
+        Editor* editor = mw->openEditor(TrajectoryAlignementAnalysisEditor::staticMetaObject.className());
+
+        TrajectoryAlignementAnalysisEditor* taae = qobject_cast<TrajectoryAlignementAnalysisEditor*>(editor);
+
+        if (taae == nullptr) {
+            return;
+        }
+
+        taae->setTrajectory(traj);
+    });
+    actions.append(analyzeTrajectoryAlignmentAction);
 
     return actions;
 }

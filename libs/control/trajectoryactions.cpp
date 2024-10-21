@@ -14,6 +14,8 @@
 
 #include "utils/statusoptionalreturn.h"
 
+#include "vision/trajectoryImuPreIntegration.h"
+
 #include <QMessageBox>
 
 namespace StereoVisionApp {
@@ -150,6 +152,299 @@ void setGyroMounting(Trajectory* traj) {
     }
 
     traj->setGyroMounting(transform.value());
+
+}
+
+void checkTrajectoryConsistency(Trajectory* traj) {
+
+    QTextStream out(stdout);
+
+    if (traj == nullptr) {
+        out << "Analyzing trajectory nullptr (aborting)!" << Qt::endl;
+        return;
+    }
+
+    out << "Analyzing trajectory " << traj->objectName() << ":" << Qt::endl;
+
+    StatusOptionalReturn<Trajectory::TimeCartesianSequence> angularSpeedOpt = traj->loadAngularSpeedSequence();
+
+    StatusOptionalReturn<Trajectory::TimeCartesianSequence> accelerometerOpt = traj->loadAccelerationSequence();
+
+    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> posesOpt = traj->loadTrajectoryProjectLocalFrameSequence();
+
+    if (!posesOpt.isValid()) {
+        out << "Could not load trajectory, aborting consistency analysis!" << Qt::endl;
+        return;
+    }
+
+    if (!angularSpeedOpt.isValid()) {
+        out << "Could not load angular speed, aborting consistency analysis!" << Qt::endl;
+        return;
+    }
+
+    if (!accelerometerOpt.isValid()) {
+        out << "Could not load accelerometer data, aborting consistency analysis!" << Qt::endl;
+        return;
+    }
+
+    Trajectory::TimeCartesianSequence& angularSpeed = angularSpeedOpt.value();
+    Trajectory::TimeCartesianSequence& accelerometer = accelerometerOpt.value();
+
+    Trajectory::TimeTrajectorySequence& poses = posesOpt.value();
+
+    out << "Data loaded!" << "\n";
+    out << "\t" << "Poses: " << poses.nPoints() << " records loaded!" << "\n";
+    out << "\t" << "Gyro: " << angularSpeed.nPoints() << " records loaded!" << "\n";
+    out << "\t" << "Accelerometer: " << accelerometer.nPoints() << " records loaded!" << Qt::endl;
+
+    if (poses.nPoints() < 2) {
+        out << "Not enough samples in trajectory, aborting consistency analysis!" << Qt::endl;
+        return;
+    }
+
+    if (angularSpeed.nPoints() < 2) {
+        out << "Not enough samples in angular speed, aborting consistency analysis!" << Qt::endl;
+        return;
+    }
+
+    if (accelerometer.nPoints() < 2) {
+        out << "Not enough samples in accelerometer data, aborting consistency analysis!" << Qt::endl;
+        return;
+    }
+
+    int trajRotNotFinitesRecords = 0;
+    int trajPosNotFinitesRecords = 0;
+    int gyroNotFiniteRecords = 0;
+    int accelerometerNotFiniteRecords = 0;
+
+    constexpr int nMaxNonFiniteIdxs = 10;
+
+    std::vector<int> nonFiniteTrajRotIdx;
+    std::vector<int> nonFiniteTrajPosIdx;
+    std::vector<int> nonFiniteGyroIdx;
+    std::vector<int> nonFiniteAccIdx;
+
+    nonFiniteTrajRotIdx.reserve(nMaxNonFiniteIdxs);
+    nonFiniteTrajPosIdx.reserve(nMaxNonFiniteIdxs);
+    nonFiniteGyroIdx.reserve(nMaxNonFiniteIdxs);
+    nonFiniteAccIdx.reserve(nMaxNonFiniteIdxs);
+
+    for (int i = 0; i < poses.nPoints(); i++) {
+        auto pose = poses[i];
+
+        if (!pose.val.r.allFinite()) {
+            trajRotNotFinitesRecords++;
+
+            if (nonFiniteTrajRotIdx.size() < nMaxNonFiniteIdxs) {
+                nonFiniteTrajRotIdx.push_back(i);
+            }
+        }
+
+        if (!pose.val.t.allFinite()) {
+            trajPosNotFinitesRecords++;
+
+            if (nonFiniteTrajPosIdx.size() < nMaxNonFiniteIdxs) {
+                nonFiniteTrajPosIdx.push_back(i);
+            }
+        }
+    }
+
+    for (int i = 0; i < angularSpeed.nPoints(); i++) {
+
+        if (!angularSpeed[i].val.allFinite()) {
+            gyroNotFiniteRecords++;
+
+            if (nonFiniteGyroIdx.size() < nMaxNonFiniteIdxs) {
+                nonFiniteGyroIdx.push_back(i);
+            }
+        }
+    }
+
+    for (int i = 0; i < accelerometer.nPoints(); i++) {
+
+        if (!accelerometer[i].val.allFinite()) {
+            accelerometerNotFiniteRecords++;
+
+            if (nonFiniteAccIdx.size() < nMaxNonFiniteIdxs) {
+                nonFiniteAccIdx.push_back(i);
+            }
+        }
+    }
+
+    if (trajPosNotFinitesRecords > 0 or trajRotNotFinitesRecords > 0 or gyroNotFiniteRecords > 0 or accelerometerNotFiniteRecords > 0) {
+        out << "Non finite records detected!" << "\n";
+        out << "\t" << "Position: " << trajPosNotFinitesRecords << " non finite records detected!" << "\n";
+
+        if (nonFiniteTrajPosIdx.size() > 0) {
+            out << "\t\t" << "First " << nonFiniteTrajPosIdx.size() << " non finite idxs:";
+            for (int idx : nonFiniteTrajPosIdx) {
+                out << " " << idx;
+            }
+            out << "\n";
+        }
+
+        out << "\t" << "Orientation: " << trajRotNotFinitesRecords << " non finite records detected!" << "\n";
+
+        if (nonFiniteTrajRotIdx.size() > 0) {
+            out << "\t\t" << "First " << nonFiniteTrajRotIdx.size() << " non finite idxs:";
+            for (int idx : nonFiniteTrajRotIdx) {
+                out << " " << idx;
+            }
+            out << "\n";
+        }
+
+        out << "\t" << "Gyro: " << gyroNotFiniteRecords << " non finite records detected!" << "\n";
+
+        if (nonFiniteGyroIdx.size() > 0) {
+            out << "\t\t" << "First " << nonFiniteGyroIdx.size() << " non finite idxs:";
+            for (int idx : nonFiniteGyroIdx) {
+                out << " " << idx;
+            }
+            out << "\n";
+        }
+
+        out << "\t" << "Accelerometer: " << accelerometerNotFiniteRecords << " non finite records detected!" << "\n";
+
+        if (nonFiniteAccIdx.size() > 0) {
+            out << "\t\t" << "First " << nonFiniteAccIdx.size() << " non finite idxs:";
+            for (int idx : nonFiniteAccIdx) {
+                out << " " << idx;
+            }
+            out << "\n";
+        }
+
+        out << "Aborting!" << Qt::endl;
+        return;
+    }
+
+    double minIntegrationTime = 0.5; //min integration time of half a second
+
+    double startTime = poses.sequenceStartTime();
+    double endTime = poses.sequenceEndTime();
+
+    int nExpectedErrors = std::ceil(1.1*(endTime - startTime)/minIntegrationTime);
+
+    std::vector<Eigen::Vector3d> rErrors;
+    std::vector<Eigen::Vector3d> aErrors;
+
+    rErrors.reserve(nExpectedErrors);
+    aErrors.reserve(nExpectedErrors);
+
+    int deltai = 1;
+
+    for (int i = 0; i < poses.nPoints(); i += deltai) {
+
+        Trajectory::TimeTrajectorySequence::TimedElement body1_to_local = poses[i];
+
+        deltai = 1;
+
+        do {
+
+            if (poses[i+deltai].time - body1_to_local.time >= minIntegrationTime) {
+                break;
+            }
+            deltai++;
+        } while (i+deltai < poses.nPoints());
+
+        if (i+deltai >= poses.nPoints()) {
+            break;
+        }
+
+        Trajectory::TimeTrajectorySequence::TimedElement body2_to_local = poses[i+deltai];
+
+        StereoVision::Geometry::RigidBodyTransform<double> body1_to_body2 = body2_to_local.val.inverse()*body1_to_local.val;
+        StereoVision::Geometry::AffineTransform<double> body1_to_body2Aff = body1_to_body2.toAffineTransform();
+
+        Eigen::Matrix3d GyroR2to1 = PreIntegrateGyro(angularSpeed, body1_to_local.time, body2_to_local.time);
+
+        Eigen::Matrix3d errorR = body1_to_body2Aff.R*GyroR2to1;
+
+        rErrors.push_back(StereoVision::Geometry::inverseRodriguezFormula(errorR));
+
+        if (i+2*deltai < poses.nPoints()) {
+            Trajectory::TimeTrajectorySequence::TimedElement body3_to_local = poses[i+2*deltai];
+
+            StereoVision::Geometry::RigidBodyTransform<double> body2_to_body1 = body1_to_body2.inverse();
+            StereoVision::Geometry::RigidBodyTransform<double> body3_to_body1 = body1_to_local.val.inverse()*body3_to_local.val;
+
+            Eigen::Vector3d speed1 = body2_to_body1.t / (body2_to_local.time - body1_to_local.time);
+            Eigen::Vector3d speed2 = (body3_to_body1.t - body2_to_body1.t) / (body3_to_local.time - body2_to_local.time);
+
+            double timespeed1 = (body2_to_local.time + body1_to_local.time)/2;
+            double timespeed2 = (body3_to_local.time + body2_to_local.time)/2;
+
+            //align with the initial point
+            speed1 = StereoVision::Geometry::angleAxisRotate<double>(body1_to_body2.r*0.5, speed1);
+            speed2 = StereoVision::Geometry::angleAxisRotate<double>(body1_to_body2.r*0.5, speed2);
+
+            Eigen::Vector3d speedDeltaTrj = (speed2 - speed1);
+
+            Eigen::Vector3d speedDeltaObs = PreIntegrateAccelerometer(accelerometer, angularSpeed, timespeed1, timespeed2);
+
+            Eigen::Vector3d  accDelta = (speedDeltaObs - speedDeltaTrj)/(timespeed2 - timespeed1);
+
+            aErrors.push_back(accDelta);
+
+        }
+
+    }
+
+    Eigen::Vector3d meanRotError = Eigen::Vector3d::Zero();
+    Eigen::Vector3d maxRotError = Eigen::Vector3d::Zero();
+    double rootMeanSquaredRotNorm = 0;
+    double maxRotNorm = 0;
+
+    for (int i = 0; i < rErrors.size(); i++) {
+        Eigen::Vector3d delta_r = rErrors[i];
+        meanRotError += delta_r;
+
+        for (int a = 0; a < 3; a++) {
+            if (std::abs(delta_r[a]) > std::abs(maxRotError[a])) {
+                maxRotError[a] = delta_r[a];
+            }
+        }
+
+        double sqnorm = delta_r.squaredNorm();
+        rootMeanSquaredRotNorm += sqnorm;
+
+        if (sqnorm > maxRotNorm) {
+            maxRotNorm = sqnorm;
+        }
+    }
+
+    meanRotError /= rErrors.size();
+    rootMeanSquaredRotNorm /= rErrors.size();
+
+    rootMeanSquaredRotNorm = std::sqrt(rootMeanSquaredRotNorm);
+    maxRotNorm = std::sqrt(maxRotNorm);
+
+    out << "\t" << "Mean rotation speed error [axis angle]: " << meanRotError.x() << " " << meanRotError.y() << " " << meanRotError.z() << "\n";
+    out << "\t" << "Max rotation speed error [axis angle]: " << maxRotError.x() << " " << maxRotError.y() << " " << maxRotError.z() << "\n";
+    out << "\t" << "root mean squared rotation norm [axis angle]: " << rootMeanSquaredRotNorm << " and max rotation norm [axis angle]: " << maxRotNorm << Qt::endl;
+
+    Eigen::Vector3d meanAccDelta = Eigen::Vector3d::Zero();
+
+    for (int i = 0; i < aErrors.size(); i++) {
+        meanAccDelta += aErrors[i];
+    }
+
+    meanAccDelta /= aErrors.size();
+
+    out << "\t" << "Mean accelleration delta: " << meanAccDelta.x() << " " << meanAccDelta.y() << " " << meanAccDelta.z() << Qt::endl;
+
+    Eigen::Vector3d stdAccDelta = Eigen::Vector3d::Zero();
+
+    for (int i = 0; i < aErrors.size(); i++) {
+        Eigen::Vector3d delta = aErrors[i] - meanAccDelta;
+        delta[0] *= delta[0];
+        delta[1] *= delta[1];
+        delta[2] *= delta[2];
+        stdAccDelta += delta;
+    }
+
+    stdAccDelta /= aErrors.size();
+
+    out << "\t" << "Std accelleration delta: " << stdAccDelta.x() << " " << stdAccDelta.y() << " " << stdAccDelta.z() << Qt::endl;
 
 }
 

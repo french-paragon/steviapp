@@ -12,6 +12,7 @@ set(LIB_HEADERS
     checkboarddetector.h
     pointcloudio.h
     indexed_timed_sequence.h
+    trajectoryImuPreIntegration.h
 )
 
 add_library(

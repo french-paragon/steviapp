@@ -401,7 +401,7 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadAngularS
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeCartesianBlock>& data = dataOpt.value();
+    std::vector<TimeCartesianBlock> data = dataOpt.value();
 
     if (data.empty()) {
         return RType::error("Empty trajectory!");
@@ -425,7 +425,7 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadAccelera
         return RType::error(dataOpt.errorMessage());
     }
 
-    std::vector<TimeCartesianBlock>& data = dataOpt.value();
+    std::vector<TimeCartesianBlock> data = dataOpt.value();
 
     if (data.empty()) {
         return RType::error("Empty trajectory!");
