@@ -35,6 +35,7 @@
 #include "gui/cameracalibrationeditor.h"
 #include "gui/cameracalibrationsparsealignementeditor.h"
 #include "gui/fixedstereosequenceeditor.h"
+#include "gui/trajectorysequencevieweditor.h"
 #include "gui/trajectoryoptanalysiseditor.h"
 #include "gui/trajectoryalignementanalysiseditor.h"
 
@@ -149,6 +150,7 @@ int main(int argc, char *argv[])
 		w->installEditor(new StereoVisionApp::LandmarkPointDetailsEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::LocalCoordinateSystemPointDetailsEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::SparseAlignementEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::TrajectorySequenceViewEditorFactory(&a));
         w->installEditor(new StereoVisionApp::TrajectoryOptAnalysisEditorFactory(&a));
         w->installEditor(new StereoVisionApp::TrajectoryAlignementAnalysisEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::LensEditorFactory(&a));

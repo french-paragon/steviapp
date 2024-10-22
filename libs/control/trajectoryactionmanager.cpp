@@ -9,6 +9,7 @@
 #include "gui/dialogs/trajectoryeditgyrooptionsdialog.h"
 
 #include "gui/sparsealignementeditor.h"
+#include "gui/trajectorysequencevieweditor.h"
 #include "gui/trajectoryoptanalysiseditor.h"
 #include "gui/trajectoryalignementanalysiseditor.h"
 
@@ -98,6 +99,23 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
         viewTrajectory(traj,false);
     });
     actions.append(viewTrajectoryAction);
+
+    QAction* analyzeTrajectoryAction = new QAction(tr("view trajectory sequence"), parent);
+    connect(analyzeTrajectoryAction, &QAction::triggered, traj, [traj] () {
+
+        MainWindow* mw = MainWindow::getActiveMainWindow();
+
+        Editor* editor = mw->openEditor(TrajectorySequenceViewEditor::staticMetaObject.className());
+
+        TrajectorySequenceViewEditor* tsve = qobject_cast<TrajectorySequenceViewEditor*>(editor);
+
+        if (tsve == nullptr) {
+            return;
+        }
+
+        tsve->setTrajectory(traj);
+    });
+    actions.append(analyzeTrajectoryAction);
 
     if (traj->hasOptimizedTrajectory()) {
 

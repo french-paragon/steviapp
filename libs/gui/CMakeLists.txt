@@ -19,6 +19,7 @@ set(LIB_SRC imagewidget.cpp
             imagepointdetailseditor.ui
             landmarkpointdetailseditor.cpp
             landmarkpointdetailseditor.ui
+            trajectorysequencevieweditor.cpp
             trajectoryoptanalysiseditor.cpp
             trajectoryalignementanalysiseditor.cpp
             localcoordinatesystempointdetailseditor.cpp
@@ -95,6 +96,7 @@ set(LIB_HEADERS
     stereosequenceexportoptiondialog.h
     stereosequenceimageexportoptiondialog.h
     datatablevieweditor.h
+    trajectorysequencevieweditor.h
     trajectoryoptanalysiseditor.h
     trajectoryalignementanalysiseditor.h
 )
