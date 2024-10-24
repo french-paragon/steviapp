@@ -257,13 +257,13 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
 
         Trajectory::TimeTrajectorySequence::TimedElement body2_to_local = traj[i+deltai];
 
-        StereoVision::Geometry::RigidBodyTransform<double> body1_to_body2 = body2_to_local.val.inverse()*body1_to_local.val;
-        StereoVision::Geometry::AffineTransform<double> body1_to_body2Aff = body1_to_body2.toAffineTransform();
+        StereoVision::Geometry::RigidBodyTransform<double> body2_to_body1 = body1_to_local.val.inverse()*body2_to_local.val;
+        StereoVision::Geometry::AffineTransform<double> body2_to_body1Aff = body2_to_body1.toAffineTransform();
 
         Eigen::Matrix3d GyroR2to1 = PreIntegrateGyro(gyro, body1_to_local.time, body2_to_local.time);
 
         Eigen::Vector3d imuAngularSpeed = StereoVision::Geometry::inverseRodriguezFormula(GyroR2to1);
-        Eigen::Vector3d observedAngularSpeed = StereoVision::Geometry::inverseRodriguezFormula(body1_to_body2Aff.R); //we convert to matrix and back to normalize
+        Eigen::Vector3d observedAngularSpeed = StereoVision::Geometry::inverseRodriguezFormula(body2_to_body1Aff.R); //we convert to matrix and back to normalize
 
         timesGyro.push_back(body1_to_local.time);
 
@@ -302,7 +302,6 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
         if (i+2*deltai < traj.nPoints()) {
             Trajectory::TimeTrajectorySequence::TimedElement body3_to_local = traj[i+2*deltai];
 
-            StereoVision::Geometry::RigidBodyTransform<double> body2_to_body1 = body1_to_body2.inverse();
             StereoVision::Geometry::RigidBodyTransform<double> body3_to_body1 = body1_to_local.val.inverse()*body3_to_local.val;
 
             Eigen::Vector3d speed1 = body2_to_body1.t / (body2_to_local.time - body1_to_local.time);
@@ -311,9 +310,9 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
             double timespeed1 = (body2_to_local.time + body1_to_local.time)/2;
             double timespeed2 = (body3_to_local.time + body2_to_local.time)/2;
 
-            //align with the initial point
-            speed1 = StereoVision::Geometry::angleAxisRotate<double>(body1_to_body2.r*0.5, speed1);
-            speed2 = StereoVision::Geometry::angleAxisRotate<double>(body1_to_body2.r*0.5, speed2);
+            //align with the initial point (body1 to body2 halfway)
+            speed1 = StereoVision::Geometry::angleAxisRotate<double>(-body2_to_body1.r*0.5, speed1);
+            speed2 = StereoVision::Geometry::angleAxisRotate<double>(-body2_to_body1.r*0.5, speed2);
 
             Eigen::Vector3d speedDeltaTrj = (speed2 - speed1);
 
