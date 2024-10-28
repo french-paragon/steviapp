@@ -81,6 +81,10 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             continue;
         }
 
+        if (!traj->isEnabled()) {
+            continue;
+        }
+
         int accId = traj->accelerometerId();
 
         if (!_accelerometerParametersIndex.contains(accId)) {
@@ -195,6 +199,11 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
             problem.AddParameterBlock(trajNode->nodes[i].t.data(), trajNode->nodes[i].t.size());
             problem.AddParameterBlock(trajNode->nodes[i].rAxis.data(), trajNode->nodes[i].rAxis.size());
+
+            if (traj->isFixed()) {
+                problem.SetParameterBlockConstant(trajNode->nodes[i].t.data());
+                problem.SetParameterBlockConstant(trajNode->nodes[i].rAxis.data());
+            }
 
             if (i == 0) { //need at least two nodes for first order cost function
                 continue;

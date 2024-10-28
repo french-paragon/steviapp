@@ -167,6 +167,10 @@ ModularSBASolver::LandmarkNode* ModularSBASolver::getNodeForLandmark(qint64 lmId
         return nullptr;
     }
 
+    if (!lm->isEnabled()) {
+        return nullptr;
+    }
+
     int idx = _LandmarkParameters.size();
     _LandmarkParameters.emplace_back();
     _LandmarkParametersIndex[lmId] = idx;
@@ -175,6 +179,10 @@ ModularSBASolver::LandmarkNode* ModularSBASolver::getNodeForLandmark(qint64 lmId
     lmNode->lmId = lmId;
 
     _problem.AddParameterBlock(lmNode->pos.data(), lmNode->pos.size());
+
+    if (lm->isFixed()) {
+        _problem.SetParameterBlockConstant(lmNode->pos.data());
+    }
 
     QString paramLogName = QString("Position for landmark %1").arg(lm->objectName());
 
@@ -281,6 +289,10 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForFrame(qint64 imId, bool 
         return nullptr;
     }
 
+    if (!im->isEnabled()) {
+        return nullptr;
+    }
+
     int idx = _frameParameters.size();
     _frameParameters.emplace_back();
     _frameParametersIndex[imId] = idx;
@@ -298,7 +310,7 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForFrame(qint64 imId, bool 
     _problem.AddParameterBlock(imNode->rAxis.data(), imNode->rAxis.size());
     _problem.AddParameterBlock(imNode->t.data(), imNode->t.size());
 
-    if (getFixedParametersFlag()&FixedParameter::CameraExternal) {
+    if (getFixedParametersFlag()&FixedParameter::CameraExternal or im->isFixed()) {
         _problem.SetParameterBlockConstant(imNode->rAxis.data());
         _problem.SetParameterBlockConstant(imNode->t.data());
     }

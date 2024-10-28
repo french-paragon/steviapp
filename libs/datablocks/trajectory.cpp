@@ -1902,6 +1902,20 @@ void Trajectory::extendDataModel() {
                 &Trajectory::gyroIdChanged);
 
 
+
+    ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+    optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Enabled"),
+                                                                                                          &DataBlock::isEnabled,
+                                                                                                          &DataBlock::setEnabled,
+                                                                                                          &DataBlock::isEnabledChanged);
+
+    optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Fixed"),
+                                                                                                          &DataBlock::isFixed,
+                                                                                                          &DataBlock::setFixed,
+                                                                                                          &DataBlock::isFixedChanged);
+
+
     ItemDataModel::Category* accelerometerOptIdsCat = _dataModel->addCategory(tr("Accelerometer Optimized Parameters"));
 
     accelerometerOptIdsCat->addCatProperty<floatParameter,
