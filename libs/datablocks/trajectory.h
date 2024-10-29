@@ -409,6 +409,19 @@ public:
         return _gyroMounting;
     }
 
+    double getPreIntegrationTime() const;
+    void setPreIntegrationTime(double time);
+
+    double getGpsAccuracy() const;
+    double getAngularAccuracy() const;
+    double getGyroAccuracy() const;
+    double getAccAccuracy() const;
+
+    void setGpsAccuracy(double accuracy);
+    void setAngularAccuracy(double accuracy);
+    void setGyroAccuracy(double accuracy);
+    void setAccAccuracy(double accuracy);
+
     DataTable* getOptimizedDataTable();
     bool hasOptimizedTrajectory() const;
 
@@ -422,6 +435,11 @@ Q_SIGNALS:
     void trajectoryDataChanged();
     void optimizedTrajectoryDataChanged();
 
+    void gpsAccuracyChanged();
+    void angularAccuracyChanged();
+    void gyroAccuracyChanged();
+    void accAccuracyChanged();
+
     void accelerometerBiasXChanged();
     void accelerometerBiasYChanged();
     void accelerometerBiasZChanged();
@@ -430,6 +448,8 @@ Q_SIGNALS:
 
     void accelerometerIdChanged();
     void gyroIdChanged();
+
+    void preIntegrationTimeChanged();
 
 protected:
 
@@ -596,6 +616,17 @@ protected:
 
     int _accelerometerId;
     int _gyroId;
+
+    double _gpsAccuracy;
+    double _angularAccuracy;
+    double _gyroAccuracy;
+    double _accAccuracy;
+
+    /*!
+     * \brief _opt_integration_time store the pre-integration time for optimization.
+     * _opt_integration_time < 0 imply to use the app global pre-integration time
+     */
+    double _opt_preintegration_time;
 
     DataTable* _optimizedTrajectoryData;
 };

@@ -12,7 +12,7 @@ public:
 
     static const char* ModuleName;
 
-    TrajectoryBaseSBAModule(double integrationTime);
+    TrajectoryBaseSBAModule(double defaultIntegrationTime);
 
     virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
     virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
@@ -22,49 +22,49 @@ public:
     virtual bool writeUncertainty(ModularSBASolver* solver) override;
     virtual void cleanup(ModularSBASolver* solver) override;
 
-    inline double gpsAccuracy() const
+    inline double defaultGpsAccuracy() const
     {
-        return _gpsAccuracy;
+        return _defaultGpsAccuracy;
     }
 
-    inline void setGpsAccuracy(double newGpsAccuracy)
+    inline void setDefaultGpsAccuracy(double newGpsAccuracy)
     {
-        _gpsAccuracy = newGpsAccuracy;
+        _defaultGpsAccuracy = newGpsAccuracy;
     }
 
-    inline double orientAccuracy() const
+    inline double defaultOrientAccuracy() const
     {
-        return _orientAccuracy;
+        return _defaultOrientAccuracy;
     }
 
-    inline void setOrientAccuracy(double newOrientAccuracy)
+    inline void setDefaultOrientAccuracy(double newOrientAccuracy)
     {
-        _orientAccuracy = newOrientAccuracy;
+        _defaultOrientAccuracy = newOrientAccuracy;
     }
 
-    inline double accAccuracy() const
+    inline double defaultAccAccuracy() const
     {
-        return _accAccuracy;
+        return _defaultAccAccuracy;
     }
 
-    inline void setAccAccuracy(double newAccAccuracy)
+    inline void setDefaultAccAccuracy(double newAccAccuracy)
     {
-        _accAccuracy = newAccAccuracy;
+        _defaultAccAccuracy = newAccAccuracy;
     }
 
-    inline double gyroAccuracy() const
+    inline double defaultGyroAccuracy() const
     {
-        return _gyroAccuracy;
+        return _defaultGyroAccuracy;
     }
 
-    inline void setGyroAccuracy(double newGyroAccuracy)
+    inline void setDefaultGyroAccuracy(double newGyroAccuracy)
     {
-        _gyroAccuracy = newGyroAccuracy;
+        _defaultGyroAccuracy = newGyroAccuracy;
     }
 
 protected:
 
-    double _integrationTime;
+    double _defaultIntegrationTime;
 
     bool _accelerometerBias;
     bool _accelerometerScale;
@@ -74,11 +74,11 @@ protected:
 
     QMap<int, int> _accelerometerParametersIndex;
 
-    double _gpsAccuracy;
-    double _orientAccuracy;
+    double _defaultGpsAccuracy;
+    double _defaultOrientAccuracy;
 
-    double _accAccuracy;
-    double _gyroAccuracy;
+    double _defaultAccAccuracy;
+    double _defaultGyroAccuracy;
 
     std::array<double,3> _gravity;
 

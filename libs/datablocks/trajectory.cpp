@@ -25,7 +25,12 @@ const char* Trajectory::OptDataRotZHeader = "Trajectory Z orientation";
 
 Trajectory::Trajectory(Project* parent) :
     DataBlock(parent),
-    _optimizedTrajectoryData(nullptr)
+    _opt_preintegration_time(0.5),
+    _optimizedTrajectoryData(nullptr),
+    _gpsAccuracy(0.02),
+    _angularAccuracy(0.1),
+    _gyroAccuracy(0.1),
+    _accAccuracy(0.5)
 {
     _plateformDefinition.boresight.setConstant(0);
     _plateformDefinition.leverArm.setConstant(0);
@@ -1415,6 +1420,55 @@ void Trajectory::setGyroSign(Axis axis, int sign) {
 
 }
 
+double Trajectory::getPreIntegrationTime() const {
+    return _opt_preintegration_time;
+}
+
+void Trajectory::setPreIntegrationTime(double time) {
+    if (time != _opt_preintegration_time) {
+        _opt_preintegration_time = time;
+        Q_EMIT preIntegrationTimeChanged();
+    }
+}
+
+double Trajectory::getGpsAccuracy() const {
+    return _gpsAccuracy;
+}
+double Trajectory::getAngularAccuracy() const {
+    return _angularAccuracy;
+}
+double Trajectory::getGyroAccuracy() const {
+    return _gyroAccuracy;
+}
+double Trajectory::getAccAccuracy() const {
+    return _accAccuracy;
+}
+
+void Trajectory::setGpsAccuracy(double accuracy) {
+    if (_gpsAccuracy != accuracy) {
+        _gpsAccuracy = accuracy;
+        Q_EMIT gpsAccuracyChanged();
+    }
+}
+void Trajectory::setAngularAccuracy(double accuracy) {
+    if (_angularAccuracy != accuracy) {
+        _angularAccuracy = accuracy;
+        Q_EMIT angularAccuracyChanged();
+    }
+}
+void Trajectory::setGyroAccuracy(double accuracy) {
+    if (_gyroAccuracy != accuracy) {
+        _gyroAccuracy = accuracy;
+        Q_EMIT gyroAccuracyChanged();
+    }
+}
+void Trajectory::setAccAccuracy(double accuracy) {
+    if (_accAccuracy != accuracy) {
+        _accAccuracy = accuracy;
+        Q_EMIT accAccuracyChanged();
+    }
+}
+
 DataTable* Trajectory::getOptimizedDataTable() {
 
     if (_optimizedTrajectoryData == nullptr) {
@@ -1530,6 +1584,13 @@ QJsonObject Trajectory::encodeJson() const {
     if (_optimizedTrajectoryData != nullptr) {
         obj.insert("optimizedTrajectory", static_cast<DataBlock*>(_optimizedTrajectoryData)->encodeJson());
     }
+
+    obj.insert("gpsAccuracy", _gpsAccuracy);
+    obj.insert("angularAccuracy", _angularAccuracy);
+    obj.insert("gyroAccuracy", _gyroAccuracy);
+    obj.insert("accAccuracy", _accAccuracy);
+
+    obj.insert("preIntegrationTime", _opt_preintegration_time);
 
     QJsonArray separatorsStrings;
 
@@ -1815,6 +1876,36 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         _gyroId = 1;
     }
 
+    if (data.contains("gpsAccuracy")) {
+        _gpsAccuracy = data.value("gpsAccuracy").toDouble(0.02);
+    } else {
+        _gpsAccuracy = 0.02; //default is half a second
+    }
+
+    if (data.contains("angularAccuracy")) {
+        _angularAccuracy = data.value("angularAccuracy").toDouble(0.1);
+    } else {
+        _angularAccuracy = 0.1; //default is half a second
+    }
+
+    if (data.contains("gyroAccuracy")) {
+        _gyroAccuracy = data.value("gyroAccuracy").toDouble(0.1);
+    } else {
+        _gyroAccuracy = 0.1; //default is half a second
+    }
+
+    if (data.contains("accAccuracy")) {
+        _accAccuracy = data.value("accAccuracy").toDouble(0.5);
+    } else {
+        _accAccuracy = 0.5; //default is half a second
+    }
+
+    if (data.contains("preIntegrationTime")) {
+        _opt_preintegration_time = data.value("preIntegrationTime").toDouble(0.5);
+    } else {
+        _opt_preintegration_time = 0.5; //default is half a second
+    }
+
     if (data.contains("inputDataSeparators")) {
         QJsonArray seps = data.value("inputDataSeparators").toArray();
 
@@ -1914,6 +2005,26 @@ void Trajectory::extendDataModel() {
                                                                                                           &DataBlock::isFixed,
                                                                                                           &DataBlock::setFixed,
                                                                                                           &DataBlock::isFixedChanged);
+
+    optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("pre-integration time"),
+                                                                                                          &Trajectory::getPreIntegrationTime,
+                                                                                                          &Trajectory::setPreIntegrationTime,
+                                                                                                          &Trajectory::preIntegrationTimeChanged);
+
+    optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("gps accuracy"),
+                                                                                                          &Trajectory::getGpsAccuracy,
+                                                                                                          &Trajectory::setGpsAccuracy,
+                                                                                                          &Trajectory::gpsAccuracyChanged);
+
+    optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("gyro accuracy"),
+                                                                                                          &Trajectory::getGyroAccuracy,
+                                                                                                          &Trajectory::setGyroAccuracy,
+                                                                                                          &Trajectory::gyroAccuracyChanged);
+
+    optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("accelerometer accuracy"),
+                                                                                                          &Trajectory::getAccAccuracy,
+                                                                                                          &Trajectory::setAccAccuracy,
+                                                                                                          &Trajectory::accAccuracyChanged);
 
 
     ItemDataModel::Category* accelerometerOptIdsCat = _dataModel->addCategory(tr("Accelerometer Optimized Parameters"));

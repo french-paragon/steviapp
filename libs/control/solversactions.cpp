@@ -393,10 +393,10 @@ void checkBasicSBAModulesRegistration(SBASolverModulesInterface* interface) {
             StereoVisionApp::TrajectoryBaseSBAModule* trajectoryModule =
                     new StereoVisionApp::TrajectoryBaseSBAModule(integrationtime);
 
-            trajectoryModule->setGpsAccuracy(gpsAccuracy);
-            trajectoryModule->setOrientAccuracy(angularAccuracy);
-            trajectoryModule->setGyroAccuracy(gyroAccuracy);
-            trajectoryModule->setAccAccuracy(accAccuracy);
+            trajectoryModule->setDefaultGpsAccuracy(gpsAccuracy);
+            trajectoryModule->setDefaultOrientAccuracy(angularAccuracy);
+            trajectoryModule->setDefaultGyroAccuracy(gyroAccuracy);
+            trajectoryModule->setDefaultAccAccuracy(accAccuracy);
 
             return trajectoryModule;
         });

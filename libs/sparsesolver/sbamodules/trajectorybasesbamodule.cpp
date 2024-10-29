@@ -17,8 +17,8 @@ namespace StereoVisionApp {
 
 const char* TrajectoryBaseSBAModule::ModuleName = "SBAModule::Trajectory";
 
-TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double integrationTime) :
-    _integrationTime(integrationTime)
+TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double defaultIntegrationTime) :
+    _defaultIntegrationTime(defaultIntegrationTime)
 {
     _accelerometerBias = true;
     _accelerometerScale = true;
@@ -162,7 +162,13 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             continue;
         }
 
-        int nSteps = std::ceil(duration/_integrationTime)+1;
+        double integrationTime = traj->getPreIntegrationTime();
+
+        if (integrationTime <= 0) {
+            integrationTime = _defaultIntegrationTime; //replace with default
+        }
+
+        int nSteps = std::ceil(duration/integrationTime)+1;
         double stepTime = duration/nSteps;
 
         int nTrajLoggers = std::min(500,nSteps);
@@ -209,8 +215,14 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 continue;
             }
 
+            double gpsAccuracy = traj->getGpsAccuracy();
+
+            if (gpsAccuracy <= 0) {
+                gpsAccuracy = _defaultGpsAccuracy;
+            }
+
             //gps observations
-            if (i > 0 and _gpsAccuracy > 1e-5) {
+            if (i > 0 and gpsAccuracy > 1e-5) {
 
                 double t1 = trajNode->nodes[i-1].time;
                 double t2 = trajNode->nodes[i].time;
@@ -238,7 +250,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 vec = world2local*optGps.value()[currentGPSNode].val;
 
                 for (int i = 0; i < 3; i++) {
-                    infos(i,i) = 1/_gpsAccuracy;
+                    infos(i,i) = 1/gpsAccuracy;
                 }
 
                 //add gps based trajectory priors
@@ -310,6 +322,12 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
             //gyro cost
 
+            double gyroAccuracy = traj->getGyroAccuracy();
+
+            if (gyroAccuracy <= 0) {
+                gyroAccuracy = _defaultGyroAccuracy;
+            }
+
             if (optGyro.isValid()) {
 
                 GyroStepCost* gyroStepCost =
@@ -323,7 +341,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 double dt = trajNode->nodes[i].time - trajNode->nodes[i-1].time;
                 Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
-                double poseUncertainty = _gyroAccuracy*dt;
+                double poseUncertainty = gyroAccuracy*dt;
 
                 weigthMat(0,0) = 1/poseUncertainty;
                 weigthMat(1,1) = 1/poseUncertainty;
@@ -346,6 +364,12 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             }
 
             //accelerometer cost
+
+            double accAccuracy = traj->getAccAccuracy();
+
+            if (accAccuracy <= 0) {
+                accAccuracy = _defaultAccAccuracy;
+            }
 
             if (optGyro.isValid() and optImu.isValid()) {
 
@@ -370,7 +394,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
                     Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
-                    double speedUncertainty = _accAccuracy*dt;
+                    double speedUncertainty = accAccuracy*dt;
 
                     weigthMat(0,0) = 1/speedUncertainty;
                     weigthMat(1,1) = 1/speedUncertainty;
@@ -414,7 +438,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
                     Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
-                    double speedUncertainty = _accAccuracy*dt;
+                    double speedUncertainty = accAccuracy*dt;
 
                     weigthMat(0,0) = 1/speedUncertainty;
                     weigthMat(1,1) = 1/speedUncertainty;
@@ -456,7 +480,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
                     Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
-                    double speedUncertainty = _accAccuracy*dt;
+                    double speedUncertainty = accAccuracy*dt;
 
                     weigthMat(0,0) = 1/speedUncertainty;
                     weigthMat(1,1) = 1/speedUncertainty;
@@ -499,7 +523,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
                     Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
-                    double speedUncertainty = _accAccuracy*dt;
+                    double speedUncertainty = accAccuracy*dt;
 
                     weigthMat(0,0) = 1/speedUncertainty;
                     weigthMat(1,1) = 1/speedUncertainty;
