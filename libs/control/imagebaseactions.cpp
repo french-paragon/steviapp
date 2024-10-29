@@ -36,6 +36,8 @@
 #include <QDir>
 #include <QPixmap>
 #include <QRegularExpression>
+#include <QFileDialog>
+#include <QStandardPaths>
 
 #include <QDebug>
 
@@ -519,6 +521,65 @@ int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Projec
 	}
 
 	return treated;
+
+}
+
+
+
+int exportImageLandmarksPositionsToCSV(qint64 imageId, Project* p, QWidget* w) {
+
+    if (p == nullptr) {
+        return 0;
+    }
+
+    Image* img = p->getDataBlock<Image>(imageId);
+
+    if (img == nullptr) {
+        return 0;
+    }
+
+    QString saveFile = QFileDialog::getSaveFileName(w,
+                                 QObject::tr("Export landmarks to csv"),
+                                 QStandardPaths::standardLocations(QStandardPaths::PicturesLocation).first());
+
+    if (saveFile.isEmpty()) {
+        return 0;
+    }
+
+    QFile outFile(saveFile);
+
+    bool ok = outFile.open(QFile::WriteOnly);
+
+    if (!ok) {
+        return 0;
+    }
+
+    QTextStream out(&outFile);
+
+    out << "Landmark," << "u," << "v" << "\n";
+
+    QVector<qint64> imLmId = img->listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName);
+
+    for (qint64 subid : imLmId) {
+        ImageLandmark* imLm = qobject_cast<ImageLandmark*>(img->getById(subid));
+
+        if (imLm == nullptr) {
+            continue;
+        }
+
+        Landmark* lm = imLm->attachedLandmark();
+
+        if (lm == nullptr) {
+            continue;
+        }
+
+        out << lm->objectName() << "," << imLm->x().value() << "," << imLm->y().value() << "\n";
+
+    }
+
+    outFile.close();
+
+    return 1;
 
 }
 

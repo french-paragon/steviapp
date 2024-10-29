@@ -148,13 +148,19 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 
 	QAction* assignToCamera = createAssignToCameraAction(parent, im->getProject(), {im});
 
-	lst.append(assignToCamera);
+    lst.append(assignToCamera);
 
-	QAction* exportRectified = new QAction(tr("Export rectified image"), parent);
-	connect(exportRectified, &QAction::triggered, [mw, im] () {
-		exportRectifiedImages({im->internalId()}, im->getProject(), mw);
-	});
-	lst.append(exportRectified);
+    QAction* exportRectified = new QAction(tr("Export rectified image"), parent);
+    connect(exportRectified, &QAction::triggered, [mw, im] () {
+        exportRectifiedImages({im->internalId()}, im->getProject(), mw);
+    });
+    lst.append(exportRectified);
+
+    QAction* exportLandmarks = new QAction(tr("Export landmarks positions"), parent);
+    connect(exportLandmarks, &QAction::triggered, [mw, im] () {
+        exportImageLandmarksPositionsToCSV(im->internalId(), im->getProject(), mw);
+    });
+    lst.append(exportLandmarks);
 
 	QAction* detectHexaTarget = new QAction(tr("Detect hexagonal targets"), parent);
 	connect(detectHexaTarget, &QAction::triggered, [im] () {
