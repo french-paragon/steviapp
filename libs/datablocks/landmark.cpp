@@ -164,7 +164,7 @@ Eigen::Array<float,3, Eigen::Dynamic> Landmark::getLocalPointsEcef() const {
     return ret;
 }
 
-std::optional<Eigen::Vector3f> Landmark::getOptimizableCoordinates(bool optimized) const {
+std::optional<Eigen::Vector3f> Landmark::getOptimizableCoordinates(bool optimized, bool applyProjectLocalTransform) const {
 
     double vx;
     double vy;
@@ -215,6 +215,14 @@ std::optional<Eigen::Vector3f> Landmark::getOptimizableCoordinates(bool optimize
     ret(0,0) = vx;
     ret(1,0) = vy;
     ret(2,0) = vz;
+
+    if (applyProjectLocalTransform) {
+        Project* project = getProject();
+
+        if (project != nullptr) {
+            ret = project->ecef2local()*ret;
+        }
+    }
 
     return ret;
 }

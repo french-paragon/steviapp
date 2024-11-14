@@ -38,10 +38,13 @@ public:
 
     /*!
      * \brief getOptimizableCoordinates get coordinates of the landmarks in the optimization frame
-     * \param optimized
-     * \return
+     * \param optimized if true get the position from the optimized position of the landmark
+     * \param applyProjectLocalTransform if true the local transform of the landmark project is applied on the fly
+     * \return optionally, the landmark position in 3D.
+     *
+     *
      */
-    std::optional<Eigen::Vector3f> getOptimizableCoordinates(bool optimized = false) const;
+    std::optional<Eigen::Vector3f> getOptimizableCoordinates(bool optimized = false, bool applyProjectLocalTransform = false) const;
     bool setPositionFromEcef(Eigen::Vector3f const& point, bool optimized = false);
 
 protected:
