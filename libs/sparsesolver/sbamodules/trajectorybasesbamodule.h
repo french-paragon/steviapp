@@ -62,7 +62,17 @@ public:
         _defaultGyroAccuracy = newGyroAccuracy;
     }
 
+    inline bool hasOrientationPriorEnabled() const {
+        return _useOrientationPriors;
+    }
+
+    inline void enableOrientationPrior(bool enabled) {
+        _useOrientationPriors = enabled;
+    }
+
 protected:
+
+    bool _useOrientationPriors;
 
     double _defaultIntegrationTime;
 

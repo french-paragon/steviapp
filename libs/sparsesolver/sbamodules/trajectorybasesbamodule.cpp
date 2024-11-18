@@ -20,6 +20,9 @@ const char* TrajectoryBaseSBAModule::ModuleName = "SBAModule::Trajectory";
 TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double defaultIntegrationTime) :
     _defaultIntegrationTime(defaultIntegrationTime)
 {
+
+    _useOrientationPriors = true;
+
     _accelerometerBias = true;
     _accelerometerScale = true;
 
@@ -213,6 +216,38 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
             if (i == 0) { //need at least two nodes for first order cost function
                 continue;
+            }
+
+            double orientationAccuracy = _defaultOrientAccuracy;
+
+            //orientation priors
+            if (_useOrientationPriors) {
+
+                if (i == 0 or i == nSteps-1) {//add the priors only at beginning and end of
+
+                    Eigen::Matrix3d infos = Eigen::Matrix3d::Zero();
+                    Eigen::Vector3d vec;
+
+                    //position in local optimization frame
+                    vec << trajNode->nodes[i].rAxis[0],trajNode->nodes[i].rAxis[1], trajNode->nodes[i].rAxis[2];
+
+                    for (int i = 0; i < 3; i++) {
+                        infos(i,i) = 1/orientationAccuracy;
+                    }
+
+                    ModularSBASolver::AutoErrorBlockLogger<1,3>::ParamsType params = {trajNode->nodes[i].rAxis.data()};
+
+                    ceres::NormalPrior* orientationPrior = new ceres::NormalPrior(infos, vec);
+
+                    problem.AddResidualBlock(orientationPrior, nullptr,
+                                             params.data(),
+                                             params.size());
+
+                    QString loggerName = QString("Trajectory \"%1\" Orientation Prior index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                    solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(orientationPrior, params));
+
+                }
+
             }
 
             double gpsAccuracy = traj->getGpsAccuracy();
