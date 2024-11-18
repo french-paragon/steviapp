@@ -344,7 +344,16 @@ public:
     }
 
     void enableLogging(QString loggingDirPath);
+    /*!
+     * \brief logDatas write all the data logger to a specific file
+     * \param fileName the filename to log to (will be created in the logging dir).
+     */
     void logDatas(QString fileName);
+    /*!
+     * \brief logMessage if logging is enabled, log a message to the default log file.
+     * \param message the message to log
+     */
+    void logMessage(QString message);
     void addLogger(QString const& loggerName, ValueBlockLogger* logger);
 
     /*!
@@ -385,6 +394,7 @@ protected:
 
     QMap<QString, ValueBlockLogger*> _loggers;
     QString _loggingDir;
+    QString _default_logging_file;
 
     QMap<qint64, int> _frameProjectorsAssociations;
 

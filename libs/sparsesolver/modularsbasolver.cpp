@@ -511,6 +511,7 @@ StereoVision::Geometry::AffineTransform<double> ModularSBASolver::getTransform2L
 
 void ModularSBASolver::enableLogging(QString loggingDirPath) {
     _loggingDir = loggingDirPath;
+    _default_logging_file = QDir(_loggingDir).absoluteFilePath("messages.log");
 }
 void ModularSBASolver::logDatas(QString fileName) {
 
@@ -551,6 +552,35 @@ void ModularSBASolver::logDatas(QString fileName) {
     errorStream.flush();
 
 }
+
+void ModularSBASolver::logMessage(QString message) {
+
+    QTextStream err(stderr);
+
+    if (_loggingDir.isEmpty()) {
+        //logging disabled
+        return;
+    }
+
+    QFile logFile(_default_logging_file);
+
+    bool status = logFile.open(QFile::WriteOnly|QFile::Append);
+
+    if (!status) {
+        err << "Could not open log file << \"" << _default_logging_file << "\"" << Qt::endl;
+        return;
+    }
+
+    QTextStream log(&logFile);
+
+    QDateTime now = QDateTime::currentDateTimeUtc();
+
+    log << now.toString() << " UTC " << message << Qt::endl;
+
+    logFile.close();
+
+}
+
 void ModularSBASolver::addLogger(QString const& loggerName, ValueBlockLogger* logger) {
     if (_loggers.values().contains(logger)) {
         return;
