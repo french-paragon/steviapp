@@ -61,7 +61,7 @@ void Point3D::setOptPos(floatParameterGroup<3> const& o_pos) {
 	floatParameterGroup<3> t = o_pos;
 	t.setIsSet();
 
-	if (!t.isApproximatlyEqual(_o_pos, 1e-4)) {
+    if (t != _o_pos) {
 		_o_pos = t;
 		emit optPosChanged();
 		isChanged();

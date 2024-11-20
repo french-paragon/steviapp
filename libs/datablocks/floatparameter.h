@@ -121,6 +121,21 @@ public:
 
 		return c;
 	}
+
+    bool operator!= (floatParameterGroup const& other) const {
+        bool c = _isSet != other._isSet;
+        if (_isSet) {
+            c = c or _parameters != other._parameters;
+        }
+
+        c = c or _isUncertain != other.isUncertain();
+        if (_isUncertain) {
+            c = c or _CovMatTrig != other._CovMatTrig;
+        }
+
+        return c;
+    }
+
 	bool isApproximatlyEqual (floatParameterGroup const& other, pFloatType tol = 1e-4) const {
 		bool c = _isSet == other._isSet;
 		if (_isSet) {
