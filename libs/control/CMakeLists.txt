@@ -30,6 +30,7 @@ set(LIB_SRC
         fixedstereosequenceactionmanager.cpp
         trajectoryactions.cpp
         trajectoryactionmanager.cpp
+        correspondencessetactionsmanager.cpp
         projectactions.cpp
 )
 
@@ -61,6 +62,7 @@ set(LIB_HEADERS
     fixedstereosequenceactionmanager.h
     trajectoryactions.h
     trajectoryactionmanager.h
+    correspondencessetactionsmanager.h
     projectactions.h
 )
 

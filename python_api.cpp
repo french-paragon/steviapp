@@ -523,9 +523,25 @@ public:
             return;
         }
 
-        cs->addImagesCorrespondences(im1->internalId(), QPointF(img1Pos[0], img1Pos[1]),
-                im2->internalId(), QPointF(img2Pos[0], img2Pos[1]),
-                uncertain, sigma_pos);
+        StereoVisionApp::Correspondences::Typed<StereoVisionApp::Correspondences::UV> cimg1;
+        cimg1.blockId = im1->internalId();
+        cimg1.u = img1Pos[0];
+        cimg1.v = img1Pos[1];
+        cimg1.sigmaU = sigma_pos;
+        cimg1.sigmaV = sigma_pos;
+
+        StereoVisionApp::Correspondences::Typed<StereoVisionApp::Correspondences::UV> cimg2;
+        cimg2.blockId = im2->internalId();
+        cimg2.u = img2Pos[0];
+        cimg2.v = img2Pos[1];
+        cimg2.sigmaU = sigma_pos;
+        cimg2.sigmaV = sigma_pos;
+
+        StereoVisionApp::Correspondences::GenericPair correspondence;
+        correspondence.c1 = cimg1;
+        correspondence.c2 = cimg2;
+
+        cs->addCorrespondence(correspondence);
 
     }
 
@@ -546,9 +562,29 @@ public:
             return;
         }
 
-        cs->addLocalCoordinatesCorrespondences(lc1->internalId(), QVector3D(lcs1Pos[0], lcs1Pos[1], lcs1Pos[2]),
-                lc2->internalId(), QVector3D(lcs2Pos[0], lcs2Pos[1], lcs2Pos[2]),
-                uncertain, sigma_pos);
+        StereoVisionApp::Correspondences::Typed<StereoVisionApp::Correspondences::XYZ> clcs1;
+        clcs1.blockId = lc1->internalId();
+        clcs1.x = lcs1Pos[0];
+        clcs1.y = lcs1Pos[1];
+        clcs1.z = lcs1Pos[2];
+        clcs1.sigmaX = sigma_pos;
+        clcs1.sigmaY = sigma_pos;
+        clcs1.sigmaZ = sigma_pos;
+
+        StereoVisionApp::Correspondences::Typed<StereoVisionApp::Correspondences::XYZ> clcs2;
+        clcs2.blockId = lc1->internalId();
+        clcs2.x = lcs2Pos[0];
+        clcs2.y = lcs2Pos[1];
+        clcs2.z = lcs2Pos[2];
+        clcs2.sigmaX = sigma_pos;
+        clcs2.sigmaY = sigma_pos;
+        clcs2.sigmaZ = sigma_pos;
+
+        StereoVisionApp::Correspondences::GenericPair correspondence;
+        correspondence.c1 = clcs1;
+        correspondence.c2 = clcs2;
+
+        cs->addCorrespondence(correspondence);
 
     }
 
@@ -570,10 +606,54 @@ public:
             return;
         }
 
-        cs->addLocalCoordinate2ImageCorrespondences(lc->internalId(), QVector3D(lcsPos[0], lcsPos[1], lcsPos[2]),
-                im->internalId(), QPointF(imgPos[0], imgPos[1]),
-                uncertain, sigma_pos_lcs, sigma_pos_img);
+        StereoVisionApp::Correspondences::Typed<StereoVisionApp::Correspondences::XYZ> clcs;
+        clcs.blockId = lc->internalId();
+        clcs.x = lcsPos[0];
+        clcs.y = lcsPos[1];
+        clcs.z = lcsPos[2];
+        clcs.sigmaX = sigma_pos_lcs;
+        clcs.sigmaY = sigma_pos_lcs;
+        clcs.sigmaZ = sigma_pos_lcs;
 
+        StereoVisionApp::Correspondences::Typed<StereoVisionApp::Correspondences::UV> cimg;
+        cimg.blockId = im->internalId();
+        cimg.u = imgPos[0];
+        cimg.v = imgPos[1];
+        cimg.sigmaU = sigma_pos_img;
+        cimg.sigmaV = sigma_pos_img;
+
+        StereoVisionApp::Correspondences::GenericPair correspondence;
+        correspondence.c1 = clcs;
+        correspondence.c2 = cimg;
+
+        cs->addCorrespondence(correspondence);
+
+    }
+
+    void addGenericCorrespondence(DataBlockReference correspondanceSet,
+                                  std::string const& correspondenceDescr) {
+        StereoVisionApp::CorrespondencesSet* cs = qobject_cast<StereoVisionApp::CorrespondencesSet*>(correspondanceSet.datablock());
+
+        if (cs == nullptr) {
+            py::print("The provided datablock is invalid!");
+            return;
+        }
+
+        auto opt = StereoVisionApp::Correspondences::GenericPair::fromString(QString::fromStdString(correspondenceDescr));
+
+        const char* error_msg = "Invalid correspondence description provided!";
+
+        if (!opt.has_value()) {
+            py::print(error_msg);
+            return;
+        }
+
+        if (!opt->isValid()) {
+            py::print(error_msg);
+            return;
+        }
+
+        cs->addCorrespondence(opt.value());
     }
 
     void setRigidBodyPose(DataBlockReference rigidBody,
@@ -1026,6 +1106,9 @@ PYBIND11_MODULE(pysteviapp, m) {
                  py::arg("uncertain") = false,
                  py::arg("sigma_pos_lcs") = 1.0,
                  py::arg("sigma_pos_img") = 1.0)
+            .def("addGenericCorrespondence", &PythonStereoVisionApp::addGenericCorrespondence,
+                 py::arg("correspondencesSet"),
+                 py::arg("correspondenceDescr"))
             .def("setRigidBodyPose", &PythonStereoVisionApp::setRigidBodyPose,
                  py::arg("rigidBody"),
                  py::arg("position"),

@@ -10,6 +10,7 @@ set(LIB_SRC floatparameter.cpp
             image.cpp
             camera.cpp
             itemdatamodel.cpp
+            genericcorrespondences.cpp
             correspondencesset.cpp
             stereorig.cpp
             angleconstrain.cpp
@@ -38,6 +39,7 @@ set(LIB_HEADERS
     image.h
     camera.h
     itemdatamodel.h
+    genericcorrespondences.h
     correspondencesset.h
     stereorig.h
     angleconstrain.h

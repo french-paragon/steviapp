@@ -502,38 +502,24 @@ bool CeresSBASolver::init() {
             continue;
         }
 
-        QVector<LocalCoordinates2LocalCoordinatesCorrespondence*> corresp3D3D;
-        corresp3D3D = cset->getAllLocalFramesCorrespondences();
+        using Correspondence3D3D = Correspondences::TypedPair<Correspondences::XYZ,Correspondences::XYZ>;
 
-        for (LocalCoordinates2LocalCoordinatesCorrespondence* c : qAsConst(corresp3D3D)) {
-            qint64 id1 = c->attachedLcs1Id();
-            qint64 id2 = c->attachedLcs2Id();
+        QVector<Correspondence3D3D> corresp3D3D;
+        corresp3D3D = cset->getCorrespondancesOfType<Correspondences::XYZ,Correspondences::XYZ>();
+
+        for (Correspondence3D3D const& c : qAsConst(corresp3D3D)) {
+            qint64 const& id1 = c.c1.blockId;
+            qint64 const& id2 = c.c1.blockId;
 
             if (!_localCoordinatesParametersIndex.contains(id1) or
                 !_localCoordinatesParametersIndex.contains(id2)) {
                 continue; //skip pairs which are not part of the current problem
             }
 
-            floatParameter lcs1x = c->xLcs1();
-            floatParameter lcs1y = c->yLcs1();
-            floatParameter lcs1z = c->zLcs1();
-
-            floatParameter lcs2x = c->xLcs2();
-            floatParameter lcs2y = c->yLcs2();
-            floatParameter lcs2z = c->zLcs2();
-
-            if (!lcs1x.isSet() or !lcs1y.isSet() or !lcs1z.isSet()) {
-                continue; //skip the measurement if not set
-            }
-
-            if (!lcs2x.isSet() or !lcs2y.isSet() or !lcs2z.isSet()) {
-                continue; //skip the measurement if not set
-            }
-
             Eigen::Vector3d localPos1;
-            localPos1 << lcs1x.value(), lcs1y.value(), lcs1z.value();
+            localPos1 << c.c1.x, c.c1.y, c.c1.z;
             Eigen::Vector3d localPos2;
-            localPos2 << lcs2x.value(), lcs2y.value(), lcs2z.value();
+            localPos2 << c.c2.x, c.c2.y, c.c2.z;
 
             Eigen::Matrix3d info = Eigen::Matrix3d::Identity();
 
@@ -541,28 +527,28 @@ bool CeresSBASolver::init() {
             float sigmay = 1;
             float sigmaz = 1;
 
-            if (lcs1x.isUncertain() and lcs2x.isUncertain()) {
-                sigmax = lcs1x.stddev() + lcs2x.stddev();
-            } else if (lcs1x.isUncertain()) {
-                sigmax = lcs1x.stddev();
-            } else if (lcs2x.isUncertain()) {
-                sigmax = lcs2x.stddev();
+            if (c.c1.sigmaX.has_value() and c.c2.sigmaX.has_value()) {
+                sigmax = c.c1.sigmaX.value() + c.c2.sigmaX.value();
+            } else if (c.c1.sigmaX.has_value()) {
+                sigmax = c.c1.sigmaX.value();
+            } else if (c.c2.sigmaX.has_value()) {
+                sigmax = c.c2.sigmaX.value();
             }
 
-            if (lcs1y.isUncertain() and lcs2y.isUncertain()) {
-                sigmay = lcs1y.stddev() + lcs2y.stddev();
-            } else if (lcs1y.isUncertain()) {
-                sigmay = lcs1y.stddev();
-            } else if (lcs2y.isUncertain()) {
-                sigmay = lcs2y.stddev();
+            if (c.c1.sigmaY.has_value() and c.c2.sigmaY.has_value()) {
+                sigmax = c.c1.sigmaY.value() + c.c2.sigmaY.value();
+            } else if (c.c1.sigmaY.has_value()) {
+                sigmax = c.c1.sigmaY.value();
+            } else if (c.c2.sigmaY.has_value()) {
+                sigmax = c.c2.sigmaY.value();
             }
 
-            if (lcs1z.isUncertain() and lcs2z.isUncertain()) {
-                sigmaz = lcs1z.stddev() + lcs2z.stddev();
-            } else if (lcs1z.isUncertain()) {
-                sigmaz = lcs1z.stddev();
-            } else if (lcs2x.isUncertain()) {
-                sigmaz = lcs2z.stddev();
+            if (c.c1.sigmaZ.has_value() and c.c2.sigmaZ.has_value()) {
+                sigmax = c.c1.sigmaZ.value() + c.c2.sigmaZ.value();
+            } else if (c.c1.sigmaZ.has_value()) {
+                sigmax = c.c1.sigmaZ.value();
+            } else if (c.c2.sigmaZ.has_value()) {
+                sigmax = c.c2.sigmaZ.value();
             }
 
             info(0,0) = 1/std::abs(sigmax);
@@ -601,60 +587,54 @@ bool CeresSBASolver::init() {
 
         }
 
-        QVector<LocalCoordinates2ImageCorrespondence*> corresp3D2D;
-        corresp3D2D = cset->getAllImages2LocalCoordinatesCorrespondences();
+        using Correspondence3D2D = Correspondences::TypedPair<Correspondences::XYZ,Correspondences::UV>;
 
-        for (LocalCoordinates2ImageCorrespondence* c : qAsConst(corresp3D2D)) {
-            qint64 idlcs = c->attachedLcsId();
-            qint64 idimg = c->attachedImgId();
+        QVector<Correspondence3D2D> corresp3D2D;
+        corresp3D2D = cset->getCorrespondancesOfType<Correspondences::XYZ,Correspondences::UV>();
+
+        for (Correspondence3D2D const& c : qAsConst(corresp3D2D)) {
+            qint64 idlcs = c.c1.blockId;
+            qint64 idimg = c.c2.blockId;
 
             if (!_localCoordinatesParametersIndex.contains(idlcs) or
                 !_frameParametersIndex.contains(idimg)) {
                 continue; //skip pairs which are not part of the current problem
             }
 
-            qint64 idcam = c->attachedImg()->assignedCamera();
+            Image* img = _currentProject->getDataBlock<Image>(idimg);
+
+            if (img == nullptr) {
+                continue;
+            }
+
+            qint64 idcam = img->assignedCamera();
 
             if (!_camParametersIndex.contains(idcam)) {
                 continue;
             }
 
-            floatParameter lcsx = c->xLcs();
-            floatParameter lcsy = c->yLcs();
-            floatParameter lcsz = c->zLcs();
-
-            if (!lcsx.isSet() or !lcsy.isSet() or !lcsz.isSet()) {
-                continue;
-            }
-
-            floatParameter imgx = c->xImg();
-            floatParameter imgy = c->yImg();
-
-            if (!imgx.isSet() or !imgy.isSet()) {
-                continue;
-            }
-
             Eigen::Vector3d localPos;
-            localPos << lcsx.value(), lcsy.value(), lcsz.value();
+            localPos << c.c1.x, c.c1.y, c.c1.z;
             Eigen::Vector2d imgUV;
-            imgUV << imgx.value(), imgy.value();
+            imgUV << c.c2.u, c.c2.v;
 
             Eigen::Matrix2d info = Eigen::Matrix2d::Identity();
 
-            float sigmau;
-            float sigmav;
+            float sigmau = 1;
+            float sigmav = 1;
 
-            if (imgx.isUncertain()) {
-                sigmau = imgx.stddev();
+            if (c.c2.sigmaU.has_value()) {
+                sigmau = c.c2.sigmaU.value();
             }
 
-            if (imgy.isUncertain()) {
-                sigmav = imgy.stddev();
+            if (c.c2.sigmaV.has_value()) {
+                sigmav = c.c2.sigmaV.value();
             }
 
             info(0,0) = 1/std::abs(sigmau);
             info(1,1) = 1/std::abs(sigmav);
 
+            //TODO use projection modules here instead of fixed camera model
             Local3DtoImageUVCost* alignementCost = new  Local3DtoImageUVCost(localPos, imgUV, info);
 
             std::size_t plcsid = _localCoordinatesParametersIndex[idlcs];
