@@ -41,6 +41,7 @@ set(LIB_SRC initialsolution.cpp
             costfunctors/local3dcoalignementcost.cpp
             costfunctors/local3dtoimageuvcost.cpp
             costfunctors/interpolatedvectorprior.cpp
+            costfunctors/modularuvprojection.cpp
             sbamodules/trajectorybasesbamodule.cpp
 )
 
@@ -97,6 +98,7 @@ set(LIB_HEADERS_COST_FUNCTORS
     costfunctors/local3dcoalignementcost.h
     costfunctors/local3dtoimageuvcost.h
     costfunctors/interpolatedvectorprior.h
+    costfunctors/modularuvprojection.h
 )
 
 set(LIB_HEADERS_SBA_MODULES

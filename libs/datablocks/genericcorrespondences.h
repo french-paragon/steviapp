@@ -9,6 +9,9 @@
 #include <optional>
 #include <variant>
 
+#include <Eigen/Core>
+#include <StereoVision/geometry/rotations.h>
+
 namespace StereoVisionApp {
 
 namespace Correspondences {
@@ -898,7 +901,32 @@ struct GenericPair {
 
 };
 
-} // GenericCorrespondences
+/*!
+ * \brief getGeoXYConstraintInfos get the projection constraint infos from a Typed<Types::GEOXY> correspondence measurement
+ * \param point the geo point measurement
+ * \param ecef2local a transform from ecef to a local frame (by default set to identity, so the constraint is given in ecef).
+ * \param height a height factor. The projection matrix will be estimated using a point 0 and a point height above the ellipsoid.
+ * \return optionally a tuple containing a projection matrix (lets call it M) and a 2D vector (lets call it p).
+ *
+ * A 3D point P in the mapping frame is expected to lie along the line projecting to the coordinates given in point if M*P = p.
+ */
+std::optional<std::tuple<Eigen::Matrix<double,2,3>,Eigen::Vector2d>>
+getGeoXYConstraintInfos(Typed<Types::GEOXY> const& point,
+                        StereoVision::Geometry::AffineTransform<double> const& ecef2local
+                        = StereoVision::Geometry::AffineTransform<double>(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero()),
+                        double height = 1);
+
+/*!
+ * \brief getGeoXYZConstraintInfos get the point constraint infos from a Typed<Types::GEOXYZ> correspondence measurement
+ * \param point the geo point measurement
+ * \param ecef2local a transform from ecef to a local frame (by default set to identity, so the constraint is given in ecef).
+ * \return optionally a 3D vector representing the geo coordinate in mapping frame.
+ */
+std::optional<Eigen::Vector3d> getGeoXYZConstraintInfos(Typed<Types::GEOXYZ> const& point,
+                                         StereoVision::Geometry::AffineTransform<double> const& ecef2local
+                                         = StereoVision::Geometry::AffineTransform<double>(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero()));
+
+} // namespace Correspondences
 
 } // namespace StereoVisionApp
 
