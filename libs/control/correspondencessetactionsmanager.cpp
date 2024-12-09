@@ -7,6 +7,8 @@
 #include <QAction>
 #include <QFileDialog>
 
+#include "correspondencessetactions.h"
+
 namespace StereoVisionApp {
 
 CorrespondencesSetActionsManager::CorrespondencesSetActionsManager(QObject *parent) :
@@ -22,6 +24,39 @@ QString CorrespondencesSetActionsManager::itemClassName() const {
     return CorrespondencesSet::staticMetaObject.className();
 }
 
+QList<QAction*> CorrespondencesSetActionsManager::factorizeClassContextActions(QObject* parent, Project* p) const {
+
+    Q_UNUSED(parent);
+
+    QString classname = itemClassName();
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    QList<QAction*> lst;
+
+    if (mw != nullptr) {
+        QAction* append = new QAction(tr("Import correspondences"), parent);
+        connect(append, &QAction::triggered, [p] () {
+
+            importCorrespondancesFromTxt(p, -1);
+
+        });
+        lst.append(append);
+    }
+
+    QAction* add = new QAction(tr("Add a new Correspondences set"), parent);
+    connect(add, &QAction::triggered, [classname, p] () {
+        qint64 block_id = p->createDataBlock(classname.toStdString().c_str());
+        if (block_id > 0) {
+            DataBlock* b = p->getById(block_id);
+            b->setObjectName(tr("new correspondences set"));
+        }
+    });
+
+    lst.append(add);
+
+    return lst;
+}
 QList<QAction*> CorrespondencesSetActionsManager::factorizeItemContextActions(QObject* parent, DataBlock* p) const {
 
     CorrespondencesSet* correspSet = qobject_cast<CorrespondencesSet*>(p);
@@ -41,40 +76,14 @@ QList<QAction*> CorrespondencesSetActionsManager::factorizeItemContextActions(QO
     QList<QAction*> lst;
 
     if (mw != nullptr) {
-        QAction* append = new QAction(tr("Import correspondences"), parent);
-        connect(append, &QAction::triggered, [mw, correspSet] () {
 
-            QString inFile = QFileDialog::getOpenFileName(mw, tr("Import correspondences file"));
+        QAction* exportCorresps = new QAction(tr("export correspondences"), parent);
+        connect(exportCorresps, &QAction::triggered, [correspSet] () {
 
-            if (inFile.isEmpty()) {
-                return;
-            }
-
-            QFile in(inFile);
-
-            if (!in.open(QFile::ReadOnly)) {
-                return;
-            }
-
-            QTextStream stream(&in);
-
-            while (!stream.atEnd()) {
-                QString line = stream.readLine();
-
-                auto opt = Correspondences::GenericPair::fromString(line);
-
-                if (!opt.has_value()) {
-                    continue;
-                }
-
-                if (!opt->isValid()) {
-                    continue;
-                }
-
-                correspSet->addCorrespondence(opt.value());
-            }
+            exportCorrespondancesToTxt(correspSet->getProject(), correspSet->internalId());
 
         });
+        lst.append(exportCorresps);
     }
 
     QAction* remove = new QAction(tr("Remove"), parent);

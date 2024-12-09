@@ -28,8 +28,8 @@ QString CameraCalibrationActionManager::itemClassName() const {
 }
 
 QList<QAction*> CameraCalibrationActionManager::factorizeClassContextActions(QObject* parent, Project* p) const {
-	Q_UNUSED(parent);
-	Q_UNUSED(p);
+
+    Q_UNUSED(parent);
 
 	QString classname = itemClassName();
 

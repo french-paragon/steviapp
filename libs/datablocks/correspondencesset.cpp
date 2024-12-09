@@ -39,6 +39,8 @@ void CorrespondencesSet::addCorrespondence(Correspondences::GenericPair const& c
     if (second != nullptr and second != first) {
         addRefered({idxs.second});
     }
+
+    _correspondences.push_back(correspondence);
 }
 void CorrespondencesSet::removeCorrespondence(int i) {
 

@@ -26,7 +26,8 @@ enum Types {
     XYT = 9, //lie at a XY coordinate in a 2D space at a specified time
     XYZT = 10, //lie at a XYZ coordinate in a 3D space at a specified time
     PRIOR = 11, //to nothing, can be usefull to use a correspondance as a singleton for a prior
-    INVALID = 12 //to nothing, just an invalid correspondance
+    PRIORID = 12, //to just an id, can be usefull to use a correspondance as a singleton for a prior
+    INVALID = 13 //to nothing, just an invalid correspondance
 };
 
 inline Types correspTypeFromString(QString const& str) {
@@ -73,6 +74,10 @@ inline Types correspTypeFromString(QString const& str) {
         return Types::PRIOR;
     }
 
+    if (lower == "priorid") {
+        return Types::PRIORID;
+    }
+
     if (lower == "invalid") {
         return Types::INVALID;
     }
@@ -106,10 +111,31 @@ inline QString correspTypeToString(Types correspT) {
         return "XYZT";
     case PRIOR:
         return "PRIOR";
+    case PRIORID:
+        return "PRIORID";
     default:
         break;
     }
     return "INVALID";
+}
+
+
+inline constexpr bool correspTypeHasBlockId(Types correspT) {
+    switch (correspT) {
+    case Types::XY:
+    case Types::XYZ:
+    case Types::T:
+    case Types::XYT:
+    case Types::XYZT:
+    case Types::Line2D:
+    case Types::Line3D:
+    case Types::Plane3D:
+    case Types::PRIORID:
+        return true;
+    default:
+        break;
+    };
+    return false;
 }
 
 /*!
@@ -176,7 +202,7 @@ template<bool withId, bool withCRS, int nFloats, int nOptFloats>
                 optFloatsVals[i] = std::nullopt;
             }
 
-            if (split.size() != nFloats+nOptFloats+size_delta) {
+            if (split.size() == nFloats+nOptFloats+size_delta) {
 
                 for (int i = 0; i < nOptFloats; i++) {
                     optFloatsVals[i] = split[i+nFloats+size_delta].toFloat(&ok);
@@ -704,6 +730,36 @@ struct Typed<Types::Plane3D> {
     };
 };
 
+template<>
+struct Typed<Types::PRIORID> {
+
+    static constexpr Types CorrespType = Types::PRIORID;
+
+    qint64 blockId;
+
+    static std::optional<Typed> fromString(QString const& str) {
+
+        using floatListReader = Internal::floatListReader<true, false, 0, 0>;
+
+        std::optional<floatListReader> data = floatListReader::fromString(str);
+
+        if (!data.has_value()) {
+            return std::nullopt;
+        }
+
+        Typed ret;
+
+        ret.blockId = data.value().blockId;
+
+        return ret;
+    }
+
+    QString toStr() const {
+        QString out = QString(" %1").arg(blockId);
+        return correspTypeToString(CorrespType) + out;
+    };
+};
+
 using Generic = std::variant<Typed<Types::UV>,
 Typed<Types::XY>,
 Typed<Types::GEOXY>,
@@ -716,6 +772,7 @@ Typed<Types::Line2D>,
 Typed<Types::Line3D>,
 Typed<Types::Plane3D>,
 Typed<Types::PRIOR>,
+Typed<Types::PRIORID>,
 Typed<Types::INVALID>>;
 
 Generic GenericFromString(QString const& str);
@@ -768,6 +825,11 @@ inline qint64 getDatablockId<Types::Line3D>(Typed<Types::Line3D> const& corresp)
 
 template<>
 inline qint64 getDatablockId<Types::Plane3D>(Typed<Types::Plane3D> const& corresp) {
+    return corresp.blockId;
+}
+
+template<>
+inline qint64 getDatablockId<Types::PRIORID>(Typed<Types::PRIORID> const& corresp) {
     return corresp.blockId;
 }
 

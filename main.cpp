@@ -55,6 +55,7 @@
 #include "control/localcoordinatesystembaseactionmanager.h"
 #include "control/fixedstereosequenceactionmanager.h"
 #include "control/trajectoryactionmanager.h"
+#include "control/correspondencessetactionsmanager.h"
 
 #include "sparsesolver/modularsbasolver.h"
 
@@ -137,6 +138,7 @@ int main(int argc, char *argv[])
     aml.registerDatablockActionManager(new StereoVisionApp::CameraCalibrationActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::FixedColorStereoSequenceActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::FixedStereoPlusColorSequenceActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::CorrespondencesSetActionsManager(&pF));
 
     a.loadRessources();
 

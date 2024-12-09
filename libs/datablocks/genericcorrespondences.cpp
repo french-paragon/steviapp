@@ -1,5 +1,7 @@
 #include "genericcorrespondences.h"
 
+#include <proj.h>
+
 namespace StereoVisionApp {
 
 namespace Correspondences {
@@ -21,10 +23,10 @@ Generic GenericFromString(QString const& str) {
     int idxSpace = -1;
 
     for (int i = 0; i < str.size(); i++) {
-        if (idxNSpace < 0 and !str[0].isSpace()) {
+        if (idxNSpace < 0 and !str[i].isSpace()) {
             idxNSpace = i;
-        } else {
-            if (str[0].isSpace()) {
+        } else if (idxNSpace >= 0) {
+            if (str[i].isSpace()) {
                 idxSpace = i;
                 break;
             }
@@ -59,6 +61,8 @@ Generic GenericFromString(QString const& str) {
         return Internal::dataToBlock<Types::XYZT>(data);
     case PRIOR:
         return Internal::dataToBlock<Types::PRIOR>(data);
+    case PRIORID:
+        return Internal::dataToBlock<Types::PRIORID>(data);
     case INVALID:
         break;
     };

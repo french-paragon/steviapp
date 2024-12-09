@@ -31,6 +31,7 @@ set(LIB_SRC
         trajectoryactions.cpp
         trajectoryactionmanager.cpp
         correspondencessetactionsmanager.cpp
+        correspondencessetactions.cpp
         projectactions.cpp
 )
 
@@ -63,6 +64,7 @@ set(LIB_HEADERS
     trajectoryactions.h
     trajectoryactionmanager.h
     correspondencessetactionsmanager.h
+    correspondencessetactions.h
     projectactions.h
 )
 
