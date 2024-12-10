@@ -38,7 +38,7 @@ QList<QAction*> CorrespondencesSetActionsManager::factorizeClassContextActions(Q
         QAction* append = new QAction(tr("Import correspondences"), parent);
         connect(append, &QAction::triggered, [p] () {
 
-            importCorrespondancesFromTxt(p, -1);
+            importCorrespondencesFromTxt(p, -1);
 
         });
         lst.append(append);
@@ -80,7 +80,7 @@ QList<QAction*> CorrespondencesSetActionsManager::factorizeItemContextActions(QO
         QAction* exportCorresps = new QAction(tr("export correspondences"), parent);
         connect(exportCorresps, &QAction::triggered, [correspSet] () {
 
-            exportCorrespondancesToTxt(correspSet->getProject(), correspSet->internalId());
+            exportCorrespondencesToTxt(correspSet->getProject(), correspSet->internalId());
 
         });
         lst.append(exportCorresps);

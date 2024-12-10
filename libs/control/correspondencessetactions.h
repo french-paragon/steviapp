@@ -8,8 +8,8 @@ namespace StereoVisionApp {
 
 class Project;
 
-bool importCorrespondancesFromTxt(Project* project, qint64 correspSetId, QString const& importFilePath = "");
-bool exportCorrespondancesToTxt(Project* project, qint64 correspSetId, QString const& exportFilePath = "");
+bool importCorrespondencesFromTxt(Project* project, qint64 correspSetId, QString const& importFilePath = "");
+bool exportCorrespondencesToTxt(Project* project, qint64 correspSetId, QString const& exportFilePath = "");
 
 } // namespace StereoVisionApp
 
