@@ -43,6 +43,10 @@ set(LIB_SRC initialsolution.cpp
             costfunctors/interpolatedvectorprior.cpp
             costfunctors/modularuvprojection.cpp
             sbamodules/trajectorybasesbamodule.cpp
+            sbamodules/localcoordinatesystemsbamodule.cpp
+            sbamodules/imagealignementsbamodule.cpp
+            sbamodules/landmarkssbamodule.cpp
+            sbamodules/correspondencessetsbamodule.cpp
 )
 
 set(LIB_HEADERS
@@ -103,6 +107,10 @@ set(LIB_HEADERS_COST_FUNCTORS
 
 set(LIB_HEADERS_SBA_MODULES
     sbamodules/trajectorybasesbamodule.h
+    sbamodules/localcoordinatesystemsbamodule.h
+    sbamodules/imagealignementsbamodule.h
+    sbamodules/landmarkssbamodule.h
+    sbamodules/correspondencessetsbamodule.h
 )
 
 add_library(

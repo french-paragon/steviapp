@@ -4,6 +4,8 @@
 #include "./sparsesolverbase.h"
 #include "./sbagraphreductor.h"
 
+#include <optional>
+
 #include <ceres/ceres.h>
 
 #include <QVector>
@@ -44,9 +46,35 @@ public:
         virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) = 0;
         virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) = 0;
 
+        /*!
+         * \brief setupParameters is meant to setup the different parameters that the module is supposed to provide
+         * \param solver the modular solver
+         * \return false in case of error, true otherwise.
+         */
+        virtual bool setupParameters(ModularSBASolver* solver) = 0;
+        /*!
+         * \brief init initialize the part of the optimization problem this module is supposed to deal with. At this point, parameters are expected to be setup in the solver, but not yet in the problem.
+         * \param solver the modular solver
+         * \param problem the ceres problem
+         * \return false in case of error, true otherwise.
+         */
         virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) = 0;
+        /*!
+         * \brief writeResults write the results back to the project
+         * \param solver the modular solver
+         * \return false in case of error, true otherwise.
+         */
         virtual bool writeResults(ModularSBASolver* solver) = 0;
+        /*!
+         * \brief writeUncertainty write uncertainty back to the project
+         * \param solver the modular solver
+         * \return false in case of error, true otherwise.
+         */
         virtual bool writeUncertainty(ModularSBASolver* solver) = 0;
+        /*!
+         * \brief cleanup cleanup after optimization
+         * \param solver the modular solver
+         */
         virtual void cleanup(ModularSBASolver* solver) = 0;
     };
 
@@ -60,6 +88,9 @@ public:
 
         ProjectorModule();
         virtual ~ProjectorModule();
+
+
+        virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) = 0;
 
         /*!
          * \brief addProjectionCostFunction add a projection between a point and a pose
@@ -167,24 +198,30 @@ public:
     };
 
     /*!
-     * \brief The LandmarkNode struct represent an optimizable point
+     * \brief The PositionNode struct represent an optimizable point
      */
-    struct LandmarkNode {
-        qint64 lmId;
+    struct PositionNode {
+        qint64 datablockId;
         std::array<double,3> pos;
     };
 
     /*!
      * \brief The PoseNode struct represent an optimizable pose (for a camera generally, but can be something else when used by a module)
+     *
+     * The pose node represent the transformation from the datablock to the reference (either mapping frame or trajectory).
      */
     struct PoseNode {
-        qint64 frameId;
+        qint64 datablockId;
         std::array<double, 3> rAxis; //we go with the rotation axis representation. It is compressed, can be converted and allow to set priors more easily
         std::array<double, 3> t;
+        std::optional<qint64> trajectoryId; //indicate that the pose is relative to a trajectory
+        std::optional<double> time; //indicate that the pose is for a precise point in time
     };
 
     /*!
      * \brief The LeverArmNode struct store a lever arm for a combination of trajectory and platform (generally a camera).
+     *
+     * Unlike PoseNode, the lever arm node represent a transformation from body to sensor, as this is how lever arm are usually expressed
      */
     struct LeverArmNode {
         qint64 TrajId;
@@ -256,6 +293,9 @@ public:
      */
     bool assignProjectorToFrame(ProjectorModule* projector, qint64 imId);
 
+    PositionNode* getPositionNode(qint64 datablockId);
+    PoseNode* getPoseNode(qint64 datablockId);
+
     /*!
      * \brief getNodeForLandmark access the node for a give landmark and create it if necessary
      * \param lmId the id of the landmark
@@ -266,7 +306,7 @@ public:
      * set the node constant if the position of the landmark is fixed
      * as well as create the required prior if the position has a prior.
      */
-    LandmarkNode* getNodeForLandmark(qint64 lmId, bool createIfMissing);
+    PositionNode* getNodeForLandmark(qint64 lmId, bool createIfMissing);
 
     /*!
      * \brief getNodeForFrame access the node for a give frame(image) and create it if necessary
@@ -326,17 +366,12 @@ public:
      */
     StereoVision::Geometry::AffineTransform<double> getTransform2LocalFrame() const;
 
-    inline QList<qint64> landmarksList() const {
-        return _LandmarkParametersIndex.keys();
+    inline QList<qint64> pointsList() const {
+        return _pointsParametersIndex.keys();
     }
 
-    inline QList<qint64> framesList() const {
-        return _frameParametersIndex.keys();
-    }
-
-
-    inline QList<qint64> localCoordinatesList() const {
-        return _localCoordinatesParametersIndex.keys();
+    inline QList<qint64> posesList() const {
+        return _poseParametersIndex.keys();
     }
 
     inline QList<qint64> trajectoriesList() const {
@@ -373,6 +408,9 @@ public:
 protected:
 
     bool init() override;
+    bool initManagedParameters();
+
+
     bool opt_step() override;
     bool std_step() override;
     bool writeResults() override;
@@ -399,86 +437,19 @@ protected:
     QMap<qint64, int> _frameProjectorsAssociations;
 
     //using std vectors for the data, as these are guaranteed to be contiguous in memory.
-    std::vector<LandmarkNode> _LandmarkParameters;
-    QMap<qint64, int> _LandmarkParametersIndex;
-    std::vector<PoseNode> _frameParameters;
-    QMap<qint64, int> _frameParametersIndex;
-    std::vector<PoseNode> _localCoordinatesParameters;
-    QMap<qint64, int> _localCoordinatesParametersIndex;
+    std::vector<PositionNode> _pointsParameters;
+    QMap<qint64, int> _pointsParametersIndex;
+
+    std::vector<PoseNode> _poseParameters;
+    QMap<qint64, int> _poseParametersIndex;
+
     std::vector<TrajectoryNode> _trajectoryParameters;
     QMap<qint64, int> _trajectoryParametersIndex;
+
     std::vector<LeverArmNode> _leverArmParameters;
     QMap<QPair<qint64,qint64>, int> _leverArmParametersIndex;
 
     friend class ModularSBASolverIterationCallback;
-};
-
-class ImageAlignementSBAModule : public ModularSBASolver::SBAModule
-{
-
-public:
-
-    static const char* ModuleName;
-
-    ImageAlignementSBAModule();
-
-    virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
-    virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
-
-    virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) override;
-    virtual bool writeResults(ModularSBASolver* solver) override;
-    virtual bool writeUncertainty(ModularSBASolver* solver) override;
-    virtual void cleanup(ModularSBASolver* solver) override;
-
-protected:
-
-    //match camera internal id to a projector module for the images
-    QMap<qint64, ModularSBASolver::ProjectorModule*> _cameraProjectors;
-
-};
-
-class PinholdeCamProjModule : public ModularSBASolver::ProjectorModule
-{
-
-public:
-
-    PinholdeCamProjModule(Camera* associatedCamera);
-    ~PinholdeCamProjModule();
-
-    virtual bool addProjectionCostFunction(double* pointData,
-                                           double* poseOrientation,
-                                           double* posePosition,
-                                           Eigen::Vector2d const& ptProjPos,
-                                           Eigen::Matrix2d const& ptProjStiffness,
-                                           ceres::Problem & problem) override;
-
-    virtual bool addCrossProjectionCostFunction(double* pose1Orientation,
-                                                double* pose1Position,
-                                                Eigen::Vector2d const& ptProj1Pos,
-                                                Eigen::Matrix2d const& ptProj1Stiffness,
-                                                double* pose2Orientation,
-                                                double* pose2Position,
-                                                Eigen::Vector2d const& ptProj2Pos,
-                                                Eigen::Matrix2d const& ptProj2Stiffness,
-                                                ceres::Problem & problem) override;
-
-    bool init(ModularSBASolver* solver, ceres::Problem & problem);
-    virtual bool writeResults(ModularSBASolver* solver) override;
-    virtual bool writeUncertainty(ModularSBASolver* solver) override;
-    virtual void cleanup(ModularSBASolver* solver) override;
-
-protected:
-
-    Camera* _associatedCamera;
-
-    double _fLen; //f
-    std::array<double, 2> _principalPoint; //pp
-    std::array<double, 3> _radialDistortion; //k1, k2, k3
-    std::array<double, 2> _tangentialDistortion; //t1, t2
-    std::array<double, 2> _skewDistortion; //B1, B2
-
-
-
 };
 
 /*!

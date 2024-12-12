@@ -33,7 +33,10 @@ public:
     int nCorrespondence() const {
         return _correspondences.size();
     }
-    inline Correspondences::GenericPair getCorrespondence(int i) const {
+    inline Correspondences::GenericPair & getCorrespondence(int i) {
+        return _correspondences[i];
+    }
+    inline Correspondences::GenericPair const& getCorrespondence(int i) const {
         return _correspondences[i];
     }
     void removeCorrespondence(int i);

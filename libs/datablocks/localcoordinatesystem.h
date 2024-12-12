@@ -9,6 +9,7 @@ namespace StereoVisionApp {
 
 class Landmark;
 class LandmarkLocalCoordinates;
+class Trajectory;
 
 class LocalCoordinateSystem : public RigidBody
 {
@@ -16,10 +17,15 @@ class LocalCoordinateSystem : public RigidBody
 public:
 	explicit LocalCoordinateSystem(Project *parent = nullptr);
 
+    qint64 assignedTrajectory() const;
+    Trajectory* getAssignedTrajectory() const;
+    void assignTrajectory(qint64 trajId);
+
 	qint64 addLandmarkLocalCoordinates(qint64 attachedLandmarkId,
 									   floatParameter priorX = floatParameter(),
 									   floatParameter priorY = floatParameter(),
-									   floatParameter priorZ = floatParameter());
+                                       floatParameter priorZ = floatParameter(),
+                                       double time = 0);
 	LandmarkLocalCoordinates* getLandmarkLocalCoordinates(qint64 local_coordinates_id) const;
 	LandmarkLocalCoordinates* getLandmarkLocalCoordinatesByLandmarkId(qint64 landmark_id) const;
 	void clearLandmarkLocalCoordinates(qint64 attacheLandmarkId);
@@ -33,6 +39,8 @@ public:
 
 Q_SIGNALS:
 
+    void assignedTrajectoryChanged(qint64 id);
+
 	void pointAdded(qint64 pt);
 	void pointRemoved(qint64 pt);
 
@@ -43,6 +51,8 @@ protected:
 	void configureFromJson(QJsonObject const& data) override;
 
 	void extendDataModel();
+
+    qint64 _assignedTrajectory; //the trajectory the local coordinate system follow (if enabled, local landmarks coordinates have to get a time attached).
 
 };
 
@@ -58,9 +68,12 @@ public:
 	QString attachedLandmarkName() const;
 	Landmark* attachedLandmark() const;
 
+    double time() const;
+    void setTime(double time);
 
 Q_SIGNALS:
 
+    void timeChanged(double time);
 	void attachedLandmarkidChanged(qint64 id);
 
 protected:
@@ -71,6 +84,7 @@ protected:
 	void referedCleared(QVector<qint64> const& referedId) override;
 
 	qint64 _attachedLandmarkId;
+    double _time;
 
 	friend class LocalCoordinateSystem;
 

@@ -19,10 +19,16 @@ namespace StereoVisionApp {
 class Local3DCoalignementCost
 {
 public:
-    Local3DCoalignementCost(Eigen::Vector3d const& localPos1, Eigen::Vector3d const& localPos2, Eigen::Matrix3d const& info);
+    Local3DCoalignementCost(Eigen::Vector3d const& localPos1,
+                            Eigen::Vector3d const& localPos2,
+                            Eigen::Matrix3d const& info);
 
     template <typename T>
-    bool operator()(const T* const r1, const T* const t1, const T* const r2, const T* const t2, T* residual) const {
+    bool operator()(const T* const r1,
+                    const T* const t1,
+                    const T* const r2,
+                    const T* const t2,
+                    T* residual) const {
 
         using MatType = Eigen::Matrix<T,3,3>;
         using VecType = Eigen::Matrix<T,3,1>;

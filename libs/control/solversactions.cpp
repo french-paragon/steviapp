@@ -18,6 +18,10 @@
 #include "sparsesolver/sbainitializer.h"
 #include "sparsesolver/modularsbasolver.h"
 #include "sparsesolver/sbamodules/trajectorybasesbamodule.h"
+#include "sparsesolver/sbamodules/localcoordinatesystemsbamodule.h"
+#include "sparsesolver/sbamodules/imagealignementsbamodule.h"
+#include "sparsesolver/sbamodules/landmarkssbamodule.h"
+#include "sparsesolver/sbamodules/correspondencessetsbamodule.h"
 
 #include "datablocks/landmark.h"
 #include "datablocks/image.h"
@@ -402,9 +406,27 @@ void checkBasicSBAModulesRegistration(SBASolverModulesInterface* interface) {
         });
     }
 
+    if (!interface->hasSBAModule(LandmarksSBAModule::ModuleName)) {
+        interface->registerSBAModule(LandmarksSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+            return new LandmarksSBAModule();
+        });
+    }
+
     if (!interface->hasSBAModule(ImageAlignementSBAModule::ModuleName)) {
         interface->registerSBAModule(ImageAlignementSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
             return new ImageAlignementSBAModule();
+        });
+    }
+
+    if (!interface->hasSBAModule(LocalCoordinateSystemSBAModule::ModuleName)) {
+        interface->registerSBAModule(LocalCoordinateSystemSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+            return new LocalCoordinateSystemSBAModule();
+        });
+    }
+
+    if (!interface->hasSBAModule(CorrespondencesSetSBAModule::ModuleName)) {
+        interface->registerSBAModule(CorrespondencesSetSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+            return new CorrespondencesSetSBAModule();
         });
     }
 }

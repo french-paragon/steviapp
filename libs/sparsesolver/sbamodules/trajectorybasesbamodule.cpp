@@ -49,7 +49,7 @@ bool TrajectoryBaseSBAModule::addGraphReductorObservations(Project *currentProje
     return true;
 }
 
-bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem) {
+bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
 
     Project* currentProject = solver->currentProject();
 
@@ -58,18 +58,6 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
     }
 
     _gravity = {0,0,-9.81};
-    problem.AddParameterBlock(_gravity.data(), _gravity.size());
-
-   Eigen::Matrix3d gInfos = Eigen::Matrix3d::Zero();
-    for (int i = 0; i < 3; i++) {
-        gInfos(i,i) = 1;
-    }
-    Eigen::Vector3d gVec;
-    gVec << _gravity[0], _gravity[1], _gravity[2];
-
-    ceres::NormalPrior* g_prior = new ceres::NormalPrior(gInfos, gVec);
-
-    problem.AddResidualBlock(g_prior, nullptr, _gravity.data());
 
     QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
 
@@ -104,17 +92,80 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
                 if (_accelerometerBias) {
                     _accelerometersBiases.push_back({0,0,0});
-                    problem.AddParameterBlock(_accelerometersBiases[accId].data(), _accelerometersBiases[accId].size());
 
                 }
                 if (_accelerometerScale) {
                     _accelerometersScales.push_back({1});
-                    problem.AddParameterBlock(_accelerometersScales[accId].data(), _accelerometersScales[accId].size());
                 }
             }
         } else {
             accId = _accelerometerParametersIndex[accId];
         }
+
+        ModularSBASolver::TrajectoryNode* trajNode = solver->getNodeForTrajectory(trajId, true);
+
+        if (trajNode == nullptr) {
+            continue;
+        }
+
+    }
+
+    return true;
+
+}
+
+bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem) {
+
+    Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    problem.AddParameterBlock(_gravity.data(), _gravity.size());
+
+   Eigen::Matrix3d gInfos = Eigen::Matrix3d::Zero();
+    for (int i = 0; i < 3; i++) {
+        gInfos(i,i) = 1;
+    }
+    Eigen::Vector3d gVec;
+    gVec << _gravity[0], _gravity[1], _gravity[2];
+
+    ceres::NormalPrior* g_prior = new ceres::NormalPrior(gInfos, gVec);
+
+    problem.AddResidualBlock(g_prior, nullptr, _gravity.data());
+
+    QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
+
+    for (qint64 trajId : trajectoriesIdxs) {
+
+        Trajectory* traj = currentProject->getDataBlock<Trajectory>(trajId);
+
+        if (traj == nullptr) {
+            continue;
+        }
+
+        if (!traj->isEnabled()) {
+            continue;
+        }
+
+        int accId = traj->accelerometerId();
+
+        if (!_accelerometerParametersIndex.contains(accId)) {
+            continue;
+        }
+
+        accId = _accelerometerParametersIndex[accId];
+
+        if (_accelerometerBias or _accelerometerScale) {
+
+            problem.AddParameterBlock(_accelerometersBiases[accId].data(), _accelerometersBiases[accId].size());
+            problem.AddParameterBlock(_accelerometersScales[accId].data(), _accelerometersScales[accId].size());
+        }
+
+        //loading the trajectory data is really slow, so we setup the nodes at the same time we add them to the problem.
+        //this just force the trajectory module to be run first.
+        //TODO: find a way to streamline this.
 
         ModularSBASolver::TrajectoryNode* trajNode = solver->getNodeForTrajectory(trajId, true);
 

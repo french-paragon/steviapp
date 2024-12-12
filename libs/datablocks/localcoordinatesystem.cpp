@@ -2,6 +2,7 @@
 
 #include "./landmark.h"
 #include "./itemdatamodel.h"
+#include "./trajectory.h"
 
 namespace StereoVisionApp {
 
@@ -11,10 +12,32 @@ LocalCoordinateSystem::LocalCoordinateSystem(Project *parent) :
 	extendDataModel();
 }
 
+qint64 LocalCoordinateSystem::assignedTrajectory() const {
+    return _assignedTrajectory;
+}
+
+Trajectory* LocalCoordinateSystem::getAssignedTrajectory() const {
+    return getProject()->getDataBlock<Trajectory>(_assignedTrajectory);
+}
+
+void LocalCoordinateSystem::assignTrajectory(qint64 trajId) {
+
+    if (trajId == _assignedTrajectory) {
+        return;
+    }
+
+    if (_assignedTrajectory >= 0) removeRefered({_assignedTrajectory});
+    _assignedTrajectory = trajId;
+    if (_assignedTrajectory >= 0) addRefered({_assignedTrajectory});
+    emit assignedTrajectoryChanged(_assignedTrajectory);
+    return;
+
+}
+
 qint64 LocalCoordinateSystem::addLandmarkLocalCoordinates(qint64 attachedLandmarkId,
-														  floatParameter priorX,
-														  floatParameter priorY,
-														  floatParameter priorZ) {
+                                                          floatParameter priorX,
+                                                          floatParameter priorY,
+                                                          floatParameter priorZ, double time) {
 
 	if (getLandmarkLocalCoordinatesByLandmarkId(attachedLandmarkId) != nullptr) {
 		return -1;
@@ -295,18 +318,24 @@ void LocalCoordinateSystem::extendDataModel() {
 	im_lm->addCatProperty<floatParameter, LandmarkLocalCoordinates, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y pos"),
 																														  &LandmarkLocalCoordinates::yCoord,
 																														  &LandmarkLocalCoordinates::setYCoord,
-																														  &LandmarkLocalCoordinates::yCoordChanged);
+                                                                                                                          &LandmarkLocalCoordinates::yCoordChanged);
 
-	im_lm->addCatProperty<floatParameter, LandmarkLocalCoordinates, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z pos"),
-																														  &LandmarkLocalCoordinates::zCoord,
-																														  &LandmarkLocalCoordinates::setZCoord,
-																														  &LandmarkLocalCoordinates::zCoordChanged);
+    im_lm->addCatProperty<floatParameter, LandmarkLocalCoordinates, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z pos"),
+                                                                                                                          &LandmarkLocalCoordinates::zCoord,
+                                                                                                                          &LandmarkLocalCoordinates::setZCoord,
+                                                                                                                          &LandmarkLocalCoordinates::zCoordChanged);
+
+    im_lm->addCatProperty<double, LandmarkLocalCoordinates, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Time"),
+                                                                                                                          &LandmarkLocalCoordinates::time,
+                                                                                                                          &LandmarkLocalCoordinates::setTime,
+                                                                                                                          &LandmarkLocalCoordinates::timeChanged);
 
 
 }
 
 LandmarkLocalCoordinates::LandmarkLocalCoordinates(LocalCoordinateSystem* parent) :
-	Point3D(parent)
+    Point3D(parent),
+    _time(0)
 {
 
 }
@@ -384,6 +413,16 @@ Landmark* LandmarkLocalCoordinates::attachedLandmark() const {
 	Landmark* lm = qobject_cast<Landmark*>(p->getById(attachedLandmarkid()));
 
 	return lm;
+}
+
+double LandmarkLocalCoordinates::time() const {
+    return _time;
+}
+void LandmarkLocalCoordinates::setTime(double time) {
+    if (time != _time) {
+        _time = time;
+        Q_EMIT timeChanged(time);
+    }
 }
 
 QJsonObject LandmarkLocalCoordinates::encodeJson() const {

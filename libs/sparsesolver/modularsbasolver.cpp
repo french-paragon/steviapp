@@ -125,7 +125,7 @@ bool ModularSBASolver::assignProjectorToFrame(ProjectorModule* projector, qint64
         return false;
     }
 
-    if (!_frameParametersIndex.contains(imId)) {
+    if (!_poseParametersIndex.contains(imId)) {
         return false;
     }
 
@@ -145,7 +145,20 @@ ModularSBASolver::ProjectorModule* ModularSBASolver::getProjectorForFrame(qint64
     return nullptr;
 }
 
-ModularSBASolver::LandmarkNode* ModularSBASolver::getNodeForLandmark(qint64 lmId, bool createIfMissing) {
+ModularSBASolver::PositionNode* ModularSBASolver::getPositionNode(qint64 datablockId) {
+    if (!_pointsParametersIndex.contains(datablockId)) {
+        return nullptr;
+    }
+    return &_pointsParameters[_pointsParametersIndex[datablockId]];
+}
+ModularSBASolver::PoseNode* ModularSBASolver::getPoseNode(qint64 datablockId) {
+    if (!_poseParametersIndex.contains(datablockId)) {
+        return nullptr;
+    }
+    return &_poseParameters[_poseParametersIndex[datablockId]];
+}
+
+ModularSBASolver::PositionNode* ModularSBASolver::getNodeForLandmark(qint64 lmId, bool createIfMissing) {
 
     QTextStream out(stdout);
 
@@ -153,8 +166,8 @@ ModularSBASolver::LandmarkNode* ModularSBASolver::getNodeForLandmark(qint64 lmId
         return nullptr;
     }
 
-    if (_LandmarkParametersIndex.contains(lmId)) {
-        return &_LandmarkParameters[_LandmarkParametersIndex[lmId]];
+    if (_pointsParametersIndex.contains(lmId)) {
+        return &_pointsParameters[_pointsParametersIndex[lmId]];
     }
 
     if (!createIfMissing) {
@@ -171,97 +184,12 @@ ModularSBASolver::LandmarkNode* ModularSBASolver::getNodeForLandmark(qint64 lmId
         return nullptr;
     }
 
-    int idx = _LandmarkParameters.size();
-    _LandmarkParameters.emplace_back();
-    _LandmarkParametersIndex[lmId] = idx;
+    int idx = _pointsParameters.size();
+    _pointsParameters.emplace_back();
+    _pointsParametersIndex[lmId] = idx;
 
-    ModularSBASolver::LandmarkNode* lmNode = &_LandmarkParameters[idx];
-    lmNode->lmId = lmId;
-
-    _problem.AddParameterBlock(lmNode->pos.data(), lmNode->pos.size());
-
-    if (lm->isFixed()) {
-        _problem.SetParameterBlockConstant(lmNode->pos.data());
-    }
-
-    QString paramLogName = QString("Position for landmark %1").arg(lm->objectName());
-
-    addLogger(paramLogName, new ParamsValsLogger<3>(lmNode->pos.data()));
-
-    constexpr bool optimized = true;
-    constexpr bool notOptimized = false;
-
-    //get the initial optimization value in optimization frame (ecef for georeferenced).
-    std::optional<Eigen::Vector3f> coordInitial = lm->getOptimizableCoordinates(optimized);
-
-    if (!coordInitial.has_value()) {
-        coordInitial = lm->getOptimizableCoordinates(notOptimized);
-    }
-
-    Eigen::Vector3d vecInitial;
-
-    if (coordInitial.has_value()) {
-        vecInitial = coordInitial.value().cast<double>();
-    }
-
-    //move to local optimization frame
-    vecInitial = getTransform2LocalFrame()*vecInitial;
-
-    if (!coordInitial.has_value()) {
-        vecInitial = Eigen::Vector3d::Zero();
-    }
-
-    lmNode->pos[0] = vecInitial.x();
-    lmNode->pos[1] = vecInitial.y();
-    lmNode->pos[2] = vecInitial.z();
-
-    std::optional<Eigen::Vector3f> coordPrior = lm->getOptimizableCoordinates(notOptimized);
-
-    if (coordPrior.has_value()) {
-
-        Eigen::Vector3d vecPrior = coordPrior.value().cast<double>();
-
-        vecPrior = getTransform2LocalFrame()*vecPrior;
-
-        ceres::Vector m;
-        m.resize(3);
-
-        m[0] = vecPrior.x();
-        m[1] = vecPrior.y();
-        m[2] = vecPrior.z();
-
-        Eigen::Matrix3d stiffness = Eigen::Matrix3d::Identity();
-
-        if (lm->xCoord().isUncertain()) {
-            stiffness(0,0) = 1./std::abs(lm->xCoord().stddev());
-        } else {
-            stiffness(0,0) = 1e6;
-        }
-
-        if (lm->yCoord().isUncertain()) {
-            stiffness(1,1) = 1./std::abs(lm->yCoord().stddev());
-        } else {
-            stiffness(1,1) = 1e6;
-        }
-
-        if (lm->zCoord().isUncertain()) {
-            stiffness(2,2) = 1./std::abs(lm->zCoord().stddev());
-        } else {
-            stiffness(2,2) = 1e6;
-        }
-
-        ceres::NormalPrior* normalPrior = new ceres::NormalPrior(stiffness, m);
-
-        _problem.AddResidualBlock(normalPrior, nullptr, lmNode->pos.data());
-
-        if (_verbose) {
-
-            std::array<double,3> res;
-
-            out << "Position prior (lm " << lmId << ") ";
-            out << "initial residuals = [" << lmNode->pos[0] - m[0] << " " << lmNode->pos[1] - m[1] << " " << lmNode->pos[2] - m[2] << "]\n";
-        }
-    }
+    ModularSBASolver::PositionNode* lmNode = &_pointsParameters[idx];
+    lmNode->datablockId = lmId;
 
     return lmNode;
 
@@ -275,8 +203,8 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForFrame(qint64 imId, bool 
         return nullptr;
     }
 
-    if (_frameParametersIndex.contains(imId)) {
-        return &_frameParameters[_frameParametersIndex[imId]];
+    if (_poseParametersIndex.contains(imId)) {
+        return &_poseParameters[_poseParametersIndex[imId]];
     }
 
     if (!createIfMissing) {
@@ -293,11 +221,11 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForFrame(qint64 imId, bool 
         return nullptr;
     }
 
-    int idx = _frameParameters.size();
-    _frameParameters.emplace_back();
-    _frameParametersIndex[imId] = idx;
-    ModularSBASolver::PoseNode* imNode = &_frameParameters[idx];
-    imNode->frameId = imId;
+    int idx = _poseParameters.size();
+    _poseParameters.emplace_back();
+    _poseParametersIndex[imId] = idx;
+    ModularSBASolver::PoseNode* imNode = &_poseParameters[idx];
+    imNode->datablockId = imId;
 
     imNode->rAxis[0] = im->optRot().value(0);
     imNode->rAxis[1] = im->optRot().value(1);
@@ -306,14 +234,6 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForFrame(qint64 imId, bool 
     imNode->t[0] = im->optPos().value(0);
     imNode->t[1] = im->optPos().value(1);
     imNode->t[2] = im->optPos().value(2);
-
-    _problem.AddParameterBlock(imNode->rAxis.data(), imNode->rAxis.size());
-    _problem.AddParameterBlock(imNode->t.data(), imNode->t.size());
-
-    if (getFixedParametersFlag()&FixedParameter::CameraExternal or im->isFixed()) {
-        _problem.SetParameterBlockConstant(imNode->rAxis.data());
-        _problem.SetParameterBlockConstant(imNode->t.data());
-    }
 
     std::array<double, 3> raxis_prior;
     std::array<double, 3> t_prior;
@@ -335,67 +255,9 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForFrame(qint64 imId, bool 
 
         imNode->rAxis = raxis_prior;
         imNode->t = t_prior;
-
-        _problem.SetParameterBlockConstant(imNode->rAxis.data());
-        _problem.SetParameterBlockConstant(imNode->t.data());
-
     }
 
-    if (!im->isFixed() and im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain()) {
-
-        ceres::Matrix At;
-        At.setConstant(3,3,0);
-
-        At(0,0) = 1./std::abs(im->xCoord().stddev());
-        At(1,1) = 1./std::abs(im->yCoord().stddev());
-        At(2,2) = 1./std::abs(im->zCoord().stddev());
-
-        ceres::Vector bt;
-        bt.resize(3);
-
-        bt << t_prior[0],t_prior[1], t_prior[2];
-
-        ceres::NormalPrior* tPrior = new ceres::NormalPrior(At, bt);
-        _problem.AddResidualBlock(tPrior, nullptr, imNode->t.data());
-
-        if (_verbose) {
-
-            std::array<double,3> res;
-
-            out << "Position prior (img " << imId << ") ";
-            out << "initial residuals = [" << imNode->t[0] - t_prior[0] << " " << imNode->t[1] - t_prior[1] << " " << imNode->t[2] - t_prior[2] << "]\n";
-        }
-
-    }
-
-    if (!im->isFixed() and im->xRot().isUncertain() and im->yRot().isUncertain() and im->zRot().isUncertain()) {
-
-        ceres::Matrix Araxis;
-        Araxis.setConstant(3, 3, 0);
-
-        Araxis(0,0) = 1./std::abs(im->xRot().stddev());
-        Araxis(1,1) = 1./std::abs(im->yRot().stddev());
-        Araxis(2,2) = 1./std::abs(im->zRot().stddev());
-
-        ceres::Vector braxis;
-        braxis.resize(3);
-
-        braxis << raxis_prior[0],raxis_prior[1], raxis_prior[2];
-
-        ceres::NormalPrior* rAxisPrior = new ceres::NormalPrior(Araxis, (braxis));
-        _problem.AddResidualBlock(rAxisPrior, nullptr, imNode->rAxis.data());
-
-        if (_verbose) {
-
-            std::array<double,3> res;
-
-            out << "Rotation axis prior (img " << imId << ") ";
-            out << "initial residuals = [" << imNode->rAxis[0] - raxis_prior[0] << " " << imNode->rAxis[1] - raxis_prior[1] << " " << imNode->rAxis[2] - raxis_prior[2] << "]\n";
-        }
-
-    }
-
-    return &_frameParameters[_frameParametersIndex[imId]];
+    return &_poseParameters[_poseParametersIndex[imId]];
 
 }
 
@@ -405,8 +267,8 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForLocalCoordinates(qint64 
         return nullptr;
     }
 
-    if (_localCoordinatesParametersIndex.contains(lcsId)) {
-        return &_localCoordinatesParameters[_localCoordinatesParametersIndex[lcsId]];
+    if (_poseParametersIndex.contains(lcsId)) {
+        return &_poseParameters[_poseParametersIndex[lcsId]];
     }
 
     if (!createIfMissing) {
@@ -419,18 +281,53 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForLocalCoordinates(qint64 
         return nullptr;
     }
 
-    int idx = _localCoordinatesParameters.size();
-    _localCoordinatesParameters.emplace_back();
-    _localCoordinatesParametersIndex[lcsId] = idx;
+    int idx = _poseParameters.size();
+    _poseParameters.emplace_back();
+    _poseParametersIndex[lcsId] = idx;
 
+    PoseNode& node = _poseParameters[idx];
 
+    _poseParameters[idx].datablockId = lcs->internalId();
 
-    _problem.AddParameterBlock(_localCoordinatesParameters[idx].t.data(),
-                               _localCoordinatesParameters[idx].t.size());
-    _problem.AddParameterBlock(_localCoordinatesParameters[idx].rAxis.data(),
-                               _localCoordinatesParameters[idx].rAxis.size());
+    node.rAxis[0] = lcs->optRot().value(0);
+    node.rAxis[1] = lcs->optRot().value(1);
+    node.rAxis[2] = lcs->optRot().value(2);
 
-    return &_localCoordinatesParameters[idx];
+    node.t[0] = lcs->optPos().value(0);
+    node.t[1] = lcs->optPos().value(1);
+    node.t[2] = lcs->optPos().value(2);
+
+    std::array<double, 3> raxis_prior;
+    std::array<double, 3> t_prior;
+
+    //TODO: check if the use of axis angle representation here is consistent.
+    if (lcs->xRot().isSet() and lcs->yRot().isSet() and lcs->zRot().isSet()) {
+        raxis_prior[0] = lcs->xRot().value();
+        raxis_prior[1] = lcs->yRot().value();
+        raxis_prior[2] = lcs->zRot().value();
+    }
+
+    if (lcs->xCoord().isSet() and lcs->yCoord().isSet() and lcs->zCoord().isSet()) {
+        t_prior[0] = lcs->xCoord().value();
+        t_prior[1] = lcs->yCoord().value();
+        t_prior[2] = lcs->zCoord().value();
+    }
+
+    if (lcs->isFixed()) {
+
+        node.rAxis = raxis_prior;
+        node.t = t_prior;
+    }
+
+    Trajectory* traj = lcs->getAssignedTrajectory();
+
+    if (traj != nullptr) {
+        node.trajectoryId = traj->internalId();
+    } else {
+        node.trajectoryId = std::nullopt;
+    }
+
+    return &_poseParameters[idx];
 
 }
 
@@ -608,9 +505,10 @@ bool ModularSBASolver::init() {
 
     //reserve enough memory so the objects are not moved.
     //TODO: create a vector class which garantee that the allocated chunk is not moved unless the vector is reset.
-    _LandmarkParameters.reserve(_currentProject->countTypeInstances(Landmark::staticMetaObject.className()));
-    _frameParameters.reserve(_currentProject->countTypeInstances(Image::staticMetaObject.className()));
-    _localCoordinatesParameters.reserve(_currentProject->countTypeInstances(LocalCoordinateSystem::staticMetaObject.className()));
+    _pointsParameters.reserve(_currentProject->countTypeInstances(Landmark::staticMetaObject.className()));
+    int nPoses = _currentProject->countTypeInstances(Image::staticMetaObject.className());
+    nPoses += _currentProject->countTypeInstances(LocalCoordinateSystem::staticMetaObject.className());
+    _poseParameters.reserve(nPoses);
     _trajectoryParameters.reserve(_currentProject->countTypeInstances(Trajectory::staticMetaObject.className()));
     _leverArmParameters.reserve(_trajectoryParameters.size()*_currentProject->countTypeInstances(Camera::staticMetaObject.className()));
 
@@ -639,6 +537,30 @@ bool ModularSBASolver::init() {
     _observabilityGraph.reduceGraph();
 
     for (SBAModule* module : _modules) {
+        ok = module->setupParameters(this);
+
+        if (!ok) {
+            return false;
+        }
+    }
+
+    ok = initManagedParameters();
+
+    if (!ok) {
+        return false;
+    }
+
+    //setup the projectors
+    for (ProjectorModule* module : _projectors) {
+        ok = module->init(this, _problem);
+
+        if (!ok) {
+            return false;
+        }
+    }
+
+    //setup the sba modules
+    for (SBAModule* module : _modules) {
         ok = module->init(this, _problem);
 
         if (!ok) {
@@ -649,6 +571,66 @@ bool ModularSBASolver::init() {
     logDatas("after_init.log");
     return true;
 }
+
+bool ModularSBASolver::initManagedParameters() {
+
+    if(_currentProject == nullptr) {
+        return false;
+    }
+
+    for (PositionNode& node : _pointsParameters) {
+
+        DataBlock* block = _currentProject->getById(node.datablockId);
+
+        if (block == nullptr) {
+            continue;
+        }
+
+        _problem.AddParameterBlock(node.pos.data(), node.pos.size());
+
+        if (block->isFixed()) {
+            _problem.SetParameterBlockConstant(node.pos.data());
+        }
+    }
+
+    for (PoseNode& node : _poseParameters) {
+
+        DataBlock* block = _currentProject->getById(node.datablockId);
+
+        if (block == nullptr) {
+            continue;
+        }
+
+        _problem.AddParameterBlock(node.rAxis.data(), node.rAxis.size());
+        _problem.AddParameterBlock(node.t.data(), node.t.size());
+
+        if (block->isFixed()) {
+            _problem.SetParameterBlockConstant(node.rAxis.data());
+            _problem.SetParameterBlockConstant(node.t.data());
+        }
+    }
+
+    for (LeverArmNode& node : _leverArmParameters) {
+
+        DataBlock* block = _currentProject->getById(node.PlatformId);
+
+        if (block == nullptr) {
+            continue;
+        }
+
+        _problem.AddParameterBlock(node.rAxis.data(), node.rAxis.size());
+        _problem.AddParameterBlock(node.t.data(), node.t.size());
+
+        if (block->isFixed()) {
+            _problem.SetParameterBlockConstant(node.rAxis.data());
+            _problem.SetParameterBlockConstant(node.t.data());
+        }
+    }
+
+    return true;
+
+}
+
 bool ModularSBASolver::opt_step() {
 
     if (_not_first_step) {
@@ -709,100 +691,6 @@ bool ModularSBASolver::writeResults() {
         }
     }
 
-    StereoVision::Geometry::AffineTransform<double> ecef2local = getTransform2LocalFrame();
-
-    StereoVision::Geometry::AffineTransform<double>
-            local2ecef(ecef2local.R.transpose(),
-                       -ecef2local.R.transpose()*ecef2local.t);
-
-    for (qint64 id : _LandmarkParametersIndex.keys()) {
-
-        Landmark* lm = qobject_cast<Landmark*>(_currentProject->getById(id));
-
-        if (lm->isFixed()) {
-            continue;
-        }
-
-        LandmarkNode& lm_p = _LandmarkParameters[_LandmarkParametersIndex[id]];
-
-        if (lm->geoReferenceSupportActive()) {
-
-            Eigen::Vector3d pos;
-
-            pos[0] = lm_p.pos[0];
-            pos[1] = lm_p.pos[1];
-            pos[2] = lm_p.pos[2];
-
-            Eigen::Vector3d tmp = local2ecef*pos;
-            pos = tmp;
-
-            constexpr bool optimized = true;
-            lm->setPositionFromEcef(pos.cast<float>(), optimized);
-
-        } else {
-
-            floatParameterGroup<3> pos;
-            pos.value(0) = static_cast<float>(lm_p.pos[0]);
-            pos.value(1) = static_cast<float>(lm_p.pos[1]);
-            pos.value(2) = static_cast<float>(lm_p.pos[2]);
-            pos.setIsSet();
-            lm->setOptPos(pos);
-        }
-
-    }
-
-    for (qint64 id : _frameParametersIndex.keys()) {
-
-        Image* im = qobject_cast<Image*>(_currentProject->getById(id));
-
-        if (im->isFixed()) {
-            continue;
-        }
-
-        PoseNode& im_p = _frameParameters[_frameParametersIndex[id]];
-
-        floatParameterGroup<3> pos;
-        pos.value(0) = static_cast<float>(im_p.t[0]);
-        pos.value(1) = static_cast<float>(im_p.t[1]);
-        pos.value(2) = static_cast<float>(im_p.t[2]);
-        pos.setIsSet();
-        im->setOptPos(pos);
-
-        floatParameterGroup<3> rot;
-        rot.value(0) = static_cast<float>(im_p.rAxis[0]);
-        rot.value(1) = static_cast<float>(im_p.rAxis[1]);
-        rot.value(2) = static_cast<float>(im_p.rAxis[2]);
-        rot.setIsSet();
-        im->setOptRot(rot);
-
-    }
-
-    for (qint64 id : _localCoordinatesParametersIndex.keys()) {
-
-        LocalCoordinateSystem* lcs = _currentProject->getDataBlock<LocalCoordinateSystem>(id);
-
-        if (lcs->isFixed()) {
-            continue;
-        }
-
-        PoseNode& lcr_p = _localCoordinatesParameters[_localCoordinatesParametersIndex[id]];
-
-        floatParameterGroup<3> pos;
-        pos.value(0) = static_cast<float>(lcr_p.t[0]);
-        pos.value(1) = static_cast<float>(lcr_p.t[1]);
-        pos.value(2) = static_cast<float>(lcr_p.t[1]);
-        pos.setIsSet();
-        lcs->setOptPos(pos);
-
-        floatParameterGroup<3> rot;
-        rot.value(0) = static_cast<float>(lcr_p.rAxis[0]);
-        rot.value(1) = static_cast<float>(lcr_p.rAxis[1]);
-        rot.value(2) = static_cast<float>(lcr_p.rAxis[2]);
-        rot.setIsSet();
-        lcs->setOptRot(rot);
-
-    }
-
     return true;
 
 }
@@ -821,10 +709,17 @@ void ModularSBASolver::cleanup() {
     }
 
     //clear the basic nodes
-    _LandmarkParametersIndex.clear();
-    _frameParametersIndex.clear();
-    _localCoordinatesParametersIndex.clear();
+    _pointsParameters.clear();
+    _pointsParametersIndex.clear();
+
+    _poseParameters.clear();
+    _poseParametersIndex.clear();
+
+    _trajectoryParameters.clear();
     _trajectoryParametersIndex.clear();
+
+    _leverArmParameters.clear();
+    _leverArmParametersIndex.clear();
 
     _problem = ceres::Problem(); //reset problem
 }
@@ -862,511 +757,6 @@ QTextStream& ModularSBASolver::ValueBlockLogger::log(QTextStream& stream) const 
     return stream;
 }
 
-const char* ImageAlignementSBAModule::ModuleName = "SBAModule::ImageAlignement";
-
-ImageAlignementSBAModule::ImageAlignementSBAModule()
-{
-
-}
-
-bool ImageAlignementSBAModule::addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
-
-    if (currentProject == nullptr) {
-        return false;
-    }
-
-    QVector<qint64> imgs_v = currentProject->getIdsByClass(ImageFactory::imageClassName());
-    QVector<qint64> lmks_v = currentProject->getIdsByClass(LandmarkFactory::landmarkClassName());
-
-    for (qint64 id : imgs_v) {
-        graphReductor->insertItem(id, 6);
-    }
-
-    for (qint64 id : lmks_v) {
-        graphReductor->insertItem(id, 3);
-    }
-
-    return true;
-
-}
-bool ImageAlignementSBAModule::addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
-
-    if (currentProject == nullptr) {
-        return false;
-    }
-
-    QVector<qint64> imgs_v = currentProject->getIdsByClass(ImageFactory::imageClassName());
-
-    for (qint64 id : imgs_v) {
-        Image* im = qobject_cast<Image*>(currentProject->getById(id));
-        if (im == nullptr) {
-            continue;
-        }
-
-        if (im->isEnabled() == false) {
-            continue;
-        }
-
-        int nSelfObs = 0;
-
-        if (im->xCoord().isSet() and im->yCoord().isSet() and im->zCoord().isSet()) {
-            nSelfObs += 3;
-        }
-
-        if(im->xRot().isSet() and im->yRot().isSet() and im->zRot().isSet()) {
-            nSelfObs += 3;
-        }
-
-        graphReductor->insertSelfObservation(id, nSelfObs);
-
-        QVector<qint64> connections = im->getAttachedLandmarksIds();
-
-        for (qint64 lmId : connections) {
-            graphReductor->insertObservation(id, lmId, 2);
-        }
-
-        qint64 trajId = im->assignedTrajectory(); //if the image has a trajectory
-
-        if (trajId >= 0) {
-            graphReductor->insertObservation(id, trajId, 6);
-        }
-    }
-
-    return true;
-
-}
-
-bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem) {
-
-    Project* currentProject = solver->currentProject();
-
-    if (currentProject == nullptr) {
-        return false;
-    }
-
-    SBAGraphReductor selector(3,2,true,true);
-
-    SBAGraphReductor::elementsSet selection = selector(currentProject, false);
-
-    if (selection.imgs.isEmpty() or selection.pts.isEmpty()) {
-        return false;
-    }
-
-    //add images and points
-
-    for (qint64 imId : selection.imgs) {
-
-        Image* im = qobject_cast<Image*>(currentProject->getById(imId));
-
-        if (im == nullptr) {
-            continue;
-        }
-
-        ModularSBASolver::PoseNode* imNode = solver->getNodeForFrame(imId, true);
-
-        if (imNode == nullptr) {
-            continue;
-        }
-
-        //check if a previous module assigned a projection module already to the frame.
-        ModularSBASolver::ProjectorModule* projectionModule = solver->getProjectorForFrame(imId);
-
-        if (projectionModule == nullptr) {
-
-            Camera* cam = im->getAssignedCamera();
-
-            if (cam == nullptr) {
-                continue;
-            }
-
-            if (_cameraProjectors.contains(cam->internalId())) {
-                projectionModule = _cameraProjectors[cam->internalId()];
-                solver->assignProjectorToFrame(projectionModule, imId);
-            } else {
-                PinholdeCamProjModule* pcpm = new PinholdeCamProjModule(cam);
-                projectionModule = pcpm;
-                bool ok = pcpm->init(solver, problem);
-
-                if (!ok) {
-                    return false;
-                }
-
-                _cameraProjectors[cam->internalId()] = projectionModule;
-                solver->addProjector(projectionModule);
-                solver->assignProjectorToFrame(projectionModule, imId);
-            }
-        }
-
-        if (projectionModule == nullptr) {
-            continue;
-        }
-
-        //GCPs
-        for (qint64 imlmId : im->listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
-
-            ImageLandmark* iml = im->getImageLandmark(imlmId);
-
-            if (iml == nullptr) {
-                continue;
-            }
-
-            qint64 lmId = iml->attachedLandmarkid();
-
-            if (!selection.pts.contains(lmId)) {
-                continue;
-            }
-
-            ModularSBASolver::LandmarkNode* lmNode = solver->getNodeForLandmark(lmId, true);
-
-            if (lmNode == nullptr) {
-                continue;
-            }
-
-            Eigen::Vector2d ptPos;
-            ptPos.x() = iml->x().value();
-            ptPos.y() = iml->y().value();
-
-            Eigen::Matrix2d info = Eigen::Matrix2d::Identity();
-            info(0,0) = (iml->x().isUncertain()) ? 1./iml->x().stddev() : 1;
-            info(1,1) = (iml->y().isUncertain()) ? 1./iml->y().stddev() : 1;
-
-            projectionModule->addProjectionCostFunction(lmNode->pos.data(),
-                                                        imNode->rAxis.data(),
-                                                        imNode->t.data(),
-                                                        ptPos,
-                                                        info,
-                                                        problem);
-        }
-
-        //stick to trajectory
-        qint64 trajId = im->assignedTrajectory();
-        std::optional<double> imTime = im->getImageTimestamp();
-
-        ModularSBASolver::TrajectoryNode* tNode = solver->getNodeForTrajectory(trajId, false);
-        ModularSBASolver::LeverArmNode* lvNode = solver->getNodeForLeverArm(QPair<qint64,qint64>(im->assignedCamera(),trajId), false);
-
-        if (tNode != nullptr and lvNode != nullptr and imTime.has_value()) {
-
-            double time = imTime.value();
-            int nodeId = tNode->getNodeForTime(time);
-
-            if (nodeId >= 0 and nodeId < tNode->nodes.size()-1) {
-                ModularSBASolver::TrajectoryPoseNode& previous = tNode->nodes[nodeId];
-                ModularSBASolver::TrajectoryPoseNode& next = tNode->nodes[nodeId+1];
-
-                double pTime = previous.time;
-                double nTime = next.time;
-
-                double wP = (nTime - time)/(nTime-pTime);
-                double wN = (time - pTime)/(nTime-pTime);
-
-                if (std::abs(wP-1) < 1e-3 or !std::isfinite(wP)) {
-
-                    ParametrizedLeverArmCostFunctor* cost =
-                            new ParametrizedLeverArmCostFunctor();
-
-                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
-                    ceresFunc* costFunc = new ceresFunc(cost);
-
-                    problem.AddResidualBlock(costFunc, nullptr,
-                                             lvNode->rAxis.data(), lvNode->t.data(),
-                                             previous.rAxis.data(), previous.t.data(),
-                                             imNode->rAxis.data(), imNode->t.data());
-
-                } else if (std::abs(wN-1) < 1e-3) {
-
-                    ParametrizedLeverArmCostFunctor* cost =
-                            new ParametrizedLeverArmCostFunctor();
-
-                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
-                    ceresFunc* costFunc = new ceresFunc(cost);
-
-                    problem.AddResidualBlock(costFunc, nullptr,
-                                             lvNode->rAxis.data(), lvNode->t.data(),
-                                             next.rAxis.data(), next.t.data(),
-                                             imNode->rAxis.data(), imNode->t.data());
-
-                } else {
-
-                    ParametrizedInterpolatedLeverArmCostFunctor* cost =
-                            new ParametrizedInterpolatedLeverArmCostFunctor(wP, wN);
-
-                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedInterpolatedLeverArmCostFunctor,6,3,3,3,3,3,3,3,3>;
-                    ceresFunc* costFunc = new ceresFunc(cost);
-
-                    problem.AddResidualBlock(costFunc, nullptr,
-                                             lvNode->rAxis.data(), lvNode->t.data(),
-                                             previous.rAxis.data(), previous.t.data(),
-                                             next.rAxis.data(), next.t.data(),
-                                             imNode->rAxis.data(), imNode->t.data());
-                }
-            }
-
-        }
-
-    }
-
-    return true;
-
-}
-
-bool ImageAlignementSBAModule::writeResults(ModularSBASolver* solver) {
-
-    //Basic data structures are managed by the modular sba solver directly.
-    return true;
-
-}
-
-bool ImageAlignementSBAModule::writeUncertainty(ModularSBASolver* solver) {
-
-    //Basic data structures are managed by the modular sba solver directly.
-    return true;
-}
-
-void ImageAlignementSBAModule::cleanup(ModularSBASolver* solver) {
-    //Basic data structures are managed by the modular sba solver directly.
-    Q_UNUSED(solver);
-    return;
-}
-
-
-
-PinholdeCamProjModule::PinholdeCamProjModule(Camera* associatedCamera) :
-    _associatedCamera(associatedCamera)
-{
-
-}
-
-PinholdeCamProjModule::~PinholdeCamProjModule() {
-
-}
-
-bool PinholdeCamProjModule::addProjectionCostFunction(double* pointData,
-                                                      double* poseOrientation,
-                                                      double* posePosition,
-                                                      Eigen::Vector2d const& ptProjPos,
-                                                      Eigen::Matrix2d const& ptProjStiffness,
-                                                      ceres::Problem & problem) {
-
-
-    ParametrizedXYZ2UVCost* projCost = new ParametrizedXYZ2UVCost(ptProjPos, ptProjStiffness);
-
-    problem.AddResidualBlock(new ceres::AutoDiffCostFunction<ParametrizedXYZ2UVCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
-                              pointData,
-                              poseOrientation,
-                              posePosition,
-                              &_fLen,
-                              _principalPoint.data(),
-                              _radialDistortion.data(),
-                              _tangentialDistortion.data(),
-                              _skewDistortion.data());
-
-    /*if (_verbose) {
-
-        std::array<double,3> res;
-
-        (*projCost)(l_p.position.data(),
-                    pose.rAxis.data(),
-                    pose.t.data(),
-                    &c_p.fLen,
-                    c_p.principalPoint.data(),
-                    c_p.radialDistortion.data(),
-                    c_p.tangentialDistortion.data(),
-                    c_p.skewDistortion.data(),
-                    res.data());
-
-        out << "Image GCP (img " << id << ") ";
-        out << "lm[" << lmId << "] ";
-        out << "initial residuals = [" << res[0] << " " << res[1] << "]\n";
-    }*/
-
-    return true;
-}
-
-bool PinholdeCamProjModule::addCrossProjectionCostFunction(double* pose1Orientation,
-                                                           double* pose1Position,
-                                                           Eigen::Vector2d const& ptProj1Pos,
-                                                           Eigen::Matrix2d const& ptProj1Stiffness,
-                                                           double* pose2Orientation,
-                                                           double* pose2Position,
-                                                           Eigen::Vector2d const& ptProj2Pos,
-                                                           Eigen::Matrix2d const& ptProj2Stiffness,
-                                                           ceres::Problem & problem) {
-
-    //doing a uv2uv projection with distortion is non trivial. For this model of camera distortion it is better to use an intermediate landmark.
-    return false;
-
-}
-
-bool PinholdeCamProjModule::init(ModularSBASolver* solver, ceres::Problem & problem) {
-
-    Camera*& c = _associatedCamera;
-
-    Eigen::Vector2d extend;
-    extend.x() = c->imSize().width();
-    extend.y() = c->imSize().height();
-
-    if (c->optimizedOpticalCenterX().isSet() and
-            c->optimizedOpticalCenterY().isSet()) {
-
-        _principalPoint[0] = c->optimizedOpticalCenterX().value();
-        _principalPoint[1] = c->optimizedOpticalCenterY().value();
-
-    } else {
-
-        _principalPoint[0] = c->opticalCenterX().value();
-        _principalPoint[1] = c->opticalCenterY().value();
-    }
-
-    problem.AddParameterBlock(_principalPoint.data(), _principalPoint.size());
-
-    if (c->optimizedFLen().isSet()) {
-        _fLen = c->optimizedFLen().value();
-    } else {
-        _fLen = c->fLen().value();
-    }
-
-    problem.AddParameterBlock(&_fLen, 1);
-
-    if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
-        problem.SetParameterBlockConstant(&_fLen);
-        problem.SetParameterBlockConstant(_principalPoint.data());
-    }
-
-
-    if (c->optimizedK1().isSet() and
-            c->optimizedK2().isSet() and
-            c->optimizedK3().isSet()) {
-
-        _radialDistortion[0] = c->optimizedK1().value();
-        _radialDistortion[1] = c->optimizedK2().value();
-        _radialDistortion[2] = c->optimizedK3().value();
-
-    } else {
-
-        _radialDistortion[0] = c->k1().value();
-        _radialDistortion[1] = c->k2().value();
-        _radialDistortion[2] = c->k3().value();
-    }
-
-    problem.AddParameterBlock(_radialDistortion.data(), _radialDistortion.size());
-
-    if (!c->useRadialDistortionModel()) {
-        _radialDistortion[0] = 0;
-        _radialDistortion[1] = 0;
-        _radialDistortion[2] = 0;
-
-        problem.SetParameterBlockConstant(_radialDistortion.data());
-    }
-
-    if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
-        problem.SetParameterBlockConstant(_radialDistortion.data());
-    }
-
-    if (c->optimizedP1().isSet() and
-                c->optimizedP2().isSet()) {
-
-        _tangentialDistortion[0] = c->optimizedP1().value();
-        _tangentialDistortion[1] = c->optimizedP2().value();
-
-    } else {
-
-        _tangentialDistortion[0] = c->p1().value();
-        _tangentialDistortion[1] = c->p2().value();
-    }
-
-    problem.AddParameterBlock(_tangentialDistortion.data(), _tangentialDistortion.size());
-
-    if (!c->useTangentialDistortionModel()) {
-        _tangentialDistortion[0] = 0;
-        _tangentialDistortion[1] = 0;
-
-        problem.SetParameterBlockConstant(_tangentialDistortion.data());
-    }
-
-    if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
-        problem.SetParameterBlockConstant(_tangentialDistortion.data());
-    }
-
-    if (c->optimizedB1().isSet() and
-            c->optimizedB2().isSet()) {
-
-        _skewDistortion[0] = c->optimizedB1().value();
-        _skewDistortion[1] = c->optimizedB2().value();
-
-    } else {
-
-        _skewDistortion[0] = c->B1().value();
-        _skewDistortion[1] = c->B2().value();
-    }
-
-    problem.AddParameterBlock(_skewDistortion.data(), _skewDistortion.size());
-
-    if (!c->useSkewDistortionModel()) {
-        _skewDistortion[0] = 0;
-        _skewDistortion[1] = 0;
-
-        problem.SetParameterBlockConstant(_skewDistortion.data());
-    }
-
-    if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
-
-        problem.SetParameterBlockConstant(_skewDistortion.data());
-    }
-
-    return true;
-
-}
-
-bool PinholdeCamProjModule::writeResults(ModularSBASolver* solver) {
-
-
-
-    Camera* cam = _associatedCamera;
-
-    if (cam->isFixed()) {
-        return true;
-    }
-
-    cam->clearOptimized();
-
-    cam->setOptimizedFLen(static_cast<float>(_fLen));
-    cam->setOptimizedOpticalCenterX(static_cast<float>(_principalPoint[0]));
-    cam->setOptimizedOpticalCenterY(static_cast<float>(_principalPoint[1]));
-
-    if (cam->useRadialDistortionModel()) {
-
-        cam->setOptimizedK1(static_cast<float>(_radialDistortion[0]));
-        cam->setOptimizedK2(static_cast<float>(_radialDistortion[1]));
-        cam->setOptimizedK3(static_cast<float>(_radialDistortion[2]));
-    }
-
-    if (cam->useTangentialDistortionModel()) {
-
-        cam->setOptimizedP1(static_cast<float>(_tangentialDistortion[0]));
-        cam->setOptimizedP2(static_cast<float>(_tangentialDistortion[1]));
-    }
-
-    if (cam->useSkewDistortionModel()) {
-
-        cam->setOptimizedB1(static_cast<float>(_skewDistortion[0]));
-        cam->setOptimizedB2(static_cast<float>(_skewDistortion[1]));
-    }
-
-    return true;
-
-}
-
-bool PinholdeCamProjModule::writeUncertainty(ModularSBASolver* solver) {
-
-    //TODO: get a way to write uncertainty.
-    return true;
-}
-
-void PinholdeCamProjModule::cleanup(ModularSBASolver* solver) {
-    Q_UNUSED(solver);
-    return;
-}
 
 const char* SBASolverModulesInterface::AppInterfaceName = "StereoVisionApp::SBASolverModulesInterface";
 

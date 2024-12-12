@@ -17,6 +17,7 @@ public:
     virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
     virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
 
+    virtual bool setupParameters(ModularSBASolver* solver) override;
     virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) override;
     virtual bool writeResults(ModularSBASolver* solver) override;
     virtual bool writeUncertainty(ModularSBASolver* solver) override;
