@@ -103,6 +103,7 @@ set(LIB_HEADERS_COST_FUNCTORS
     costfunctors/local3dtoimageuvcost.h
     costfunctors/interpolatedvectorprior.h
     costfunctors/modularuvprojection.h
+    costfunctors/localpointprojectioncost.h
 )
 
 set(LIB_HEADERS_SBA_MODULES

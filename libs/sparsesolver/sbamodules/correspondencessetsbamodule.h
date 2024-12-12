@@ -29,6 +29,11 @@ public:
                                StereoVisionApp::ModularSBASolver* solver,
                                ceres::Problem & problem);
 
+    static bool addGeoProjPrior(Correspondences::Typed<Correspondences::PRIORID> const& priorId,
+                               Correspondences::Typed<Correspondences::GEOXY> const& geoPos,
+                               StereoVisionApp::ModularSBASolver* solver,
+                               ceres::Problem & problem);
+
     static bool addXYZMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz1,
                             Correspondences::Typed<Correspondences::XYZ> const& xyz2,
                             StereoVisionApp::ModularSBASolver* solver,
@@ -46,6 +51,11 @@ public:
 
     static bool addXYZ2GeoMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                 Correspondences::Typed<Correspondences::GEOXYZ> const& geoMatch,
+                                StereoVisionApp::ModularSBASolver* solver,
+                                ceres::Problem & problem);
+
+    static bool addXYZ2GeoMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                                Correspondences::Typed<Correspondences::GEOXY> const& geoMatch,
                                 StereoVisionApp::ModularSBASolver* solver,
                                 ceres::Problem & problem);
 

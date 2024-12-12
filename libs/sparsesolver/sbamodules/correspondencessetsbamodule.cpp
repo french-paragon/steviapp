@@ -7,6 +7,7 @@
 
 #include "costfunctors/localpointalignementcost.h"
 #include "costfunctors/local3dcoalignementcost.h"
+#include "costfunctors/localpointprojectioncost.h"
 
 #include <ceres/normal_prior.h>
 
@@ -171,6 +172,82 @@ bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspo
 
 }
 
+
+
+bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Correspondences::PRIORID> const& priorId,
+                           Correspondences::Typed<Correspondences::GEOXY> const& geoPos,
+                           StereoVisionApp::ModularSBASolver* solver,
+                           ceres::Problem & problem) {
+
+    StereoVisionApp::Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    double* posData = nullptr;
+
+    ModularSBASolver::PoseNode* p = solver->getPoseNode(priorId.blockId);
+
+    if (p != nullptr) {
+
+        qint64 trajId = p->trajectoryId.value_or(-1);
+
+        if (trajId >= 0 and !p->time.has_value()) {
+            return false; //cannot have a geo pos prior for items on a trajectory, need a XYZT match
+        }
+
+        posData = p->t.data();
+    } else {
+
+        ModularSBASolver::PositionNode* p = solver->getPositionNode(priorId.blockId);
+
+        if (p != nullptr) {
+            posData = p->pos.data();
+        }
+    }
+
+    if (posData == nullptr) {
+        return false;
+    }
+
+    std::optional<std::tuple<Eigen::Matrix<double,2,3>,Eigen::Vector2d>> projInfos =
+            Correspondences::getGeoXYConstraintInfos(geoPos, solver->getTransform2LocalFrame());
+
+    if (!projInfos.has_value()) {
+        return false;
+    }
+
+    Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
+
+    if (geoPos.sigmaX.has_value() and
+            geoPos.sigmaY.has_value()) {
+        stiffness(0,0) = 1/(geoPos.sigmaX.value());
+        stiffness(1,1) = 1/(geoPos.sigmaY.value());
+    }
+
+    Eigen::Matrix<double,2,3> A = std::get<Eigen::Matrix<double,2,3>>(projInfos.value());
+    Eigen::Matrix<double,2,3> M = stiffness*A;
+    Eigen::Vector2d b = std::get<Eigen::Vector2d>(projInfos.value());
+    Eigen::Vector3d x = A.fullPivHouseholderQr().solve(b);
+
+    Eigen::Vector2d error = A*x - b;
+    double errorNorm = error.norm();
+
+    if (errorNorm > 1e-3) {
+        solver->logMessage(QString("Reprojection matrix ill conditionned for correspondence %1,%2").arg(priorId.toStr(),geoPos.toStr()));
+        return false;
+    }
+
+    ceres::NormalPrior* costFunc =
+            new ceres::NormalPrior(M, x);
+
+    problem.AddResidualBlock(costFunc, nullptr, p->t.data());
+
+    return true;
+
+}
+
 bool CorrespondencesSetSBAModule::addXYZMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz1,
                            Correspondences::Typed<Correspondences::XYZ> const& xyz2,
                            StereoVisionApp::ModularSBASolver* solver,
@@ -327,6 +404,81 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
 
 }
 
+bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                            Correspondences::Typed<Correspondences::GEOXY> const& geoMatch,
+                            StereoVisionApp::ModularSBASolver* solver,
+                            ceres::Problem & problem) {
+
+    StereoVisionApp::Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::PoseNode* p = solver->getPoseNode(xyz.blockId);
+
+    if (p == nullptr) {
+        return false;
+    }
+
+    qint64 trajId = p->trajectoryId.value_or(-1);
+
+    if (trajId >= 0 and !p->time.has_value()) {
+        return false; //cannot have a geo pos prior for lcs on a trajectory, need a XYZT match
+    }
+
+    std::optional<std::tuple<Eigen::Matrix<double,2,3>,Eigen::Vector2d>> projInfos =
+            Correspondences::getGeoXYConstraintInfos(geoMatch, solver->getTransform2LocalFrame());
+
+    if (!projInfos.has_value()) {
+        return false;
+    }
+
+    Eigen::Matrix<double,2,3> A = std::get<Eigen::Matrix<double,2,3>>(projInfos.value());
+    Eigen::Vector2d b = std::get<Eigen::Vector2d>(projInfos.value());
+
+    Eigen::Vector3d localPos;
+    localPos << xyz.x, xyz.y, xyz.z;
+
+    Eigen::Matrix2d stiffness = Eigen::Matrix2d::Zero();
+
+    if (xyz.sigmaX.has_value() and xyz.sigmaY.has_value() and xyz.sigmaZ.has_value()) {
+
+        Eigen::Vector3d xyz_sigma;
+        xyz_sigma << xyz.sigmaX.value(), xyz.sigmaY.value(), xyz.sigmaZ.value();
+
+        Eigen::Vector2d projSigma = A*xyz_sigma;
+
+        if (geoMatch.sigmaX.has_value() and geoMatch.sigmaY.has_value()) {
+            stiffness(0,0) = 1/(xyz.sigmaX.value() + projSigma.x());
+            stiffness(1,1) = 1/(xyz.sigmaY.value() + projSigma.y());
+        } else {
+            stiffness(0,0) = 1/(projSigma.x());
+            stiffness(1,1) = 1/(projSigma.y());
+        }
+
+    } else if (geoMatch.sigmaX.has_value() and geoMatch.sigmaY.has_value()) {
+
+        stiffness(0,0) = 1/(geoMatch.sigmaX.value());
+        stiffness(1,1) = 1/(geoMatch.sigmaY.value());
+
+    } else {
+        stiffness = Eigen::Matrix2d::Identity();
+    }
+
+    LocalPoint2TargetProjectionCost<2>* cost =
+            new LocalPoint2TargetProjectionCost<2>(localPos, b, A, stiffness);
+
+    using CostFuncT = ceres::AutoDiffCostFunction<LocalPoint2TargetProjectionCost<2>,3,3,3>;
+
+    CostFuncT* costFunc = new CostFuncT(cost);
+
+    problem.AddResidualBlock(costFunc, nullptr, p->rAxis.data(), p->t.data());
+
+    return true;
+
+}
+
 bool CorrespondencesSetSBAModule::setupXYZPrior(Correspondences::Typed<Correspondences::XYZ> const& xyz,
                              StereoVisionApp::ModularSBASolver* solver,
                              ceres::Problem & problem) {
@@ -469,6 +621,10 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
             continue;
         }
 
+        if (!correspSet->isEnabled()) {
+            continue;
+        }
+
         using GenericPair = Correspondences::GenericPair;
         using GenericMatch = Correspondences::Generic;
 
@@ -489,6 +645,12 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
 
                 auto typedPair = pair.getTypedPair<Correspondences::PRIORID,Correspondences::GEOXYZ>().value();
                 ok = addGeoPosPrior(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::PRIORID,Correspondences::GEOXY>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::PRIORID,Correspondences::GEOXY>().value();
+                ok = addGeoProjPrior(typedPair.c1, typedPair.c2, solver, problem);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::XYZ>()) {
@@ -512,6 +674,12 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::GEOXYZ>().value();
+                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::GEOXY>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::GEOXY>().value();
                 ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, solver, problem);
             }
 
