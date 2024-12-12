@@ -1,6 +1,7 @@
 #ifndef STEREOVISIONAPP_TRAJECTORYACTIONS_H
 #define STEREOVISIONAPP_TRAJECTORYACTIONS_H
 
+#include <QString>
 
 namespace StereoVisionApp {
 
@@ -17,6 +18,8 @@ void setGyroMounting(Trajectory* traj);
  * \param traj the trajectory to analyse.
  */
 void checkTrajectoryConsistency(Trajectory* traj);
+
+void exportOptimizedTrajectory(Trajectory* traj, QString filePath = "");
 
 } // namespace StereoVisionApp
 

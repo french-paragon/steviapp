@@ -291,7 +291,11 @@ public:
         return _sequence->size();
     }
 
-    TimedElement operator[](int idx) {
+    TimedElement& operator[](int idx) {
+        return (*_sequence)[idx];
+    }
+
+    TimedElement const& operator[](int idx) const {
         return (*_sequence)[idx];
     }
 

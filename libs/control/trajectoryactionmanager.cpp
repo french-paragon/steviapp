@@ -125,6 +125,12 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
         });
         actions.append(viewOptTrajectoryAction);
 
+        QAction* exportOptTrajectoryAction = new QAction(tr("export optimized trajectory"), parent);
+        connect(exportOptTrajectoryAction, &QAction::triggered, traj, [traj] () {
+            exportOptimizedTrajectory(traj,"");
+        });
+        actions.append(exportOptTrajectoryAction);
+
         QAction* analyzeOptTrajectoryAction = new QAction(tr("analyze optimized trajectory"), parent);
         connect(analyzeOptTrajectoryAction, &QAction::triggered, traj, [traj] () {
 
