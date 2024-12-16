@@ -309,9 +309,11 @@ void OpenGl3DSceneViewWidget::initializeGL() {
 
     f->glEnable( GL_DEBUG_OUTPUT );
 
+#ifndef NDEBUG
     QOpenGLFunctions_4_5_Core *f45;
     f45 = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_4_5_Core>();
     f45->glDebugMessageCallback( MessageCallback, this );
+#endif
 
     //initialize all drawables.
     for (OpenGlDrawable* oglDrawable : _drawables) {
