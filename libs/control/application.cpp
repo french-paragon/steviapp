@@ -222,6 +222,8 @@ void StereoVisionApplication::resetProject() {
 
 void StereoVisionApplication::loadApplicationPlugins() {
 
+    QTextStream err(stderr);
+
     QVector<QString> pluginsToLoad = _requestedPlugins;
 
     for (QString rawPluginPath : pluginsToLoad) {
@@ -239,6 +241,9 @@ void StereoVisionApplication::loadApplicationPlugins() {
 
         if (pluginDebugPathInfos.exists()) {
             pluginPath = pluginDebugPathInfos.filePath();
+        } else {
+            err << "Could not load plugin in debug mode : \"" << pluginDebugPathInfos.filePath() << "\", skipping!" << Qt::endl;
+            continue;
         }
 #endif
 
@@ -247,6 +252,7 @@ void StereoVisionApplication::loadApplicationPlugins() {
 
         if (plugin->instance() == nullptr) {
             delete plugin;
+            err << "Error, could not load plugin : \"" << pluginPath << "\", skipping!" << Qt::endl;
             continue;
         }
 
@@ -256,6 +262,7 @@ void StereoVisionApplication::loadApplicationPlugins() {
             stereoappplugin->loadModule(this);
         } else {
             delete plugin;
+            err << "Error, plugin : \"" << pluginPath << "\" is not a stereo vision app plugin, skipping!" << Qt::endl;
             continue;
         }
 
