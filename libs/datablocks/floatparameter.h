@@ -20,8 +20,9 @@ public:
 	floatParameter(pFloatType value, pFloatType stddev);
 	floatParameter(floatParameter const& other);
 
-	bool operator< (floatParameter const& other) const;
-	bool operator== (floatParameter const& other) const;
+    bool operator< (floatParameter const& other) const;
+    bool operator== (floatParameter const& other) const;
+    bool operator!= (floatParameter const& other) const;
 	bool isApproximatlyEqual (floatParameter const& other, pFloatType tol = 1e-4) const;
 
 	floatParameter operator+ (floatParameter const& other) const;

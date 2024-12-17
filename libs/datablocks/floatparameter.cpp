@@ -48,6 +48,9 @@ bool floatParameter::operator< (floatParameter const& other) const {
 bool floatParameter::operator== (floatParameter const& other) const {
 	return (other._isSet == _isSet) and (other._isUncertain == _isUncertain) and (other._value == _value) and (!_isUncertain or (other._stddev == _stddev));
 }
+bool floatParameter::operator!= (floatParameter const& other) const {
+    return !(operator==(other));
+}
 bool floatParameter::isApproximatlyEqual (floatParameter const& other, pFloatType tol) const {
 	if (_isSet and other.isSet() and other._isUncertain == _isUncertain) {
 
