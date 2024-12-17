@@ -164,6 +164,11 @@ public:
      * \return optionaly a TimeTrajectorySequence
      */
     StatusOptionalReturn<TimeTrajectorySequence> optimizedTrajectory() const;
+    /*!
+     * \brief optimizedTrajectoryECEF return the optimized trajectory, if it is set. The optimized trajectory will be in the ECEF frame
+     * \return optionaly a TimeTrajectorySequence
+     */
+    StatusOptionalReturn<TimeTrajectorySequence> optimizedTrajectoryECEF() const;
 
     virtual bool geoReferenceSupportActive() const override;
     virtual Eigen::Array<float,3, Eigen::Dynamic> getLocalPointsEcef() const override;

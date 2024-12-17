@@ -1085,6 +1085,31 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTr
 
     return Trajectory::TimeTrajectorySequence(data);
 }
+StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectoryECEF() const {
+
+    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> ret = optimizedTrajectory();
+
+    if (!ret.isValid()) {
+        return ret;
+    }
+
+    StereoVision::Geometry::AffineTransform<double> local2ecef(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
+
+    Project* currentProject = getProject();
+
+    if (currentProject != nullptr) {
+        StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local().cast<double>();
+        local2ecef.R = ecef2local.R.transpose();
+        local2ecef.t = -ecef2local.R.transpose()*ecef2local.t;
+
+        for (int i = 0; i < ret.value().nPoints(); i++) {
+            ret.value()[i].val = StereoVision::Geometry::RigidBodyTransform<double>(local2ecef*ret.value()[i].val.toAffineTransform());
+        }
+    }
+
+    return ret;
+
+}
 
 bool Trajectory::geoReferenceSupportActive() const  {
     return !_positionDefinition.crs_epsg.isEmpty();
