@@ -515,12 +515,12 @@ void exportOptimizedTrajectory(Trajectory* traj, QString filePath) {
         double& time = trajSeq[i].time;
         StereoVision::Geometry::RigidBodyTransform<double> plaform2ecef(local2ecef*trajSeq[i].val.toAffineTransform());
 
-        out << QString("%1").arg(time,0, 'f', 6);
-        out << QString("%1").arg(plaform2ecef.t.x(),0, 'f', 2);
-        out << QString("%1").arg(plaform2ecef.t.y(),0, 'f', 2);
-        out << QString("%1").arg(plaform2ecef.t.z(),0, 'f', 2);
-        out << QString("%1").arg(plaform2ecef.r.x(),0, 'f', 4);
-        out << QString("%1").arg(plaform2ecef.r.y(),0, 'f', 4);
+        out << QString("%1").arg(time,0, 'f', 6) << ',';
+        out << QString("%1").arg(plaform2ecef.t.x(),0, 'f', 2) << ',';
+        out << QString("%1").arg(plaform2ecef.t.y(),0, 'f', 2) << ',';
+        out << QString("%1").arg(plaform2ecef.t.z(),0, 'f', 2) << ',';
+        out << QString("%1").arg(plaform2ecef.r.x(),0, 'f', 4) << ',';
+        out << QString("%1").arg(plaform2ecef.r.y(),0, 'f', 4) << ',';
         out << QString("%1").arg(plaform2ecef.r.z(),0, 'f', 4);
         out << "\n";
     }
