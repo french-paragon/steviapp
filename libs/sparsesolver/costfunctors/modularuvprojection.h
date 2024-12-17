@@ -201,7 +201,7 @@ public:
 
         StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
         body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << boresight[0], boresight[1], boresight[2];
+        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
 
         V3T Pbar = body2sensor*body2mapping.inverse()*_xyz.cast<T>();
         if (Pbar[2] < 0.0) {
@@ -263,7 +263,9 @@ public:
         _projector(projector),
         _xyz(xyz),
         _uv(uv),
-        _info(info)
+        _info(info),
+        _w1(w1),
+        _w2(w2)
     {
 
     }
@@ -312,7 +314,7 @@ public:
 
         StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
         body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << boresight[0], boresight[1], boresight[2];
+        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
 
         V3T Pbar = body2sensor*body2mapping.inverse()*_xyz.cast<T>();
         if (Pbar[2] < 0.0) {
@@ -336,7 +338,7 @@ public:
 
 #ifndef NDEBUG
         if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
-            std::cout << "Error in UV2ParametrizedXYZCost cost computation" << std::endl;
+            std::cout << "Error in UV2XYZCostInterpPose cost computation" << std::endl;
         }
 #endif
 
@@ -413,7 +415,7 @@ public:
 
         StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
         body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << boresight[0], boresight[1], boresight[2];
+        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
 
         V3T Pbar = body2sensor*body2mapping.inverse()*lm_pos;
         if (Pbar[2] < 0.0) {
@@ -471,7 +473,9 @@ public:
         _manageProjector(manageProjector),
         _projector(projector),
         _uv(uv),
-        _info(info)
+        _info(info),
+        _w1(w1),
+        _w2(w2)
     {
 
     }
@@ -535,7 +539,7 @@ public:
 
         StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
         body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << boresight[0], boresight[1], boresight[2];
+        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
 
         V3T Pbar = body2sensor*body2maping.inverse()*lm_pos;
         if (Pbar[2] < 0.0) {
@@ -557,7 +561,7 @@ public:
 
 #ifndef NDEBUG
         if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
-            std::cout << "Error in UV2ParametrizedXYZCost cost computation" << std::endl;
+            std::cout << "Error in UV2ParametrizedXYZCostInterpPose cost computation" << std::endl;
         }
 #endif
 
@@ -638,7 +642,7 @@ public:
 
         StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
         body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << boresight[0], boresight[1], boresight[2];
+        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
 
         StereoVision::Geometry::RigidBodyTransform<T> sensor2mapping =
                 body2mapping*body2sensor.inverse();
@@ -757,7 +761,7 @@ public:
 
         StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
         body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << boresight[0], boresight[1], boresight[2];
+        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
 
         StereoVision::Geometry::RigidBodyTransform<T> sensor2mapping =
                 body2mapping*body2sensor.inverse();

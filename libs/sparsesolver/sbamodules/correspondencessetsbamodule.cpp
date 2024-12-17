@@ -166,7 +166,7 @@ bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspo
     ceres::NormalPrior* costFunc =
             new ceres::NormalPrior(stiffness, pointPos.value());
 
-    problem.AddResidualBlock(costFunc, nullptr, p->t.data());
+    problem.AddResidualBlock(costFunc, nullptr, posData);
 
     return true;
 
@@ -176,12 +176,18 @@ bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspo
 
 bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Correspondences::PRIORID> const& priorId,
                            Correspondences::Typed<Correspondences::GEOXY> const& geoPos,
-                           StereoVisionApp::ModularSBASolver* solver,
+                           ModularSBASolver* solver,
                            ceres::Problem & problem) {
 
-    StereoVisionApp::Project* currentProject = solver->currentProject();
+    Project* currentProject = solver->currentProject();
 
     if (currentProject == nullptr) {
+        return false;
+    }
+
+    DataBlock* targetBlock = currentProject->getById(priorId.blockId);
+
+    if (targetBlock == nullptr) {
         return false;
     }
 
@@ -242,7 +248,14 @@ bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Corresp
     ceres::NormalPrior* costFunc =
             new ceres::NormalPrior(M, x);
 
-    problem.AddResidualBlock(costFunc, nullptr, p->t.data());
+    QString loggerName = QString("Geo projection constraint for %1 (id = %2, class = %3)")
+            .arg(targetBlock->objectName())
+            .arg(targetBlock->internalId())
+            .arg(targetBlock->metaObject()->className());
+
+    solver->addLogger(loggerName,
+                      new ModularSBASolver::AutoErrorBlockLogger<1,2>(costFunc, {posData}));
+    problem.AddResidualBlock(costFunc, nullptr, posData);
 
     return true;
 
