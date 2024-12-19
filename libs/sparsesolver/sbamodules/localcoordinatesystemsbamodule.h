@@ -10,6 +10,11 @@ class LocalCoordinateSystemSBAModule : public ModularSBASolver::SBAModule
 public:
 
     static const char* ModuleName;
+    inline static void registerDefaultModuleFactory(SBASolverModulesInterface* interface) {
+        interface->registerSBAModule(LocalCoordinateSystemSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+            return new LocalCoordinateSystemSBAModule();
+        });
+    }
 
     LocalCoordinateSystemSBAModule();
 

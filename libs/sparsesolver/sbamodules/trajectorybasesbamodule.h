@@ -11,6 +11,28 @@ class TrajectoryBaseSBAModule : public ModularSBASolver::SBAModule
 public:
 
     static const char* ModuleName;
+    inline static void registerDefaultModuleFactory(SBASolverModulesInterface* interface) {
+        interface->registerSBAModule(TrajectoryBaseSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+
+            double gpsAccuracy = 0.02;
+            double angularAccuracy = 0.1;
+            double gyroAccuracy = 0.1;
+            double accAccuracy = 0.5;
+            double tiePointAccuracy = 0.5;
+
+            double integrationtime = 0.5; //half a second
+
+            StereoVisionApp::TrajectoryBaseSBAModule* trajectoryModule =
+                    new StereoVisionApp::TrajectoryBaseSBAModule(integrationtime);
+
+            trajectoryModule->setDefaultGpsAccuracy(gpsAccuracy);
+            trajectoryModule->setDefaultOrientAccuracy(angularAccuracy);
+            trajectoryModule->setDefaultGyroAccuracy(gyroAccuracy);
+            trajectoryModule->setDefaultAccAccuracy(accAccuracy);
+
+            return trajectoryModule;
+        });
+    }
 
     TrajectoryBaseSBAModule(double defaultIntegrationTime);
 

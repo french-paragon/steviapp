@@ -384,50 +384,23 @@ void initMonoStereoRigSolution(Project* p, MainWindow* w) {
 void checkBasicSBAModulesRegistration(SBASolverModulesInterface* interface) {
 
     if (!interface->hasSBAModule(TrajectoryBaseSBAModule::ModuleName)) {
-        interface->registerSBAModule(TrajectoryBaseSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
-
-            double gpsAccuracy = 0.02;
-            double angularAccuracy = 0.1;
-            double gyroAccuracy = 0.1;
-            double accAccuracy = 0.5;
-            double tiePointAccuracy = 0.5;
-
-            double integrationtime = 0.5; //half a second
-
-            StereoVisionApp::TrajectoryBaseSBAModule* trajectoryModule =
-                    new StereoVisionApp::TrajectoryBaseSBAModule(integrationtime);
-
-            trajectoryModule->setDefaultGpsAccuracy(gpsAccuracy);
-            trajectoryModule->setDefaultOrientAccuracy(angularAccuracy);
-            trajectoryModule->setDefaultGyroAccuracy(gyroAccuracy);
-            trajectoryModule->setDefaultAccAccuracy(accAccuracy);
-
-            return trajectoryModule;
-        });
+        TrajectoryBaseSBAModule::registerDefaultModuleFactory(interface);
     }
 
     if (!interface->hasSBAModule(LandmarksSBAModule::ModuleName)) {
-        interface->registerSBAModule(LandmarksSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
-            return new LandmarksSBAModule();
-        });
+        LandmarksSBAModule::registerDefaultModuleFactory(interface);
     }
 
     if (!interface->hasSBAModule(ImageAlignementSBAModule::ModuleName)) {
-        interface->registerSBAModule(ImageAlignementSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
-            return new ImageAlignementSBAModule();
-        });
+        ImageAlignementSBAModule::registerDefaultModuleFactory(interface);
     }
 
     if (!interface->hasSBAModule(LocalCoordinateSystemSBAModule::ModuleName)) {
-        interface->registerSBAModule(LocalCoordinateSystemSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
-            return new LocalCoordinateSystemSBAModule();
-        });
+        LocalCoordinateSystemSBAModule::registerDefaultModuleFactory(interface);
     }
 
     if (!interface->hasSBAModule(CorrespondencesSetSBAModule::ModuleName)) {
-        interface->registerSBAModule(CorrespondencesSetSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
-            return new CorrespondencesSetSBAModule();
-        });
+        CorrespondencesSetSBAModule::registerDefaultModuleFactory(interface);
     }
 }
 

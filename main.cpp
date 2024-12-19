@@ -58,6 +58,11 @@
 #include "control/correspondencessetactionsmanager.h"
 
 #include "sparsesolver/modularsbasolver.h"
+#include "sparsesolver/sbamodules/trajectorybasesbamodule.h"
+#include "sparsesolver/sbamodules/landmarkssbamodule.h"
+#include "sparsesolver/sbamodules/imagealignementsbamodule.h"
+#include "sparsesolver/sbamodules/localcoordinatesystemsbamodule.h"
+#include "sparsesolver/sbamodules/correspondencessetsbamodule.h"
 
 #include <QDebug>
 
@@ -106,7 +111,14 @@ int main(int argc, char *argv[])
 	QSurfaceFormat::setDefaultFormat(format);
 
     //app interfaces
-    a.registerAdditionalInterface(StereoVisionApp::SBASolverModulesInterface::AppInterfaceName, new StereoVisionApp::SBASolverModulesInterface(&a));
+    StereoVisionApp::SBASolverModulesInterface* sbasolvermodulesinterface = new StereoVisionApp::SBASolverModulesInterface(&a);
+    a.registerAdditionalInterface(StereoVisionApp::SBASolverModulesInterface::AppInterfaceName, sbasolvermodulesinterface);
+
+    StereoVisionApp::TrajectoryBaseSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
+    StereoVisionApp::LandmarksSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
+    StereoVisionApp::ImageAlignementSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
+    StereoVisionApp::LocalCoordinateSystemSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
+    StereoVisionApp::CorrespondencesSetSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
     StereoVisionApp::ActionManagersLibrary& aml = StereoVisionApp::ActionManagersLibrary::defaultActionManagersLibrary();

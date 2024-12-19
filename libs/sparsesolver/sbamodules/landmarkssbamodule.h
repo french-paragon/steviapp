@@ -10,6 +10,12 @@ class LandmarksSBAModule : public ModularSBASolver::SBAModule
 public:
 
     static const char* ModuleName;
+    inline static void registerDefaultModuleFactory(SBASolverModulesInterface* interface) {
+        interface->registerSBAModule(LandmarksSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+            return new LandmarksSBAModule();
+        });
+    }
+
 
     LandmarksSBAModule();
 

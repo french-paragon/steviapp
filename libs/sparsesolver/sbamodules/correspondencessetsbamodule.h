@@ -12,6 +12,11 @@ class CorrespondencesSetSBAModule : public ModularSBASolver::SBAModule
 public:
 
     static const char* ModuleName;
+    inline static void registerDefaultModuleFactory(SBASolverModulesInterface* interface) {
+        interface->registerSBAModule(CorrespondencesSetSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+            return new CorrespondencesSetSBAModule();
+        });
+    }
 
     CorrespondencesSetSBAModule();
 

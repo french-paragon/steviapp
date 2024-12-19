@@ -14,6 +14,11 @@ class ImageAlignementSBAModule : public ModularSBASolver::SBAModule
 public:
 
     static const char* ModuleName;
+    inline static void registerDefaultModuleFactory(SBASolverModulesInterface* interface) {
+        interface->registerSBAModule(ImageAlignementSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
+            return new ImageAlignementSBAModule();
+        });
+    }
 
     ImageAlignementSBAModule();
 
