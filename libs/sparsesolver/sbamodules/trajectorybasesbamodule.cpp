@@ -301,13 +301,14 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     ModularSBASolver::AutoErrorBlockLogger<1,3>::ParamsType params = {trajNode->nodes[i].rAxis.data()};
 
                     ceres::NormalPrior* orientationPrior = new ceres::NormalPrior(infos, vec);
+                    ceres::NormalPrior* orientationPriorError = new ceres::NormalPrior(Eigen::Matrix3d::Identity(), vec);
 
                     problem.AddResidualBlock(orientationPrior, nullptr,
                                              params.data(),
                                              params.size());
 
                     QString loggerName = QString("Trajectory \"%1\" Orientation Prior index %2").arg(traj->objectName()).arg(i, nAlignChar);
-                    solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(orientationPrior, params));
+                    solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(orientationPriorError, params, true));
 
                 }
 
@@ -355,6 +356,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
 
                     ceres::NormalPrior* gpsPrior = new ceres::NormalPrior(infos, vec);
+                    ceres::NormalPrior* gpsPriorError = new ceres::NormalPrior(Eigen::Matrix3d::Identity(), vec);
 
                     if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
 
@@ -380,7 +382,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                             solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
 
                             QString loggerName = QString("GPS trajectory \"%1\" time %2").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
-                            solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(gpsPrior, params));
+                            solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(gpsPriorError, params, true));
                         }
 
 
@@ -391,9 +393,12 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 } else {
 
                     InterpolatedVectorPrior<3>* interpolatedPriorCost = new InterpolatedVectorPrior<3>(vec, w1, w2, infos);
+                    InterpolatedVectorPrior<3>* interpolatedPriorError = new InterpolatedVectorPrior<3>(vec, w1, w2, Eigen::Matrix3d::Identity());
 
                     ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>*  interpolatedPrior =
                             new ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>(interpolatedPriorCost);
+                    ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>*  interpolatedError =
+                            new ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>(interpolatedPriorError);
 
 
                     ModularSBASolver::AutoErrorBlockLogger<2,3>::ParamsType params = {trajNode->nodes[i-1].t.data(), trajNode->nodes[i].t.data()};
@@ -411,7 +416,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
 
                         QString loggerName = QString("GPS trajectory \"%1\" time %2 (interpolated)").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
-                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(interpolatedPrior, params));
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(interpolatedError, params, true));
                     }
 
                 }

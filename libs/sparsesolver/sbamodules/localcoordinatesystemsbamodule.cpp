@@ -255,7 +255,11 @@ bool LocalCoordinateSystemSBAModule::init(ModularSBASolver* solver, ceres::Probl
                 LocalPointAlignementCost* localAlignementCost =
                         new LocalPointAlignementCost(localPos, stiffness);
 
+                LocalPointAlignementCost* localAlignementError =
+                        new LocalPointAlignementCost(localPos, Eigen::Matrix3d::Identity());
+
                 CostFuncT* costFunc = new CostFuncT(localAlignementCost);
+                CostFuncT* errorFunc = new CostFuncT(localAlignementError);
 
                 ModularSBASolver::AutoErrorBlockLogger<3,3>::ParamsType params =
                 {l_v->pos.data(), lcsPoseNode->rAxis.data(), lcsPoseNode->t.data()};
@@ -265,7 +269,7 @@ bool LocalCoordinateSystemSBAModule::init(ModularSBASolver* solver, ceres::Probl
                                          params.size());
 
                 QString loggerName = QString("Local system \"%1\" landmark %2 pos constaint").arg(lcs->objectName()).arg(lmlc->attachedLandmarkName());
-                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<3,3>(costFunc, params));
+                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<3,3>(errorFunc, params, true));
 
             } else {
 
@@ -303,8 +307,12 @@ bool LocalCoordinateSystemSBAModule::init(ModularSBASolver* solver, ceres::Probl
                 LocalInterpRelativePointAlignementCost* cost =
                         new LocalInterpRelativePointAlignementCost(localPos, w1, w2, stiffness);
 
+                LocalInterpRelativePointAlignementCost* error =
+                        new LocalInterpRelativePointAlignementCost(localPos, w1, w2, Eigen::Matrix3d::Identity());
+
                 using CostFuncT = ceres::AutoDiffCostFunction<LocalInterpRelativePointAlignementCost,3,3,3,3,3,3,3,3>;
                 CostFuncT* costFunc = new CostFuncT(cost);
+                CostFuncT* errorFunc = new CostFuncT(error);
 
                 ModularSBASolver::AutoErrorBlockLogger<7,3>::ParamsType params =
                 {l_v->pos.data(),
@@ -321,7 +329,7 @@ bool LocalCoordinateSystemSBAModule::init(ModularSBASolver* solver, ceres::Probl
 
                 QString loggerName =
                         QString("Local system \"%1\" landmark %2 interpolated relative pos constaint").arg(lcs->objectName()).arg(lmlc->attachedLandmarkName());
-                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<7,3>(costFunc, params));
+                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<7,3>(errorFunc, params, true));
 
             }
         }

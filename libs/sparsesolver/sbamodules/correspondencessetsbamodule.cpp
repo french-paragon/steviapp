@@ -248,13 +248,17 @@ bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Corresp
     ceres::NormalPrior* costFunc =
             new ceres::NormalPrior(M, x);
 
+    ceres::NormalPrior* errorFunc =
+            new ceres::NormalPrior(A, x);
+
     QString loggerName = QString("Geo projection constraint for %1 (id = %2, class = %3)")
             .arg(targetBlock->objectName())
             .arg(targetBlock->internalId())
             .arg(targetBlock->metaObject()->className());
 
+    constexpr bool  manageFunc = true;
     solver->addLogger(loggerName,
-                      new ModularSBASolver::AutoErrorBlockLogger<1,2>(costFunc, {posData}));
+                      new ModularSBASolver::AutoErrorBlockLogger<1,2>(errorFunc, {posData}, manageFunc));
     problem.AddResidualBlock(costFunc, nullptr, posData);
 
     return true;

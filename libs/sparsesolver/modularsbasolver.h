@@ -176,9 +176,16 @@ public:
         using ParamsType = std::array<double*, nArgs>;
         using ErrsType = std::array<double, errDims>;
 
-        AutoErrorBlockLogger(ceres::CostFunction* func, ParamsType const& params) {
+        AutoErrorBlockLogger(ceres::CostFunction* func, ParamsType const& params, bool manageFunc = false) {
             _func = func;
+            _manageFunc = manageFunc;
             _parameters = params;
+        }
+
+        virtual ~AutoErrorBlockLogger() {
+            if (_manageFunc) {
+                delete _func;
+            }
         }
 
         virtual QVector<double> getErrors() const {
@@ -193,6 +200,7 @@ public:
     protected:
 
         ceres::CostFunction* _func;
+        bool _manageFunc;
         ParamsType _parameters;
 
     };
