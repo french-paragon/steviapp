@@ -32,9 +32,21 @@ public:
 	void saveProjectAs();
 	void saveProjectAs(QString const& fname);
 
-    Editor* openEditor(QString editorClassName);
+    /*!
+     * \brief openEditor open a specific editor and set the current tab to said editor
+     * \param editorClassName the editor class
+     * \param additionalId an additional id to allow to distinguish multiple editors of the same class open at once.
+     * \return a pointer to the editor, or nullptr if the editor is not open and could not be created
+     */
+    Editor* openEditor(QString editorClassName, QString additionalId = "");
 	bool isEditorAvailable(QString editorClassName) const;
-    Editor* openedEditor(QString editorClassName);
+    /*!
+     * \brief openedEditor return a specific editor if it is currently open
+     * \param editorClassName the class of the editor
+     * \param additionalId an additional id to allow to distinguish multiple editors of the same class open at once.
+     * \return a pointer to the editor, or nullptr if the editor is not open
+     */
+    Editor* openedEditor(QString editorClassName, QString additionalId = "");
     void jumpToEditor(Editor* editor);
 
 
@@ -60,6 +72,10 @@ private:
 	void clearOptimSolution();
 	void runCoarseOptim();
 	void runSparseOptim();
+
+    inline static QString buildFullEditorId(QString editorClassName, QString additionalId) {
+        return editorClassName + additionalId;
+    }
 
 	Ui::MainWindow *ui;
 

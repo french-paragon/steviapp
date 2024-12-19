@@ -180,10 +180,12 @@ void MainWindow::resetProject() {
 	}
 }
 
-Editor* MainWindow::openEditor(QString editorClassName) {
+Editor* MainWindow::openEditor(QString editorClassName, QString additionalId) {
 	Editor* e;
 
-	if (!_openedEditors.contains(editorClassName)) {
+    QString fullId = buildFullEditorId(editorClassName, additionalId);
+
+    if (!_openedEditors.contains(fullId)) {
 
 		if (!_installedEditors.contains(editorClassName)) {
 			return nullptr;
@@ -198,10 +200,10 @@ Editor* MainWindow::openEditor(QString editorClassName) {
 		if (_activeProject != nullptr) {
 			e->setProject(_activeProject);
 		}
-		_openedEditors[editorClassName] = e;
+        _openedEditors[fullId] = e;
 
 	} else {
-		e = _openedEditors.value(editorClassName);
+        e = _openedEditors.value(fullId);
 	}
 
 	int id = ui->editorPanel->indexOf(e);
@@ -215,13 +217,15 @@ Editor* MainWindow::openEditor(QString editorClassName) {
 	return e;
 
 }
-Editor* MainWindow::openedEditor(QString editorClassName) {
+Editor* MainWindow::openedEditor(QString editorClassName, QString additionalId) {
 
-    if (!_openedEditors.contains(editorClassName)) {
+    QString fullId = buildFullEditorId(editorClassName, additionalId);
+
+    if (!_openedEditors.contains(fullId)) {
         return nullptr;
     }
 
-    return _openedEditors.value(editorClassName);
+    return _openedEditors.value(fullId);
 
 }
 void MainWindow::jumpToEditor(Editor* editor) {
