@@ -376,6 +376,16 @@ public:
 
         }
 
+        #ifndef NDEBUG
+        bool speedDeltaFinite = speedDelta.array().isFinite().all();
+
+        bool biasAvgOrientAndScaleFinite = BiasAvgOrientAndScale.array().isFinite().all();
+
+        if (!biasAvgOrientAndScaleFinite or !speedDeltaFinite) {
+            std::cerr << "Error when pre-integrating Accelerometer" << std::endl;
+        }
+        #endif
+
         AccelerometerStepCostBase* ret;
 
         if (WBias) {

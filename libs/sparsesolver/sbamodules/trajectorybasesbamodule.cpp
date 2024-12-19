@@ -248,14 +248,26 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             pos = world2local*pos;
 
             auto interpolatablePose = optPose.value().getValueAtTime(time); //plateform to world.
-            Eigen::Vector3d rot =
-                    interpolatablePose.weigthLower*interpolatablePose.valLower.r +
-                    interpolatablePose.weigthUpper*interpolatablePose.valUpper.r;
-            Eigen::Matrix3d R = world2local.R*StereoVision::Geometry::rodriguezFormula<double>(rot);
-            rot = StereoVision::Geometry::inverseRodriguezFormula<double>(R);
+            StereoVision::Geometry::RigidBodyTransform<double> interpolated =
+                    StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
+                        interpolatablePose.weigthLower,
+                        interpolatablePose.valLower,
+                        interpolatablePose.weigthUpper,
+                        interpolatablePose.valUpper);
+            Eigen::Matrix3d R = world2local.R*StereoVision::Geometry::rodriguezFormula<double>(interpolated.r);
+            Eigen::Vector3d rot = StereoVision::Geometry::inverseRodriguezFormula<double>(R);
 
             trajNode->nodes[i].t = {pos[0], pos[1], pos[2]};
             trajNode->nodes[i].rAxis = {rot[0], rot[1], rot[2]};
+
+#ifndef NDEBUG
+            bool posFinite = pos.array().isFinite().all();
+            bool rotFinite = rot.array().isFinite().all();
+
+            if (!posFinite or !rotFinite) {
+                std::cerr << "Error while initializing trajectory" << traj->objectName().toStdString() << " at node " << i << std::endl;
+            }
+#endif
 
             problem.AddParameterBlock(trajNode->nodes[i].t.data(), trajNode->nodes[i].t.size());
             problem.AddParameterBlock(trajNode->nodes[i].rAxis.data(), trajNode->nodes[i].rAxis.size());
