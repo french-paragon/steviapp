@@ -32,6 +32,7 @@ set(LIB_SRC initialsolution.cpp
             edges/edgecameralandmarkdirectionalalignement.cpp
             edges/edgecamerase3leverarm.cpp
             edges/edgelocalpointcoordinates.cpp
+            costfunctors/posedecoratorfunctors.h
             costfunctors/leverarmcostfunctor.cpp
             costfunctors/parametrizedxyz2uvcost.cpp
             costfunctors/localpointalignementcost.cpp
@@ -93,6 +94,7 @@ set(LIB_HEADERS_VERTICES
 )
 
 set(LIB_HEADERS_COST_FUNCTORS
+    costfunctors/posedecoratorfunctors.h
     costfunctors/leverarmcostfunctor.h
     costfunctors/camposwithparametrizedleverarmcost.h
     costfunctors/parametrizedxyz2uvcost.h

@@ -179,13 +179,12 @@ public:
     template <typename T, typename ... P>
     bool operator()(const T* const r,
                     const T* const t,
-                    const T* const boresight,
-                    const T* const leverArm,
-                    const P* const ... projectorParams,
-                    T* residual) const {
+                    P ... additionalParams) const {
 
-        static_assert(sizeof... (projectorParams) == nProjParameters, "wrong number of projection parameters provided");
-        static_assert(std::integral_constant<bool, (... && std::is_same_v<T,P>)>::value, "Wrong type for projection parameters");
+        static_assert(sizeof... (additionalParams) == nProjParameters, "wrong number of projection parameters provided");
+
+        std::array<const T*,nProjParameters+1> additionalParamsArray = {additionalParams...};
+        std::tuple<P...> additionalParamsTuple(additionalParams...);
 
         using M3T = Eigen::Matrix<T,3,3>;
 
@@ -194,16 +193,12 @@ public:
 
         //projection
 
-        StereoVision::Geometry::RigidBodyTransform<T> body2mapping;
+        StereoVision::Geometry::RigidBodyTransform<T> world2sensor;
 
-        body2mapping.r << r[0], r[1], r[2];
-        body2mapping.t << t[0], t[1], t[2];
+        world2sensor.r << r[0], r[1], r[2];
+        world2sensor.t << t[0], t[1], t[2];
 
-        StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
-        body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
-
-        V3T Pbar = body2sensor*body2mapping.inverse()*_xyz.cast<T>();
+        V3T Pbar = world2sensor*_xyz.cast<T>();
         if (Pbar[2] < 0.0) {
             return false;
         }
@@ -211,7 +206,12 @@ public:
         V2T proj = StereoVision::Geometry::projectPoints(Pbar);
 
         std::array<T,2> uv = {T(_uv[0]), T(_uv[1])};
-        std::array<T,nProjParameters> projParams = {projectorParams...};
+        std::array<const T*,nProjParameters> projParams;
+
+        for (int i = 0; i < nProjParameters; i++) {
+            projParams[i] = additionalParamsArray[i];
+        }
+
 
         V3T direction = _projector->dirFromUV(uv.data(), projParams.data());
 
@@ -219,6 +219,8 @@ public:
 
         V2T error;
         error << proj[0] - direction[0], proj[1] - direction[1];
+
+        T* residual = std::get<nProjParameters>(additionalParamsTuple);
 
         residual[0] = _info(0,0)*error[0] + _info(0,1)*error[1];
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
@@ -237,122 +239,6 @@ protected:
 
     bool _manageProjector;
     UVProjector* _projector;
-
-    Eigen::Vector3d _xyz;
-    Eigen::Vector2d _uv;
-    Eigen::Matrix2d _info;
-};
-
-
-template<typename UVProjector, int ... uvProjParamsSizes>
-class UV2XYZCostInterpPose
-{
-public:
-
-    static constexpr int nProjParameters = sizeof... (uvProjParamsSizes);
-    static constexpr int uvProjParametersSizes[] = {uvProjParamsSizes...};
-
-    UV2XYZCostInterpPose(UVProjector* projector,
-                         double w1,
-                         double w2,
-                         Eigen::Vector3d const& xyz,
-                         Eigen::Vector2d const& uv,
-                         Eigen::Matrix2d const& info,
-                         bool manageProjector = true) :
-        _manageProjector(manageProjector),
-        _projector(projector),
-        _xyz(xyz),
-        _uv(uv),
-        _info(info),
-        _w1(w1),
-        _w2(w2)
-    {
-
-    }
-
-    ~UV2XYZCostInterpPose() {
-        if (_manageProjector) {
-            delete _projector;
-        }
-    }
-
-    template <typename T, typename ... P>
-    bool operator()(const T* const r1,
-                    const T* const t1,
-                    const T* const r2,
-                    const T* const t2,
-                    const T* const boresight,
-                    const T* const leverArm,
-                    const P* const ... projectorParams,
-                    T* residual) const {
-
-        static_assert(sizeof... (projectorParams) == nProjParameters, "wrong number of projection parameters provided");
-        static_assert(std::integral_constant<bool, (... && std::is_same_v<T,P>)>::value, "Wrong type for projection parameters");
-
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
-        using V3T = Eigen::Vector<T,3>;
-
-        //projection
-
-        V3T rot1;
-        rot1 << r1[0], r1[1], r1[2];
-        V3T tran1;
-        tran1 << t1[0], t1[1], t1[2];
-        StereoVision::Geometry::RigidBodyTransform<T> transform1(rot1,tran1);
-
-        V3T rot2;
-        rot2 << r2[0], r2[1], r2[2];
-        V3T tran2;
-        tran2 << t2[0], t2[1], t2[2];
-        StereoVision::Geometry::RigidBodyTransform<T> transform2(rot2,tran2);
-
-        StereoVision::Geometry::RigidBodyTransform<T> body2mapping =
-                StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(T(_w1), transform1, T(_w2), transform2);
-
-
-        StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
-        body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
-
-        V3T Pbar = body2sensor*body2mapping.inverse()*_xyz.cast<T>();
-        if (Pbar[2] < 0.0) {
-            return false;
-        }
-
-        V2T proj = StereoVision::Geometry::projectPoints(Pbar);
-
-        std::array<T,2> uv = {T(_uv[0]), T(_uv[1])};
-        std::array<T,nProjParameters> projParams = {projectorParams...};
-
-        V3T direction = _projector->dirFromUV(uv.data(), projParams.data());
-
-        proj *= direction.z;
-
-        V2T error;
-        error << proj[0] - direction[0], proj[1] - direction[1];
-
-        residual[0] = _info(0,0)*error[0] + _info(0,1)*error[1];
-        residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
-
-#ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
-            std::cout << "Error in UV2XYZCostInterpPose cost computation" << std::endl;
-        }
-#endif
-
-        return true;
-
-    }
-
-protected:
-
-    bool _manageProjector;
-    UVProjector* _projector;
-
-    double _w1;
-    double _w2;
 
     Eigen::Vector3d _xyz;
     Eigen::Vector2d _uv;
@@ -387,16 +273,15 @@ public:
     }
 
     template <typename T, typename ... P>
-    bool operator()(const T* const lm,
-                    const T* const r,
+    bool operator()(const T* const r,
                     const T* const t,
-                    const T* const boresight,
-                    const T* const leverArm,
-                    const P* const ... projectorParams,
-                    T* residual) const {
+                    const T* const lm,
+                    P ... additionalParams) const {
 
-        static_assert(sizeof... (projectorParams) == nProjParameters, "wrong number of projection parameters provided");
-        static_assert(std::integral_constant<bool, (... && std::is_same_v<T,P>)>::value, "Wrong type for projection parameters");
+        static_assert(sizeof... (additionalParams) == nProjParameters+1, "wrong number of projection parameters provided");
+
+        std::array<const T*,nProjParameters+1> additionalParamsArray = {additionalParams...};
+        std::tuple<P...> additionalParamsTuple(additionalParams...);
 
         using M3T = Eigen::Matrix<T,3,3>;
 
@@ -408,16 +293,12 @@ public:
         V3T lm_pos;
         lm_pos << lm[0], lm[1], lm[2];
 
-        StereoVision::Geometry::RigidBodyTransform<T> body2mapping;
+        StereoVision::Geometry::RigidBodyTransform<T> world2sensor;
 
-        body2mapping.r << r[0], r[1], r[2];
-        body2mapping.t << t[0], t[1], t[2];
+        world2sensor.r << r[0], r[1], r[2];
+        world2sensor.t << t[0], t[1], t[2];
 
-        StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
-        body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
-
-        V3T Pbar = body2sensor*body2mapping.inverse()*lm_pos;
+        V3T Pbar = world2sensor*lm_pos;
         if (Pbar[2] < 0.0) {
             return false;
         }
@@ -425,14 +306,21 @@ public:
         V2T proj = StereoVision::Geometry::projectPoints(Pbar);
 
         std::array<T,2> uv = {T(_uv[0]), T(_uv[1])};
-        std::array<T,nProjParameters> projParams = {projectorParams...};
+
+        std::array<const T*,nProjParameters> projParams;
+
+        for (int i = 0; i < nProjParameters; i++) {
+            projParams[i] = additionalParamsArray[i];
+        }
 
         V3T direction = _projector->dirFromUV(uv.data(), projParams.data());
 
-        proj *= direction.z;
+        proj *= direction.z();
 
         V2T error;
         error << proj[0] - direction[0], proj[1] - direction[1];
+
+        T* residual = std::get<nProjParameters>(additionalParamsTuple);
 
         residual[0] = _info(0,0)*error[0] + _info(0,1)*error[1];
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
@@ -456,130 +344,6 @@ protected:
     Eigen::Matrix2d _info;
 };
 
-template<typename UVProjector, int ... uvProjParamsSizes>
-class UV2ParametrizedXYZCostInterpPose
-{
-public:
-
-    static constexpr int nProjParameters = sizeof... (uvProjParamsSizes);
-    static constexpr int uvProjParametersSizes[] = {uvProjParamsSizes...};
-
-    UV2ParametrizedXYZCostInterpPose(UVProjector* projector,
-                                     double w1,
-                                     double w2,
-                                     Eigen::Vector2d const& uv,
-                                     Eigen::Matrix2d const& info,
-                                     bool manageProjector = true) :
-        _manageProjector(manageProjector),
-        _projector(projector),
-        _uv(uv),
-        _info(info),
-        _w1(w1),
-        _w2(w2)
-    {
-
-    }
-
-    ~UV2ParametrizedXYZCostInterpPose() {
-        if (_manageProjector) {
-            delete _projector;
-        }
-    }
-
-private:
-    template <typename T>
-    struct identity { typedef T type; };
-public:
-
-    template <typename T, typename ... P>
-    bool operator()(const T* const lm,
-                    const typename identity<T>::type * const r1,
-                    const typename identity<T>::type * const t1,
-                    const typename identity<T>::type * const r2,
-                    const typename identity<T>::type * const t2,
-                    const typename identity<T>::type * const boresight,
-                    const typename identity<T>::type * const leverArm,
-                    P* ... params) const {
-
-        static_assert(sizeof... (params) == nProjParameters+1, "wrong number of projection parameters provided");
-
-        std::array<const T*,nProjParameters+1> p = {params...};
-        std::array<const T*,nProjParameters> projParams;
-
-        for (int i = 0; i < nProjParameters; i++) {
-            projParams[i] = p[i];
-        }
-
-        T* residual = const_cast<T*>(p[nProjParameters]);
-
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
-        using V3T = Eigen::Vector<T,3>;
-
-        //projection
-
-        V3T lm_pos;
-        lm_pos << lm[0], lm[1], lm[2];
-
-        V3T rot1;
-        rot1 << r1[0], r1[1], r1[2];
-        V3T tran1;
-        tran1 << t1[0], t1[1], t1[2];
-        StereoVision::Geometry::RigidBodyTransform<T> transform1(rot1,tran1);
-
-        V3T rot2;
-        rot2 << r2[0], r2[1], r2[2];
-        V3T tran2;
-        tran2 << t2[0], t2[1], t2[2];
-        StereoVision::Geometry::RigidBodyTransform<T> transform2(rot2,tran2);
-
-        StereoVision::Geometry::RigidBodyTransform<T> body2maping =
-                StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(T(_w1), transform1, T(_w2), transform2);
-
-        StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
-        body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
-
-        V3T Pbar = body2sensor*body2maping.inverse()*lm_pos;
-        if (Pbar[2] < 0.0) {
-            return false;
-        }
-
-        V2T proj = StereoVision::Geometry::projectPoints(Pbar);
-
-        std::array<T,2> uv = {T(_uv[0]), T(_uv[1])};
-        V3T direction = _projector->dirFromUV(uv.data(), projParams.data());
-
-        proj *= direction[2];
-
-        V2T error;
-        error << proj[0] - direction[0], proj[1] - direction[1];
-
-        residual[0] = _info(0,0)*error[0] + _info(0,1)*error[1];
-        residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
-
-#ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
-            std::cout << "Error in UV2ParametrizedXYZCostInterpPose cost computation" << std::endl;
-        }
-#endif
-
-        return true;
-
-    }
-
-protected:
-
-    bool _manageProjector;
-    UVProjector* _projector;
-
-    double _w1;
-    double _w2;
-
-    Eigen::Vector2d _uv;
-    Eigen::Matrix2d _info;
-};
 
 /*!
  * \brief The UV2ProjectedXYCost class represent a constaint between a UV measurement in a projector and a projected XY coordinate in mapping frame.
@@ -619,13 +383,12 @@ public:
     template <typename T, typename ... P>
     bool operator()(const T* const r,
                     const T* const t,
-                    const T* const boresight,
-                    const T* const leverArm,
-                    const P* const ... projectorParams,
-                    T* residual) const {
+                    P ... additionalParams) const {
 
-        static_assert(sizeof... (projectorParams) == nProjParameters, "wrong number of projection parameters provided");
-        static_assert(std::integral_constant<bool, (... && std::is_same_v<T,P>)>::value, "Wrong type for projection parameters");
+        static_assert(sizeof... (additionalParams) == nProjParameters+1, "wrong number of projection parameters provided");
+
+        std::array<const T*,nProjParameters+1> additionalParamsArray = {additionalParams...};
+        std::tuple<P...> additionalParamsTuple(additionalParams...);
 
         using M3T = Eigen::Matrix<T,3,3>;
         using M23T = Eigen::Matrix<T,2,3>;
@@ -635,23 +398,24 @@ public:
 
         //projection
 
-        StereoVision::Geometry::RigidBodyTransform<T> body2mapping;
+        StereoVision::Geometry::RigidBodyTransform<T> mapping2sensor;
 
-        body2mapping.r << r[0], r[1], r[2];
-        body2mapping.t << t[0], t[1], t[2];
-
-        StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
-        body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
+        mapping2sensor.r << r[0], r[1], r[2];
+        mapping2sensor.t << t[0], t[1], t[2];
 
         StereoVision::Geometry::RigidBodyTransform<T> sensor2mapping =
-                body2mapping*body2sensor.inverse();
+                mapping2sensor.inverse();
 
         V2T xy = _xy.cast<T>();
         M23T M = _M.cast<T>();
 
         std::array<T,2> uv = {T(_uv[0]), T(_uv[1])};
-        std::array<T,nProjParameters> projParams = {projectorParams...};
+
+        std::array<const T*,nProjParameters> projParams;
+
+        for (int i = 0; i < nProjParameters; i++) {
+            projParams[i] = additionalParamsArray[i];
+        }
 
         V3T direction = _projector->dirFromUV(uv.data(), projParams.data());
         V3T dirMapping = StereoVision::Geometry::angleAxisRotate(sensor2mapping.r,direction);
@@ -661,6 +425,8 @@ public:
         T alpha = MdTMdm1*Md.dot(xy - M*sensor2mapping.t);
 
         V2T error = M*(sensor2mapping.t + alpha*dirMapping) - xy;
+
+        T* residual = std::get<nProjParameters>(additionalParamsTuple);
 
         residual[0] = _info(0,0)*error[0] + _info(0,1)*error[1];
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
@@ -686,126 +452,6 @@ protected:
     Eigen::Matrix2d _info;
 };
 
-/*!
- * \brief The UV2ProjectedXYCostInterpPose class is the same cost as UV2ProjectedXYCost
- */
-template<typename UVProjector, int ... uvProjParamsSizes>
-class UV2ProjectedXYCostInterpPose {
-public:
-
-    static constexpr int nProjParameters = sizeof... (uvProjParamsSizes);
-    static constexpr int uvProjParametersSizes[] = {uvProjParamsSizes...};
-
-    UV2ProjectedXYCostInterpPose(UVProjector* projector,
-                                 double w1,
-                                 double w2,
-                                 Eigen::Vector2d const& xy,
-                                 Eigen::Matrix<double,2,3> const& M,
-                                 Eigen::Vector2d const& uv,
-                                 Eigen::Matrix2d const& info,
-                                 bool manageProjector = true) :
-        _manageProjector(manageProjector),
-        _projector(projector),
-        _w1(w1),
-        _w2(w2),
-        _xy(xy),
-        _M(M),
-        _uv(uv),
-        _info(info)
-    {
-
-    }
-
-    ~UV2ProjectedXYCostInterpPose() {
-        if (_manageProjector) {
-            delete _projector;
-        }
-    }
-
-    template <typename T, typename ... P>
-    bool operator()(const T* const r1,
-                    const T* const t1,
-                    const T* const r2,
-                    const T* const t2,
-                    const T* const boresight,
-                    const T* const leverArm,
-                    const P* const ... projectorParams,
-                    T* residual) const {
-
-        static_assert(sizeof... (projectorParams) == nProjParameters, "wrong number of projection parameters provided");
-        static_assert(std::integral_constant<bool, (... && std::is_same_v<T,P>)>::value, "Wrong type for projection parameters");
-
-        using M3T = Eigen::Matrix<T,3,3>;
-        using M23T = Eigen::Matrix<T,2,3>;
-
-        using V2T = Eigen::Vector<T,2>;
-        using V3T = Eigen::Vector<T,3>;
-
-        //projection
-
-        V3T rot1;
-        rot1 << r1[0], r1[1], r1[2];
-        V3T tran1;
-        tran1 << t1[0], t1[1], t1[2];
-        StereoVision::Geometry::RigidBodyTransform<T> transform1(rot1,tran1);
-
-        V3T rot2;
-        rot2 << r2[0], r2[1], r2[2];
-        V3T tran2;
-        tran2 << t2[0], t2[1], t2[2];
-        StereoVision::Geometry::RigidBodyTransform<T> transform2(rot2,tran2);
-
-        StereoVision::Geometry::RigidBodyTransform<T> body2mapping =
-                StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(T(_w1), transform1, T(_w2), transform2);
-
-
-        StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
-        body2sensor.r << boresight[0], boresight[1], boresight[2];
-        body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
-
-        StereoVision::Geometry::RigidBodyTransform<T> sensor2mapping =
-                body2mapping*body2sensor.inverse();
-        V2T xy = _xy.cast<T>();
-        M23T M = _M.cast<T>();
-
-        std::array<T,2> uv = {T(_uv[0]), T(_uv[1])};
-        std::array<T,nProjParameters> projParams = {projectorParams...};
-
-        V3T direction = _projector->dirFromUV(uv.data(), projParams.data());
-        V3T dirMapping = StereoVision::Geometry::angleAxisRotate(sensor2mapping.r, direction);
-
-        V2T Md = M*dirMapping;
-        T MdTMdm1 = T(1)/Md.dot(Md);
-        T alpha = MdTMdm1*Md.dot(xy - M*sensor2mapping.t);
-
-        V2T error = M*(sensor2mapping.t + alpha*dirMapping) - xy;
-
-        residual[0] = _info(0,0)*error[0] + _info(0,1)*error[1];
-        residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
-
-#ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
-            std::cout << "Error in UV2ProjectedXYCostInterpPose cost computation" << std::endl;
-        }
-#endif
-
-        return true;
-
-    }
-
-protected:
-
-    bool _manageProjector;
-    UVProjector* _projector;
-
-    double _w1;
-    double _w2;
-
-    Eigen::Vector2d _xy;
-    Eigen::Matrix<double,2,3> _M;
-    Eigen::Vector2d _uv;
-    Eigen::Matrix2d _info;
-};
 
 } // namespace StereoVisionApp
 
