@@ -1,2 +1,6 @@
 #configuration files.
 *.user
+
+#vscode configuration folder
+.vscode/
+.vscode/*
