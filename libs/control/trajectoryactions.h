@@ -19,7 +19,7 @@ void setGyroMounting(Trajectory* traj);
  */
 void checkTrajectoryConsistency(Trajectory* traj);
 
-void exportOptimizedTrajectory(Trajectory* traj, QString filePath = "");
+void exportTrajectory(Trajectory* traj, QString filePath = "", bool exportOptimized = false);
 
 } // namespace StereoVisionApp
 

@@ -449,21 +449,13 @@ void checkTrajectoryConsistency(Trajectory* traj) {
 
 }
 
-void exportOptimizedTrajectory(Trajectory* traj, QString filePath) {
+void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized) {
 
     if (traj == nullptr) {
         return;
     }
 
-    StereoVision::Geometry::AffineTransform<double> local2ecef(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
-
     Project* currentProject = traj->getProject();
-
-    if (currentProject != nullptr) {
-        StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local().cast<double>();
-        local2ecef.R = ecef2local.R.transpose();
-        local2ecef.t = -ecef2local.R.transpose()*ecef2local.t;
-    }
 
     MainWindow* mw = MainWindow::getActiveMainWindow();
 
@@ -482,11 +474,23 @@ void exportOptimizedTrajectory(Trajectory* traj, QString filePath) {
         }
     }
 
-    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> optTraj = traj->optimizedTrajectory();
+    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> exportTraj = 
+        exportOptimized ? traj->optimizedTrajectory() : traj->loadTrajectorySequence();
 
-    if (!optTraj.isValid()) {
+    StereoVision::Geometry::AffineTransform<double> local2ecef(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
+
+    if (exportOptimized) {        
+        if (currentProject != nullptr) {
+            StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local().cast<double>();
+            local2ecef.R = ecef2local.R.transpose();
+            local2ecef.t = -ecef2local.R.transpose()*ecef2local.t;
+        }
+    }
+
+
+    if (!exportTraj.isValid()) {
         if (mw != nullptr) {
-            QMessageBox::warning(mw, QObject::tr("Error when exporting optimized trajectory"), optTraj.errorMessage());
+            QMessageBox::warning(mw, QObject::tr("Error when exporting initial trajectory"), exportTraj.errorMessage());
         }
         return;
     }
@@ -509,19 +513,22 @@ void exportOptimizedTrajectory(Trajectory* traj, QString filePath) {
     out << "#trajectory is given in ECEF, pose represent platform2ecef transform, rotation is given as rotation axis in radian" << "\n";
     out << "time,x,y,z,rx,ry,rz" << "\n";
 
-    Trajectory::TimeTrajectorySequence& trajSeq = optTraj.value();
+    Trajectory::TimeTrajectorySequence& trajSeq = exportTraj.value();
 
     for (int i = 0; i < trajSeq.nPoints(); i++) {
         double& time = trajSeq[i].time;
-        StereoVision::Geometry::RigidBodyTransform<double> plaform2ecef(local2ecef*trajSeq[i].val.toAffineTransform());
+        StereoVision::Geometry::RigidBodyTransform<double> platform2ecef =
+        exportOptimized ? StereoVision::Geometry::RigidBodyTransform<double>(local2ecef*trajSeq[i].val.toAffineTransform()) :
+                          StereoVision::Geometry::RigidBodyTransform<double>(trajSeq[i].val.toAffineTransform());
+
 
         out << QString("%1").arg(time,0, 'f', 6) << ',';
-        out << QString("%1").arg(plaform2ecef.t.x(),0, 'f', 2) << ',';
-        out << QString("%1").arg(plaform2ecef.t.y(),0, 'f', 2) << ',';
-        out << QString("%1").arg(plaform2ecef.t.z(),0, 'f', 2) << ',';
-        out << QString("%1").arg(plaform2ecef.r.x(),0, 'f', 4) << ',';
-        out << QString("%1").arg(plaform2ecef.r.y(),0, 'f', 4) << ',';
-        out << QString("%1").arg(plaform2ecef.r.z(),0, 'f', 4);
+        out << QString("%1").arg(platform2ecef.t.x(),0, 'f', 3) << ',';
+        out << QString("%1").arg(platform2ecef.t.y(),0, 'f', 3) << ',';
+        out << QString("%1").arg(platform2ecef.t.z(),0, 'f', 3) << ',';
+        out << QString("%1").arg(platform2ecef.r.x(),0, 'f', 6) << ',';
+        out << QString("%1").arg(platform2ecef.r.y(),0, 'f', 6) << ',';
+        out << QString("%1").arg(platform2ecef.r.z(),0, 'f', 6);
         out << "\n";
     }
 

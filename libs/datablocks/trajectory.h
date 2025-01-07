@@ -428,6 +428,7 @@ public:
     void setAccAccuracy(double accuracy);
 
     DataTable* getOptimizedDataTable();
+    bool hasInitialTrajectory() const;
     bool hasOptimizedTrajectory() const;
 
     int accelerometerId() const;
