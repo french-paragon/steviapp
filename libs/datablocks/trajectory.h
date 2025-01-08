@@ -105,6 +105,10 @@ public:
     using TimeCartesianBlock = TimeCartesianSequence::TimedElement;
     using TimeTrajectoryBlock = TimeTrajectorySequence::TimedElement;
 
+    static StatusOptionalReturn<std::vector<TimeTrajectoryBlock>> guidedSubsampleTrajectory
+    (std::vector<TimeTrajectoryBlock> const& trajectory,
+     std::vector<TimeTrajectoryBlock> const& guide);
+
     /*!
      * \brief loadAngularSpeedSequence load an IndexedTimeSequence for the angular speed (in body frame).
      * \return optionnaly a TimeCartesianSequence
@@ -161,14 +165,16 @@ public:
 
     /*!
      * \brief optimizedTrajectory return the optimized trajectory, if it is set. The optimized trajectory will be in the project local frame
+     * \param subsample if true, use the initial trajectory to subsample the optimized trajectory.
      * \return optionaly a TimeTrajectorySequence
      */
-    StatusOptionalReturn<TimeTrajectorySequence> optimizedTrajectory() const;
+    StatusOptionalReturn<TimeTrajectorySequence> optimizedTrajectory(bool subsample = false) const;
     /*!
      * \brief optimizedTrajectoryECEF return the optimized trajectory, if it is set. The optimized trajectory will be in the ECEF frame
+     * \param subsample if true, use the initial trajectory to subsample the optimized trajectory.
      * \return optionaly a TimeTrajectorySequence
      */
-    StatusOptionalReturn<TimeTrajectorySequence> optimizedTrajectoryECEF() const;
+    StatusOptionalReturn<TimeTrajectorySequence> optimizedTrajectoryECEF(bool subsample = false) const;
 
     virtual bool geoReferenceSupportActive() const override;
     virtual Eigen::Array<float,3, Eigen::Dynamic> getLocalPointsEcef() const override;

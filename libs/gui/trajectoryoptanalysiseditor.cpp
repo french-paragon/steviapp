@@ -103,7 +103,9 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
             traj = trajOptional.value();
         }
 
-        StatusOptionalReturn<Trajectory::TimeTrajectorySequence> optTrajOptional = _trajectory->optimizedTrajectory();
+        constexpr bool resample = true;
+
+        StatusOptionalReturn<Trajectory::TimeTrajectorySequence> optTrajOptional = _trajectory->optimizedTrajectory(resample);
 
        if (!optTrajOptional.isValid()) {
            valid_trajectory = false;
@@ -158,12 +160,16 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
         auto interpTraj = traj.getValueAtTime(time);
 
         StereoVision::Geometry::RigidBodyTransform<double> initial =
-                interpTraj.weigthLower*interpTraj.valLower + interpTraj.weigthUpper*interpTraj.valUpper;
+                StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
+                    interpTraj.weigthLower, interpTraj.valLower, interpTraj.weigthUpper, interpTraj.valUpper);
 
         auto interpOptTraj = optTraj.getValueAtTime(time);
 
         StereoVision::Geometry::RigidBodyTransform<double> opt =
-                interpOptTraj.weigthLower*interpOptTraj.valLower + interpOptTraj.weigthUpper*interpOptTraj.valUpper;
+                StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
+                    interpOptTraj.weigthLower, interpOptTraj.valLower, interpOptTraj.weigthUpper, interpOptTraj.valUpper);
+
+        StereoVision::Geometry::RigidBodyTransform<double> delta = initial*opt.inverse();
 
         posXerrors[i] = initial.t.x() - opt.t.x();
         posYerrors[i] = initial.t.y() - opt.t.y();
@@ -181,9 +187,9 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
             maxAbsPosError = std::abs(posZerrors[i]);
         }
 
-        rotXerrors[i] = initial.r.x() - opt.r.x();
-        rotYerrors[i] = initial.r.y() - opt.r.y();
-        rotZerrors[i] = initial.r.z() - opt.r.z();
+        rotXerrors[i] = delta.r.x();
+        rotYerrors[i] = delta.r.y();
+        rotZerrors[i] = delta.r.z();
 
         if (std::abs(rotXerrors[i]) > maxAbsRotError) {
             maxAbsRotError = std::abs(rotXerrors[i]);

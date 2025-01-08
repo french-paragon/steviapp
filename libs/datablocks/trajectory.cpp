@@ -395,6 +395,107 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
 }
 
+StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::guidedSubsampleTrajectory
+                (std::vector<Trajectory::TimeTrajectoryBlock> const& trajectory,
+                 std::vector<Trajectory::TimeTrajectoryBlock> const& guide) {
+
+    std::vector<Trajectory::TimeTrajectoryBlock> ret;
+    ret.reserve(trajectory.size() + guide.size());
+
+    int previousGuideId = -1;
+
+    for (int i = 0; i < trajectory.size()-1; i++) {
+
+        ret.push_back(trajectory[i]);
+
+        int guideId = -1;
+
+        for (int g = previousGuideId + 1; g < guide.size(); g++) {
+            if (guide[g].time > trajectory[i].time) {
+                guideId = g;
+                break;
+            }
+        }
+
+        //could not find a point in the guide after the node in the trajectory.
+        if (guideId < 0) {
+            continue;
+        }
+
+        if (guide[guideId].time > trajectory[i+1].time) {
+            continue;
+        }
+
+
+        PoseType guideOriginal = guide[guideId].val;
+
+        if (guideId > 0) {
+
+            double timeDeltaPrev = trajectory[i].time - guide[guideId-1].time;
+            double timeDeltaNext = guide[guideId].time - trajectory[i].time;
+            double timeDeltaTotal = guide[guideId].time - guide[guideId-1].time;
+
+            double wNext = timeDeltaPrev/timeDeltaTotal;
+            double wPrev = timeDeltaNext/timeDeltaTotal;
+
+            guideOriginal = StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(wPrev, guide[guideId-1].val,
+                                                                                        wNext, guide[guideId].val);
+        }
+
+        int nextGuideId = guideId;
+
+        for (int g = guideId; g < guide.size(); g++) {
+            nextGuideId = g;
+            if (guide[g].time > trajectory[i+1].time) {
+                break;
+            }
+        }
+
+        PoseType guideNext = guide[nextGuideId].val;
+
+        if (trajectory[i+1].time <= guide[nextGuideId].time) {
+
+            double timeDeltaPrev = trajectory[i+1].time - guide[nextGuideId-1].time;
+            double timeDeltaNext = guide[nextGuideId].time - trajectory[i+1].time;
+            double timeDeltaTotal = guide[nextGuideId].time - guide[nextGuideId-1].time;
+
+            double wNext = timeDeltaPrev/timeDeltaTotal;
+            double wPrev = timeDeltaNext/timeDeltaTotal;
+
+            guideNext = StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(wPrev, guide[nextGuideId-1].val,
+                                                                                        wNext, guide[nextGuideId].val);
+        }
+
+        PoseType guide2trajectory = trajectory[i].val*guideOriginal.inverse();
+        PoseType uncorrectedNext = guide2trajectory*guideNext;
+        PoseType correction = trajectory[i+1].val*uncorrectedNext.inverse();
+
+        double timeDeltaTotal = trajectory[i+1].time - trajectory[i].time;
+
+        for (int g = guideId; g < guide.size(); g++) {
+
+            if (guide[g].time >= trajectory[i+1].time) {
+                break;
+            }
+
+            double timeDeltaPrev = guide[g].time - trajectory[i].time;
+            double wCorrection = timeDeltaPrev/timeDeltaTotal;
+
+            PoseType weigthedCorrection = wCorrection*correction;
+
+            PoseType subsampled = weigthedCorrection*guide2trajectory*guide[g].val;
+
+            ret.push_back(TimeTrajectoryBlock{guide[g].time, subsampled});
+        }
+
+    }
+
+    ret.push_back(trajectory[trajectory.size()-1]);
+
+    return ret;
+
+}
+
 
 StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadAngularSpeedSequence() const {
 
@@ -1052,7 +1153,7 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
 
 }
 
-StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectory() const {
+StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectory(bool subsample) const {
 
     using RType = StatusOptionalReturn<Trajectory::TimeTrajectorySequence>;
 
@@ -1083,11 +1184,42 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTr
 
     }
 
+    if (subsample) {
+        auto initial = loadTrajectoryData();
+
+        if (!initial.isValid()) {
+            return RType::error("Could not load initial trajectory data for subsampling optimized trajectory");
+        }
+
+        std::vector<Trajectory::TimeTrajectorySequence::TimedElement>& initialTrajectoryData = initial.value();
+
+        //detrend guide for numerical stability
+        Eigen::Vector3d mean = Eigen::Vector3d::Zero();
+
+        for (int i = 0; i < initialTrajectoryData.size(); i++) {
+            mean += initialTrajectoryData[i].val.t;
+        }
+
+        mean /= initialTrajectoryData.size();
+
+        for (int i = 0; i < initialTrajectoryData.size(); i++) {
+            initialTrajectoryData[i].val.t -= mean;
+        }
+
+        auto resampledOpt = guidedSubsampleTrajectory(data, initialTrajectoryData);
+
+        if (!resampledOpt.isValid()) {
+            return RType::error(resampledOpt.errorMessage());
+        }
+
+        data = std::move(resampledOpt.value());
+    }
+
     return Trajectory::TimeTrajectorySequence(data);
 }
-StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectoryECEF() const {
+StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectoryECEF(bool subsample) const {
 
-    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> ret = optimizedTrajectory();
+    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> ret = optimizedTrajectory(subsample);
 
     if (!ret.isValid()) {
         return ret;

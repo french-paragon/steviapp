@@ -2,3 +2,4 @@
 add_subdirectory(test_geometry)
 add_subdirectory(test_geo_functions)
 add_subdirectory(test_timeseq_functions)
+add_subdirectory(test_trajectory)
