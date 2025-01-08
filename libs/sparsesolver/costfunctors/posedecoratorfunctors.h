@@ -25,6 +25,18 @@ enum DecoratorPoseConfiguration {
 };
 
 /*!
+ * \brief The PoseTransformDirection enum represent how a transform of a pose should be applied
+ *
+ * Assuming a pose is given from an intial space Initial to a final space Final, along
+ * with a transform, this enum indicate if the transform should be applied before (from some
+ * source space to the initial space), or after (from the final space to some target space).
+ */
+enum PoseTransformDirection {
+    SourceToInitial = 0, // the transformation should be applied before the pose (map from prior space to initial space)
+    FinalToTarget = 1 // the transformation should be applied after the pose (map from final space to target space).
+};
+
+/*!
  * \brief The AddLeverArm class represent a decorator for the functor type FunctorT, adding a lever arm parameter
  *
  * The FunctorT type is assumed to have an operator() const taking as first argument
@@ -139,6 +151,61 @@ public:
 
         return FunctorT::template operator()<T>(processed_r, processed_t, additionalParams...);
     }
+
+};
+
+template<typename FunctorT, PoseTransformDirection poseTransformDirection = PoseTransformDirection::FinalToTarget>
+class PoseTransform : private FunctorT {
+
+public:
+    template <typename ... P>
+    PoseTransform(StereoVision::Geometry::RigidBodyTransform<double> const& transform, P... args) :
+        FunctorT(args...),
+        _transform(transform)
+    {
+
+    }
+
+    template <typename T, typename ... P>
+    bool operator()(const T* const r,
+                    const T* const t,
+                    P ... additionalParams) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+
+        using V2T = Eigen::Vector<T,2>;
+        using V3T = Eigen::Vector<T,3>;
+
+        T processed_r[3];
+        T processed_t[3];
+
+        StereoVision::Geometry::RigidBodyTransform<T> pose;
+
+        pose.r << r[0], r[1], r[2];
+        pose.t << t[0], t[1], t[2];
+
+        StereoVision::Geometry::RigidBodyTransform<T> transformed;
+
+        if (poseTransformDirection == PoseTransformDirection::FinalToTarget) {
+            transformed = _transform.cast<T>() * pose;
+        }
+
+        if (poseTransformDirection == PoseTransformDirection::SourceToInitial) {
+            transformed = pose * _transform.cast<T>();
+        }
+
+        for (int i = 0; i < 3; i++) {
+            processed_r[i] = transformed.r[i];
+            processed_t[i] = transformed.t[i];
+        }
+
+        return FunctorT::template operator()<T>(processed_r, processed_t, additionalParams...);
+
+    }
+
+protected:
+
+    StereoVision::Geometry::RigidBodyTransform<double> _transform;
 
 };
 

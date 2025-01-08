@@ -184,6 +184,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             continue;
         }
 
+        trajNode->initialTrajectory = optPose.value();
+
         StatusOptionalReturn<Trajectory::TimeCartesianSequence> optGyro = traj->loadAngularSpeedSequence();
         StatusOptionalReturn<Trajectory::TimeCartesianSequence> optImu = traj->loadAccelerationSequence();
 

@@ -14,6 +14,8 @@
 #include <Eigen/Core>
 #include <StereoVision/geometry/rotations.h>
 
+#include "../vision/indexed_timed_sequence.h"
+
 class QTextStream;
 
 namespace StereoVisionApp {
@@ -253,6 +255,7 @@ public:
     struct TrajectoryNode {
         qint64 trajId;
         std::vector<TrajectoryPoseNode> nodes;
+        IndexedTimeSequence<StereoVision::Geometry::RigidBodyTransform<double>, double> initialTrajectory;
 
         /*!
          * \brief getNodeForTime get the index of the node just before a set time
