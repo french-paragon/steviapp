@@ -42,7 +42,7 @@ void Image::assignCamera(qint64 camId) {
 	if (_assignedCamera >= 0) removeRefered({_assignedCamera});
 	_assignedCamera = camId;
 	if (_assignedCamera >= 0) addRefered({_assignedCamera});
-	emit assignedCameraChanged(_assignedCamera);
+    Q_EMIT assignedCameraChanged(_assignedCamera);
 	return;
 }
 

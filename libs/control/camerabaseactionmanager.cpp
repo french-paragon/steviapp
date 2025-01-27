@@ -1,6 +1,7 @@
 #include "camerabaseactionmanager.h"
 
 #include "datablocks/camera.h"
+#include "datablocks/cameras/pushbroompinholecamera.h"
 
 #include "mainwindow.h"
 #include "gui/lenseditor.h"
@@ -29,16 +30,26 @@ QList<QAction*> CameraBaseActionManager::factorizeClassContextActions(QObject* p
 	Q_UNUSED(parent);
 	Q_UNUSED(p);
 
-	QString classname = itemClassName();
+    QString classname = itemClassName();
 
-	QAction* add = new QAction(tr("Add a new Camera"), parent);
-	connect(add, &QAction::triggered, [classname, p] () {
-		qint64 block_id = p->createDataBlock(classname.toStdString().c_str());
-		if (block_id > 0) {
-			DataBlock* b = p->getById(block_id);
-			b->setObjectName(tr("new camera"));
-		}
-	});
+    QAction* add = new QAction(tr("Add a new Camera"), parent);
+    connect(add, &QAction::triggered, [classname, p] () {
+        qint64 block_id = p->createDataBlock(classname.toStdString().c_str());
+        if (block_id > 0) {
+            DataBlock* b = p->getById(block_id);
+            b->setObjectName(tr("new camera"));
+        }
+    });
+
+    QAction* addPushBroom = new QAction(tr("Add a new Push Broom Camera"), parent);
+    connect(addPushBroom, &QAction::triggered, [p] () {
+        QString classname = PushBroomPinholeCamera::staticMetaObject.className();
+        qint64 block_id = p->createDataBlock(classname.toStdString().c_str());
+        if (block_id > 0) {
+            DataBlock* b = p->getById(block_id);
+            b->setObjectName(tr("new push broom camera"));
+        }
+    });
 
 	QAction* import = new QAction(tr("Import a Camera"), parent);
 	connect(import, &QAction::triggered, [classname, p] () {
@@ -87,15 +98,15 @@ QList<QAction*> CameraBaseActionManager::factorizeClassContextActions(QObject* p
 		}
 	});
 
-	return {add, import};
+    return {add, import, addPushBroom};
 }
 QList<QAction*> CameraBaseActionManager::factorizeItemContextActions(QObject* parent, DataBlock* item) const {
 
-	Camera* cam = qobject_cast<Camera*>(item);
+    if (item == nullptr) {
+        return {};
+    }
 
-	if (cam == nullptr) {
-		return {};
-	}
+    Camera* cam = qobject_cast<Camera*>(item);
 
 	QWidget* w = qobject_cast<QWidget*>(parent);
 
@@ -108,102 +119,112 @@ QList<QAction*> CameraBaseActionManager::factorizeItemContextActions(QObject* pa
 	QList<QAction*> lst;
 
 	if (mw != nullptr) {
-		QAction* edit = new QAction(tr("Edit"), parent);
-		connect(edit, &QAction::triggered, [mw, cam] () {
+        if (cam != nullptr) {
+            QAction* edit = new QAction(tr("Edit"), parent);
+            connect(edit, &QAction::triggered, [mw, cam] () {
 
-			Editor* e = mw->openEditor(LensEditor::LensEditorClassName);
-			LensEditor* le = qobject_cast<LensEditor*>(e);
+                Editor* e = mw->openEditor(LensEditor::LensEditorClassName);
+                LensEditor* le = qobject_cast<LensEditor*>(e);
 
-			le->setCamera(cam);
+                le->setCamera(cam);
 
-		});
-		lst << edit;
+            });
+            lst << edit;
+        }
 	}
 
-	QAction* exportCam = new QAction(tr("Export"), parent);
-	connect(exportCam, &QAction::triggered, [cam] () {
+    if (cam != nullptr) {
+        QAction* exportCam = new QAction(tr("Export"), parent);
+        connect(exportCam, &QAction::triggered, [cam] () {
 
-		MainWindow* mw = MainWindow::getActiveMainWindow();
+            MainWindow* mw = MainWindow::getActiveMainWindow();
 
-		if (mw == nullptr) {
-			return;
-		}
+            if (mw == nullptr) {
+                return;
+            }
 
-		QString cameraFile = QFileDialog::getSaveFileName(mw, tr("Export the camera"), QString(), tr("Steviap camera files (*.stevcam)"));
+            QString cameraFile = QFileDialog::getSaveFileName(mw, tr("Export the camera"), QString(), tr("Steviap camera files (*.stevcam)"));
 
-		if (cameraFile.isEmpty()) {
-			return;
-		}
+            if (cameraFile.isEmpty()) {
+                return;
+            }
 
-		if (!cameraFile.endsWith(".stevcam")) {
-			cameraFile += ".stevcam";
-		}
+            if (!cameraFile.endsWith(".stevcam")) {
+                cameraFile += ".stevcam";
+            }
 
-		QJsonObject camRep = cam->getJsonRepresentation();
+            QJsonObject camRep = cam->getJsonRepresentation();
 
-		camRep.insert("exportedCameraName", cam->objectName());
+            camRep.insert("exportedCameraName", cam->objectName());
 
-		QJsonDocument doc(camRep);
+            QJsonDocument doc(camRep);
 
-		QByteArray data = doc.toJson();
+            QByteArray data = doc.toJson();
 
-		QFile outfile(cameraFile);
-		bool opened = outfile.open(QIODevice::WriteOnly | QIODevice::Text);
+            QFile outfile(cameraFile);
+            bool opened = outfile.open(QIODevice::WriteOnly | QIODevice::Text);
 
-		if (!opened) {
-			return;
-		}
+            if (!opened) {
+                return;
+            }
 
-		outfile.write(data);
-		outfile.close();
+            outfile.write(data);
+            outfile.close();
 
 
-	});
-	lst.append(exportCam);
+        });
+        lst.append(exportCam);
 
-	QAction* importCam = new QAction(tr("Import parameters"), parent);
-	connect(importCam, &QAction::triggered, [cam] () {
+        QAction* importCam = new QAction(tr("Import parameters"), parent);
+        connect(importCam, &QAction::triggered, [cam] () {
 
-		if (cam == nullptr) {
-			return ;
-		}
+            if (cam == nullptr) {
+                return ;
+            }
 
-		MainWindow* mw = MainWindow::getActiveMainWindow();
+            MainWindow* mw = MainWindow::getActiveMainWindow();
 
-		if (mw == nullptr) {
-			return;
-		}
+            if (mw == nullptr) {
+                return;
+            }
 
-		QString cameraFile = QFileDialog::getOpenFileName(mw, tr("Import a camera"), QString(), tr("Steviap camera files (*.stevcam)"));
+            QString cameraFile = QFileDialog::getOpenFileName(mw, tr("Import a camera"), QString(), tr("Steviap camera files (*.stevcam)"));
 
-		if (cameraFile.isEmpty()) {
-			return;
-		}
+            if (cameraFile.isEmpty()) {
+                return;
+            }
 
-		QFile infile(cameraFile);
-		bool opened = infile.open(QIODevice::ReadOnly | QIODevice::Text);
+            QFile infile(cameraFile);
+            bool opened = infile.open(QIODevice::ReadOnly | QIODevice::Text);
 
-		if (!opened) {
-			return;
-		}
+            if (!opened) {
+                return;
+            }
 
-		QByteArray data = infile.readAll();
-		infile.close();
+            QByteArray data = infile.readAll();
+            infile.close();
 
-		QJsonDocument doc = QJsonDocument::fromJson(data);
-		QJsonObject camRep = doc.object();
+            QJsonDocument doc = QJsonDocument::fromJson(data);
+            QJsonObject camRep = doc.object();
 
-		cam->setParametersFromJsonRepresentation(camRep);
+            cam->setParametersFromJsonRepresentation(camRep);
 
-	});
-	lst.append(importCam);
+        });
+        lst.append(importCam);
+    }
+
+    QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
+    connect(clearOptimized, &QAction::triggered, [item] () {
+        item->clearOptimized();
+    });
+    lst.append(clearOptimized);
 
 	QAction* remove = new QAction(tr("Remove"), parent);
-	connect(remove, &QAction::triggered, [cam] () {
-		Project* p = cam->getProject();
+    connect(remove, &QAction::triggered, [item] () {
+        Project* p = item->getProject();
 
 		if (p != nullptr) {
-			p->clearById(cam->internalId());
+            p->clearById(item->internalId());
 		}
 	});
 	lst.append(remove);

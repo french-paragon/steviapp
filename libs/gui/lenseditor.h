@@ -3,9 +3,12 @@
 
 #include "./editor.h"
 
+class QCustomPlot;
+
 namespace StereoVisionApp {
 
 class Camera;
+class PushBroomPinholeCamera;
 
 namespace Ui {
 class LenseEditor;
@@ -94,6 +97,40 @@ public:
 	virtual QString TypeDescrName() const;
 	virtual QString itemClassName() const;
 	virtual Editor* factorizeEditor(QWidget* parent) const;
+
+};
+
+
+class PushBroomLenseEditor : public Editor {
+
+    Q_OBJECT
+
+public:
+
+    explicit PushBroomLenseEditor(QWidget *parent = nullptr);
+    ~PushBroomLenseEditor();
+
+    void setCamera(PushBroomPinholeCamera* cam);
+
+protected:
+
+    void replot();
+
+    QCustomPlot* _plot;
+    PushBroomPinholeCamera* _cam;
+
+};
+
+class PushBroomLenseEditorFactory : public EditorFactory
+{
+    Q_OBJECT
+public:
+
+    explicit PushBroomLenseEditorFactory(QObject* parent = nullptr);
+
+    virtual QString TypeDescrName() const;
+    virtual QString itemClassName() const;
+    virtual Editor* factorizeEditor(QWidget* parent) const;
 
 };
 

@@ -1,50 +1,20 @@
-#ifndef STEREOVISIONAPP_IMAGEALIGNEMENTSBAMODULE_H
-#define STEREOVISIONAPP_IMAGEALIGNEMENTSBAMODULE_H
+#ifndef STEREOVISIONAPP_PINHOLECAMERAPROJECTORMODULE_H
+#define STEREOVISIONAPP_PINHOLECAMERAPROJECTORMODULE_H
 
 #include "../modularsbasolver.h"
 
 namespace StereoVisionApp {
 
 class Project;
-class GenericSBAGraphReductor;
+class PushBroomPinholeCamera;
 
-class ImageAlignementSBAModule : public ModularSBASolver::SBAModule
+class PinholePushBroomCamProjectorModule : public ModularSBASolver::ProjectorModule
 {
 
 public:
 
-    static const char* ModuleName;
-    inline static void registerDefaultModuleFactory(SBASolverModulesInterface* interface) {
-        interface->registerSBAModule(ImageAlignementSBAModule::ModuleName, [] (ModularSBASolver* solver) -> ModularSBASolver::SBAModule* {
-            return new ImageAlignementSBAModule();
-        });
-    }
-
-    ImageAlignementSBAModule();
-
-    virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
-    virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
-
-    virtual bool setupParameters(ModularSBASolver* solver) override;
-    virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) override;
-    virtual bool writeResults(ModularSBASolver* solver) override;
-    virtual bool writeUncertainty(ModularSBASolver* solver) override;
-    virtual void cleanup(ModularSBASolver* solver) override;
-
-protected:
-
-    //match camera internal id to a projector module for the images
-    QMap<qint64, ModularSBASolver::ProjectorModule*> _cameraProjectors;
-
-};
-
-class PinholdeCamProjModule : public ModularSBASolver::ProjectorModule
-{
-
-public:
-
-    PinholdeCamProjModule(Camera* associatedCamera);
-    ~PinholdeCamProjModule();
+    PinholePushBroomCamProjectorModule(PushBroomPinholeCamera* associatedCamera);
+    ~PinholePushBroomCamProjectorModule();
 
     virtual bool addProjectionCostFunction(double* pointData,
                                            double* poseOrientation,
@@ -73,16 +43,15 @@ public:
 
 protected:
 
-    Camera* _associatedCamera;
+    PushBroomPinholeCamera* _associatedCamera;
 
     double _fLen; //f
-    std::array<double, 2> _principalPoint; //pp
-    std::array<double, 3> _radialDistortion; //k1, k2, k3
-    std::array<double, 2> _tangentialDistortion; //t1, t2
-    std::array<double, 2> _skewDistortion; //B1, B2
+    double _principalPoint; //pp
+    std::array<double, 6> _horizontalDistortion; //as
+    std::array<double, 6> _verticalDistortion; //bs
 
 };
 
 } // namespace StereoVisionApp
 
-#endif // STEREOVISIONAPP_IMAGEALIGNEMENTSBAMODULE_H
+#endif // STEREOVISIONAPP_PINHOLECAMERAPROJECTORMODULE_H

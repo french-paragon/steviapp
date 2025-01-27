@@ -1,7 +1,11 @@
 #include "lenseditor.h"
 #include "ui_lenseditor.h"
 
+#define QCUSTOMPLOT_USE_LIBRARY
+#include "qcustomplot/qcustomplot.h"
+
 #include "datablocks/camera.h"
+#include "datablocks/cameras/pushbroompinholecamera.h"
 
 namespace StereoVisionApp {
 
@@ -586,6 +590,189 @@ QString LensEditorFactory::itemClassName() const {
 }
 Editor* LensEditorFactory::factorizeEditor(QWidget* parent) const {
 	return new LensEditor(parent);
+}
+
+
+PushBroomLenseEditor::PushBroomLenseEditor(QWidget *parent) :
+    Editor(parent)
+{
+
+    QVBoxLayout* layout = new QVBoxLayout(this);
+
+    _plot = new QCustomPlot(this);
+
+    _plot->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    _plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+
+    _plot->addGraph(); // dy
+    _plot->addGraph(); // dx
+    _plot->addGraph(); // ody
+    _plot->addGraph(); // odx
+
+    _plot->xAxis->setLabel("pixel index");
+    _plot->yAxis->setLabel("shift [px]");
+
+    _plot->graph(0)->setPen(QPen(QColor(130,150,50)));
+    _plot->graph(1)->setPen(QPen(QColor(200,160,20)));
+    _plot->graph(2)->setPen(QPen(QColor(160,240,10)));
+    _plot->graph(3)->setPen(QPen(QColor(240,180,20)));
+
+    _plot->graph(0)->setName(tr("Vertical shift unoptimized"));
+    _plot->graph(1)->setName(tr("Horizontal shift unoptimized"));
+    _plot->graph(2)->setName(tr("Vertical shift optimized"));
+    _plot->graph(3)->setName(tr("Horizontal shift optimized"));
+
+    _plot->legend->setVisible(true);
+    _plot->legend->setFont(QFont("Sans",9));
+
+    layout->addWidget(_plot);
+
+    _cam = nullptr;
+
+}
+PushBroomLenseEditor::~PushBroomLenseEditor() {
+
+}
+
+void PushBroomLenseEditor::setCamera(PushBroomPinholeCamera* cam) {
+
+    if (_cam != nullptr) {
+        disconnect(_cam, nullptr, this, nullptr);
+    }
+
+    _cam = cam;
+
+    if (_cam != nullptr) {
+        connect(_cam, &PushBroomPinholeCamera::opticalParametersChanged, this, &PushBroomLenseEditor::replot);
+        connect(_cam, &PushBroomPinholeCamera::optimizedOpticalParametersChanged, this, &PushBroomLenseEditor::replot);
+    }
+
+    replot();
+}
+
+void PushBroomLenseEditor::replot() {
+
+
+    if (_cam == nullptr) {
+
+        _plot->graph(0)->setData(QVector<double>(), QVector<double>());
+        _plot->graph(1)->setData(QVector<double>(), QVector<double>());
+        _plot->graph(2)->setData(QVector<double>(), QVector<double>());
+        _plot->graph(3)->setData(QVector<double>(), QVector<double>());
+
+        _plot->replot();
+
+        return;
+    }
+
+    int nPixels = _cam->imWidth();
+
+    qreal ppx = _cam->opticalCenterX().valueOr(qreal(nPixels)/2);
+
+    qreal a0 = _cam->a0().valueOr(0);
+    qreal a1 = _cam->a1().valueOr(0);
+    qreal a2 = _cam->a2().valueOr(0);
+    qreal a3 = _cam->a3().valueOr(0);
+    qreal a4 = _cam->a4().valueOr(0);
+    qreal a5 = _cam->a5().valueOr(0);
+
+    qreal b0 = _cam->b0().valueOr(0);
+    qreal b1 = _cam->b1().valueOr(0);
+    qreal b2 = _cam->b2().valueOr(0);
+    qreal b3 = _cam->b3().valueOr(0);
+    qreal b4 = _cam->b4().valueOr(0);
+    qreal b5 = _cam->b5().valueOr(0);
+
+    qreal oppx = _cam->optimizedOpticalCenterX().valueOr(qreal(nPixels)/2);
+
+    qreal oa0 = _cam->optimizedA0().valueOr(0);
+    qreal oa1 = _cam->optimizedA1().valueOr(0);
+    qreal oa2 = _cam->optimizedA2().valueOr(0);
+    qreal oa3 = _cam->optimizedA3().valueOr(0);
+    qreal oa4 = _cam->optimizedA4().valueOr(0);
+    qreal oa5 = _cam->optimizedA5().valueOr(0);
+
+    qreal ob0 = _cam->optimizedB0().valueOr(0);
+    qreal ob1 = _cam->optimizedB1().valueOr(0);
+    qreal ob2 = _cam->optimizedB2().valueOr(0);
+    qreal ob3 = _cam->optimizedB3().valueOr(0);
+    qreal ob4 = _cam->optimizedB4().valueOr(0);
+    qreal ob5 = _cam->optimizedB5().valueOr(0);
+
+    QVector<qreal> pixels_pos(nPixels);
+
+    QVector<qreal> dy(nPixels);
+    QVector<qreal> dx(nPixels);
+
+    QVector<qreal> ody(nPixels);
+    QVector<qreal> odx(nPixels);
+
+    qreal delta_min = 0;
+    qreal delta_max = 0;
+
+    for (int i = 0; i < nPixels; i++) {
+
+        pixels_pos[i] = i;
+
+        qreal s = (i - qreal(nPixels)/2) /qreal(nPixels); //set 0 at the center (usefull to decorrelate the coefficients 0 and 1.
+        qreal s2 = s*s;
+        qreal s3 = s2*s;
+        qreal s4 = s3*s;
+        qreal s5 = s4*s;
+
+        qreal du = a0 + a1*s + a2*s2 + a3*s3 + a4*s4 + a5*s5;
+        qreal dv = b0 + b1*s + b2*s2 + b3*s3 + b4*s4 + b5*s5;
+
+        qreal odu = oa0 + oa1*s + oa2*s2 + oa3*s3 + oa4*s4 + oa5*s5;
+        qreal odv = ob0 + ob1*s + ob2*s2 + ob3*s3 + ob4*s4 + ob5*s5;
+
+        delta_min = std::min(delta_min,du);
+        delta_min = std::min(delta_min,dv);
+
+        delta_min = std::min(delta_min,odu);
+        delta_min = std::min(delta_min,odv);
+
+        delta_max = std::max(delta_max,du);
+        delta_max = std::max(delta_max,dv);
+
+        delta_max = std::max(delta_max,odu);
+        delta_max = std::max(delta_max,odv);
+
+        dy[i] = dv;
+        dx[i] = du;
+
+        ody[i] = odv;
+        odx[i] = odu;
+
+    }
+
+    _plot->graph(0)->setData(pixels_pos, dy);
+    _plot->graph(1)->setData(pixels_pos, dx);
+    _plot->graph(2)->setData(pixels_pos, ody);
+    _plot->graph(3)->setData(pixels_pos, odx);
+
+    _plot->xAxis->setRange(0,nPixels);
+    _plot->yAxis->setRange(delta_min-0.1,delta_max+0.1);
+
+    _plot->replot();
+
+
+}
+
+PushBroomLenseEditorFactory::PushBroomLenseEditorFactory(QObject* parent) :
+    EditorFactory(parent)
+{
+
+}
+
+QString PushBroomLenseEditorFactory::TypeDescrName() const {
+    return tr("PushBroom Lens Editor");
+}
+QString PushBroomLenseEditorFactory::itemClassName() const {
+    return PushBroomLenseEditor::staticMetaObject.className();
+}
+Editor* PushBroomLenseEditorFactory::factorizeEditor(QWidget* parent) const {
+    return new PushBroomLenseEditor(parent);
 }
 
 }//namespace StereoVisionApp

@@ -14,6 +14,7 @@ set(LIB_SRC
         imagebaseactions.cpp
         imagebaseactionmanager.cpp
         camerabaseactionmanager.cpp
+        pushbroomcameraactionmanager.cpp
         landmarkbasedactions.cpp
         landmarkbaseactionmanager.cpp
         stereorigactions.cpp
@@ -47,6 +48,7 @@ set(LIB_HEADERS
     imagebaseactions.h
     imagebaseactionmanager.h
     camerabaseactionmanager.h
+    pushbroomcameraactionmanager.h
     landmarkbasedactions.h
     landmarkbaseactionmanager.h
     stereorigactions.h

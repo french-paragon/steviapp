@@ -14,6 +14,7 @@
 #include "datablocks/landmark.h"
 #include "datablocks/trajectory.h"
 #include "datablocks/camera.h"
+#include "datablocks/cameras/pushbroompinholecamera.h"
 #include "datablocks/image.h"
 #include "datablocks/correspondencesset.h"
 #include "datablocks/stereorig.h"
@@ -47,6 +48,7 @@
 #include "control/datatableactionmanager.h"
 #include "control/imagebaseactionmanager.h"
 #include "control/camerabaseactionmanager.h"
+#include "control/pushbroomcameraactionmanager.h"
 #include "control/landmarkbaseactionmanager.h"
 #include "control/stereorigactionmanager.h"
 #include "control/angleconstrainactionmanager.h"
@@ -128,6 +130,7 @@ int main(int argc, char *argv[])
     pF.addType(new StereoVisionApp::TrajectoryFactory(&a));
     pF.addType(new StereoVisionApp::ImageFactory(&a));
     pF.addType(new StereoVisionApp::CameraFactory(&a));
+    pF.addType(new StereoVisionApp::PushBroomPinholeCameraFactory(&a));
     pF.addType(new StereoVisionApp::CorrespondencesSetFactory(&a));
     pF.addType(new StereoVisionApp::StereoRigFactory(&a));
     pF.addType(new StereoVisionApp::LocalCoordinateSystemFactory(&a));
@@ -143,6 +146,7 @@ int main(int argc, char *argv[])
     aml.registerDatablockActionManager(new StereoVisionApp::LandmarkBaseActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::TrajectoryActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::CameraBaseActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::PushBroomCameraActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::StereoRigActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::LocalCoordinateSystemBaseActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::AngleConstrainActionManager(&pF));
@@ -167,7 +171,8 @@ int main(int argc, char *argv[])
         w->installEditor(new StereoVisionApp::TrajectorySequenceViewEditorFactory(&a));
         w->installEditor(new StereoVisionApp::TrajectoryOptAnalysisEditorFactory(&a));
         w->installEditor(new StereoVisionApp::TrajectoryAlignementAnalysisEditorFactory(&a));
-		w->installEditor(new StereoVisionApp::LensEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::LensEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::PushBroomLenseEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::CameraCalibrationSparseAlignementEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::FixedStereoSequenceEditorFactory(&a));

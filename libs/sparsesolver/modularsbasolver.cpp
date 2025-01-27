@@ -125,11 +125,19 @@ bool ModularSBASolver::assignProjectorToFrame(ProjectorModule* projector, qint64
         return false;
     }
 
-    if (!_poseParametersIndex.contains(imId)) {
+    _frameProjectorsAssociations[imId] = _projectors.indexOf(projector);
+
+    return true;
+
+}
+
+bool ModularSBASolver::assignProjectorToCamera(ProjectorModule* projector, qint64 camId) {
+
+    if (!_projectors.contains(projector)) {
         return false;
     }
 
-    _frameProjectorsAssociations[imId] = _projectors.indexOf(projector);
+    _cameraProjectorsAssociations[camId] = _projectors.indexOf(projector);
 
     return true;
 
@@ -144,6 +152,17 @@ ModularSBASolver::ProjectorModule* ModularSBASolver::getProjectorForFrame(qint64
 
     return nullptr;
 }
+
+
+ModularSBASolver::ProjectorModule* ModularSBASolver::getProjectorForCamera(qint64 camId) {
+
+    if (_cameraProjectorsAssociations.contains(camId)) {
+        return _projectors[_cameraProjectorsAssociations[camId]];
+    }
+
+    return nullptr;
+}
+
 
 ModularSBASolver::PositionNode* ModularSBASolver::getPositionNode(qint64 datablockId) {
     if (!_pointsParametersIndex.contains(datablockId)) {
@@ -569,6 +588,7 @@ bool ModularSBASolver::init() {
     }
 
     logDatas("after_init.log");
+    _not_first_step = false;
     return true;
 }
 

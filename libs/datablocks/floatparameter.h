@@ -56,6 +56,10 @@ public:
 	pFloatType& value();
 	pFloatType const& value() const;
 
+    inline pFloatType valueOr(pFloatType const& alt) {
+        return (_isSet) ? _value : alt;
+    }
+
 	bool isUncertain() const;
 	void setUncertainty();
 	void setUncertainty(pFloatType stddev);

@@ -110,7 +110,10 @@ public:
                                                double* posePosition,
                                                Eigen::Vector2d const& ptProjPos,
                                                Eigen::Matrix2d const& ptProjStiffness,
-                                               ceres::Problem & problem) = 0;
+                                               ceres::Problem & problem,
+                                               StereoVision::Geometry::RigidBodyTransform<double> const& offset = StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(),Eigen::Vector3d::Zero()),
+                                               double* leverArmOrientation = nullptr,
+                                               double* leverArmPosition = nullptr) = 0;
 
         /*!
          * \brief addCrossProjectionCostFunction add a cross projection between two poses (i.e. two frames seeing the same point, but the point is not explicitly instanced)
@@ -303,6 +306,13 @@ public:
      * \return true if the association has been done, false otherwise.
      */
     bool assignProjectorToFrame(ProjectorModule* projector, qint64 imId);
+    /*!
+     * \brief assignProjectorToCamera assign a given projector to a given camera
+     * \param projector the projector to use
+     * \param camId the id of the camera
+     * \return true if the association has been done, false otherwise.
+     */
+    bool assignProjectorToCamera(ProjectorModule* projector, qint64 camId);
 
     PositionNode* getPositionNode(qint64 datablockId);
     PoseNode* getPoseNode(qint64 datablockId);
@@ -330,6 +340,13 @@ public:
      * as well as create the required prior if the pose has a prior.
      */
     PoseNode* getNodeForFrame(qint64 imId, bool createIfMissing);
+
+    /*!
+     * \brief getProjectorForFrame get a projector corresponding to a given camera
+     * \param camId the id of the camera
+     * \return the projector.
+     */
+    ProjectorModule* getProjectorForCamera(qint64 camId);
 
     /*!
      * \brief getProjectorForFrame get a projector for a given image
@@ -445,6 +462,7 @@ protected:
     QString _loggingDir;
     QString _default_logging_file;
 
+    QMap<qint64, int> _cameraProjectorsAssociations;
     QMap<qint64, int> _frameProjectorsAssociations;
 
     //using std vectors for the data, as these are guaranteed to be contiguous in memory.

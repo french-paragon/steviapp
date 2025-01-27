@@ -22,6 +22,7 @@ set(LIB_SRC floatparameter.cpp
             fixedstereopluscolorsequence.cpp
             fixedcolorstereosequence.cpp
             datatable.cpp
+            cameras/pushbroompinholecamera.cpp
             io/collada_export_filter.cpp
             io/collada_export_filter.h
             io/jsonconversionsutils.h
@@ -53,10 +54,15 @@ set(LIB_HEADERS
     datatable.h
 )
 
+set(LIB_CAMERAS_HEADERS
+    cameras/pushbroompinholecamera.h
+)
+
 add_library(
     ${DATA_LIB}
     ${LIB_SRC}
     ${LIB_HEADERS}
+    ${LIB_CAMERAS_HEADERS}
 )
 
 target_link_libraries(${DATA_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets PROJ::proj)
@@ -67,4 +73,8 @@ get_filename_component(LibDirName ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 
 install(FILES ${LIB_HEADERS}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}
+  )
+
+install(FILES ${LIB_CAMERAS_HEADERS}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/cameras
   )

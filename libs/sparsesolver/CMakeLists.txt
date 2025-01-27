@@ -48,6 +48,7 @@ set(LIB_SRC initialsolution.cpp
             sbamodules/imagealignementsbamodule.cpp
             sbamodules/landmarkssbamodule.cpp
             sbamodules/correspondencessetsbamodule.cpp
+            sbamodules/pinholecameraprojectormodule.cpp
 )
 
 set(LIB_HEADERS
@@ -114,6 +115,7 @@ set(LIB_HEADERS_SBA_MODULES
     sbamodules/imagealignementsbamodule.h
     sbamodules/landmarkssbamodule.h
     sbamodules/correspondencessetsbamodule.h
+    sbamodules/pinholecameraprojectormodule.h
 )
 
 add_library(

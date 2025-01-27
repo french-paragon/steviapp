@@ -416,7 +416,10 @@ bool PinholdeCamProjModule::addProjectionCostFunction(double* pointData,
                                                       double* posePosition,
                                                       Eigen::Vector2d const& ptProjPos,
                                                       Eigen::Matrix2d const& ptProjStiffness,
-                                                      ceres::Problem & problem) {
+                                                      ceres::Problem & problem,
+                                                      const StereoVision::Geometry::RigidBodyTransform<double> &offset,
+                                                      double *leverArmOrientation,
+                                                      double *leverArmPosition) {
 
 
     ParametrizedXYZ2UVCost* projCost = new ParametrizedXYZ2UVCost(ptProjPos, ptProjStiffness);
