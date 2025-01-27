@@ -175,10 +175,12 @@ protected:
 	virtual bool insertImpls(DataBlock* db);
 	virtual qint64 nextAvailableId() const;
 
-	QMap<qint64, DataBlock*> _itemCache;
-	QMap<QString, QVector<qint64>> _idsByTypes;
+    QMap<qint64, DataBlock*> _itemCache;
+    QMap<QString, QVector<qint64>> _idsByTypes;
+    QMap<QString, QVector<qint64>> _idsByProxyTypes;
 
 	QVector<QString> _installedTypes;
+    QVector<QString> _proxyTypes;
 	QMap<QString, DataBlockFactory*> _dataBlocksFactory;
 
 	QString _source;
@@ -211,7 +213,15 @@ public:
 	virtual DataBlock* factorizeDataBlock(Project *parent = nullptr) const;
 	virtual DataBlock* factorizeDataBlock(DataBlock *parent) const;
 
-	virtual QString itemClassName() const;
+    virtual QString itemClassName() const;
+
+    /*!
+     * \brief proxyClassName give a class the item should be considered as when displaying the project hierarchy
+     * \return the class the item should be categorized as.
+     *
+     * When sorting the project items
+     */
+    virtual QString proxyClassName() const;
 };
 
 class DataBlockReference;

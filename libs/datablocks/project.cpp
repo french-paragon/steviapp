@@ -127,9 +127,12 @@ bool Project::load(QString const& inFile) {
 			DataBlock* block = _dataBlocksFactory[itemClass]->factorizeDataBlock(this);
 			block->setFromJson(v.toObject());
 
+            QString proxyClass = _dataBlocksFactory[itemClass]->proxyClassName();
+
 			if (block->internalId() >= 0) {
 				_itemCache.insert(block->internalId(), block);
-				_idsByTypes[itemClass].append(block->internalId());
+                _idsByTypes[itemClass].append(block->internalId());
+                _idsByProxyTypes[proxyClass].append(block->internalId());
 
 				connect(block, &DataBlock::datablockChanged, this, &Project::projectDataChanged);
 			}
@@ -189,6 +192,7 @@ bool Project::save(QString const& outFile) {
 
 		proj.insert(itemClass, items);
 	}
+
     QJsonObject metadata;
 
     if (_hasLocalCoordinateFrame) {
@@ -244,9 +248,14 @@ qint64 Project::createDataBlock(const char* classname) {
 	db->_internalId = nextAvailableId();
 	db->setObjectName(_dataBlocksFactory.value(cn)->TypeDescrName() + QVariant(db->_internalId).toString());
 
+    QString proxy = _dataBlocksFactory.value(cn)->proxyClassName();
+
 	if (insertImpls(db)) {
-		beginInsertRows(createIndex(_installedTypes.indexOf(cn), 0), countTypeInstances(cn), countTypeInstances(cn));
+        QModelIndex parent = createIndex(_proxyTypes.indexOf(proxy), 0);
+        int row = countTypeInstances(proxy);
+        beginInsertRows(parent, row, row);
 		_idsByTypes[cn].append(db->_internalId);
+        _idsByProxyTypes[proxy].append(db->_internalId);
 		connect(db, &DataBlock::datablockChanged, this, &Project::projectDataChanged);
 		endInsertRows();
 		return db->_internalId;
@@ -327,19 +336,22 @@ bool Project::clearById(qint64 internalId) {
 	DataBlock* db = getById(internalId);
 	QString blockClass = db->metaObject()->className();
 
-	int ItemRow = _idsByTypes.value(blockClass).indexOf(internalId);
+    QString proxyClass = _dataBlocksFactory[blockClass]->proxyClassName();
+
+    int ItemRow = _idsByProxyTypes.value(proxyClass).indexOf(internalId);
 
 	if (ItemRow < 0) {
 		return false;
 	}
 
-	QModelIndex parentIndex = createIndex(_installedTypes.indexOf(blockClass), 0);
+    QModelIndex parentIndex = createIndex(_proxyTypes.indexOf(proxyClass), 0);
 
 	beginRemoveRows(parentIndex, ItemRow, ItemRow);
 
 	db->clear();
 	_itemCache.remove(internalId);
 	_idsByTypes[blockClass].remove(ItemRow);
+    _idsByProxyTypes[proxyClass].remove(ItemRow);
 	disconnect(db, &DataBlock::datablockChanged, this, &Project::projectDataChanged);
 	db->deleteLater();
 
@@ -361,6 +373,9 @@ bool Project::addType(DataBlockFactory* factory) {
 
 	if (_dataBlocksFactory.contains(factory->itemClassName())) {
 		_installedTypes.push_back(factory->itemClassName());
+        if (!_proxyTypes.contains(factory->proxyClassName())) {
+            _proxyTypes.push_back(factory->proxyClassName());
+        }
 		return true;
 	}
 
@@ -385,7 +400,7 @@ int Project::countTypeInstances(QString type) const {
 
 
 QModelIndex Project::indexOfClass(QString const& className) {
-	int row = _installedTypes.indexOf(className);
+    int row = _proxyTypes.indexOf(className);
 
 	if (row < 0) {
 		return QModelIndex();
@@ -395,11 +410,11 @@ QModelIndex Project::indexOfClass(QString const& className) {
 }
 
 QModelIndex Project::indexOfClassInstance(QString const& className, qint64 id) {
-	if (!_installedTypes.contains(className)) {
+    if (!_proxyTypes.contains(className)) {
 		return QModelIndex();
 	}
 
-	int row = _idsByTypes.value(className).indexOf(id);
+    int row = _idsByProxyTypes.value(className).indexOf(id);
 
 	if (row < 0) {
 		return QModelIndex();
@@ -412,20 +427,20 @@ QModelIndex Project::indexOfClassInstance(QString const& className, qint64 id) {
 QModelIndex Project::index(int row, int column, const QModelIndex &parent) const {
 
 	if (parent == QModelIndex()) { //root items
-		if (row < 0 or row >= _installedTypes.count()) {
+        if (row < 0 or row >= _proxyTypes.count()) {
 			return QModelIndex();
 		}
 		return createIndex(row, column);
 	}
 
 	//child items
-	if (parent.row() < 0 or parent.row() >= _installedTypes.count()) {
+    if (parent.row() < 0 or parent.row() >= _proxyTypes.count()) {
 		return QModelIndex();
 	}
-	if (row < 0 or row >= _idsByTypes[_installedTypes.at(parent.row())].count()) {
+    if (row < 0 or row >= _idsByProxyTypes[_proxyTypes.at(parent.row())].count()) {
 		return QModelIndex();
 	}
-	DataBlockFactory* factory = _dataBlocksFactory.value(_installedTypes.at(parent.row()));
+    DataBlockFactory* factory = _dataBlocksFactory.value(_proxyTypes.at(parent.row()));
 	return createIndex(row, column, factory);
 
 }
@@ -442,7 +457,7 @@ QModelIndex Project::parent(const QModelIndex &index) const {
 	while(i.hasNext()) {
 		i.next();
 		if (i.value() == factory) {
-			id = _installedTypes.indexOf(i.key());
+            id = _proxyTypes.indexOf(i.key());
 			break;
 		}
 	}
@@ -459,8 +474,8 @@ int Project::rowCount(const QModelIndex &parent) const {
 	}
 
 	if (parent.parent() == QModelIndex()) {
-		QString typeId = _installedTypes.at(parent.row());
-		return countTypeInstances(typeId);
+        QString typeId = _proxyTypes.at(parent.row());
+        return _idsByProxyTypes[typeId].size();
 	}
 
 	return 0;
@@ -476,27 +491,28 @@ QVariant Project::data(const QModelIndex &index, int role) const {
 
 	if (index.parent() == QModelIndex()) {
 
-		if (index.row() < 0 or index.row() >= _installedTypes.size()) {
+        if (index.row() < 0 or index.row() >= _proxyTypes.size()) {
 			return QVariant();
 		}
 
 		switch (role) {
 		case Qt::DisplayRole:
-			return _dataBlocksFactory.value(_installedTypes.at(index.row()))->TypeDescrName();
+            return _dataBlocksFactory.value(_proxyTypes.at(index.row()))->TypeDescrName();
 		case ClassRole:
-			return _dataBlocksFactory.value(_installedTypes.at(index.row()))->itemClassName();
+            return _dataBlocksFactory.value(_proxyTypes.at(index.row()))->itemClassName();
 		default:
 			return QVariant();
 		}
 
 	} else if (index.parent().parent() == QModelIndex()) {
-		QString type = _installedTypes.at(index.parent().row());
+        QString type = _proxyTypes.at(index.parent().row());
+        QVector<qint64> const& idxs = _idsByProxyTypes[type];
 
-		if (index.row() < 0 or index.row() >= countTypeInstances(type)) {
+        if (index.row() < 0 or index.row() >= idxs.size()) {
 			return QVariant();
 		}
 
-		DataBlock* datablock = getById(_idsByTypes.value(type).at(index.row()));
+        DataBlock* datablock = getById(idxs.at(index.row()));
 
 		switch (role) {
 		case Qt::DisplayRole:
@@ -507,7 +523,7 @@ QVariant Project::data(const QModelIndex &index, int role) const {
 		case ClassRole:
 			return datablock->metaObject()->className();
 		case IdRole:
-			return _idsByTypes.value(type).at(index.row());
+            return _idsByProxyTypes.value(type).at(index.row());
 		default:
 			return QVariant();
 		}
@@ -535,13 +551,13 @@ bool Project::setData(const QModelIndex &index, const QVariant &value, int role)
 	}
 
 	if (index.parent().parent() == QModelIndex()) {
-		QString type = _installedTypes.at(index.parent().row());
+        QString type = _proxyTypes.at(index.parent().row());
 
 		if (index.row() < 0 or index.row() >= countTypeInstances(type)) {
 			return false;
 		}
 
-		getById(_idsByTypes.value(type).at(index.row()))->setObjectName(value.toString());
+        getById(_idsByProxyTypes.value(type).at(index.row()))->setObjectName(value.toString());
 		emit dataChanged(index, index, {Qt::DisplayRole});
 	}
 
@@ -622,6 +638,7 @@ void Project::clearImpl() {
 	for (qint64 id : _itemCache.keys()) {
 		DataBlock* db = getById(id);
 		QString blockClass = db->metaObject()->className();
+        QString proxyClass = _dataBlocksFactory[blockClass]->proxyClassName();
 
 		int ItemRow = _idsByTypes.value(blockClass).indexOf(id);
 
@@ -629,9 +646,12 @@ void Project::clearImpl() {
 			continue;
 		}
 
+        int ProxyRow = _idsByProxyTypes.value(proxyClass).indexOf(id);
+
 		db->clear();
 		_itemCache.remove(id);
 		_idsByTypes[blockClass].remove(ItemRow);
+        _idsByProxyTypes[proxyClass].remove(ProxyRow);
 		db->deleteLater();
 	}
 
@@ -704,6 +724,10 @@ QString DataBlockFactory::itemClassName() const {
 	delete db;
 
 	return r;
+}
+
+QString DataBlockFactory::proxyClassName() const {
+    return itemClassName();
 }
 
 DataBlock::DataBlock(Project *parent) :
