@@ -474,8 +474,10 @@ void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized) 
         }
     }
 
+    constexpr bool subsample = true;
+
     StatusOptionalReturn<Trajectory::TimeTrajectorySequence> exportTraj = 
-        exportOptimized ? traj->optimizedTrajectory() : traj->loadTrajectorySequence();
+        exportOptimized ? traj->optimizedTrajectory(subsample) : traj->loadTrajectorySequence();
 
     StereoVision::Geometry::AffineTransform<double> local2ecef(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
 
