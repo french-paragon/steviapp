@@ -53,7 +53,7 @@ public:
     }
 
     template <int idx, typename ArgT, typename TupleT>
-    static inline auto insertArgInTuple(TupleT const& tuple, ArgT& val) {
+    static inline auto insertArgInTuple(TupleT const& tuple, ArgT const& val) {
 
         constexpr int tupleLen = std::tuple_size_v<TupleT>;
         static_assert (idx >= 0 and idx <= tupleLen, "invalid Idx");

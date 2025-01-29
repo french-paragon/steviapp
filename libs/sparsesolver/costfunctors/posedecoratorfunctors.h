@@ -10,6 +10,8 @@
 
 #include <type_traits>
 
+#include "../../utils/functional.h"
+
 namespace StereoVisionApp {
 
 /*!
@@ -39,13 +41,15 @@ enum PoseTransformDirection {
 /*!
  * \brief The AddLeverArm class represent a decorator for the functor type FunctorT, adding a lever arm parameter
  *
- * The FunctorT type is assumed to have an operator() const taking as first argument
+ * The FunctorT type is assumed to have an operator() const taking as argument
  * "const T* const r, const T* const t" the orientation and position parameters of a pose,
  * and then additional arguments.
- * AddLeverArm<FunctorT> then has an operator() const taking as first argument
- * "const T* const r, const T* const t, const T* const boresight, const T* const leverArm",
- * and then the same additional arguments. The lever arm is applied to the pose on the
- * fly and then the underlying functor is called.
+ * AddLeverArm<FunctorT> then has an operator() const taking as argument
+ * "const T* const r, const T* const t, const T* const boresight, const T* const leverArm"
+ * at the same position the pose is call in the original functor.
+ * The lever arm is applied to the pose on the fly and then the underlying functor is called.
+ *
+ * The poseParamGroupPos is the position of the pose arguments in the argument pack.
  *
  * The poseConfig indicate how the boresight has to be applied.
  *
@@ -55,7 +59,7 @@ enum PoseTransformDirection {
  * if poseConfig & BoresightInfoBit == Sensor2Body, then the boresight is assumed to represent the Sensor2Body transform.
  * if poseConfig & BoresightInfoBit == Body2Sensor, then the boresight is assumed to represent the Body2Sensor transform.
  */
-template<typename FunctorT, int poseConfig = Sensor2Body | Body2World>
+template<typename FunctorT, int poseConfig = Sensor2Body | Body2World, int poseParamGroupPos = 0>
 class LeverArm : private FunctorT
 {
 public:
@@ -67,13 +71,17 @@ public:
 
     }
 
-    template <typename T, typename ... P>
-    bool operator()(const T* const r,
-                    const T* const t,
-                    const T* const boresight,
-                    const T* const leverArm,
-                    P ... additionalParams) const {
+    template <typename ... P>
+    bool operator()(P ... params) const {
 
+        std::tuple<P...> args(params...);
+
+        using T = std::remove_const_t<
+        std::remove_pointer_t<
+        std::remove_reference_t<decltype (std::get<0>(args))>
+        >>;
+
+        static_assert (sizeof... (params) > poseParamGroupPos+4, "Wrong number of arguments provided");
         static_assert (((poseConfig & PoseInfoBit) == Body2World) or ((poseConfig & PoseInfoBit) == World2Body), "misconfigured DecoratorPoseConfiguration");
         static_assert (((poseConfig & BoresightInfoBit) == Sensor2Body) or ((poseConfig & BoresightInfoBit) == Body2Sensor), "misconfigured DecoratorPoseConfiguration");
 
@@ -82,8 +90,29 @@ public:
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
+        const T* const r = std::get<poseParamGroupPos>(args);
+        const T* const t = std::get<poseParamGroupPos+1>(args);
+
+        const T* const boresight = std::get<poseParamGroupPos+2>(args);
+        const T* const leverArm = std::get<poseParamGroupPos+3>(args);
+
         T processed_r[3];
         T processed_t[3];
+
+        //remove the old arguments and insert new arguments such that processed_r is
+        // at pos poseParamGroupPos and processed_t at pos poseParamGroupPos+1.
+        auto processedArgs =
+                CallFromTuple::insertArgInTuple<poseParamGroupPos, const T*>(
+                CallFromTuple::insertArgInTuple<poseParamGroupPos, const T*>(
+                CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                    CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                        CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                            CallFromTuple::removeArgFromTuple<poseParamGroupPos>(args)
+                            )
+                        )
+                    ), processed_t
+                    ), processed_r
+                );
 
         if ((poseConfig & PoseInfoBit) == Body2World) {
 
@@ -149,12 +178,16 @@ public:
 
         }
 
-        return FunctorT::template operator()<T>(processed_r, processed_t, additionalParams...);
+        auto variadic_lambda = [this] (auto... params) {
+            return FunctorT::operator()(params...);
+        };
+
+        return CallFromTuple::call(variadic_lambda, processedArgs);
     }
 
 };
 
-template<typename FunctorT, PoseTransformDirection poseTransformDirection = PoseTransformDirection::FinalToTarget>
+template<typename FunctorT, PoseTransformDirection poseTransformDirection = PoseTransformDirection::FinalToTarget, int poseParamGroupPos = 0>
 class PoseTransform : private FunctorT {
 
 public:
@@ -166,18 +199,38 @@ public:
 
     }
 
-    template <typename T, typename ... P>
-    bool operator()(const T* const r,
-                    const T* const t,
-                    P ... additionalParams) const {
+    template <typename ... P>
+    bool operator()(P ... params) const {
+
+        std::tuple<P...> args(params...);
+
+        using T = std::remove_const_t<
+        std::remove_pointer_t<
+        std::remove_reference_t<decltype (std::get<0>(args))>
+        >>;
 
         using M3T = Eigen::Matrix<T,3,3>;
 
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
+        const T* const r = std::get<poseParamGroupPos>(args);
+        const T* const t = std::get<poseParamGroupPos+1>(args);
+
         T processed_r[3];
         T processed_t[3];
+
+        //remove the old arguments and insert new arguments such that processed_r is
+        // at pos poseParamGroupPos and processed_t at pos poseParamGroupPos+1.
+        auto processedArgs =
+                CallFromTuple::insertArgInTuple<poseParamGroupPos, const T*>(
+                CallFromTuple::insertArgInTuple<poseParamGroupPos, const T*>(
+                CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                    CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                        args)
+                    ), processed_t
+                    ), processed_r
+                );
 
         StereoVision::Geometry::RigidBodyTransform<T> pose;
 
@@ -199,7 +252,11 @@ public:
             processed_t[i] = transformed.t[i];
         }
 
-        return FunctorT::template operator()<T>(processed_r, processed_t, additionalParams...);
+        auto variadic_lambda = [this] (auto... params) {
+            return FunctorT::operator()(params...);
+        };
+
+        return CallFromTuple::call(variadic_lambda, processedArgs);
 
     }
 
@@ -212,16 +269,18 @@ protected:
 /*!
  * \brief The InterpolatedPose class represent a decorator for the functor type FunctorT, interpolating between two poses.
  *
- * The FunctorT type is assumed to have an operator() const taking as first argument
+ * The FunctorT type is assumed to have an operator() const taking as argument
  * "const T* const r, const T* const t" the orientation and position parameters of a pose,
  * and then additional arguments.
- * InterpolatedPose<FunctorT> then has an operator() const taking as first argument
+ * InterpolatedPose<FunctorT> then has an operator() const taking as argument
  * "const T* const r1, const T* const t1, const T* const r2, const T* const t2",
  * and then the same additional arguments. The pose passed to the underlying functor is
  * interpolated from r1,t1 and r2,t2 using wheights w1 and w2 passed to the constructor.
  * Interpolation is done on the SO(3) manifold.
+ *
+ * The poseParamGroupPos is the position of the pose arguments in the argument pack.
  */
-template<typename FunctorT>
+template<typename FunctorT, int poseParamGroupPos = 0>
 class InterpolatedPose : private FunctorT
 {
 public:
@@ -235,17 +294,26 @@ public:
 
     }
 
-    template <typename T, typename ... P>
-    bool operator()(const T* const r1,
-                    const T* const t1,
-                    const T* const r2,
-                    const T* const t2,
-                    P ... additionalParams) const {
+    template <typename ... P>
+    bool operator()(P ... params) const {
+
+        std::tuple<P...> args(params...);
+
+        using T = std::remove_const_t<
+        std::remove_pointer_t<
+        std::remove_reference_t<decltype (std::get<0>(args))>
+        >>;
 
         using M3T = Eigen::Matrix<T,3,3>;
 
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
+
+        const T* const r1 = std::get<poseParamGroupPos>(args);
+        const T* const t1 = std::get<poseParamGroupPos+1>(args);
+
+        const T* const r2 = std::get<poseParamGroupPos+2>(args);
+        const T* const t2 = std::get<poseParamGroupPos+3>(args);
 
         V3T rot1;
         rot1 << r1[0], r1[1], r1[2];
@@ -265,12 +333,31 @@ public:
         T processed_r[3];
         T processed_t[3];
 
+        //remove the old arguments and insert new arguments such that processed_r is
+        // at pos leverArmParamGroupPos and processed_t at pos leverArmParamGroupPos+1.
+        auto processedArgs =
+                CallFromTuple::insertArgInTuple<poseParamGroupPos, const T*>(
+                CallFromTuple::insertArgInTuple<poseParamGroupPos, const T*>(
+                CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                    CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                        CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                            CallFromTuple::removeArgFromTuple<poseParamGroupPos>(args)
+                            )
+                        )
+                    ), processed_t
+                    ), processed_r
+                );
+
         for (int i = 0; i < 3; i++) {
             processed_r[i] = interpolated.r[i];
             processed_t[i] = interpolated.t[i];
         }
 
-        return FunctorT::template operator()<T>(processed_r, processed_t, additionalParams...);
+        auto variadic_lambda = [this] (auto... params) {
+            return FunctorT::operator()(params...);
+        };
+
+        return CallFromTuple::call(variadic_lambda, processedArgs);
 
     }
 
@@ -284,16 +371,18 @@ protected:
 /*!
  * \brief The InvertPose class represent a decorator for the functor type FunctorT, inverting the input pose.
  *
- * The FunctorT type is assumed to have an operator() const taking as first argument
+ * The FunctorT type is assumed to have an operator() const taking as argument
  * "const T* const r, const T* const t" the orientation and position parameters of a pose,
  * and then additional arguments.
- * InterpolatedPose<FunctorT> then has an operator() const takingthe same arguments
+ * InterpolatedPose<FunctorT> then has an operator() const taking the same arguments
  * as FunctorT. The pose passed to the underlying functor is
  * the inverted posed passed as input to InterpolatedPose<FunctorT>.
  * So if you have a functor taking as input world2body but your parameters are
  * expressed as body2world, then this decorator can perform the conversion on the fly.
+ *
+ * The poseParamGroupPos is the position of the pose arguments in the argument pack.
  */
-template<typename FunctorT>
+template<typename FunctorT, int poseParamGroupPos = 0>
 class InvertPose : private FunctorT
 {
 public:
@@ -305,15 +394,23 @@ public:
 
     }
 
-    template <typename T, typename ... P>
-    bool operator()(const T* const r,
-                    const T* const t,
-                    P ... additionalParams) const {
+    template <typename ... P>
+    bool operator()(P ... params) const {
+
+        std::tuple<P...> args(params...);
+
+        using T = std::remove_const_t<
+        std::remove_pointer_t<
+        std::remove_reference_t<decltype (std::get<0>(args))>
+        >>;
 
         using M3T = Eigen::Matrix<T,3,3>;
 
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
+
+        const T* const r = std::get<poseParamGroupPos>(args);
+        const T* const t = std::get<poseParamGroupPos+1>(args);
 
         V3T rot;
         rot << r[0], r[1], r[2];
@@ -326,12 +423,28 @@ public:
         T processed_r[3];
         T processed_t[3];
 
+        //remove the old arguments and insert new arguments such that processed_r is
+        // at pos poseParamGroupPos and processed_t at pos poseParamGroupPos+1.
+        auto processedArgs =
+                CallFromTuple::insertArgInTuple<poseParamGroupPos, const T*>(
+                CallFromTuple::insertArgInTuple<poseParamGroupPos, const T*>(
+                CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                    CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
+                        args)
+                    ), processed_t
+                    ), processed_r
+                );
+
         for (int i = 0; i < 3; i++) {
             processed_r[i] = inverted.r[i];
             processed_t[i] = inverted.t[i];
         }
 
-        return FunctorT::template operator()<T>(processed_r, processed_t, additionalParams...);
+        auto variadic_lambda = [this] (auto... params) {
+            return FunctorT::operator()(params...);
+        };
+
+        return CallFromTuple::call(variadic_lambda, processedArgs);
 
     }
 

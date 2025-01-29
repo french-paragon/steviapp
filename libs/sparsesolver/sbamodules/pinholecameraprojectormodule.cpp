@@ -49,10 +49,10 @@ protected:
 
 namespace StereoVisionApp {
 
-using UVCost = InvertPose<UV2ParametrizedXYZCost<PinholePushbroomUVProjector,1,1,6,6>>;
-using LeverArmCost = LeverArm<UVCost,Body2World|Body2Sensor>;
-using PoseTransformCost = PoseTransform<UVCost,PoseTransformDirection::SourceToInitial>;
-using PoseTransformLeverArmCost = PoseTransform<LeverArmCost,PoseTransformDirection::SourceToInitial>;
+using UVCost = InvertPose<UV2ParametrizedXYZCost<PinholePushbroomUVProjector,1,1,6,6>,0>;
+using LeverArmCost = LeverArm<UVCost,Body2World|Body2Sensor,0>;
+using PoseTransformCost = PoseTransform<UVCost,PoseTransformDirection::SourceToInitial,0>;
+using PoseTransformLeverArmCost = PoseTransform<LeverArmCost,PoseTransformDirection::SourceToInitial,0>;
 
 
 PinholePushBroomCamProjectorModule::PinholePushBroomCamProjectorModule(PushBroomPinholeCamera* associatedCamera) :
