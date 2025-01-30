@@ -823,42 +823,6 @@ void PushBroomPinholeCamera::extendDataModel() {
             PushBroomPinholeCamera,
             true,
             ItemDataModel::ItemPropertyDescription::PassByValueSignal>
-            (tr("b2"),
-             &PushBroomPinholeCamera::optimizedB2,
-             nullptr,
-             &PushBroomPinholeCamera::optimizedB2Changed);
-
-    oip->addCatProperty<floatParameter,
-            PushBroomPinholeCamera,
-            true,
-            ItemDataModel::ItemPropertyDescription::PassByValueSignal>
-            (tr("b3"),
-             &PushBroomPinholeCamera::optimizedB3,
-             nullptr,
-             &PushBroomPinholeCamera::optimizedB3Changed);
-
-    oip->addCatProperty<floatParameter,
-            PushBroomPinholeCamera,
-            true,
-            ItemDataModel::ItemPropertyDescription::PassByValueSignal>
-            (tr("b4"),
-             &PushBroomPinholeCamera::optimizedB4,
-             nullptr,
-             &PushBroomPinholeCamera::optimizedB4Changed);
-
-    oip->addCatProperty<floatParameter,
-            PushBroomPinholeCamera,
-            true,
-            ItemDataModel::ItemPropertyDescription::PassByValueSignal>
-            (tr("b5"),
-             &PushBroomPinholeCamera::optimizedB5,
-             nullptr,
-             &PushBroomPinholeCamera::optimizedB5Changed);
-
-    oip->addCatProperty<floatParameter,
-            PushBroomPinholeCamera,
-            true,
-            ItemDataModel::ItemPropertyDescription::PassByValueSignal>
             (tr("b1"),
              &PushBroomPinholeCamera::optimizedB1,
              nullptr,
