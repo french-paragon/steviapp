@@ -20,6 +20,10 @@ LocalCoordinateSystemSBAModule::LocalCoordinateSystemSBAModule()
 
 }
 
+QString LocalCoordinateSystemSBAModule::moduleName() const {
+    return QObject::tr("LocalCoordinateSystem SBA Module");
+}
+
 bool LocalCoordinateSystemSBAModule::addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
 
     if (currentProject == nullptr) {

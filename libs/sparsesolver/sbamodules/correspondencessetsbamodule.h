@@ -20,6 +20,8 @@ public:
 
     CorrespondencesSetSBAModule();
 
+    virtual QString moduleName() const override;
+
     virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
     virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) override;
 

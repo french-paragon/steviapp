@@ -518,6 +518,8 @@ bool ModularSBASolver::itemIsObservable(qint64 itemId) const {
 
 bool ModularSBASolver::init() {
 
+    QTextStream out(stdout);
+
     if (_currentProject == nullptr) {
         return false;
     }
@@ -538,6 +540,9 @@ bool ModularSBASolver::init() {
     bool ok = true;
 
     for (SBAModule* module : _modules) {
+
+        out << "\r" << "Preparing graph reduction variables for module: " << module->moduleName() << " " << Qt::flush;
+
         ok = module->addGraphReductorVariables(_currentProject, &_observabilityGraph);
 
         if (!ok) {
@@ -546,16 +551,22 @@ bool ModularSBASolver::init() {
     }
 
     for (SBAModule* module : _modules) {
+
+        out << "\r" << "Preparing graph reduction observations for module: " << module->moduleName() << " " << Qt::flush;
+
         ok = module->addGraphReductorObservations(_currentProject, &_observabilityGraph);
 
         if (!ok) {
             return false;
         }
     }
+    out << "\n" << "Reducing observation graph" << Qt::endl;
 
     _observabilityGraph.reduceGraph();
 
     for (SBAModule* module : _modules) {
+
+        out << "\r" << "Setup parameters for module: " << module->moduleName() << " " << Qt::flush;
         ok = module->setupParameters(this);
 
         if (!ok) {
@@ -580,12 +591,16 @@ bool ModularSBASolver::init() {
 
     //setup the sba modules
     for (SBAModule* module : _modules) {
+
+        out << "\r" << "Init module: " << module->moduleName() << " " << Qt::flush;
         ok = module->init(this, _problem);
 
         if (!ok) {
             return false;
         }
     }
+
+    out << "\n";
 
     logDatas("after_init.log");
     _not_first_step = false;

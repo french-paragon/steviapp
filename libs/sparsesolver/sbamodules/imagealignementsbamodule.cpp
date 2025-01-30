@@ -19,6 +19,10 @@ ImageAlignementSBAModule::ImageAlignementSBAModule()
 
 }
 
+QString ImageAlignementSBAModule::moduleName() const {
+    return QObject::tr("Image alignement SBA module");
+}
+
 bool ImageAlignementSBAModule::addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
 
     if (currentProject == nullptr) {

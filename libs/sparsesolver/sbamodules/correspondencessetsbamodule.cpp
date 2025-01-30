@@ -20,6 +20,10 @@ CorrespondencesSetSBAModule::CorrespondencesSetSBAModule()
 
 }
 
+QString CorrespondencesSetSBAModule::moduleName() const {
+    return QObject::tr("Correspondences Set SBA Module");
+}
+
 bool CorrespondencesSetSBAModule::addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
 
     Q_UNUSED(currentProject);

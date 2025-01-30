@@ -45,6 +45,8 @@ public:
         SBAModule();
         virtual ~SBAModule();
 
+        virtual QString moduleName() const = 0;
+
         virtual bool addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) = 0;
         virtual bool addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) = 0;
 

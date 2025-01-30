@@ -30,6 +30,10 @@ TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double defaultIntegrationTime) 
     _accelerometersScales = std::vector<std::array<double,1>>();
 }
 
+QString TrajectoryBaseSBAModule::moduleName() const {
+    return QObject::tr("Trajectory Base SBA Module");
+}
+
 bool TrajectoryBaseSBAModule::addGraphReductorVariables(Project* currentProject, GenericSBAGraphReductor* graphReductor) {
 
     if (currentProject == nullptr) {

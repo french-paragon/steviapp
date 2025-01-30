@@ -13,6 +13,10 @@ LandmarksSBAModule::LandmarksSBAModule()
 
 }
 
+QString LandmarksSBAModule::moduleName() const {
+    return QObject::tr("Landmarks SBA Module");
+}
+
 bool LandmarksSBAModule::addGraphReductorVariables(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
 
     if (currentProject == nullptr) {
