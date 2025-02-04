@@ -10,7 +10,7 @@
 
 #include "gui/sparsealignementeditor.h"
 #include "gui/trajectorysequencevieweditor.h"
-#include "gui/trajectoryoptanalysiseditor.h"
+#include "gui/trajectorycomparisoneditor.h"
 #include "gui/trajectoryalignementanalysiseditor.h"
 
 #include "gui/openGlDrawables/opengldrawabletrajectory.h"
@@ -142,9 +142,9 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
 
             MainWindow* mw = MainWindow::getActiveMainWindow();
 
-            Editor* editor = mw->openEditor(TrajectoryOptAnalysisEditor::staticMetaObject.className());
+            Editor* editor = mw->openEditor(TrajectoryComparisonEditor::staticMetaObject.className());
 
-            TrajectoryOptAnalysisEditor* toae = qobject_cast<TrajectoryOptAnalysisEditor*>(editor);
+            TrajectoryComparisonEditor* toae = qobject_cast<TrajectoryComparisonEditor*>(editor);
 
             if (toae == nullptr) {
                 return;
@@ -174,6 +174,50 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
     actions.append(analyzeTrajectoryAlignmentAction);
 
     return actions;
+}
+
+QList<QAction*> TrajectoryActionManager::factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const {
+
+    QVector<Trajectory*> trajs;
+    QVector<qint64> trajIds;
+    trajs.reserve(projectIndex.count());
+    trajIds.reserve(projectIndex.count());
+
+    for (QModelIndex const& id : projectIndex) {
+        qint64 trajid = p->data(id, Project::IdRole).toInt();
+        Trajectory* traj = qobject_cast<Trajectory*>(p->getById(trajid));
+
+        if (traj != nullptr) {
+            trajs.push_back(traj);
+            trajIds.push_back(trajid);
+        }
+    }
+
+    QList<QAction*> lst;
+
+    if (trajs.size() == 2) {
+
+        QAction* compareTrajectories = new QAction(tr("Compare trajectories"), parent);
+        connect(compareTrajectories, &QAction::triggered, trajs[0], [trajs] () {
+
+            MainWindow* mw = MainWindow::getActiveMainWindow();
+
+            Editor* editor = mw->openEditor(TrajectoryComparisonEditor::staticMetaObject.className());
+
+            TrajectoryComparisonEditor* toae = qobject_cast<TrajectoryComparisonEditor*>(editor);
+
+            if (toae == nullptr) {
+                return;
+            }
+
+            toae->setTrajectories(trajs[0], trajs[1]);
+
+        });
+        lst.append(compareTrajectories);
+
+    }
+
+    return lst;
 }
 
 QString TrajectoryActionManager::ActionManagerClassName() const {

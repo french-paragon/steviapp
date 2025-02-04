@@ -13,19 +13,23 @@ namespace StereoVisionApp {
 
 class Trajectory;
 
-class TrajectoryOptAnalysisEditor: public Editor
+class TrajectoryComparisonEditor: public Editor
 {
     Q_OBJECT
 public:
-    TrajectoryOptAnalysisEditor(QWidget *parent = nullptr);
+    TrajectoryComparisonEditor(QWidget *parent = nullptr);
 
     void setTrajectory(Trajectory* trj);
+
+    void setTrajectories(Trajectory* trj1, Trajectory* trj2, bool compareOptimized = false);
 
 protected:
 
     void reconfigurePlots();
 
     Trajectory* _trajectory;
+    Trajectory* _trajectory2;
+    bool _useOptimizedInMulti;
 
     QCustomPlot* _absolutePositionPlot;
     QCustomPlot* _positionDeltasPlot;
@@ -36,11 +40,11 @@ protected:
 };
 
 
-class TrajectoryOptAnalysisEditorFactory : public EditorFactory
+class TrajectoryComparisonEditorFactory : public EditorFactory
 {
     Q_OBJECT
 public:
-    explicit TrajectoryOptAnalysisEditorFactory(QObject *parent = nullptr);
+    explicit TrajectoryComparisonEditorFactory(QObject *parent = nullptr);
 
 
     virtual QString TypeDescrName() const;

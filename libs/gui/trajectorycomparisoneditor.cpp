@@ -1,4 +1,4 @@
-#include "trajectoryoptanalysiseditor.h"
+#include "trajectorycomparisoneditor.h"
 
 #define QCUSTOMPLOT_USE_LIBRARY
 #include "qcustomplot/qcustomplot.h"
@@ -10,7 +10,7 @@
 
 namespace StereoVisionApp {
 
-TrajectoryOptAnalysisEditor::TrajectoryOptAnalysisEditor(QWidget *parent) :
+TrajectoryComparisonEditor::TrajectoryComparisonEditor(QWidget *parent) :
     Editor(parent),
     _trajectory(nullptr)
 {
@@ -68,50 +68,137 @@ TrajectoryOptAnalysisEditor::TrajectoryOptAnalysisEditor(QWidget *parent) :
 
 }
 
-void TrajectoryOptAnalysisEditor::setTrajectory(Trajectory* trj) {
-    if (trj != _trajectory) {
+void TrajectoryComparisonEditor::setTrajectory(Trajectory* trj) {
+
+    if (trj != _trajectory or _trajectory2 != nullptr) {
 
         if (_trajectory != nullptr) {
             disconnect(_trajectory, nullptr, this, nullptr); //disconnect all;
         }
 
+        if (_trajectory2 != nullptr) {
+            disconnect(_trajectory2, nullptr, this, nullptr); //disconnect all;
+        }
+
         _trajectory = trj;
+        _trajectory2 = nullptr;
         reconfigurePlots();
 
-        connect(_trajectory, &Trajectory::trajectoryDataChanged,
-                this, &TrajectoryOptAnalysisEditor::reconfigurePlots);
-        connect(_trajectory, &Trajectory::optimizedTrajectoryDataChanged,
-                this, &TrajectoryOptAnalysisEditor::reconfigurePlots);
+        if (_trajectory != nullptr) {
+            connect(_trajectory, &Trajectory::trajectoryDataChanged,
+                    this, &TrajectoryComparisonEditor::reconfigurePlots);
+            connect(_trajectory, &Trajectory::optimizedTrajectoryDataChanged,
+                    this, &TrajectoryComparisonEditor::reconfigurePlots);
+        }
     }
 }
 
-void TrajectoryOptAnalysisEditor::reconfigurePlots() {
+void TrajectoryComparisonEditor::setTrajectories(Trajectory* trj1, Trajectory* trj2, bool compareOptimized) {
+
+    if (trj1 != _trajectory or trj2 != _trajectory2) {
+
+        if (_trajectory != nullptr) {
+            disconnect(_trajectory, nullptr, this, nullptr); //disconnect all;
+        }
+
+        if (_trajectory2 != nullptr) {
+            disconnect(_trajectory2, nullptr, this, nullptr); //disconnect all;
+        }
+
+        _trajectory = trj1;
+        _trajectory2 = trj2;
+        reconfigurePlots();
+
+        if (_trajectory != nullptr) {
+            connect(_trajectory, &Trajectory::trajectoryDataChanged,
+                    this, &TrajectoryComparisonEditor::reconfigurePlots);
+            connect(_trajectory, &Trajectory::optimizedTrajectoryDataChanged,
+                    this, &TrajectoryComparisonEditor::reconfigurePlots);
+        }
+
+        if (_trajectory2 != nullptr) {
+            connect(_trajectory2, &Trajectory::trajectoryDataChanged,
+                    this, &TrajectoryComparisonEditor::reconfigurePlots);
+            connect(_trajectory2, &Trajectory::optimizedTrajectoryDataChanged,
+                    this, &TrajectoryComparisonEditor::reconfigurePlots);
+        }
+    }
+
+    _useOptimizedInMulti = compareOptimized;
+
+}
+
+void TrajectoryComparisonEditor::reconfigurePlots() {
 
     Trajectory::TimeTrajectorySequence traj;
-    Trajectory::TimeTrajectorySequence optTraj;
+    Trajectory::TimeTrajectorySequence compTraj;
 
     bool valid_trajectory = true;
+
     if (_trajectory == nullptr) {
         valid_trajectory = false;
     } else {
 
-        StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
-
-        if (!trajOptional.isValid()) {
-            valid_trajectory = false;
-        } else {
-            traj = trajOptional.value();
-        }
-
         constexpr bool resample = true;
 
-        StatusOptionalReturn<Trajectory::TimeTrajectorySequence> optTrajOptional = _trajectory->optimizedTrajectory(resample);
+        if (_trajectory2 != nullptr) {
 
-       if (!optTrajOptional.isValid()) {
-           valid_trajectory = false;
-       } else {
-           optTraj = optTrajOptional.value();
-       }
+            if (_useOptimizedInMulti) {
+
+                StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional = _trajectory->optimizedTrajectory(resample);
+
+                if (!trajOptional.isValid()) {
+                    valid_trajectory = false;
+                } else {
+                    traj = std::move(trajOptional.value());
+                }
+
+                StatusOptionalReturn<Trajectory::TimeTrajectorySequence> CompOptional = _trajectory2->optimizedTrajectory(resample);
+
+                if (!CompOptional.isValid()) {
+                    valid_trajectory = false;
+                } else {
+                    compTraj = std::move(CompOptional.value());
+                }
+
+            } else {
+
+                StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
+
+                if (!trajOptional.isValid()) {
+                    valid_trajectory = false;
+                } else {
+                    traj = std::move(trajOptional.value());
+                }
+
+                StatusOptionalReturn<Trajectory::TimeTrajectorySequence> CompOptional = _trajectory2->loadTrajectoryProjectLocalFrameSequence();
+
+                if (!CompOptional.isValid()) {
+                    valid_trajectory = false;
+                } else {
+                    compTraj = std::move(CompOptional.value());
+                }
+
+            }
+
+        } else {
+
+            StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
+
+            if (!trajOptional.isValid()) {
+                valid_trajectory = false;
+            } else {
+                traj = std::move(trajOptional.value());
+            }
+
+            StatusOptionalReturn<Trajectory::TimeTrajectorySequence> CompOptional = _trajectory->optimizedTrajectory(resample);
+
+            if (!CompOptional.isValid()) {
+                valid_trajectory = false;
+            } else {
+                compTraj = std::move(CompOptional.value());
+            }
+        }
     }
 
     if (!valid_trajectory) {
@@ -133,7 +220,7 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
 
     constexpr int maxSamples = 10000;
 
-    int nSamples = std::min(optTraj.nPoints(), maxSamples);
+    int nSamples = std::min(compTraj.nPoints(), maxSamples);
 
     QVector<double> times(nSamples);
 
@@ -145,8 +232,8 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
     QVector<double> rotYerrors(nSamples);
     QVector<double> rotZerrors(nSamples);
 
-    double minTime = optTraj[0].time;
-    double maxTime = optTraj[optTraj.nPoints()-1].time;
+    double minTime = compTraj[0].time;
+    double maxTime = compTraj[compTraj.nPoints()-1].time;
 
     double maxAbsPosError = 0;
     double maxAbsRotError = 0;
@@ -163,7 +250,7 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
                 StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
                     interpTraj.weigthLower, interpTraj.valLower, interpTraj.weigthUpper, interpTraj.valUpper);
 
-        auto interpOptTraj = optTraj.getValueAtTime(time);
+        auto interpOptTraj = compTraj.getValueAtTime(time);
 
         StereoVision::Geometry::RigidBodyTransform<double> opt =
                 StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
@@ -223,23 +310,23 @@ void TrajectoryOptAnalysisEditor::reconfigurePlots() {
 
 }
 
-TrajectoryOptAnalysisEditorFactory::TrajectoryOptAnalysisEditorFactory(QObject *parent) :
+TrajectoryComparisonEditorFactory::TrajectoryComparisonEditorFactory(QObject *parent) :
     EditorFactory(parent)
 {
 
 }
 
 
-QString TrajectoryOptAnalysisEditorFactory::TypeDescrName() const {
+QString TrajectoryComparisonEditorFactory::TypeDescrName() const {
     return tr("Optimized trajectory analyzer");
 }
 
-QString TrajectoryOptAnalysisEditorFactory::itemClassName() const {
-    return TrajectoryOptAnalysisEditor::staticMetaObject.className();
+QString TrajectoryComparisonEditorFactory::itemClassName() const {
+    return TrajectoryComparisonEditor::staticMetaObject.className();
 }
 
-Editor* TrajectoryOptAnalysisEditorFactory::factorizeEditor(QWidget* parent) const {
-    return new TrajectoryOptAnalysisEditor(parent);
+Editor* TrajectoryComparisonEditorFactory::factorizeEditor(QWidget* parent) const {
+    return new TrajectoryComparisonEditor(parent);
 }
 
 } // namespace StereoVisionApp
