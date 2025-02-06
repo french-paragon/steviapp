@@ -22,7 +22,7 @@ public:
 	virtual QString itemClassName() const = 0;
 
 	virtual QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const;
-	virtual QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* p) const;
+    virtual QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* block) const;
 	virtual QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const;
 
 signals:

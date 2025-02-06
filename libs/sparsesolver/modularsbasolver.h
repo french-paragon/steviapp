@@ -370,6 +370,18 @@ public:
     PoseNode* getNodeForLocalCoordinates(qint64 lcsId, bool createIfMissing);
 
     /*!
+     * \brief getNodeForMounting access the node for a give mounting set and create it if necessary
+     * \param mountingId the mounting id
+     * \param createIfMissing create the node if it does not exist yet
+     * \return the mounting node
+     *
+     * This function will create the node if it does not exist,
+     * set the node constant if the pose of the mounting is fixed
+     * as well as create the required prior if the pose has a prior.
+     */
+    PoseNode* getNodeForMounting(qint64 mountingId, bool createIfMissing);
+
+    /*!
      * \brief getNodeForATrajectory access the node for a trajectory and create the node if necessary
      * \param trajId the id of the trajectory
      * \param createIfMissing create the node if it does not exist yet

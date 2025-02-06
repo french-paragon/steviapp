@@ -27,6 +27,7 @@ set(LIB_SRC
         cameracalibrationactions.cpp
         localcoordinatesystembaseactionmanager.cpp
         localcoordinatesystemactions.cpp
+        mountingactionsmanager.cpp
         fixedstereosequenceactions.cpp
         fixedstereosequenceactionmanager.cpp
         trajectoryactions.cpp
@@ -61,6 +62,7 @@ set(LIB_HEADERS
     cameracalibrationactions.h
     localcoordinatesystembaseactionmanager.h
     localcoordinatesystemactions.h
+    mountingactionsmanager.h
     fixedstereosequenceactions.h
     fixedstereosequenceactionmanager.h
     trajectoryactions.h

@@ -7,6 +7,7 @@
 #include <datablocks/image.h>
 #include <datablocks/camera.h>
 #include <datablocks/localcoordinatesystem.h>
+#include <datablocks/mounting.h>
 #include <datablocks/trajectory.h>
 #include <datablocks/datatable.h>
 
@@ -350,6 +351,71 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForLocalCoordinates(qint64 
 
 }
 
+
+ModularSBASolver::PoseNode* ModularSBASolver::getNodeForMounting(qint64 mountingId, bool createIfMissing) {
+
+    if (_currentProject == nullptr) {
+        return nullptr;
+    }
+
+    if (_poseParametersIndex.contains(mountingId)) {
+        return &_poseParameters[_poseParametersIndex[mountingId]];
+    }
+
+    if (!createIfMissing) {
+        return nullptr;
+    }
+
+    Mounting* mounting = _currentProject->getDataBlock<Mounting>(mountingId);
+
+    if (mounting == nullptr) {
+        return nullptr;
+    }
+
+    int idx = _poseParameters.size();
+    _poseParameters.emplace_back();
+    _poseParametersIndex[mountingId] = idx;
+
+    PoseNode& node = _poseParameters[idx];
+
+    _poseParameters[idx].datablockId = mounting->internalId();
+
+    node.rAxis[0] = mounting->optRot().value(0);
+    node.rAxis[1] = mounting->optRot().value(1);
+    node.rAxis[2] = mounting->optRot().value(2);
+
+    node.t[0] = mounting->optPos().value(0);
+    node.t[1] = mounting->optPos().value(1);
+    node.t[2] = mounting->optPos().value(2);
+
+    std::array<double, 3> raxis_prior;
+    std::array<double, 3> t_prior;
+
+    //TODO: check if the use of axis angle representation here is consistent.
+    if (mounting->xRot().isSet() and mounting->yRot().isSet() and mounting->zRot().isSet()) {
+        raxis_prior[0] = mounting->xRot().value();
+        raxis_prior[1] = mounting->yRot().value();
+        raxis_prior[2] = mounting->zRot().value();
+    }
+
+    if (mounting->xCoord().isSet() and mounting->yCoord().isSet() and mounting->zCoord().isSet()) {
+        t_prior[0] = mounting->xCoord().value();
+        t_prior[1] = mounting->yCoord().value();
+        t_prior[2] = mounting->zCoord().value();
+    }
+
+    if (mounting->isFixed()) {
+
+        node.rAxis = raxis_prior;
+        node.t = t_prior;
+    }
+
+    node.trajectoryId = std::nullopt;
+
+    return &_poseParameters[idx];
+
+}
+
 ModularSBASolver::TrajectoryNode* ModularSBASolver::getNodeForTrajectory(qint64 trajId, bool createIfMissing) {
 
     if (_currentProject == nullptr) {
@@ -529,6 +595,7 @@ bool ModularSBASolver::init() {
     _pointsParameters.reserve(_currentProject->countTypeInstances(Landmark::staticMetaObject.className()));
     int nPoses = _currentProject->countTypeInstances(Image::staticMetaObject.className());
     nPoses += _currentProject->countTypeInstances(LocalCoordinateSystem::staticMetaObject.className());
+    nPoses += _currentProject->countTypeInstances(Mounting::staticMetaObject.className());
     _poseParameters.reserve(nPoses);
     _trajectoryParameters.reserve(_currentProject->countTypeInstances(Trajectory::staticMetaObject.className()));
     _leverArmParameters.reserve(_trajectoryParameters.size()*_currentProject->countTypeInstances(Camera::staticMetaObject.className()));

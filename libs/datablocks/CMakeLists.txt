@@ -18,6 +18,7 @@ set(LIB_SRC floatparameter.cpp
             landmarkscollection.cpp
             cameracalibration.cpp
             localcoordinatesystem.cpp
+            mounting.cpp
             exportablestereosequence.cpp
             fixedstereopluscolorsequence.cpp
             fixedcolorstereosequence.cpp
@@ -48,6 +49,7 @@ set(LIB_HEADERS
     landmarkscollection.h
     cameracalibration.h
     localcoordinatesystem.h
+    mounting.h
     exportablestereosequence.h
     fixedstereopluscolorsequence.h
     fixedcolorstereosequence.h

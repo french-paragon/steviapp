@@ -30,10 +30,25 @@ QList<QAction*> DatablockActionManager::factorizeClassContextActions(QObject* pa
 	connect(add, &QAction::triggered, [p, cName] () { p->createDataBlock(cName.toStdString().c_str()); });
 	return {add};
 }
-QList<QAction*> DatablockActionManager::factorizeItemContextActions(QObject* parent, DataBlock* p) const {
-	Q_UNUSED(parent);
-	Q_UNUSED(p);
-	return {};
+QList<QAction*> DatablockActionManager::factorizeItemContextActions(QObject* parent, DataBlock* block) const {
+
+    if (block == nullptr) {
+        return {};
+    }
+
+    QList<QAction*> lst;
+
+    QAction* remove = new QAction(tr("Remove"), parent);
+    connect(remove, &QAction::triggered, [block] () {
+        Project* p = block->getProject();
+
+        if (p != nullptr) {
+            p->clearById(block->internalId());
+        }
+    });
+    lst.append(remove);
+
+    return lst;
 }
 QList<QAction*> DatablockActionManager::factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const {
 

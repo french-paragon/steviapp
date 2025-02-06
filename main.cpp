@@ -22,6 +22,7 @@
 #include "datablocks/distanceconstrain.h"
 #include "datablocks/cameracalibration.h"
 #include "datablocks/localcoordinatesystem.h"
+#include "datablocks/mounting.h"
 #include "datablocks/fixedcolorstereosequence.h"
 #include "datablocks/fixedstereopluscolorsequence.h"
 
@@ -55,6 +56,7 @@
 #include "control/distanceconstrainactionmanager.h"
 #include "control/cameracalibrationactionmanager.h"
 #include "control/localcoordinatesystembaseactionmanager.h"
+#include "control/mountingactionsmanager.h"
 #include "control/fixedstereosequenceactionmanager.h"
 #include "control/trajectoryactionmanager.h"
 #include "control/correspondencessetactionsmanager.h"
@@ -64,6 +66,7 @@
 #include "sparsesolver/sbamodules/landmarkssbamodule.h"
 #include "sparsesolver/sbamodules/imagealignementsbamodule.h"
 #include "sparsesolver/sbamodules/localcoordinatesystemsbamodule.h"
+#include "sparsesolver/sbamodules/mountingssbamodule.h"
 #include "sparsesolver/sbamodules/correspondencessetsbamodule.h"
 
 #include <QDebug>
@@ -120,6 +123,7 @@ int main(int argc, char *argv[])
     StereoVisionApp::LandmarksSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
     StereoVisionApp::ImageAlignementSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
     StereoVisionApp::LocalCoordinateSystemSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
+    StereoVisionApp::MountingsSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
     StereoVisionApp::CorrespondencesSetSBAModule::registerDefaultModuleFactory(sbasolvermodulesinterface);
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
@@ -134,6 +138,7 @@ int main(int argc, char *argv[])
     pF.addType(new StereoVisionApp::CorrespondencesSetFactory(&a));
     pF.addType(new StereoVisionApp::StereoRigFactory(&a));
     pF.addType(new StereoVisionApp::LocalCoordinateSystemFactory(&a));
+    pF.addType(new StereoVisionApp::MountingFactory(&a));
     pF.addType(new StereoVisionApp::AngleConstrainFactory(&a));
     pF.addType(new StereoVisionApp::DistanceConstrainFactory(&a));
     pF.addType(new StereoVisionApp::CameraCalibrationFactory(&a));
@@ -149,6 +154,7 @@ int main(int argc, char *argv[])
     aml.registerDatablockActionManager(new StereoVisionApp::PushBroomCameraActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::StereoRigActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::LocalCoordinateSystemBaseActionManager(&pF));
+    aml.registerDatablockActionManager(new StereoVisionApp::MountingActionsManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::AngleConstrainActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::DistanceConstrainActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::CameraCalibrationActionManager(&pF));
