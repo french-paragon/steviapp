@@ -16,6 +16,10 @@
 
 #include "vision/trajectoryImuPreIntegration.h"
 
+#include "geo/localframes.h"
+
+#include <proj.h>
+
 #include <QMessageBox>
 #include <QFileDialog>
 
@@ -535,6 +539,169 @@ void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized) 
     }
 
     out.flush();
+
+}
+
+
+void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportOptimized) {
+
+    if (traj == nullptr) {
+        return;
+    }
+
+    Project* currentProject = traj->getProject();
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    QString outFilePath = filePath;
+
+    if (outFilePath.isEmpty()) {
+
+        if (mw == nullptr) {
+            return; //need main windows to display a save file dialog
+        }
+
+        outFilePath = QFileDialog::getSaveFileName(mw, QObject::tr("Save trajectory to"));
+
+        if (outFilePath.isEmpty()) {
+            return;
+        }
+    }
+
+    constexpr bool subsample = true;
+
+    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> exportTraj =
+        exportOptimized ? traj->optimizedTrajectory(subsample) : traj->loadTrajectorySequence();
+
+    StereoVision::Geometry::AffineTransform<double> local2ecef(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
+
+    if (exportOptimized) {
+        if (currentProject != nullptr) {
+            StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local().cast<double>();
+            local2ecef.R = ecef2local.R.transpose();
+            local2ecef.t = -ecef2local.R.transpose()*ecef2local.t;
+        }
+    }
+
+
+    if (!exportTraj.isValid()) {
+        if (mw != nullptr) {
+            QMessageBox::warning(mw, QObject::tr("Error when exporting trajectory"), exportTraj.errorMessage());
+        }
+        return;
+    }
+
+    const char* wgs84_latlonheight = "EPSG:4979";
+    const char* wgs84_ecef = "EPSG:4978";
+
+    Trajectory::TimeTrajectorySequence& trajSeq = exportTraj.value();
+
+    PJ_CONTEXT* ctx = proj_context_create();
+
+    if (ctx == nullptr) {
+        if (mw != nullptr) {
+            QMessageBox::warning(mw, QObject::tr("Proj error"), QObject::tr("Error when creating proj context to convert trajectory"));
+        }
+        return;
+    }
+
+    PJ* ecef2latlon = proj_create_crs_to_crs(ctx, wgs84_ecef, wgs84_latlonheight, nullptr);
+
+    if (ecef2latlon == nullptr) {
+        proj_context_destroy(ctx);
+        if (mw != nullptr) {
+            QMessageBox::warning(mw, QObject::tr("Proj error"), QObject::tr("Error when creating proj transform to convert trajectory"));
+        }
+        return;
+    }
+
+    Geo::TopocentricConvention topConv = Geo::TopocentricConvention::NED;
+
+    Eigen::Array<double,3,Eigen::Dynamic> positions;
+    positions.resize(3, trajSeq.nPoints());
+
+    for (int i = 0; i < trajSeq.nPoints(); i++) {
+        double& time = trajSeq[i].time;
+        StereoVision::Geometry::RigidBodyTransform<double> platform2ecef =
+        exportOptimized ? StereoVision::Geometry::RigidBodyTransform<double>(local2ecef*trajSeq[i].val.toAffineTransform()) :
+                          StereoVision::Geometry::RigidBodyTransform<double>(trajSeq[i].val.toAffineTransform());
+
+        PJ_COORD coordEcef;
+        coordEcef.xyz.x = platform2ecef.t[0];
+        coordEcef.xyz.y = platform2ecef.t[1];
+        coordEcef.xyz.z = platform2ecef.t[2];
+
+        PJ_COORD coordGeo = proj_trans(ecef2latlon, PJ_FWD, coordEcef);
+
+        positions(0,i) = coordGeo.xyz.x;
+        positions(1,i) = coordGeo.xyz.y;
+        positions(2,i) = coordGeo.xyz.z;
+
+    }
+
+    proj_destroy(ecef2latlon);
+    proj_context_destroy(ctx);
+
+    auto ltpc2ecefopt = getLTPC2ECEF(positions,wgs84_latlonheight,topConv);
+
+    if (!ltpc2ecefopt.has_value()) {
+        if (mw != nullptr) {
+            QMessageBox::warning(mw, QObject::tr("Proj error"), QObject::tr("Could not get transformations between ecef and local coordinate systems"));
+        }
+        return;
+    }
+
+    std::vector<StereoVision::Geometry::AffineTransform<double>>&
+            local2ecefTransforms = ltpc2ecefopt.value();
+
+    QFile outFile(outFilePath);
+
+    bool ok = outFile.open(QFile::WriteOnly);
+
+    if (!ok) {
+        if (mw != nullptr) {
+            QMessageBox::warning(mw,
+                                 QObject::tr("Error when exporting trajectory"),
+                                 QObject::tr("Could not write to file %1").arg(outFilePath));
+        }
+        return;
+    }
+
+    QTextStream out(&outFile);
+
+    out << "#trajectory is given in WGG84 geographic coordinates (EPSG:4979), rotation is given as XYZ euler angles (degree) in local NED frame" << "\n";
+    out << "time,lat,lon,height,roll,pitch,heading" << "\n";
+
+    for (int i = 0; i < trajSeq.nPoints(); i++) {
+        double& time = trajSeq[i].time;
+        StereoVision::Geometry::RigidBodyTransform<double> platform2ecef =
+        exportOptimized ? StereoVision::Geometry::RigidBodyTransform<double>(local2ecef*trajSeq[i].val.toAffineTransform()) :
+                          StereoVision::Geometry::RigidBodyTransform<double>(trajSeq[i].val.toAffineTransform());
+
+        StereoVision::Geometry::RigidBodyTransform<double> local2ecef =
+                local2ecefTransforms[i];
+
+        StereoVision::Geometry::AffineTransform<double> platform2local =
+                local2ecef.inverse().toAffineTransform()*platform2ecef.toAffineTransform();
+
+        Eigen::Matrix3d& rMat = platform2local.R;
+
+        Eigen::Vector3d angles
+                = StereoVision::Geometry::rMat2eulerRadxyz(rMat)/M_PI * 180;
+
+        out << QString("%1").arg(time,0, 'f', 6) << ',';
+        out << QString("%1").arg(positions(0,i),0, 'f', 14) << ',';
+        out << QString("%1").arg(positions(1,i),0, 'f', 14) << ',';
+        out << QString("%1").arg(positions(2,i),0, 'f', 6) << ',';
+        out << QString("%1").arg(angles.x(),0, 'f', 6) << ',';
+        out << QString("%1").arg(angles.y(),0, 'f', 6) << ',';
+        out << QString("%1").arg(angles.z(),0, 'f', 6);
+        out << "\n";
+    }
+
+    out.flush();
+
+
 
 }
 

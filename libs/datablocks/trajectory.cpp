@@ -184,7 +184,7 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
             Eigen::Vector3d axis;
 
-            if (_angularSpeedDefinition.angle_representation == EulerXYZ) {
+            if (_angularSpeedDefinition.angle_representation == EulerZYX) {
                 Eigen::Quaterniond combinedRot =
                         Eigen::AngleAxisd(z_rad, Eigen::Vector3d::UnitZ())
                         * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
@@ -197,7 +197,7 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
                 axis *= angle;
             }
 
-            if (_angularSpeedDefinition.angle_representation == EulerZYX) {
+            if (_angularSpeedDefinition.angle_representation == EulerXYZ) {
                 Eigen::Quaterniond combinedRot =
                         Eigen::AngleAxisd(x_rad, Eigen::Vector3d::UnitX())
                         * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
@@ -951,7 +951,7 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
             Eigen::Vector3d axis;
 
-            if (_orientationDefinition.angle_representation == EulerXYZ) {
+            if (_orientationDefinition.angle_representation == EulerZYX) {
                 Eigen::Quaterniond combinedRot =
                         Eigen::AngleAxisd(z_rad, Eigen::Vector3d::UnitZ())
                         * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
@@ -964,7 +964,7 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
                 axis *= angle;
             }
 
-            if (_orientationDefinition.angle_representation == EulerZYX) {
+            if (_orientationDefinition.angle_representation == EulerXYZ) {
                 Eigen::Quaterniond combinedRot =
                         Eigen::AngleAxisd(x_rad, Eigen::Vector3d::UnitX())
                         * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())

@@ -20,6 +20,10 @@
 #include "trajectoryactions.h"
 
 #include <QAction>
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QComboBox>
+#include <QDialogButtonBox>
 
 namespace StereoVisionApp {
 
@@ -117,9 +121,58 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
     });
     actions.append(analyzeTrajectoryAction);
 
-    QAction* exportTrajectoryAction = new QAction(tr("export initial trajectory"), parent);
+    QAction* exportTrajectoryAction = new QAction(tr("export trajectory"), parent);
     connect(exportTrajectoryAction, &QAction::triggered, traj, [traj] () {
-        exportTrajectory(traj,"");
+
+        MainWindow* mw = MainWindow::getActiveMainWindow();
+
+        if (mw == nullptr) {
+            return;
+        }
+
+        constexpr int Optimized = 0;
+        constexpr int NotOptimized = 1;
+
+        constexpr int ECEF = 0;
+        constexpr int Geographic = 1;
+
+        QDialog exportOptionDialog(mw);
+        QVBoxLayout layout(&exportOptionDialog);
+        QFormLayout formLayout;
+        QComboBox optimizedOptionBox;
+        QComboBox geoBox;
+        QDialogButtonBox buttonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel);
+
+        if (traj->hasOptimizedTrajectory()) {
+            optimizedOptionBox.addItem(QObject::tr("Optimized"), Optimized);
+        }
+        optimizedOptionBox.addItem(QObject::tr("Initial"), NotOptimized);
+
+        geoBox.addItem(QObject::tr("Export in Geographic coordinates"), Geographic);
+        geoBox.addItem(QObject::tr("Export in ECEF coordinates"), ECEF);
+
+        connect(&buttonBox, &QDialogButtonBox::accepted, &exportOptionDialog, &QDialog::accept);
+        connect(&buttonBox, &QDialogButtonBox::rejected, &exportOptionDialog, &QDialog::reject);
+
+        formLayout.addRow(QObject::tr("Optimized:"), &optimizedOptionBox);
+        formLayout.addRow(QObject::tr("Representation:"), &geoBox);
+        layout.addLayout(&formLayout);
+        layout.addWidget(&buttonBox);
+
+        int code = exportOptionDialog.exec();
+
+        if (code != QDialog::Accepted) {
+            return;
+        }
+
+        bool exportOptimized = optimizedOptionBox.currentData().toInt() == Optimized;
+        int exportFrame = geoBox.currentData().toInt();
+
+        if (exportFrame == ECEF) {
+            exportTrajectory(traj,"", exportOptimized);
+        } else if (exportFrame == Geographic) {
+            exportTrajectoryGeographic(traj,"", exportOptimized);
+        }
     });
     actions.append(exportTrajectoryAction);
 
@@ -130,12 +183,6 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
             viewTrajectory(traj,true);
         });
         actions.append(viewOptTrajectoryAction);
-
-        QAction* exportOptTrajectoryAction = new QAction(tr("export optimized trajectory"), parent);
-        connect(exportOptTrajectoryAction, &QAction::triggered, traj, [traj] () {
-            exportTrajectory(traj,"",true);
-        });
-        actions.append(exportOptTrajectoryAction);
 
         QAction* analyzeOptTrajectoryAction = new QAction(tr("analyze optimized trajectory"), parent);
         connect(analyzeOptTrajectoryAction, &QAction::triggered, traj, [traj] () {
