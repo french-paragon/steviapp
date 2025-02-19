@@ -285,66 +285,67 @@ bool PinholePushBroomCamProjectorModule::init(ModularSBASolver* solver, ceres::P
     if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
         problem.SetParameterBlockConstant(_horizontalDistortion.data());
         problem.SetParameterBlockConstant(_verticalDistortion.data());
-    }
+    } else {
 
-    if (c->a0().isUncertain() and
-            c->a1().isUncertain() and
-            c->a2().isUncertain() and
-            c->a3().isUncertain() and
-            c->a4().isUncertain() and
-            c->a5().isUncertain()) {
+        if (c->a0().isUncertain() and
+                c->a1().isUncertain() and
+                c->a2().isUncertain() and
+                c->a3().isUncertain() and
+                c->a4().isUncertain() and
+                c->a5().isUncertain()) {
 
-        Eigen::Matrix<double,6,1> target;
-        Eigen::Matrix<double,6,6> stiffness = Eigen::Matrix<double,6,6>::Identity();
+            Eigen::Matrix<double,6,1> target;
+            Eigen::Matrix<double,6,6> stiffness = Eigen::Matrix<double,6,6>::Identity();
 
-        target[0] = c->a0().value();
-        target[1] = c->a1().value();
-        target[2] = c->a2().value();
-        target[3] = c->a3().value();
-        target[4] = c->a4().value();
-        target[5] = c->a5().value();
+            target[0] = c->a0().value();
+            target[1] = c->a1().value();
+            target[2] = c->a2().value();
+            target[3] = c->a3().value();
+            target[4] = c->a4().value();
+            target[5] = c->a5().value();
 
-        stiffness(0,0) = 1/c->a0().stddev();
-        stiffness(1,1) = 1/c->a1().stddev();
-        stiffness(2,2) = 1/c->a2().stddev();
-        stiffness(3,3) = 1/c->a3().stddev();
-        stiffness(4,4) = 1/c->a4().stddev();
-        stiffness(5,5) = 1/c->a5().stddev();
+            stiffness(0,0) = 1/c->a0().stddev();
+            stiffness(1,1) = 1/c->a1().stddev();
+            stiffness(2,2) = 1/c->a2().stddev();
+            stiffness(3,3) = 1/c->a3().stddev();
+            stiffness(4,4) = 1/c->a4().stddev();
+            stiffness(5,5) = 1/c->a5().stddev();
 
-        ceres::NormalPrior* prior = new ceres::NormalPrior(stiffness, target);
+            ceres::NormalPrior* prior = new ceres::NormalPrior(stiffness, target);
 
-        problem.AddResidualBlock(prior, nullptr, _horizontalDistortion.data());
+            problem.AddResidualBlock(prior, nullptr, _horizontalDistortion.data());
 
-    }
+        }
 
-    if (c->b0().isUncertain() and
-            c->b1().isUncertain() and
-            c->b2().isUncertain() and
-            c->b3().isUncertain() and
-            c->b4().isUncertain() and
-            c->b5().isUncertain()) {
+        if (c->b0().isUncertain() and
+                c->b1().isUncertain() and
+                c->b2().isUncertain() and
+                c->b3().isUncertain() and
+                c->b4().isUncertain() and
+                c->b5().isUncertain()) {
 
-        Eigen::Matrix<double,6,1> target;
-        Eigen::Matrix<double,6,6> stiffness = Eigen::Matrix<double,6,6>::Identity();
+            Eigen::Matrix<double,6,1> target;
+            Eigen::Matrix<double,6,6> stiffness = Eigen::Matrix<double,6,6>::Identity();
 
-        target[0] = c->b0().value();
-        target[1] = c->b1().value();
-        target[2] = c->b2().value();
-        target[3] = c->b3().value();
-        target[4] = c->b4().value();
-        target[5] = c->b5().value();
+            target[0] = c->b0().value();
+            target[1] = c->b1().value();
+            target[2] = c->b2().value();
+            target[3] = c->b3().value();
+            target[4] = c->b4().value();
+            target[5] = c->b5().value();
 
-        stiffness(0,0) = 1/c->b0().stddev();
-        stiffness(1,1) = 1/c->b1().stddev();
-        stiffness(2,2) = 1/c->b2().stddev();
-        stiffness(3,3) = 1/c->b3().stddev();
-        stiffness(4,4) = 1/c->b4().stddev();
-        stiffness(5,5) = 1/c->b5().stddev();
+            stiffness(0,0) = 1/c->b0().stddev();
+            stiffness(1,1) = 1/c->b1().stddev();
+            stiffness(2,2) = 1/c->b2().stddev();
+            stiffness(3,3) = 1/c->b3().stddev();
+            stiffness(4,4) = 1/c->b4().stddev();
+            stiffness(5,5) = 1/c->b5().stddev();
 
-        ceres::NormalPrior* prior = new ceres::NormalPrior(stiffness, target);
+            ceres::NormalPrior* prior = new ceres::NormalPrior(stiffness, target);
 
-        problem.AddResidualBlock(prior, nullptr, _verticalDistortion.data());
+            problem.AddResidualBlock(prior, nullptr, _verticalDistortion.data());
 
+        }
     }
 
     return true;

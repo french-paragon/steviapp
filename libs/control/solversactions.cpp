@@ -468,7 +468,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
     bool verbose = true;
 	int nSteps = pnStep;
 
-	FixedParameters fixedParameters = FixedParameter::CameraInternal|FixedParameter::StereoRigs;
+    FixedParameters fixedParameters = NoFixedParameters;
 
 	if (w != nullptr) {
 
