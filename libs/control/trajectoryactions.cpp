@@ -687,7 +687,7 @@ void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportO
         Eigen::Matrix3d& rMat = platform2local.R;
 
         Eigen::Vector3d angles
-                = StereoVision::Geometry::rMat2eulerRadxyz(rMat)/M_PI * 180;
+                = StereoVision::Geometry::rMat2eulerRadzyx(rMat)/M_PI * 180;
 
         out << QString("%1").arg(time,0, 'f', 6) << ',';
         out << QString("%1").arg(positions(0,i),0, 'f', 14) << ',';
