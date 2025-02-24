@@ -149,7 +149,7 @@ bool MountingsSBAModule::writeResults(ModularSBASolver* solver) {
         floatParameterGroup<3> pos;
         pos.value(0) = static_cast<float>(mounting_p->t[0]);
         pos.value(1) = static_cast<float>(mounting_p->t[1]);
-        pos.value(2) = static_cast<float>(mounting_p->t[1]);
+        pos.value(2) = static_cast<float>(mounting_p->t[2]);
         pos.setIsSet();
         mounting->setOptPos(pos);
 
