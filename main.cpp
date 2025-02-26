@@ -71,8 +71,6 @@
 
 #include <QDebug>
 
-#include <gdal/gdal.h>
-
 #include <glog/logging.h>
 
 namespace py = pybind11;
@@ -99,7 +97,6 @@ int main(int argc, char *argv[])
 {
 
     //configure libraries
-    GDALAllRegister();
     google::InitGoogleLogging(argv[0]);
 
 	StereoVisionApp::StereoVisionApplication a(argc, argv);
