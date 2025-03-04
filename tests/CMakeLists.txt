@@ -4,3 +4,5 @@ add_subdirectory(test_geo_functions)
 add_subdirectory(test_timeseq_functions)
 add_subdirectory(test_trajectory)
 add_subdirectory(test_functional_utils)
+
+add_subdirectory(demo_gyro_bias_preintegration)

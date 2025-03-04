@@ -15,234 +15,52 @@
 
 namespace StereoVisionApp {
 
-/*!
- * \brief The ImuStepCost class represent a measurement by an IMU (gyro + accelerometer) between two poses
- *
- * In robotics this might be called IMU integration handler -> ask Jan for the paper
- *
- * This cost function assume arbitrary measurements of acceleration and angular speed.
- *
- * The orientation delta, given as an axis angle, is assumed to be int_n^{n+1} w(t) dt where w(t) is the angular speed
- * (it is assumed that the rotation is integrated on the manifold, so that the delta correspond to a rotation between the two poses)
- *
- * The position speed delta is assumed to be int_n^{n+1} int_n^t f(t') dt' dt
- * Such that t_{n+1} = t{n} + v{n} * \Delta t - g * \Delta t^2 + int_n^{n+1} int_n^t f(t') dt' dt
- *
- * The speed delta is assumed to be int_n^{n+1} f(t) dt
- * Such that v_{n+1} = v{n} - g * \Delta t + int_n^{n+1} f(t) dt
- *
- * Pose are assumed to be the Body2World (or Body2Local if a locale frame is used).
- */
-class ImuStepCost
-{
-public:
-
-    /*!
-     * \brief getIntegratedIMUDiff buid an IMU diff cost from data sequences
-     * \param GyroData the gyroscope speed, as rotation axis speed
-     * \param AccData the accellerometer data
-     * \param t0 the time for the initial pose
-     * \param tf the time for the final pose
-     * \return an ImuStepCost cost
-     */
-    template<typename Tgyro, typename Tacc, typename TimeT>
-    static ImuStepCost* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-                                             IndexedTimeSequence<Tacc, TimeT> const& AccData,
-                                             TimeT t0,
-                                             TimeT tf) {
-
-        double delta_t = tf - t0;
-
-        Eigen::Vector3d orientationDelta = Eigen::Vector3d::Zero();
-        Eigen::Vector3d posSpeedDelta = Eigen::Vector3d::Zero();
-        Eigen::Vector3d speedDelta = Eigen::Vector3d::Zero();
-
-        auto imuAccData = AccData.getValuesInBetweenTimes(t0, tf);
-        auto imuGyroData = GyroData.getValuesInBetweenTimes(t0, tf);
-
-        Eigen::Matrix3d Rcurrent2initial = Eigen::Matrix3d::Identity();
-
-        double t_acc = 0;
-        double t_gyro = 0;
-
-        int idx_acc = 0;
-
-        for (int j = 0; j < imuGyroData.size(); j++) {
-
-            double dt = imuGyroData[j].dt;
-
-            while (t_acc < t_gyro + dt/2) {
-                double dt_acc = imuAccData[idx_acc].dt;
-
-                Eigen::Vector3d da_local(imuGyroData[idx_acc].val[0], imuGyroData[idx_acc].val[1], imuGyroData[idx_acc].val[2]);
-
-                speedDelta += Rcurrent2initial*da_local*dt_acc;
-                posSpeedDelta += speedDelta*dt_acc;
-
-                t_acc += dt_acc;
-                idx_acc++;
-            }
-
-            Eigen::Vector3d dr(imuGyroData[j].val[0], imuGyroData[j].val[1], imuGyroData[j].val[2]);
-            dr *= dt;
-
-            Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
-
-            Rcurrent2initial = dR*Rcurrent2initial;
-
-            //re-constaint as R mat for numerical stability
-            Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(Rcurrent2initial);
-            Rcurrent2initial = StereoVision::Geometry::rodriguezFormula(logR);
-
-            t_gyro += dt;
-
-        }
-
-        while (idx_acc < imuAccData.size()) {
-            double dt_acc = imuAccData[idx_acc].dt;
-
-            Eigen::Vector3d da_local(imuGyroData[idx_acc].val[0], imuGyroData[idx_acc].val[1], imuGyroData[idx_acc].val[2]);
-
-            speedDelta += Rcurrent2initial*da_local*dt_acc;
-            posSpeedDelta += speedDelta*dt_acc;
-
-            t_acc += dt_acc;
-            idx_acc++;
-        }
-
-        orientationDelta = StereoVision::Geometry::inverseRodriguezFormula(Rcurrent2initial);
-
-        return new StereoVisionApp::ImuStepCost(orientationDelta, posSpeedDelta, speedDelta, delta_t);
-    }
-
-    /*!
-     * \brief ImuStepCost constructor
-     * \param orientationDelta int_n^{n+1} w(t) dt
-     * \param posSpeedDelta int_n^{n+1} int_n^t f(t') dt' dt
-     * \param speedDelta int_n^{n+1} f(t) dt
-     * \param delta_t the time step that was used for integration for obtaining the values above.
-     */
-    ImuStepCost(Eigen::Vector3d const& orientationDelta,
-                Eigen::Vector3d const& posSpeedDelta,
-                Eigen::Vector3d const& speedDelta,
-                double delta_t);
-
-    template <typename T>
-    bool operator()(const T* const r1,
-                    const T* const t1,
-                    const T* const v1,
-                    const T* const r2,
-                    const T* const t2,
-                    const T* const v2,
-                    const T* const g,
-                    T* residual) const {
-
-
-        using M3T = Eigen::Matrix<T,3,3>;
-        using V3T = Eigen::Matrix<T,3,1>;
-
-        V3T vr1(r1[0], r1[1], r1[2]);
-        M3T R1 = StereoVision::Geometry::rodriguezFormula<T>(vr1);
-
-        V3T vt1(t1[0], t1[1], t1[2]);
-
-        V3T vv1(v1[0], v1[1], v1[2]);
-
-        V3T vr2(r2[0], r2[1], r2[2]);
-        M3T R2 = StereoVision::Geometry::rodriguezFormula<T>(vr2);
-
-        V3T vt2(t2[0], t2[1], t2[2]);
-
-        V3T vv2(v2[0], v2[1], v2[2]);
-
-        V3T vg(g[0], g[1], g[2]);
-
-        M3T R1p1 = _orientationDelta.cast<T>()*R1;
-
-        T dt(_delta_t);
-
-        V3T vt1p1 = vt1 + vv1*dt - vg*dt*dt + R1*_posSpeedDelta;
-        V3T vv1p1 = vv1 - vg*dt + R1*_speedDelta;
-
-        V3T errR = StereoVision::Geometry::inverseRodriguezFormula<T>(R1p1.transpose()*R2);
-        V3T errt = vt1p1 - vt2;
-        V3T errv = vv1p1 - vv2;
-
-        residual[0] = errR[0];
-        residual[1] = errR[1];
-        residual[2] = errR[2];
-
-        residual[3] = errt[0];
-        residual[4] = errt[1];
-        residual[5] = errt[2];
-
-        residual[6] = errv[0];
-        residual[7] = errv[1];
-        residual[8] = errv[2];
-
-
-#ifndef NDEBUG
-        for (int i = 0; i < 9; i++) {
-            if (!ceres::IsFinite(residual[i])) {
-                std::cout << "Error in ImuStepCost cost computation" << std::endl;
-            }
-        }
-#endif
-
-        return true;
-    }
-
-protected:
-
-    Eigen::Matrix3d _orientationDelta; // int_n^{n+1} w(t) dt
-    Eigen::Vector3d _posSpeedDelta; // int_n^{n+1} int_n^t a(t') dt' dt (in world or local frame)
-    Eigen::Vector3d _speedDelta; // int_n^{n+1} a(t) dt (in world or local frame)
-    double _delta_t;
-};
+template<bool WBias, bool WScale>
+class GyroStepCost;
 
 /*!
  * \brief The GyroStepCost class represent a measurement by an gyroscope between two poses
  */
-class GyroStepCost {
+class GyroStepCostBase {
 
 public:
 
-    template<typename Tgyro, typename TimeT>
-    static GyroStepCost* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+    struct IntegratedGyroSegment {
+        Eigen::Matrix3d attitudeDelta;
+        Eigen::Matrix3d biasJacobian;
+        Eigen::Matrix3d gainJacobian;
+        double dt;
+    };
+
+    template<bool WBias, bool WScale, typename Tgyro, typename TimeT>
+    static IntegratedGyroSegment preIntegrateGyroSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                  TimeT t0,
+                                                  TimeT t1);
+
+    template<bool WBias, bool WScale, typename Tgyro, typename TimeT>
+    static GyroStepCost<WBias,WScale>* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
                                               TimeT t0,
-                                              TimeT t1) {
+                                              TimeT t1);
 
-        double delta_t = t1 - t0;
+    GyroStepCostBase(Eigen::Matrix3d const& attitudeDelta,
+                 double delta_t);
 
-        auto imuGyroData = GyroData.getValuesInBetweenTimes(t0, t1);
+protected:
 
-        Eigen::Matrix3d Rcurrent2initial = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d _attitudeDelta; // R from final pose to initial pose
+    double _delta_t;
+};
 
+template<>
+class GyroStepCost<false, false> : public GyroStepCostBase {
 
-        for (int j = 0; j < imuGyroData.size(); j++) {
-
-            double dt = imuGyroData[j].dt;
-
-            Eigen::Vector3d dr(imuGyroData[j].val[0], imuGyroData[j].val[1], imuGyroData[j].val[2]);
-            dr *= dt;
-
-            Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
-
-            Eigen::Matrix3d newRcurrent2initial = dR*Rcurrent2initial;
-
-            //re-constaint as R mat for numerical stability
-            Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(newRcurrent2initial);
-            Rcurrent2initial = StereoVision::Geometry::rodriguezFormula(logR);
-
-        }
-
-        return new StereoVisionApp::GyroStepCost(Rcurrent2initial, delta_t);
-
+public:
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 double delta_t) :
+        GyroStepCostBase(attitudeDelta, delta_t)
+    {
 
     }
-
-    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
-                 double delta_t);
 
     template <typename T>
     bool operator()(const T* const r0,
@@ -274,12 +92,296 @@ public:
         return true;
 
     }
+};
+
+template<>
+class GyroStepCost<false, true> : public GyroStepCostBase {
+
+public:
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 Eigen::Matrix3d const& gainJacobian,
+                 double delta_t) :
+        GyroStepCostBase(attitudeDelta, delta_t),
+        _scaleJacobian(gainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const r1,
+                    const T* const gyroScale,
+                    T* residual) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+        using V3T = Eigen::Matrix<T,3,1>;
+
+        V3T vr0(r0[0], r0[1], r0[2]);
+        V3T vr1(r1[0], r1[1], r1[2]);
+
+        V3T g(gyroScale[0] - T(1), gyroScale[1] - T(1), gyroScale[2] - T(1));
+
+        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
+        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
+
+        M3T Jg = _scaleJacobian.cast<T>();
+        M3T Rg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g);
+
+        M3T closure = Rr1.transpose() * Rr0 * _attitudeDelta*Rg;
+        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
+
+        residual[0] = res[0];
+        residual[1] = res[1];
+        residual[2] = res[2];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
+            std::cout << "Error in GyroStepCost cost computation" << std::endl;
+        }
+#endif
+
+        return true;
+
+    }
 
 protected:
 
-    Eigen::Matrix3d _attitudeDelta; // R from final pose to initial pose
-    double _delta_t;
+    Eigen::Matrix3d _scaleJacobian;
 };
+
+template<>
+class GyroStepCost<true, false> : public GyroStepCostBase {
+
+public:
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 Eigen::Matrix3d const& biasJacobian,
+                 double delta_t) :
+        GyroStepCostBase(attitudeDelta, delta_t),
+        _biasJacobian(biasJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const r1,
+                    const T* const gyroBias,
+                    T* residual) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+        using V3T = Eigen::Matrix<T,3,1>;
+
+        V3T vr0(r0[0], r0[1], r0[2]);
+        V3T vr1(r1[0], r1[1], r1[2]);
+
+        V3T b(gyroBias[0], gyroBias[1], gyroBias[2]);
+
+        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
+        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
+
+        M3T Jb = _biasJacobian.cast<T>();
+        M3T Rb = StereoVision::Geometry::rodriguezFormula<T>(Jb*b);
+
+        M3T closure = Rr1.transpose() * Rr0 * _attitudeDelta*Rb;
+        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
+
+        residual[0] = res[0];
+        residual[1] = res[1];
+        residual[2] = res[2];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
+            std::cout << "Error in GyroStepCost cost computation" << std::endl;
+        }
+#endif
+
+        return true;
+
+    }
+
+protected:
+
+    Eigen::Matrix3d _biasJacobian;
+};
+
+template<>
+class GyroStepCost<true, true> : public GyroStepCostBase {
+
+public:
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 Eigen::Matrix3d const& gainJacobian,
+                 Eigen::Matrix3d const& biasJacobian,
+                 double delta_t) :
+        GyroStepCostBase(attitudeDelta, delta_t),
+        _scaleJacobian(gainJacobian),
+        _biasJacobian(biasJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const r1,
+                    const T* const gyroScale,
+                    const T* const gyroBias,
+                    T* residual) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+        using V3T = Eigen::Matrix<T,3,1>;
+
+        V3T vr0(r0[0], r0[1], r0[2]);
+        V3T vr1(r1[0], r1[1], r1[2]);
+
+        V3T g(gyroScale[0] - T(1), gyroScale[1] - T(1), gyroScale[2] - T(1));
+        V3T b(gyroBias[0], gyroBias[1], gyroBias[2]);
+
+        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
+        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
+
+        M3T Jg = _scaleJacobian.cast<T>();
+        M3T Jb = _biasJacobian.cast<T>();
+
+        M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g + Jb*b);
+
+        M3T closure = Rr1.transpose() * Rr0 * _attitudeDelta*Rbg;
+        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
+
+        residual[0] = res[0];
+        residual[1] = res[1];
+        residual[2] = res[2];
+
+#ifndef NDEBUG
+        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
+            std::cout << "Error in GyroStepCost cost computation" << std::endl;
+        }
+#endif
+
+        return true;
+
+    }
+
+protected:
+
+    Eigen::Matrix3d _biasJacobian;
+    Eigen::Matrix3d _scaleJacobian;
+};
+
+
+
+template<bool WBias, bool WScale, typename Tgyro, typename TimeT>
+GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                                TimeT t0,
+                                                                TimeT t1) {
+
+    double delta_t = t1 - t0;
+
+    auto imuGyroData = GyroData.getValuesInBetweenTimes(t0, t1);
+
+    IntegratedGyroSegment ret;
+
+    ret.dt = delta_t;
+    ret.attitudeDelta = Eigen::Matrix3d::Identity();
+
+    ret.biasJacobian = Eigen::Matrix3d::Zero();
+    ret.gainJacobian = Eigen::Matrix3d::Zero();
+
+    /*
+     * The management of the gyro bias an gain can be done by re-integrating the data everytime,
+     * or by having a closed form of the pre-integrated delta as a function of the scale alpha and bias b.
+     *
+     * Here, we assume alpha is close to 1 and b close to 0, and we linearize the pre-integrated
+     * orientation delta as a function of alpha and b on the manifold.
+     *
+     * The relations we use are
+     * (1) Exp(w+dw) ~= Exp(w)Exp(J_w dw), with w an element of so(3),
+     * Exp the exponential map from so(3) to SO(3) and dw a small increment in so(3) and J_w is
+     * the right Jacobian of SO(3) at w.
+     *
+     * and:
+     * (2) Exp(w) R = R Exp(R^t w), which derive from the relation R Exp(w) R^t = e^(R [w]_x R^t) = Exp(Rw),
+     * where [w]_x is the skew symmetric matrix derived from w.
+     *
+     * First, we decompose each Exp((alpha*w - b)dt) as Exp(w dt)Exp(J_{wdt}((alpha-1)w - b)) using relation (1).
+     * Then, with relation (2), we invert the order of alternated rotations and increments to group all the increments as
+     * one large products. Finally, we assume that, since the increments are small, their Jacobian of SO(3)
+     * are close to the identity. Using relation (1), we transform the product into a sum.
+     *
+     * We end up with a relation of the form DeltaR_corrected = DeltaR Exp(J_alpha * (alpha-1) + J_b b)
+     */
+
+    for (int j = 0; j < imuGyroData.size(); j++) {
+
+        double dt = imuGyroData[j].dt;
+
+        Eigen::Vector3d dr(imuGyroData[j].val[0], imuGyroData[j].val[1], imuGyroData[j].val[2]);
+        dr *= dt;
+
+        Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
+
+        Eigen::Matrix3d JacobianSO3 = StereoVision::Geometry::diffRodriguezLieAlgebra(dr);
+
+        Eigen::Matrix3d tmp = ret.attitudeDelta.transpose()*JacobianSO3;
+
+        Eigen::Matrix3d diag = Eigen::Matrix3d::Zero();
+        diag(0,0) = dr[0];
+        diag(1,1) = dr[1];
+        diag(2,2) = dr[2];
+
+        if (WBias) {
+            ret.biasJacobian += tmp*dt;
+        }
+
+        if (WScale) {
+            ret.gainJacobian += tmp*diag;
+        }
+
+        Eigen::Matrix3d newRcurrent2initial = dR*ret.attitudeDelta;
+
+        //re-constaint as R mat for numerical stability
+        Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(newRcurrent2initial);
+        ret.attitudeDelta = StereoVision::Geometry::rodriguezFormula(logR);
+    }
+
+    return ret;
+
+
+
+}
+
+template<bool WBias, bool WScale, typename Tgyro, typename TimeT>
+GyroStepCost<WBias,WScale>* GyroStepCostBase::getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                              TimeT t0,
+                                              TimeT t1) {
+
+    GyroStepCostBase* ret;
+
+    IntegratedGyroSegment pre_integrated = preIntegrateGyroSegment<WBias, WScale, Tgyro, TimeT>(GyroData, t0, t1);
+
+    if (WBias and WScale) {
+            ret = new StereoVisionApp::GyroStepCost<true, true>(pre_integrated.attitudeDelta,
+                                                                pre_integrated.gainJacobian,
+                                                                pre_integrated.biasJacobian,
+                                                                pre_integrated.dt);
+            return static_cast<GyroStepCost<WBias, WScale>*>(ret);
+        } else if (WBias) {
+            ret = new StereoVisionApp::GyroStepCost<true, false>(pre_integrated.attitudeDelta,
+                                                                 pre_integrated.biasJacobian,
+                                                                 pre_integrated.dt);
+            return static_cast<GyroStepCost<WBias, WScale>*>(ret);
+        } else if (WScale) {
+            ret = new StereoVisionApp::GyroStepCost<false, true>(pre_integrated.attitudeDelta,
+                                                                 pre_integrated.gainJacobian,
+                                                                 pre_integrated.dt);
+            return static_cast<GyroStepCost<WBias, WScale>*>(ret);
+        }
+
+    ret = new StereoVisionApp::GyroStepCost<false, false>(pre_integrated.attitudeDelta,
+                                                          pre_integrated.dt);
+
+    return static_cast<GyroStepCost<WBias, WScale>*>(ret);
+
+
+}
 
 template<bool WBias, bool WScale>
 class AccelerometerStepCost;

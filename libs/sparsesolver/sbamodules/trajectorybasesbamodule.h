@@ -104,10 +104,17 @@ protected:
     bool _accelerometerBias;
     bool _accelerometerScale;
 
+    bool _gyroBias;
+    bool _gyroScale;
+
     std::vector<std::array<double,3>> _accelerometersBiases;
     std::vector<std::array<double,1>> _accelerometersScales;
 
+    std::vector<std::array<double,3>> _gyrosBiases;
+    std::vector<std::array<double,3>> _gyrosScales;
+
     QMap<int, int> _accelerometerParametersIndex;
+    QMap<int, int> _gyroParametersIndex;
 
     double _defaultGpsAccuracy;
     double _defaultOrientAccuracy;

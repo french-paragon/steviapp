@@ -269,7 +269,12 @@ public:
                 break;
             }
 
-            ret[i] = Differential{(*_sequence)[currentIndex+1].time - t, (*_sequence)[currentIndex].val};
+            TimeT dt = tf - t;
+            if (currentIndex < finalIndex) {
+                dt = (*_sequence)[currentIndex+1].time - t;
+            }
+
+            ret[i] = Differential{dt, (*_sequence)[currentIndex].val};
 
             t = (*_sequence)[currentIndex+1].time;
             currentIndex++;
