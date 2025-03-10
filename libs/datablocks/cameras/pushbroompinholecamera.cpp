@@ -4,6 +4,8 @@
 
 #include "../camera.h"
 
+#include "../../sparsesolver/sbamodules/pinholecameraprojectormodule.h"
+
 namespace StereoVisionApp {
 
 PushBroomPinholeCamera::PushBroomPinholeCamera(Project *parent) :
@@ -863,6 +865,58 @@ void PushBroomPinholeCamera::extendDataModel() {
              &PushBroomPinholeCamera::optimizedB5,
              nullptr,
              &PushBroomPinholeCamera::optimizedB5Changed);
+
+}
+std::vector<std::array<double, 3>> PushBroomPinholeCamera::getSensorViewDirections(bool optimized) {
+
+
+    int nSamples = std::ceil(imWidth());
+
+    double optical_center;
+    double f_len_pix;
+
+    std::array<double,6> as = {0,0,0,0,0,0};
+    std::array<double,6> bs = {0,0,0,0,0,0};
+
+    if (optimized) {
+        optical_center = optimizedOpticalCenterX().value();
+        f_len_pix = optimizedFLen().value();
+
+        as[0] = optimizedA0().value();
+        as[1] = optimizedA1().value();
+        as[2] = optimizedA2().value();
+        as[3] = optimizedA3().value();
+        as[4] = optimizedA4().value();
+        as[5] = optimizedA5().value();
+
+        bs[0] = optimizedB0().value();
+        bs[1] = optimizedB1().value();
+        bs[2] = optimizedB2().value();
+        bs[3] = optimizedB3().value();
+        bs[4] = optimizedB4().value();
+        bs[5] = optimizedB5().value();
+
+    } else {
+        optical_center = opticalCenterX().value();
+        f_len_pix = fLen().value();
+    }
+
+    std::vector<std::array<double, 3>> viewDirectionsSensor(nSamples);
+    PinholePushbroomUVProjector projector(nSamples);
+
+    std::array<double*,4> params = {&f_len_pix, &optical_center, as.data(), bs.data()};
+
+    std::array<double,2> uv = {0,0};
+
+    for (int i = 0; i < nSamples; i++) {
+
+        uv[0] = i;
+
+        Eigen::Vector3d dir = projector.dirFromUV(uv.data(), params.data());
+        viewDirectionsSensor[i] = {dir.x(), dir.y(), dir.z()};
+    }
+
+    return viewDirectionsSensor;
 
 }
 

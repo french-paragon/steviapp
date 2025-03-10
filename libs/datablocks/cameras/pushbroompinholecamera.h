@@ -93,6 +93,13 @@ public:
     StereoVisionApp::floatParameter optimizedB5() const;
     void setOptimizedB5(StereoVisionApp::floatParameter const& o_b5);
 
+    /*!
+     * \brief getSensorViewDirections return the view vector, in sensor frame, for all pixels
+     * \param optimized if true use optimized parameters, else used basic parameters.
+     * \return the list of view directions (in sensor frame).
+     */
+    std::vector<std::array<double, 3>> getSensorViewDirections(bool optimized=true);
+
 Q_SIGNALS:
 
     void imWidthChanged(int);

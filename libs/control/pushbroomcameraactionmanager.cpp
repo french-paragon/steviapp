@@ -8,6 +8,9 @@
 
 #include <QWidget>
 #include <QAction>
+#include <QFile>
+#include <QTextStream>
+#include <QFileDialog>
 
 namespace StereoVisionApp {
 
@@ -57,6 +60,43 @@ QList<QAction*> PushBroomCameraActionManager::factorizeItemContextActions(QObjec
 
             });
             lst << edit;
+
+            QAction* exportAngles = new QAction(tr("Export view angles"), parent);
+            connect(exportAngles, &QAction::triggered, [mw, cam] () {
+
+                QString saveFileName = QFileDialog::getSaveFileName(mw, tr("Save view directions"));
+
+                if (saveFileName.isEmpty()) {
+                    return;
+                }
+
+                QFile outFile(saveFileName);
+
+                if (!outFile.open(QFile::WriteOnly)) {
+                    return;
+                }
+
+                QTextStream out(&outFile);
+
+                out << "pixelId" << ", " << "acrossTrack[rad]" << ", " << "alongTrack[rad]" << "\n";
+
+                bool optimized = true;
+                auto viewDirections = cam->getSensorViewDirections(optimized);
+
+                for (int i = 0; i < viewDirections.size(); i++) {
+
+                    std::array<double,3> const& direction = viewDirections[i];
+
+                    double across = std::atan(-direction[1]/direction[2]);
+                    double along = std::atan(direction[0]/direction[2]);
+
+                    out << i << ", " << across << ", " << along << "\n";
+                }
+
+                out.flush();
+
+            });
+            lst.append(exportAngles);
         }
     }
 
