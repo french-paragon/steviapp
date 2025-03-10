@@ -3,6 +3,8 @@
 
 #include <QString>
 
+#include <StereoVision/geometry/rotations.h>
+
 namespace StereoVisionApp {
 
 class Trajectory;
@@ -19,8 +21,36 @@ void setGyroMounting(Trajectory* traj);
  */
 void checkTrajectoryConsistency(Trajectory* traj);
 
-void exportTrajectory(Trajectory* traj, QString filePath = "", bool exportOptimized = false);
-void exportTrajectoryGeographic(Trajectory* traj, QString filePath = "", bool exportOptimized = false);
+/*!
+ * \brief exportTrajectory export the trajectory, with possible a sensor2body transform, selecting the options with a gui
+ * \param traj the trajectory
+ * \param sensor2body the pose of the sensor which trajectory needs to be exported, with respect to body.
+ */
+void exportTrajectory(Trajectory* traj,
+                      StereoVision::Geometry::RigidBodyTransform<double> const& sensor2body = StereoVision::Geometry::RigidBodyTransform<double>());
+
+/*!
+ * \brief exportTrajectory export the trajectory in ecef, with possible a sensor2body transform
+ * \param traj the trajectory
+ * \param filePath the file to save to
+ * \param exportOptimized if the optimized trajectory needs to be used
+ * \param sensor2body the pose of the sensor which trajectory needs to be exported, with respect to body.
+ */
+void exportTrajectory(Trajectory* traj,
+                      QString filePath,
+                      bool exportOptimized = false,
+                      StereoVision::Geometry::RigidBodyTransform<double> const& sensor2body = StereoVision::Geometry::RigidBodyTransform<double>());
+/*!
+ * \brief exportTrajectoryGeographic export the trajectory in SBET compatible representation, with possible a sensor2body transform
+ * \param traj the trajectory
+ * \param filePath the file to save to
+ * \param exportOptimized if the optimized trajectory needs to be used
+ * \param sensor2body the pose of the sensor which trajectory needs to be exported, with respect to body.
+ */
+void exportTrajectoryGeographic(Trajectory* traj,
+                                QString filePath = "",
+                                bool exportOptimized = false,
+                                StereoVision::Geometry::RigidBodyTransform<double> const& sensor2body = StereoVision::Geometry::RigidBodyTransform<double>());
 
 } // namespace StereoVisionApp
 

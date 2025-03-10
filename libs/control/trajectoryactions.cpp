@@ -22,6 +22,11 @@
 
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QComboBox>
+#include <QComboBox>
+#include <QDialogButtonBox>
 
 namespace StereoVisionApp {
 
@@ -453,7 +458,61 @@ void checkTrajectoryConsistency(Trajectory* traj) {
 
 }
 
-void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized) {
+void exportTrajectory(Trajectory* traj,
+                      StereoVision::Geometry::RigidBodyTransform<double> const& sensor2body) {
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (mw == nullptr) {
+        return;
+    }
+
+    constexpr int Optimized = 0;
+    constexpr int NotOptimized = 1;
+
+    constexpr int ECEF = 0;
+    constexpr int Geographic = 1;
+
+    QDialog exportOptionDialog(mw);
+    QVBoxLayout layout(&exportOptionDialog);
+    QFormLayout formLayout;
+    QComboBox optimizedOptionBox;
+    QComboBox geoBox;
+    QDialogButtonBox buttonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel);
+
+    if (traj->hasOptimizedTrajectory()) {
+        optimizedOptionBox.addItem(QObject::tr("Optimized"), Optimized);
+    }
+    optimizedOptionBox.addItem(QObject::tr("Initial"), NotOptimized);
+
+    geoBox.addItem(QObject::tr("Export in Geographic coordinates"), Geographic);
+    geoBox.addItem(QObject::tr("Export in ECEF coordinates"), ECEF);
+
+    QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &exportOptionDialog, &QDialog::accept);
+    QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &exportOptionDialog, &QDialog::reject);
+
+    formLayout.addRow(QObject::tr("Optimized:"), &optimizedOptionBox);
+    formLayout.addRow(QObject::tr("Representation:"), &geoBox);
+    layout.addLayout(&formLayout);
+    layout.addWidget(&buttonBox);
+
+    int code = exportOptionDialog.exec();
+
+    if (code != QDialog::Accepted) {
+        return;
+    }
+
+    bool exportOptimized = optimizedOptionBox.currentData().toInt() == Optimized;
+    int exportFrame = geoBox.currentData().toInt();
+
+    if (exportFrame == ECEF) {
+        exportTrajectory(traj,"", exportOptimized, sensor2body);
+    } else if (exportFrame == Geographic) {
+        exportTrajectoryGeographic(traj,"", exportOptimized, sensor2body);
+    }
+}
+
+void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized, const StereoVision::Geometry::RigidBodyTransform<double> &sensor2body) {
 
     if (traj == nullptr) {
         return;
@@ -527,6 +586,8 @@ void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized) 
         exportOptimized ? StereoVision::Geometry::RigidBodyTransform<double>(local2ecef*trajSeq[i].val.toAffineTransform()) :
                           StereoVision::Geometry::RigidBodyTransform<double>(trajSeq[i].val.toAffineTransform());
 
+        platform2ecef = platform2ecef*sensor2body; //if the platform is a sensor, apply the sensor2body transform beforehand
+
 
         out << QString("%1").arg(time,0, 'f', 6) << ',';
         out << QString("%1").arg(platform2ecef.t.x(),0, 'f', 3) << ',';
@@ -543,7 +604,7 @@ void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized) 
 }
 
 
-void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportOptimized) {
+void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportOptimized, const StereoVision::Geometry::RigidBodyTransform<double> &sensor2body) {
 
     if (traj == nullptr) {
         return;
@@ -626,6 +687,8 @@ void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportO
         exportOptimized ? StereoVision::Geometry::RigidBodyTransform<double>(local2ecef*trajSeq[i].val.toAffineTransform()) :
                           StereoVision::Geometry::RigidBodyTransform<double>(trajSeq[i].val.toAffineTransform());
 
+        platform2ecef = platform2ecef*sensor2body; //if the platform is a sensor, apply the sensor2body transform beforehand
+
         PJ_COORD coordEcef;
         coordEcef.xyz.x = platform2ecef.t[0];
         coordEcef.xyz.y = platform2ecef.t[1];
@@ -677,6 +740,8 @@ void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportO
         StereoVision::Geometry::RigidBodyTransform<double> platform2ecef =
         exportOptimized ? StereoVision::Geometry::RigidBodyTransform<double>(local2ecef*trajSeq[i].val.toAffineTransform()) :
                           StereoVision::Geometry::RigidBodyTransform<double>(trajSeq[i].val.toAffineTransform());
+
+        platform2ecef = platform2ecef*sensor2body; //if the platform is a sensor, apply the sensor2body transform beforehand
 
         StereoVision::Geometry::RigidBodyTransform<double> local2ecef =
                 local2ecefTransforms[i];
