@@ -108,7 +108,7 @@ protected:
     bool _gyroScale;
 
     std::vector<std::array<double,3>> _accelerometersBiases;
-    std::vector<std::array<double,1>> _accelerometersScales;
+    std::vector<std::array<double,3>> _accelerometersScales;
 
     std::vector<std::array<double,3>> _gyrosBiases;
     std::vector<std::array<double,3>> _gyrosScales;

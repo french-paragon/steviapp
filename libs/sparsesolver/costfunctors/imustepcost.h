@@ -383,7 +383,23 @@ GyroStepCost<WBias,WScale>* GyroStepCostBase::getIntegratedIMUDiff(IndexedTimeSe
 
 }
 
-template<bool WBias, bool WScale>
+enum AccelerometerStepCostFlags {
+    NoBias = 0,
+    GyroBias = 1,
+    GyroScale = 2,
+    AccBias = 4,
+    AccScale = 8
+};
+
+template <int flags>
+struct AccelerometerStepCostTraits{
+    constexpr static bool WGBias = flags & AccelerometerStepCostFlags::GyroBias;
+    constexpr static bool WGScale = flags & AccelerometerStepCostFlags::GyroScale;
+    constexpr static bool WABias = flags & AccelerometerStepCostFlags::AccBias;
+    constexpr static bool WAScale = flags & AccelerometerStepCostFlags::AccScale;
+};
+
+template<int flags>
 class AccelerometerStepCost;
 
 /*!
@@ -421,17 +437,35 @@ class AccelerometerStepCostBase {
 
 public:
 
-    template<bool WBias, bool WScale, typename Tgyro, typename Tacc, typename TimeT>
-    static AccelerometerStepCost<WBias, WScale>* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+    struct IntegratedGyroSegment {
+        Eigen::Vector3d speedDelta;
+        Eigen::Matrix3d accBiasJacobian;
+        Eigen::Matrix3d accGainJacobian;
+        Eigen::Matrix3d gyroBiasJacobian;
+        Eigen::Matrix3d gyroGainJacobian;
+        double dt1;
+        double dt2;
+    };
+
+    template<typename Tgyro, typename Tacc, typename TimeT>
+    static inline IntegratedGyroSegment preIntegrateAccSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
                                                         IndexedTimeSequence<Tacc, TimeT> const& AccData,
                                                         TimeT t0,
                                                         TimeT t1,
                                                         TimeT t2) {
 
+
         double delta_t1 = t1 - t0;
         double delta_t2 = t2 - t1;
 
-        Eigen::Vector3d speedDelta = Eigen::Vector3d::Zero();
+        IntegratedGyroSegment ret;
+        ret.speedDelta = Eigen::Vector3d::Zero();
+        ret.accBiasJacobian = Eigen::Matrix3d::Zero();
+        ret.accGainJacobian = Eigen::Matrix3d::Zero();
+        ret.gyroBiasJacobian = Eigen::Matrix3d::Zero();
+        ret.gyroGainJacobian = Eigen::Matrix3d::Zero();
+        ret.dt1 = delta_t1;
+        ret.dt2 = delta_t2;
 
         double ti = (t1 + t0)/2;
         double tf = (t2 + t1)/2;
@@ -440,7 +474,9 @@ public:
         auto imuGyroData = GyroData.getValuesInBetweenTimes(ti, tf);
 
         Eigen::Matrix3d Rcurrent2initial = Eigen::Matrix3d::Identity();
-        Eigen::Matrix3d BiasAvgOrientAndScale = Eigen::Matrix3d::Zero();
+
+        Eigen::Matrix3d gyroSO3BiasJacobian = Eigen::Matrix3d::Zero();
+        Eigen::Matrix3d gyroSO3GainJacobian = Eigen::Matrix3d::Zero();
 
         double t_acc = 0;
         double t_gyro = 0;
@@ -456,7 +492,26 @@ public:
 
                 Eigen::Vector3d acceleration_local(imuAccData[idx_acc].val[0], imuAccData[idx_acc].val[1], imuAccData[idx_acc].val[2]);
 
-                speedDelta += Rcurrent2initial*acceleration_local*dt_acc;
+                ret.speedDelta += Rcurrent2initial*acceleration_local*dt_acc;
+                ret.accBiasJacobian += Rcurrent2initial*acceleration_local.asDiagonal()*dt_acc;
+
+                Eigen::Matrix3d rodriguezJac = Eigen::Matrix3d::Zero();
+
+                rodriguezJac.block<3,1>(0,0) =
+                        StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+                                                                    acceleration_local,
+                                                                    StereoVision::Geometry::Axis::X);
+                rodriguezJac.block<3,1>(0,1) =
+                        StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+                                                                    acceleration_local,
+                                                                    StereoVision::Geometry::Axis::Y);
+                rodriguezJac.block<3,1>(0,2) =
+                        StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+                                                                    acceleration_local,
+                                                                    StereoVision::Geometry::Axis::Z);
+
+                ret.gyroBiasJacobian += rodriguezJac*gyroSO3BiasJacobian*dt_acc;
+                ret.gyroGainJacobian += rodriguezJac*gyroSO3GainJacobian*dt_acc;
 
                 t_acc += dt_acc;
                 idx_acc++;
@@ -467,8 +522,21 @@ public:
 
             Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
 
+            Eigen::Matrix3d JacobianSO3 = StereoVision::Geometry::diffRodriguezLieAlgebra(dr);
+
+            Eigen::Matrix3d tmp = Rcurrent2initial.transpose()*JacobianSO3;
+
+            Eigen::Matrix3d diag = Eigen::Matrix3d::Zero();
+            diag(0,0) = dr[0];
+            diag(1,1) = dr[1];
+            diag(2,2) = dr[2];
+
+            gyroSO3BiasJacobian += tmp*dt;
+
+            gyroSO3GainJacobian += tmp*diag;
+
             Rcurrent2initial = dR*Rcurrent2initial;
-            BiasAvgOrientAndScale += Rcurrent2initial*dt;
+            ret.accBiasJacobian += Rcurrent2initial*dt;
 
             //re-constaint as R mat for numerical stability
             Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(Rcurrent2initial);
@@ -478,61 +546,39 @@ public:
 
         }
 
-        #ifndef NDEBUG
-        bool speedDeltaFinite = speedDelta.array().isFinite().all();
-
-        bool biasAvgOrientAndScaleFinite = BiasAvgOrientAndScale.array().isFinite().all();
-
-        if (!biasAvgOrientAndScaleFinite or !speedDeltaFinite) {
-            std::cerr << "Error when pre-integrating Accelerometer" << std::endl;
-        }
-        #endif
-
-        AccelerometerStepCostBase* ret;
-
-        if (WBias) {
-            ret = new StereoVisionApp::AccelerometerStepCost<true, WScale>(speedDelta, BiasAvgOrientAndScale,  delta_t1, delta_t2);
-        } else {
-            ret = new StereoVisionApp::AccelerometerStepCost<false, WScale>(speedDelta,  delta_t1, delta_t2);
-        }
-
-        return static_cast<StereoVisionApp::AccelerometerStepCost<WBias, WScale>*>(ret);
+        return ret;
 
     }
+
+    template<int accCostFlags, typename Tgyro, typename Tacc, typename TimeT>
+    static AccelerometerStepCost<accCostFlags>* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                        IndexedTimeSequence<Tacc, TimeT> const& AccData,
+                                                        TimeT t0,
+                                                        TimeT t1,
+                                                        TimeT t2);
 
     AccelerometerStepCostBase(Eigen::Vector3d const& speedDelta,
                               double delta_t1,
                               double delta_t2);
 
-protected:
 
-    Eigen::Vector3d _speedDelta; // int_n^{n+1} int_n^{t} w(t') dt' f(t) dt
-    double _delta_t1;
-    double _delta_t2;
-    double _delta_tv;
 
-};
-
-template<>
-class AccelerometerStepCost<false, false>: public AccelerometerStepCostBase {
-
-public:
-
-    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
-                          double delta_t1,
-                          double delta_t2) :
-        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2) {
-
-    }
-
-    template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
-                    const T* const r1,
-                    const T* const t1,
-                    const T* const t2,
-                    const T* const g,
-                    T* residual) const {
+    template <bool WGBias, bool WGScale, bool WABias, bool WAScale, typename T>
+    bool computeResidualsGeneric(const T* const r0,
+                                 const T* const t0,
+                                 const T* const r1,
+                                 const T* const t1,
+                                 const T* const t2,
+                                 const T* const g,
+                                 T* residual,
+                                 const T* const gGain = nullptr,
+                                 const T* const gBias = nullptr,
+                                 const T* const aGain = nullptr,
+                                 const T* const aBias = nullptr,
+                                 Eigen::Matrix3d const& gyroBiasJacobian = Eigen::Matrix3d::Identity(),
+                                 Eigen::Matrix3d const& gyroGainJacobian = Eigen::Matrix3d::Identity(),
+                                 Eigen::Matrix3d const& accBiasJacobian = Eigen::Matrix3d::Identity(),
+                                 Eigen::Matrix3d const& accGainJacobian = Eigen::Matrix3d::Identity()) const {
 
 
         using M3T = Eigen::Matrix<T,3,3>;
@@ -562,6 +608,27 @@ public:
         T spdy(_speedDelta[1]);
         T spdz(_speedDelta[2]);
         V3T vSpeedDelta(spdx, spdy, spdz);
+
+        if (WGBias) {
+            V3T GyroBias(gBias[0], gBias[1], gBias[2]);
+            vSpeedDelta += gyroBiasJacobian.cast<T>()*GyroBias;
+        }
+
+        if (WGScale) {
+            V3T GyroGain(gGain[0], gGain[1], gGain[2]);
+            vSpeedDelta += gyroGainJacobian.cast<T>()*GyroGain;
+        }
+
+        if (WABias) {
+            V3T AccBias(aBias[0], aBias[1], aBias[2]);
+            vSpeedDelta += accBiasJacobian.cast<T>()*AccBias;
+        }
+
+        if (WAScale) {
+            V3T AccGain(aGain[0], aGain[1], aGain[2]);
+            vSpeedDelta += accGainJacobian.cast<T>()*AccGain;
+        }
+
         V3T gCorr = vg*T(_delta_tv);
         V3T alignedSpeedDelta = Rrv0*vSpeedDelta;
         V3T corr = gCorr + alignedSpeedDelta;
@@ -581,90 +648,25 @@ public:
         return true;
 
     }
+
+protected:
+
+    Eigen::Vector3d _speedDelta; // int_n^{n+1} int_n^{t} w(t') dt' f(t) dt
+    double _delta_t1;
+    double _delta_t2;
+    double _delta_tv;
+
 };
 
 template<>
-class AccelerometerStepCost<false, true>: public AccelerometerStepCostBase {
+class AccelerometerStepCost<NoBias>: public AccelerometerStepCostBase {
 
 public:
 
     AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
                           double delta_t1,
                           double delta_t2) :
-        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2) {
-
-    }
-
-    template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
-                    const T* const r1,
-                    const T* const t1,
-                    const T* const t2,
-                    const T* const g,
-                    const T* const scale,
-                    T* residual) const {
-
-
-        using M3T = Eigen::Matrix<T,3,3>;
-        using V3T = Eigen::Matrix<T,3,1>;
-
-        V3T vr0(r0[0], r0[1], r0[2]);
-        V3T vr1(r1[0], r1[1], r1[2]);
-
-        V3T vt0(t0[0], t0[1], t0[2]);
-        V3T vt1(t1[0], t1[1], t1[2]);
-        V3T vt2(t2[0], t2[1], t2[2]);
-
-        V3T vg(g[0], g[1], g[2]);
-
-        V3T vv0 = (vt1 - vt0)/T(_delta_t1); //avg speed in first interval
-        V3T vv1 = (vt2 - vt1)/T(_delta_t2); //avg speed in second interval
-
-        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0);
-        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1);
-        M3T deltaR = Rr1*Rr0.transpose();
-        V3T vrv0 = StereoVision::Geometry::inverseRodriguezFormula<T>(deltaR)*T(0.5);
-        M3T Rrv0 = StereoVision::Geometry::rodriguezFormula<T>(vrv0)*Rr0;
-
-        //platform2world orientation at (t0 + t1)/2
-
-        T spdx(_speedDelta[0]);
-        T spdy(_speedDelta[1]);
-        T spdz(_speedDelta[2]);
-        V3T vSpeedDelta(spdx, spdy, spdz);
-        V3T gCorr = vg*T(_delta_tv);
-        V3T alignedSpeedDelta = (*scale)*Rrv0*vSpeedDelta;
-        V3T corr = gCorr + alignedSpeedDelta;
-        V3T pred = vv0 + corr;
-        V3T err = vv1 - pred;
-
-        residual[0] = err[0];
-        residual[1] = err[1];
-        residual[2] = err[2];
-
-#ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
-            std::cout << "Error in AccelerometerStepCost cost computation" << std::endl;
-        }
-#endif
-
-        return true;
-
-    }
-};
-
-template<>
-class AccelerometerStepCost<true, false>: public AccelerometerStepCostBase {
-
-public:
-
-    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
-                          Eigen::Matrix3d const& biasAvgOrientAndScale,
-                          double delta_t1,
-                          double delta_t2) :
-        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
-        _biasAvgOrientAndScale(biasAvgOrientAndScale)
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2)
     {
 
     }
@@ -676,82 +678,27 @@ public:
                     const T* const t1,
                     const T* const t2,
                     const T* const g,
-                    const T* const bias,
                     T* residual) const {
-
-
-        using M3T = Eigen::Matrix<T,3,3>;
-        using V3T = Eigen::Matrix<T,3,1>;
-
-        V3T vr0(r0[0], r0[1], r0[2]);
-        V3T vr1(r1[0], r1[1], r1[2]);
-
-        V3T vt0(t0[0], t0[1], t0[2]);
-        V3T vt1(t1[0], t1[1], t1[2]);
-        V3T vt2(t2[0], t2[1], t2[2]);
-
-        V3T vg(g[0], g[1], g[2]);
-
-        V3T vBias(bias[0], bias[1], bias[2]);
-
-        V3T vv0 = (vt1 - vt0)/T(_delta_t1); //avg speed in first interval
-        V3T vv1 = (vt2 - vt1)/T(_delta_t2); //avg speed in second interval
-
-        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0);
-        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1);
-        M3T deltaR = Rr1*Rr0.transpose();
-        V3T vrv0 = StereoVision::Geometry::inverseRodriguezFormula<T>(deltaR)*T(0.5);
-        M3T Rrv0 = StereoVision::Geometry::rodriguezFormula<T>(vrv0)*Rr0;
-
-        M3T biasTransform;
-
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                biasTransform(i,j) = T(_biasAvgOrientAndScale(i,j));
-            }
-        }
-
-        //platform2world orientation at (t0 + t1)/2
-
-        T spdx(_speedDelta[0]);
-        T spdy(_speedDelta[1]);
-        T spdz(_speedDelta[2]);
-        V3T vSpeedDelta(spdx, spdy, spdz);
-        V3T gCorr = vg*T(_delta_tv);
-        V3T alignedSpeedDelta = Rrv0*(vSpeedDelta - biasTransform*vBias);
-        V3T corr = gCorr + alignedSpeedDelta;
-        V3T pred = vv0 + corr;
-        V3T err = vv1 - pred;
-
-        residual[0] = err[0];
-        residual[1] = err[1];
-        residual[2] = err[2];
-
-#ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
-            std::cout << "Error in AccelerometerStepCost cost computation" << std::endl;
-        }
-#endif
-
-        return true;
-
+        return AccelerometerStepCostBase::computeResidualsGeneric<false, false, false, false, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 nullptr, nullptr, nullptr, nullptr,
+                 Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity());
     }
 
 protected:
-    Eigen::Matrix3d _biasAvgOrientAndScale; // int_n^{n+1} int_n^{t} w(t') dt' dt
 };
 
 template<>
-class AccelerometerStepCost<true, true>: public AccelerometerStepCostBase {
+class AccelerometerStepCost<AccelerometerStepCostFlags::AccScale>: public AccelerometerStepCostBase {
 
 public:
 
     AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
-                          Eigen::Matrix3d const& biasAvgOrientAndScale,
+                          Eigen::Matrix3d const& aGainJacobian,
                           double delta_t1,
                           double delta_t2) :
         AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
-        _biasAvgOrientAndScale(biasAvgOrientAndScale)
+        _aGainJacobian(aGainJacobian)
     {
 
     }
@@ -762,72 +709,761 @@ public:
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
+                    const T* const ascale,
                     const T* const g,
-                    const T* const scale,
-                    const T* const bias,
                     T* residual) const {
-
-
-        using M3T = Eigen::Matrix<T,3,3>;
-        using V3T = Eigen::Matrix<T,3,1>;
-
-        V3T vr0(r0[0], r0[1], r0[2]);
-        V3T vr1(r1[0], r1[1], r1[2]);
-
-        V3T vt0(t0[0], t0[1], t0[2]);
-        V3T vt1(t1[0], t1[1], t1[2]);
-        V3T vt2(t2[0], t2[1], t2[2]);
-
-        V3T vg(g[0], g[1], g[2]);
-
-        V3T vBias(bias[0], bias[1], bias[2]);
-
-        V3T vv0 = (vt1 - vt0)/T(_delta_t1); //avg speed in first interval
-        V3T vv1 = (vt2 - vt1)/T(_delta_t2); //avg speed in second interval
-
-        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0);
-        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1);
-        M3T deltaR = Rr1*Rr0.transpose();
-        V3T vrv0 = StereoVision::Geometry::inverseRodriguezFormula<T>(deltaR)*T(0.5);
-        M3T Rrv0 = StereoVision::Geometry::rodriguezFormula<T>(vrv0)*Rr0;
-
-        M3T biasTransform;
-
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                biasTransform(i,j) = T(_biasAvgOrientAndScale(i,j));
-            }
-        }
-
-        //platform2world orientation at (t0 + t1)/2
-
-        T spdx(_speedDelta[0]);
-        T spdy(_speedDelta[1]);
-        T spdz(_speedDelta[2]);
-        V3T vSpeedDelta(spdx, spdy, spdz);
-        V3T gCorr = vg*T(_delta_tv);
-        V3T alignedSpeedDelta = (*scale)*Rrv0*(vSpeedDelta - biasTransform*vBias);
-        V3T corr = gCorr + alignedSpeedDelta;
-        V3T pred = vv0 + corr;
-        V3T err = vv1 - pred;
-
-        residual[0] = err[0];
-        residual[1] = err[1];
-        residual[2] = err[2];
-
-#ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1]) or !ceres::IsFinite(residual[2])) {
-            std::cout << "Error in AccelerometerStepCost cost computation" << std::endl;
-        }
-#endif
-
-        return true;
-
+        return AccelerometerStepCostBase::computeResidualsGeneric<false, false, false, true, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 nullptr, nullptr, ascale, nullptr,
+                 Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), _aGainJacobian);
     }
 
 protected:
-    Eigen::Matrix3d _biasAvgOrientAndScale; // int_n^{n+1} int_n^{t} w(t') dt' dt
+
+    Eigen::Matrix3d _aGainJacobian;
 };
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::AccBias>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& aBiasJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _aBiasJacobian(aBiasJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const abias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<false, false, true, false, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 nullptr, nullptr, nullptr, abias,
+                 Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), _aBiasJacobian, Eigen::Matrix3d::Identity());
+    }
+
+protected:
+
+    Eigen::Matrix3d _aBiasJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::AccBias|AccelerometerStepCostFlags::AccScale>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& aBiasJacobian,
+                          Eigen::Matrix3d const& aGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _aBiasJacobian(aBiasJacobian),
+        _aGainJacobian(aGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const ascale,
+                    const T* const abias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<false, false, true, true, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 nullptr, nullptr, ascale, abias,
+                 Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), _aBiasJacobian, _aGainJacobian);
+    }
+
+protected:
+
+    Eigen::Matrix3d _aBiasJacobian;
+    Eigen::Matrix3d _aGainJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gGainJacobian(gGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gscale,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<false, true, false, false, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 gscale, nullptr, nullptr, nullptr,
+                 Eigen::Matrix3d::Identity(), _gGainJacobian, Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity());
+    }
+
+protected:
+
+    Eigen::Matrix3d _gGainJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|AccelerometerStepCostFlags::AccBias>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gGainJacobian,
+                          Eigen::Matrix3d const& aBiasJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gGainJacobian(gGainJacobian),
+        _aBiasJacobian(aBiasJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gscale,
+                    const T* const abias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<false, true, true, false, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 gscale, nullptr, nullptr, abias,
+                 Eigen::Matrix3d::Identity(), _gGainJacobian, _aBiasJacobian, Eigen::Matrix3d::Identity());
+    }
+
+protected:
+
+    Eigen::Matrix3d _gGainJacobian;
+    Eigen::Matrix3d _aBiasJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|AccelerometerStepCostFlags::AccScale>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gGainJacobian,
+                          Eigen::Matrix3d const& aGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gGainJacobian(gGainJacobian),
+        _aGainJacobian(aGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gscale,
+                    const T* const ascale,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<false, true, false, true, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 gscale, nullptr, ascale, nullptr,
+                 Eigen::Matrix3d::Identity(), _gGainJacobian, Eigen::Matrix3d::Identity(), _aGainJacobian);
+    }
+
+protected:
+
+    Eigen::Matrix3d _gGainJacobian;
+    Eigen::Matrix3d _aGainJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+        AccelerometerStepCostFlags::AccScale|
+        AccelerometerStepCostFlags::AccBias>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gGainJacobian,
+                          Eigen::Matrix3d const& aBiasJacobian,
+                          Eigen::Matrix3d const& aGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gGainJacobian(gGainJacobian),
+        _aBiasJacobian(aBiasJacobian),
+        _aGainJacobian(aGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gscale,
+                    const T* const ascale,
+                    const T* const abias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<false, true, true, true, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 gscale, nullptr, ascale, abias,
+                 Eigen::Matrix3d::Identity(), _gGainJacobian, _aBiasJacobian, _aGainJacobian);
+    }
+
+protected:
+
+    Eigen::Matrix3d _gGainJacobian;
+    Eigen::Matrix3d _aBiasJacobian;
+    Eigen::Matrix3d _aGainJacobian;
+};
+
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gBiasJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gBiasJacobian(gBiasJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gbias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<true, false, false, false, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 nullptr, gbias, nullptr, nullptr,
+                 _gBiasJacobian, Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity());
+    }
+
+protected:
+
+    Eigen::Matrix3d _gBiasJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|AccelerometerStepCostFlags::AccBias>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gBiasJacobian,
+                          Eigen::Matrix3d const& aBiasJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gBiasJacobian(gBiasJacobian),
+        _aBiasJacobian(aBiasJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gbias,
+                    const T* const abias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<true, false, true, false, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 nullptr, gbias, nullptr, abias,
+                 _gBiasJacobian, Eigen::Matrix3d::Identity(), _aBiasJacobian, Eigen::Matrix3d::Identity());
+    }
+
+protected:
+
+    Eigen::Matrix3d _gBiasJacobian;
+    Eigen::Matrix3d _aBiasJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|AccelerometerStepCostFlags::AccScale>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gBiasJacobian,
+                          Eigen::Matrix3d const& aGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gBiasJacobian(gBiasJacobian),
+        _aGainJacobian(aGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gbias,
+                    const T* const ascale,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<true, true, true, true, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 nullptr, gbias, ascale, nullptr,
+                 _gBiasJacobian, Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), _aGainJacobian);
+    }
+
+protected:
+
+    Eigen::Matrix3d _gBiasJacobian;
+    Eigen::Matrix3d _aGainJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+        AccelerometerStepCostFlags::AccBias|
+        AccelerometerStepCostFlags::AccScale>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gBiasJacobian,
+                          Eigen::Matrix3d const& aBiasJacobian,
+                          Eigen::Matrix3d const& aGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gBiasJacobian(gBiasJacobian),
+        _aBiasJacobian(aBiasJacobian),
+        _aGainJacobian(aGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gbias,
+                    const T* const ascale,
+                    const T* const abias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<true, false, true, true, T>
+                (r0, t0, r1, t1, t2, g, residual, nullptr, gbias, ascale, abias,
+                 _gBiasJacobian, Eigen::Matrix3d::Identity(), _aBiasJacobian, _aGainJacobian);
+    }
+
+protected:
+
+    Eigen::Matrix3d _gBiasJacobian;
+    Eigen::Matrix3d _aBiasJacobian;
+    Eigen::Matrix3d _aGainJacobian;
+};
+
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|AccelerometerStepCostFlags::GyroScale>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gBiasJacobian,
+                          Eigen::Matrix3d const& gGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gBiasJacobian(gBiasJacobian),
+        _gGainJacobian(gGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gscale,
+                    const T* const gbias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<true, true, false, false, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 gscale, gbias, nullptr, nullptr,
+                 _gBiasJacobian, _gGainJacobian, Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity());
+    }
+
+protected:
+
+    Eigen::Matrix3d _gBiasJacobian;
+    Eigen::Matrix3d _gGainJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+        AccelerometerStepCostFlags::GyroScale|
+        AccelerometerStepCostFlags::AccBias>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gBiasJacobian,
+                          Eigen::Matrix3d const& gGainJacobian,
+                          Eigen::Matrix3d const& aBiasJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gBiasJacobian(gBiasJacobian),
+        _gGainJacobian(gGainJacobian),
+        _aBiasJacobian(aBiasJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gscale,
+                    const T* const gbias,
+                    const T* const abias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<true, true, true, false, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 gscale, gbias, nullptr, abias,
+                 _gBiasJacobian, _gGainJacobian, _aBiasJacobian, Eigen::Matrix3d::Identity());
+    }
+
+protected:
+
+    Eigen::Matrix3d _gBiasJacobian;
+    Eigen::Matrix3d _gGainJacobian;
+    Eigen::Matrix3d _aBiasJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+        AccelerometerStepCostFlags::GyroScale|
+        AccelerometerStepCostFlags::AccScale>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gBiasJacobian,
+                          Eigen::Matrix3d const& gGainJacobian,
+                          Eigen::Matrix3d const& aGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gBiasJacobian(gBiasJacobian),
+        _gGainJacobian(gGainJacobian),
+        _aGainJacobian(aGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gscale,
+                    const T* const gbias,
+                    const T* const ascale,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<true, true, false, true, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 gscale, gbias, ascale, nullptr,
+                 _gBiasJacobian, _gGainJacobian, Eigen::Matrix3d::Identity(), _aGainJacobian);
+    }
+
+protected:
+
+    Eigen::Matrix3d _gBiasJacobian;
+    Eigen::Matrix3d _gGainJacobian;
+    Eigen::Matrix3d _aGainJacobian;
+};
+
+template<>
+class AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+        AccelerometerStepCostFlags::GyroScale|
+        AccelerometerStepCostFlags::AccBias|
+        AccelerometerStepCostFlags::AccScale>: public AccelerometerStepCostBase {
+
+public:
+
+    AccelerometerStepCost(Eigen::Vector3d const& speedDelta,
+                          Eigen::Matrix3d const& gBiasJacobian,
+                          Eigen::Matrix3d const& gGainJacobian,
+                          Eigen::Matrix3d const& aBiasJacobian,
+                          Eigen::Matrix3d const& aGainJacobian,
+                          double delta_t1,
+                          double delta_t2) :
+        AccelerometerStepCostBase(speedDelta, delta_t1, delta_t2),
+        _gBiasJacobian(gBiasJacobian),
+        _gGainJacobian(gGainJacobian),
+        _aBiasJacobian(aBiasJacobian),
+        _aGainJacobian(aGainJacobian)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(const T* const r0,
+                    const T* const t0,
+                    const T* const r1,
+                    const T* const t1,
+                    const T* const t2,
+                    const T* const gscale,
+                    const T* const gbias,
+                    const T* const ascale,
+                    const T* const abias,
+                    const T* const g,
+                    T* residual) const {
+        return AccelerometerStepCostBase::computeResidualsGeneric<true, true, true, true, T>
+                (r0, t0, r1, t1, t2, g, residual,
+                 gscale, gbias, ascale, abias,
+                 _gBiasJacobian, _gGainJacobian, _aBiasJacobian, _aGainJacobian);
+    }
+
+protected:
+
+    Eigen::Matrix3d _gBiasJacobian;
+    Eigen::Matrix3d _gGainJacobian;
+    Eigen::Matrix3d _aBiasJacobian;
+    Eigen::Matrix3d _aGainJacobian;
+};
+
+template<int accCostFlags, typename Tgyro, typename Tacc, typename TimeT>
+AccelerometerStepCost<accCostFlags>* AccelerometerStepCostBase::getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                    IndexedTimeSequence<Tacc, TimeT> const& AccData,
+                                                    TimeT t0,
+                                                    TimeT t1,
+                                                    TimeT t2) {
+
+    using Traits = AccelerometerStepCostTraits<accCostFlags>;
+
+    IntegratedGyroSegment integrated = preIntegrateAccSegment(GyroData, AccData, t0, t1, t2);
+
+    AccelerometerStepCostBase* ret;
+
+    if (Traits::WGBias) {
+        if (Traits::WGScale) {
+
+            if (Traits::WABias) {
+                if (Traits::WAScale) {
+                ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                        AccelerometerStepCostFlags::GyroScale|
+                        AccelerometerStepCostFlags::AccBias|
+                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
+                                                              integrated.gyroBiasJacobian,
+                                                              integrated.gyroGainJacobian,
+                                                              integrated.accBiasJacobian,
+                                                              integrated.accGainJacobian,
+                                                              integrated.dt1,
+                                                              integrated.dt2);
+                } else {
+                    ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::GyroScale|
+                            AccelerometerStepCostFlags::AccBias>(integrated.speedDelta,
+                                                                 integrated.gyroBiasJacobian,
+                                                                 integrated.gyroGainJacobian,
+                                                                 integrated.accBiasJacobian,
+                                                                 integrated.dt1,
+                                                                 integrated.dt2);
+                }
+            } else {
+                if (Traits::WAScale) {
+                ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                        AccelerometerStepCostFlags::GyroScale|
+                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
+                                                              integrated.gyroBiasJacobian,
+                                                              integrated.gyroGainJacobian,
+                                                              integrated.accGainJacobian,
+                                                              integrated.dt1,
+                                                              integrated.dt2);
+                } else {
+                    ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::GyroScale>(integrated.speedDelta,
+                                                                   integrated.gyroBiasJacobian,
+                                                                   integrated.gyroGainJacobian,
+                                                                   integrated.dt1,
+                                                                   integrated.dt2);
+                }
+            }
+
+        } else {
+
+            if (Traits::WABias) {
+                if (Traits::WAScale) {
+                ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                        AccelerometerStepCostFlags::AccBias|
+                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
+                                                              integrated.gyroBiasJacobian,
+                                                              integrated.accBiasJacobian,
+                                                              integrated.accGainJacobian,
+                                                              integrated.dt1,
+                                                              integrated.dt2);
+                } else {
+                    ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::AccBias>(integrated.speedDelta,
+                                                                 integrated.gyroBiasJacobian,
+                                                                 integrated.accBiasJacobian,
+                                                                 integrated.dt1,
+                                                                 integrated.dt2);
+                }
+            } else {
+                if (Traits::WAScale) {
+                ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
+                                                              integrated.gyroBiasJacobian,
+                                                              integrated.accGainJacobian,
+                                                              integrated.dt1,
+                                                              integrated.dt2);
+                } else {
+                    ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias>
+                            (integrated.speedDelta,
+                             integrated.gyroBiasJacobian,
+                             integrated.dt1,
+                             integrated.dt2);
+                }
+            }
+
+        }
+    } else {
+        if (Traits::WGScale) {
+
+            if (Traits::WABias) {
+                if (Traits::WAScale) {
+                ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+                        AccelerometerStepCostFlags::AccBias|
+                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
+                                                              integrated.gyroGainJacobian,
+                                                              integrated.accBiasJacobian,
+                                                              integrated.accGainJacobian,
+                                                              integrated.dt1,
+                                                              integrated.dt2);
+                } else {
+                    ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+                            AccelerometerStepCostFlags::AccBias>(integrated.speedDelta,
+                                                                 integrated.gyroGainJacobian,
+                                                                 integrated.accBiasJacobian,
+                                                                 integrated.dt1,
+                                                                 integrated.dt2);
+                }
+            } else {
+                if (Traits::WAScale) {
+                ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
+                                                              integrated.gyroGainJacobian,
+                                                              integrated.accGainJacobian,
+                                                              integrated.dt1,
+                                                              integrated.dt2);
+                } else {
+                    ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale>
+                            (integrated.speedDelta,
+                             integrated.gyroGainJacobian,
+                             integrated.dt1,
+                             integrated.dt2);
+                }
+            }
+
+        } else {
+
+            if (Traits::WABias) {
+                if (Traits::WAScale) {
+                ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::AccBias|
+                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
+                                                              integrated.accBiasJacobian,
+                                                              integrated.accGainJacobian,
+                                                              integrated.dt1,
+                                                              integrated.dt2);
+                } else {
+                    ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::AccBias>
+                            (integrated.speedDelta,
+                             integrated.accBiasJacobian,
+                             integrated.dt1,
+                             integrated.dt2);
+                }
+            } else {
+                if (Traits::WAScale) {
+                ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::AccScale>
+                        (integrated.speedDelta,
+                         integrated.accGainJacobian,
+                         integrated.dt1,
+                         integrated.dt2);
+                } else {
+                    ret = new StereoVisionApp::AccelerometerStepCost<AccelerometerStepCostFlags::NoBias>
+                            (integrated.speedDelta,
+                             integrated.dt1,
+                             integrated.dt2);
+                }
+            }
+        }
+    }
+
+    return static_cast<StereoVisionApp::AccelerometerStepCost<accCostFlags>*>(ret);
+
+}
 
 } // namespace StereoVisionApp
 

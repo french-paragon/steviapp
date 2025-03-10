@@ -30,7 +30,7 @@ TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double defaultIntegrationTime) 
     _gyroScale = false;
 
     _accelerometersBiases = std::vector<std::array<double,3>>();
-    _accelerometersScales = std::vector<std::array<double,1>>();
+    _accelerometersScales = std::vector<std::array<double,3>>();
 
     _gyrosBiases = std::vector<std::array<double,3>>();
     _gyrosScales = std::vector<std::array<double,3>>();
@@ -108,7 +108,7 @@ bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
 
                 }
                 if (_accelerometerScale) {
-                    _accelerometersScales.push_back({1});
+                    _accelerometersScales.push_back({1,1,1});
                 }
             } else {
                 _accelerometerParametersIndex.insert(accId, accId);
@@ -669,19 +669,26 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     continue;
                 }
 
-                if (_accelerometerBias and _accelerometerScale) {
+                if (_gyroBias and _gyroScale and _accelerometerBias and _accelerometerScale) {
 
-                    using AccCost = AccelerometerStepCost<true, true>;
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                    AccelerometerStepCostFlags::GyroScale|
+                    AccelerometerStepCostFlags::AccBias|
+                    AccelerometerStepCostFlags::AccScale>;
 
                     AccCost* accStepCost =
-                            AccelerometerStepCostBase::getIntegratedIMUDiff<true, true>(optGyro.value(),
-                                                                        optImu.value(),
-                                                                        trajNode->nodes[i-2].time,
-                                                                        trajNode->nodes[i-1].time,
-                                                                        trajNode->nodes[i].time);
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::GyroScale|
+                            AccelerometerStepCostFlags::AccBias|
+                            AccelerometerStepCostFlags::AccScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                            trajNode->nodes[i-1].time,
+                            trajNode->nodes[i].time);
 
-                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,1,3>* accStepCostFunction =
-                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,1,3>(accStepCost);
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3,3>(accStepCost);
 
                     double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
                     Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
@@ -692,8 +699,156 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     weigthMat(1,1) = 1/speedUncertainty;
                     weigthMat(2,2) = 1/speedUncertainty;
 
-                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,1,3>* weigthedAccStepCost =
-                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,1,3>(accStepCostFunction, weigthMat);
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<10,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _gyrosBiases[gyroId].data(),
+                         _accelerometersScales[accId].data(),
+                         _accelerometersBiases[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<10,3>(accStepCostFunction, params));
+                    }
+
+                } else if (_gyroBias and _gyroScale and _accelerometerBias) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                    AccelerometerStepCostFlags::GyroScale|
+                    AccelerometerStepCostFlags::AccBias>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::GyroScale|
+                            AccelerometerStepCostFlags::AccBias>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                            trajNode->nodes[i-1].time,
+                            trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<9,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _gyrosBiases[gyroId].data(),
+                         _accelerometersBiases[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<9,3>(accStepCostFunction, params));
+                    }
+                } else if (_gyroBias and _gyroScale and _accelerometerScale) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                    AccelerometerStepCostFlags::GyroScale|
+                    AccelerometerStepCostFlags::AccScale>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::GyroScale|
+                            AccelerometerStepCostFlags::AccScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<9,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _gyrosBiases[gyroId].data(),
+                         _accelerometersScales[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<9,3>(accStepCostFunction, params));
+                    }
+
+                } else if (_gyroBias and _gyroScale) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                    AccelerometerStepCostFlags::GyroScale>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::GyroScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
 
 
                     ModularSBASolver::AutoErrorBlockLogger<8,3>::ParamsType params =
@@ -702,9 +857,9 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                          trajNode->nodes[i-1].rAxis.data(),
                          trajNode->nodes[i-1].t.data(),
                          trajNode->nodes[i].t.data(),
-                         _gravity.data(),
-                         _accelerometersScales[accId].data(),
-                         _accelerometersBiases[accId].data()};
+                         _gyrosScales[gyroId].data(),
+                         _gyrosBiases[gyroId].data(),
+                         _gravity.data()};
 
                     problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
 
@@ -713,16 +868,159 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
                     }
 
-                } else if (_accelerometerBias) {
+                } else if (_gyroBias and _accelerometerBias and _accelerometerScale) {
 
-                    using AccCost = AccelerometerStepCost<true, false>;
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                    AccelerometerStepCostFlags::AccBias|
+                    AccelerometerStepCostFlags::AccScale>;
 
                     AccCost* accStepCost =
-                            AccelerometerStepCostBase::getIntegratedIMUDiff<true, false>(optGyro.value(),
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::AccBias|
+                            AccelerometerStepCostFlags::AccScale>(optGyro.value(),
                                                                         optImu.value(),
                                                                         trajNode->nodes[i-2].time,
                                                                         trajNode->nodes[i-1].time,
                                                                         trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<9,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _accelerometersScales[accId].data(),
+                         _accelerometersBiases[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<9,3>(accStepCostFunction, params));
+                    }
+
+                } else if (_gyroBias and _accelerometerBias) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                    AccelerometerStepCostFlags::AccBias>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::AccBias>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<8,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _accelerometersBiases[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
+                    }
+                } else if (_gyroBias and _accelerometerScale) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                    AccelerometerStepCostFlags::AccScale>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroBias|
+                            AccelerometerStepCostFlags::AccScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<8,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _accelerometersScales[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
+                    }
+
+                } else if (_gyroBias) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroBias>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                            trajNode->nodes[i-1].time,
+                            trajNode->nodes[i].time);
 
                     ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3>* accStepCostFunction =
                             new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3>(accStepCost);
@@ -746,8 +1044,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                          trajNode->nodes[i-1].rAxis.data(),
                          trajNode->nodes[i-1].t.data(),
                          trajNode->nodes[i].t.data(),
-                         _gravity.data(),
-                         _accelerometersBiases[accId].data()};
+                         _gyrosScales[gyroId].data(),
+                         _gravity.data()};
 
                     problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
 
@@ -755,19 +1053,24 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<7,3>(accStepCostFunction, params));
                     }
-                } else if (_accelerometerScale) {
+                } else if (_gyroScale and _accelerometerBias and _accelerometerScale) {
 
-                    using AccCost = AccelerometerStepCost<false, true>;
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+                    AccelerometerStepCostFlags::AccBias|
+                    AccelerometerStepCostFlags::AccScale>;
 
                     AccCost* accStepCost =
-                            AccelerometerStepCostBase::getIntegratedIMUDiff<false, true>(optGyro.value(),
-                                                                        optImu.value(),
-                                                                        trajNode->nodes[i-2].time,
-                                                                        trajNode->nodes[i-1].time,
-                                                                        trajNode->nodes[i].time);
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroScale|
+                            AccelerometerStepCostFlags::AccBias|
+                            AccelerometerStepCostFlags::AccScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
 
-                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,1>* accStepCostFunction =
-                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,1>(accStepCost);
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3,3>(accStepCost);
 
                     double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
                     Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
@@ -778,8 +1081,147 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     weigthMat(1,1) = 1/speedUncertainty;
                     weigthMat(2,2) = 1/speedUncertainty;
 
-                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,1>* weigthedAccStepCost =
-                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,1>(accStepCostFunction, weigthMat);
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<9,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _accelerometersScales[accId].data(),
+                         _accelerometersBiases[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<9,3>(accStepCostFunction, params));
+                    }
+
+                } else if (_gyroScale and _accelerometerBias) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+                    AccelerometerStepCostFlags::AccBias>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroScale|
+                            AccelerometerStepCostFlags::AccBias>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<8,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _accelerometersBiases[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
+                    }
+                } else if (_gyroScale and _accelerometerScale) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale |
+                    AccelerometerStepCostFlags::AccScale>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroScale |
+                            AccelerometerStepCostFlags::AccScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<8,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _gyrosScales[gyroId].data(),
+                         _accelerometersScales[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
+                    }
+
+                } else if (_gyroScale) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::GyroScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
 
 
                     ModularSBASolver::AutoErrorBlockLogger<7,3>::ParamsType params =
@@ -788,8 +1230,141 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                          trajNode->nodes[i-1].rAxis.data(),
                          trajNode->nodes[i-1].t.data(),
                          trajNode->nodes[i].t.data(),
-                         _gravity.data(),
-                        _accelerometersScales[accId].data()};
+                         _gyrosScales[gyroId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<7,3>(accStepCostFunction, params));
+                    }
+                } else if (_accelerometerBias and _accelerometerScale) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::AccBias|
+                    AccelerometerStepCostFlags::AccScale>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::AccBias|
+                            AccelerometerStepCostFlags::AccScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<8,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _accelerometersScales[accId].data(),
+                         _accelerometersBiases[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
+                    }
+
+                } else if (_accelerometerBias) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::AccBias>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::AccBias>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<7,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _accelerometersBiases[accId].data(),
+                         _gravity.data()};
+
+                    problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                    if ((i+1)%trajLoggersSteps == 0) {
+                        QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<7,3>(accStepCostFunction, params));
+                    }
+                } else if (_accelerometerScale) {
+
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::AccScale>;
+
+                    AccCost* accStepCost =
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::AccScale>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
+
+                    ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3>* accStepCostFunction =
+                            new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3,3>(accStepCost);
+
+                    double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+                    Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
+
+                    double speedUncertainty = accAccuracy*dt;
+
+                    weigthMat(0,0) = 1/speedUncertainty;
+                    weigthMat(1,1) = 1/speedUncertainty;
+                    weigthMat(2,2) = 1/speedUncertainty;
+
+                    StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3>* weigthedAccStepCost =
+                            new StereoVisionApp::WeightedCostFunction<3,3,3,3,3,3,3,3>(accStepCostFunction, weigthMat);
+
+
+                    ModularSBASolver::AutoErrorBlockLogger<7,3>::ParamsType params =
+                        {trajNode->nodes[i-2].rAxis.data(),
+                         trajNode->nodes[i-2].t.data(),
+                         trajNode->nodes[i-1].rAxis.data(),
+                         trajNode->nodes[i-1].t.data(),
+                         trajNode->nodes[i].t.data(),
+                         _accelerometersScales[accId].data(),
+                         _gravity.data()};
 
                     problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
 
@@ -800,14 +1375,15 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
                 } else {
 
-                    using AccCost = AccelerometerStepCost<false, false>;
+                    using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::NoBias>;
 
                     AccCost* accStepCost =
-                            AccelerometerStepCostBase::getIntegratedIMUDiff<false, false>(optGyro.value(),
-                                                                        optImu.value(),
-                                                                        trajNode->nodes[i-2].time,
-                                                                        trajNode->nodes[i-1].time,
-                                                                        trajNode->nodes[i].time);
+                            AccelerometerStepCostBase::getIntegratedIMUDiff<AccelerometerStepCostFlags::NoBias>
+                            (optGyro.value(),
+                             optImu.value(),
+                             trajNode->nodes[i-2].time,
+                             trajNode->nodes[i-1].time,
+                             trajNode->nodes[i].time);
 
                     ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3>* accStepCostFunction =
                             new ceres::AutoDiffCostFunction<AccCost, 3,3,3,3,3,3,3>(accStepCost);
@@ -840,6 +1416,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<6,3>(accStepCostFunction, params));
                     }
                 }
+
             }
 
         }
@@ -889,9 +1466,11 @@ bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
 
             if (_accelerometerScale) {
 
-                std::array<double,1> const& scale = _accelerometersScales[paramIdx];
+                std::array<double,3> const& scale = _accelerometersScales[paramIdx];
 
-                trajectory->setOptAccelerometerScale(scale[0]);
+                trajectory->setOptAccelerometerScaleX(scale[0]);
+                trajectory->setOptAccelerometerScaleY(scale[1]);
+                trajectory->setOptAccelerometerScaleZ(scale[2]);
             }
         }
 

@@ -1427,14 +1427,36 @@ void Trajectory::setOptAccelerometerBiasZ(floatParameter const& biasZ) {
 
 }
 
-floatParameter Trajectory::optAccelerometerScale() const {
-    return _accelerometerParameters._o_scale;
+floatParameter Trajectory::optAccelerometerScaleX() const {
+    return _accelerometerParameters._o_scaleX;
 }
 
-void Trajectory::setOptAccelerometerScale(floatParameter const& scale) {
-    if (!_accelerometerParameters._o_scale.isApproximatlyEqual(scale)) {
-        _accelerometerParameters._o_scale = scale;
-        Q_EMIT accelerometerScaleChanged();
+floatParameter Trajectory::optAccelerometerScaleY() const {
+    return _accelerometerParameters._o_scaleY;
+}
+
+floatParameter Trajectory::optAccelerometerScaleZ() const {
+    return _accelerometerParameters._o_scaleZ;
+}
+
+void Trajectory::setOptAccelerometerScaleX(floatParameter const& scale) {
+    if (!_accelerometerParameters._o_scaleX.isApproximatlyEqual(scale)) {
+        _accelerometerParameters._o_scaleX = scale;
+        Q_EMIT accelerometerScaleXChanged();
+    }
+}
+
+void Trajectory::setOptAccelerometerScaleY(floatParameter const& scale) {
+    if (!_accelerometerParameters._o_scaleY.isApproximatlyEqual(scale)) {
+        _accelerometerParameters._o_scaleY = scale;
+        Q_EMIT accelerometerScaleYChanged();
+    }
+}
+
+void Trajectory::setOptAccelerometerScaleZ(floatParameter const& scale) {
+    if (!_accelerometerParameters._o_scaleZ.isApproximatlyEqual(scale)) {
+        _accelerometerParameters._o_scaleZ = scale;
+        Q_EMIT accelerometerScaleZChanged();
     }
 }
 

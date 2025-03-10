@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
     }
 
     Eigen::Vector3d stepStd(0.005,0.005,0.005);
-    int nSteps = 5;
+    int nSteps = 10;
 
     Eigen::Vector3d gains(1.01,1.01,1.01);
     Eigen::Vector3d bias(0.01,0.01,0.01);

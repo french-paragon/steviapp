@@ -267,9 +267,13 @@ public:
     void setOptAccelerometerBiasY(floatParameter const& biasY);
     void setOptAccelerometerBiasZ(floatParameter const& biasZ);
 
-    floatParameter optAccelerometerScale() const;
+    floatParameter optAccelerometerScaleX() const;
+    floatParameter optAccelerometerScaleY() const;
+    floatParameter optAccelerometerScaleZ() const;
 
-    void setOptAccelerometerScale(floatParameter const& scale);
+    void setOptAccelerometerScaleX(floatParameter const& scale);
+    void setOptAccelerometerScaleY(floatParameter const& scale);
+    void setOptAccelerometerScaleZ(floatParameter const& scale);
 
 
     inline QString orientationFile() const {
@@ -456,7 +460,9 @@ Q_SIGNALS:
     void accelerometerBiasYChanged();
     void accelerometerBiasZChanged();
 
-    void accelerometerScaleChanged();
+    void accelerometerScaleXChanged();
+    void accelerometerScaleYChanged();
+    void accelerometerScaleZChanged();
 
     void accelerometerIdChanged();
     void gyroIdChanged();
@@ -593,7 +599,9 @@ protected:
         floatParameter _o_biasX;
         floatParameter _o_biasY;
         floatParameter _o_biasZ;
-        floatParameter _o_scale;
+        floatParameter _o_scaleX;
+        floatParameter _o_scaleY;
+        floatParameter _o_scaleZ;
 
     } _accelerometerParameters;
 
