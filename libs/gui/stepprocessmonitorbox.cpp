@@ -123,9 +123,11 @@ void StepProcessMonitorBox::onStepChange() {
 
 	if (_currentProcess->isDone()) {
 		evaluatePauseState();
+        ui->progressBar->setRange(0, _currentProcess->numberOfSteps());
 		ui->progressBar->setValue(_currentProcess->numberOfSteps());
 		ui->stepDescr->setText(tr("Finished"));
 	} else {
+        ui->progressBar->setRange(0, _currentProcess->numberOfSteps());
 		ui->progressBar->setValue(_currentProcess->currentStep());
 		ui->stepDescr->setText(_currentProcess->currentStepName());
 	}
@@ -139,6 +141,7 @@ void StepProcessMonitorBox::onProcessFinished() {
 
 	if (_currentProcess->isDone()) {
 		evaluatePauseState();
+        ui->progressBar->setRange(0, _currentProcess->numberOfSteps());
 		ui->progressBar->setValue(_currentProcess->numberOfSteps());
 		ui->stepDescr->setText(tr("Finished"));
 	}
