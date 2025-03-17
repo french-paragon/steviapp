@@ -259,6 +259,12 @@ public:
     }
     void setAccelerometerColumn(Axis axis, int col);
 
+    bool estAccelerometerBias() const;
+    bool estAccelerometerScale() const;
+
+    void setEstAccelerometerBias(bool estimate);
+    void setEstAccelerometerScale(bool estimate);
+
     floatParameter optAccelerometerBiasX() const;
     floatParameter optAccelerometerBiasY() const;
     floatParameter optAccelerometerBiasZ() const;
@@ -424,6 +430,28 @@ public:
         return _gyroMounting;
     }
 
+    bool estGyroBias() const;
+    bool estGyroScale() const;
+
+    void setEstGyroBias(bool estimate);
+    void setEstGyroScale(bool estimate);
+
+    floatParameter optGyroBiasX() const;
+    floatParameter optGyroBiasY() const;
+    floatParameter optGyroBiasZ() const;
+
+    void setOptGyroBiasX(floatParameter const& biasX);
+    void setOptGyroBiasY(floatParameter const& biasY);
+    void setOptGyroBiasZ(floatParameter const& biasZ);
+
+    floatParameter optGyroScaleX() const;
+    floatParameter optGyroScaleY() const;
+    floatParameter optGyroScaleZ() const;
+
+    void setOptGyroScaleX(floatParameter const& scale);
+    void setOptGyroScaleY(floatParameter const& scale);
+    void setOptGyroScaleZ(floatParameter const& scale);
+
     double getPreIntegrationTime() const;
     void setPreIntegrationTime(double time);
 
@@ -463,6 +491,21 @@ Q_SIGNALS:
     void accelerometerScaleXChanged();
     void accelerometerScaleYChanged();
     void accelerometerScaleZChanged();
+
+    void estimateAccelerometerBiasChanged();
+    void estimateAccelerometerScaleChanged();
+
+
+    void gyroBiasXChanged();
+    void gyroBiasYChanged();
+    void gyroBiasZChanged();
+
+    void gyroScaleXChanged();
+    void gyroScaleYChanged();
+    void gyroScaleZChanged();
+
+    void estimateGyroBiasChanged();
+    void estimateGyroScaleChanged();
 
     void accelerometerIdChanged();
     void gyroIdChanged();
@@ -596,6 +639,10 @@ protected:
     } _accelerationDefinition;
 
     struct AccelerometerParameters {
+
+        bool _estimates_bias;
+        bool _estimates_gain;
+
         floatParameter _o_biasX;
         floatParameter _o_biasY;
         floatParameter _o_biasZ;
@@ -628,6 +675,20 @@ protected:
         int8_t sign_w;
 
     } _angularSpeedDefinition;
+
+    struct AngularSpeedParameters {
+
+        bool _estimates_bias;
+        bool _estimates_gain;
+
+        floatParameter _o_biasX;
+        floatParameter _o_biasY;
+        floatParameter _o_biasZ;
+        floatParameter _o_scaleX;
+        floatParameter _o_scaleY;
+        floatParameter _o_scaleZ;
+
+    } _angularSpeedParameters;
 
     StereoVision::Geometry::AffineTransform<double> _gyroMounting;
     QString _angularSpeedFile;

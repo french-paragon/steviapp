@@ -437,7 +437,7 @@ class AccelerometerStepCostBase {
 
 public:
 
-    struct IntegratedGyroSegment {
+    struct IntegratedAccSegment {
         Eigen::Vector3d speedDelta;
         Eigen::Matrix3d accBiasJacobian;
         Eigen::Matrix3d accGainJacobian;
@@ -448,7 +448,7 @@ public:
     };
 
     template<typename Tgyro, typename Tacc, typename TimeT>
-    static inline IntegratedGyroSegment preIntegrateAccSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+    static inline IntegratedAccSegment preIntegrateAccSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
                                                         IndexedTimeSequence<Tacc, TimeT> const& AccData,
                                                         TimeT t0,
                                                         TimeT t1,
@@ -458,7 +458,7 @@ public:
         double delta_t1 = t1 - t0;
         double delta_t2 = t2 - t1;
 
-        IntegratedGyroSegment ret;
+        IntegratedAccSegment ret;
         ret.speedDelta = Eigen::Vector3d::Zero();
         ret.accBiasJacobian = Eigen::Matrix3d::Zero();
         ret.accGainJacobian = Eigen::Matrix3d::Zero();
@@ -1302,7 +1302,7 @@ AccelerometerStepCost<accCostFlags>* AccelerometerStepCostBase::getIntegratedIMU
 
     using Traits = AccelerometerStepCostTraits<accCostFlags>;
 
-    IntegratedGyroSegment integrated = preIntegrateAccSegment(GyroData, AccData, t0, t1, t2);
+    IntegratedAccSegment integrated = preIntegrateAccSegment(GyroData, AccData, t0, t1, t2);
 
     AccelerometerStepCostBase* ret;
 

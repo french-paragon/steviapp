@@ -44,6 +44,11 @@ Trajectory::Trajectory(Project* parent) :
     _accelerometerId = 1;
     _gyroId = 1;
 
+    _accelerometerParameters._estimates_bias = false;
+    _accelerometerParameters._estimates_gain = false;
+    _angularSpeedParameters._estimates_bias = false;
+    _angularSpeedParameters._estimates_gain = false;
+
     extendDataModel();
 }
 
@@ -1392,6 +1397,26 @@ void Trajectory::setAccelerometerColumn(Axis axis, int col) {
 
 }
 
+bool Trajectory::estAccelerometerBias() const {
+    return _accelerometerParameters._estimates_bias;
+}
+bool Trajectory::estAccelerometerScale() const {
+    return _accelerometerParameters._estimates_gain;
+}
+
+void Trajectory::setEstAccelerometerBias(bool estimate) {
+    if (_accelerometerParameters._estimates_bias != estimate) {
+        _accelerometerParameters._estimates_bias = estimate;
+        Q_EMIT estimateAccelerometerBiasChanged();
+    }
+}
+void Trajectory::setEstAccelerometerScale(bool estimate) {
+    if (_accelerometerParameters._estimates_gain != estimate) {
+        _accelerometerParameters._estimates_gain = estimate;
+        Q_EMIT estimateAccelerometerScaleChanged();
+    }
+}
+
 floatParameter Trajectory::optAccelerometerBiasX() const {
     return _accelerometerParameters._o_biasX;
 }
@@ -1457,6 +1482,84 @@ void Trajectory::setOptAccelerometerScaleZ(floatParameter const& scale) {
     if (!_accelerometerParameters._o_scaleZ.isApproximatlyEqual(scale)) {
         _accelerometerParameters._o_scaleZ = scale;
         Q_EMIT accelerometerScaleZChanged();
+    }
+}
+
+bool Trajectory::estGyroBias() const {
+    return _angularSpeedParameters._estimates_bias;
+}
+bool Trajectory::estGyroScale() const {
+    return _angularSpeedParameters._estimates_gain;
+}
+
+void Trajectory::setEstGyroBias(bool estimate) {
+    if (_angularSpeedParameters._estimates_bias != estimate) {
+        _angularSpeedParameters._estimates_bias = estimate;
+        Q_EMIT estimateGyroBiasChanged();
+    }
+}
+void Trajectory::setEstGyroScale(bool estimate) {
+    if (_angularSpeedParameters._estimates_gain != estimate) {
+        _angularSpeedParameters._estimates_gain = estimate;
+        Q_EMIT estimateGyroScaleChanged();
+    }
+}
+
+floatParameter Trajectory::optGyroBiasX() const {
+    return _angularSpeedParameters._o_biasX;
+}
+floatParameter Trajectory::optGyroBiasY() const {
+    return _angularSpeedParameters._o_biasY;
+}
+floatParameter Trajectory::optGyroBiasZ() const {
+    return _angularSpeedParameters._o_biasZ;
+}
+
+void Trajectory::setOptGyroBiasX(floatParameter const& biasX) {
+    if (!_angularSpeedParameters._o_biasX.isApproximatlyEqual(biasX)) {
+        _angularSpeedParameters._o_biasX = biasX;
+        Q_EMIT gyroBiasXChanged();
+    }
+}
+void Trajectory::setOptGyroBiasY(floatParameter const& biasY) {
+    if (!_angularSpeedParameters._o_biasY.isApproximatlyEqual(biasY)) {
+        _angularSpeedParameters._o_biasY = biasY;
+        Q_EMIT gyroBiasYChanged();
+    }
+}
+void Trajectory::setOptGyroBiasZ(floatParameter const& biasZ) {
+    if (!_angularSpeedParameters._o_biasZ.isApproximatlyEqual(biasZ)) {
+        _angularSpeedParameters._o_biasZ = biasZ;
+        Q_EMIT gyroBiasZChanged();
+    }
+}
+
+floatParameter Trajectory::optGyroScaleX() const {
+    return _angularSpeedParameters._o_scaleX;
+}
+floatParameter Trajectory::optGyroScaleY() const {
+    return _angularSpeedParameters._o_scaleY;
+}
+floatParameter Trajectory::optGyroScaleZ() const {
+    return _angularSpeedParameters._o_scaleZ;
+}
+
+void Trajectory::setOptGyroScaleX(floatParameter const& scale) {
+    if (!_angularSpeedParameters._o_scaleX.isApproximatlyEqual(scale)) {
+        _angularSpeedParameters._o_scaleX = scale;
+        Q_EMIT gyroScaleXChanged();
+    }
+}
+void Trajectory::setOptGyroScaleY(floatParameter const& scale) {
+    if (!_angularSpeedParameters._o_scaleY.isApproximatlyEqual(scale)) {
+        _angularSpeedParameters._o_scaleY = scale;
+        Q_EMIT gyroScaleYChanged();
+    }
+}
+void Trajectory::setOptGyroScaleZ(floatParameter const& scale) {
+    if (!_angularSpeedParameters._o_scaleZ.isApproximatlyEqual(scale)) {
+        _angularSpeedParameters._o_scaleZ = scale;
+        Q_EMIT gyroScaleZChanged();
     }
 }
 
@@ -2205,6 +2308,26 @@ void Trajectory::extendDataModel() {
                                                                                                           &Trajectory::setAccAccuracy,
                                                                                                           &Trajectory::accAccuracyChanged);
 
+    optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate acc bias"),
+                                                                                                          &Trajectory::estAccelerometerBias,
+                                                                                                          &Trajectory::setEstAccelerometerBias,
+                                                                                                          &Trajectory::estimateAccelerometerBiasChanged);
+
+    optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate acc scale"),
+                                                                                                          &Trajectory::estAccelerometerScale,
+                                                                                                          &Trajectory::setEstAccelerometerScale,
+                                                                                                          &Trajectory::estimateAccelerometerScaleChanged);
+
+    optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate gyro bias"),
+                                                                                                          &Trajectory::estGyroBias,
+                                                                                                          &Trajectory::setEstGyroBias,
+                                                                                                          &Trajectory::estimateGyroBiasChanged);
+
+    optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate gyro scale"),
+                                                                                                          &Trajectory::estGyroScale,
+                                                                                                          &Trajectory::setEstGyroScale,
+                                                                                                          &Trajectory::estimateGyroScaleChanged);
+
 
     ItemDataModel::Category* accelerometerOptIdsCat = _dataModel->addCategory(tr("Accelerometer Optimized Parameters"));
 
@@ -2234,6 +2357,90 @@ void Trajectory::extendDataModel() {
                 &Trajectory::optAccelerometerBiasZ,
                 &Trajectory::setOptAccelerometerBiasZ,
                 &Trajectory::accelerometerBiasZChanged);
+
+    accelerometerOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("scale X"),
+                &Trajectory::optAccelerometerScaleX,
+                &Trajectory::setOptAccelerometerScaleX,
+                &Trajectory::accelerometerScaleXChanged);
+
+    accelerometerOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("scale Y"),
+                &Trajectory::optAccelerometerScaleY,
+                &Trajectory::setOptAccelerometerScaleY,
+                &Trajectory::accelerometerScaleYChanged);
+
+    accelerometerOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("scale Z"),
+                &Trajectory::optAccelerometerScaleZ,
+                &Trajectory::setOptAccelerometerScaleZ,
+                &Trajectory::accelerometerScaleZChanged);
+
+
+    ItemDataModel::Category* gyroOptIdsCat = _dataModel->addCategory(tr("Gyroscope Optimized Parameters"));
+
+    gyroOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("bias X"),
+                &Trajectory::optGyroBiasX,
+                &Trajectory::setOptGyroBiasX,
+                &Trajectory::gyroBiasXChanged);
+
+    gyroOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("bias Y"),
+                &Trajectory::optGyroBiasY,
+                &Trajectory::setOptGyroBiasY,
+                &Trajectory::gyroBiasYChanged);
+
+    gyroOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("bias Z"),
+                &Trajectory::optGyroBiasZ,
+                &Trajectory::setOptGyroBiasZ,
+                &Trajectory::gyroBiasZChanged);
+
+    gyroOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("scale X"),
+                &Trajectory::optGyroScaleX,
+                &Trajectory::setOptGyroScaleX,
+                &Trajectory::gyroScaleXChanged);
+
+    gyroOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("scale Y"),
+                &Trajectory::optGyroScaleY,
+                &Trajectory::setOptGyroScaleY,
+                &Trajectory::gyroScaleYChanged);
+
+    gyroOptIdsCat->addCatProperty<floatParameter,
+            Trajectory,
+            true,
+            ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+                tr("scale Z"),
+                &Trajectory::optGyroScaleZ,
+                &Trajectory::setOptGyroScaleZ,
+                &Trajectory::gyroScaleZChanged);
 }
 
 int Trajectory::gyroId() const

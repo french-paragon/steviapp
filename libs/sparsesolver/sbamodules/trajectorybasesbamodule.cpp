@@ -23,12 +23,6 @@ TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double defaultIntegrationTime) 
 
     _useOrientationPriors = true;
 
-    _accelerometerBias = true;
-    _accelerometerScale = true;
-
-    _gyroBias = false;
-    _gyroScale = false;
-
     _accelerometersBiases = std::vector<std::array<double,3>>();
     _accelerometersScales = std::vector<std::array<double,3>>();
 
@@ -92,22 +86,28 @@ bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
         int accId = traj->accelerometerId();
         int gyroId = traj->gyroId();
 
+        bool accelerometerBias = traj->estAccelerometerBias();
+        bool accelerometerScale = traj->estAccelerometerScale();
+
+        bool gyroBias = traj->estGyroBias();
+        bool gyroScale = traj->estGyroScale();
+
         if (!_accelerometerParametersIndex.contains(accId)) {
-            if (_accelerometerBias or _accelerometerScale) {
+            if (accelerometerBias or accelerometerScale) {
 
                 int id = _accelerometersBiases.size();
 
-                if (_accelerometerScale) {
+                if (accelerometerScale) {
                     id = _accelerometersScales.size();
                 }
 
                 _accelerometerParametersIndex.insert(accId, id);
 
-                if (_accelerometerBias) {
+                if (accelerometerBias) {
                     _accelerometersBiases.push_back({0,0,0});
 
                 }
-                if (_accelerometerScale) {
+                if (accelerometerScale) {
                     _accelerometersScales.push_back({1,1,1});
                 }
             } else {
@@ -116,21 +116,21 @@ bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
         }
 
         if (!_gyroParametersIndex.contains(gyroId)) {
-            if (_gyroBias or _gyroScale) {
+            if (gyroBias or gyroScale) {
 
                 int id = _gyrosBiases.size();
 
-                if (_gyroScale) {
+                if (gyroScale) {
                     id = _gyrosScales.size();
                 }
 
                 _gyroParametersIndex.insert(gyroId, id);
 
-                if (_gyroBias) {
+                if (gyroBias) {
                     _gyrosBiases.push_back({0,0,0});
 
                 }
-                if (_gyroScale) {
+                if (gyroScale) {
                     _gyrosScales.push_back({1,1,1});
                 }
             } else {
@@ -193,11 +193,17 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         accId = _accelerometerParametersIndex[accId];
 
-        if (_accelerometerBias) {
+        bool accelerometerBias = traj->estAccelerometerBias();
+        bool accelerometerScale = traj->estAccelerometerScale();
+
+        bool gyroBias = traj->estGyroBias();
+        bool gyroScale = traj->estGyroScale();
+
+        if (accelerometerBias) {
             problem.AddParameterBlock(_accelerometersBiases[accId].data(), _accelerometersBiases[accId].size());
         }
 
-        if (_accelerometerScale) {
+        if (accelerometerScale) {
             problem.AddParameterBlock(_accelerometersScales[accId].data(), _accelerometersScales[accId].size());
         }
 
@@ -209,11 +215,11 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         gyroId = _gyroParametersIndex[gyroId];
 
-        if (_gyroBias) {
+        if (gyroBias) {
             problem.AddParameterBlock(_gyrosBiases[gyroId].data(), _gyrosBiases[gyroId].size());
         }
 
-        if ( _gyroScale) {
+        if ( gyroScale) {
             problem.AddParameterBlock(_gyrosScales[gyroId].data(), _gyrosScales[gyroId].size());
         }
 
@@ -489,7 +495,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
             if (optGyro.isValid()) {
 
-                if (_gyroBias and _gyroScale) {
+                if (gyroBias and gyroScale) {
 
                     using CostF = GyroStepCost<true, true>;
 
@@ -531,7 +537,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<4,3>(gyroStepCostFunction, params));
                     }
 
-                } else if (_gyroBias) {
+                } else if (gyroBias) {
 
                     using CostF = GyroStepCost<true, false>;
 
@@ -572,7 +578,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<3,3>(gyroStepCostFunction, params));
                     }
 
-                } else if (_gyroScale) {
+                } else if (gyroScale) {
 
                     using CostF = GyroStepCost<false, true>;
 
@@ -669,7 +675,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     continue;
                 }
 
-                if (_gyroBias and _gyroScale and _accelerometerBias and _accelerometerScale) {
+                if (gyroBias and gyroScale and accelerometerBias and accelerometerScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
                     AccelerometerStepCostFlags::GyroScale|
@@ -722,7 +728,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<10,3>(accStepCostFunction, params));
                     }
 
-                } else if (_gyroBias and _gyroScale and _accelerometerBias) {
+                } else if (gyroBias and gyroScale and accelerometerBias) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
                     AccelerometerStepCostFlags::GyroScale|
@@ -771,7 +777,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<9,3>(accStepCostFunction, params));
                     }
-                } else if (_gyroBias and _gyroScale and _accelerometerScale) {
+                } else if (gyroBias and gyroScale and accelerometerScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
                     AccelerometerStepCostFlags::GyroScale|
@@ -821,7 +827,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<9,3>(accStepCostFunction, params));
                     }
 
-                } else if (_gyroBias and _gyroScale) {
+                } else if (gyroBias and gyroScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
                     AccelerometerStepCostFlags::GyroScale>;
@@ -868,7 +874,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
                     }
 
-                } else if (_gyroBias and _accelerometerBias and _accelerometerScale) {
+                } else if (gyroBias and accelerometerBias and accelerometerScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
                     AccelerometerStepCostFlags::AccBias|
@@ -917,7 +923,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<9,3>(accStepCostFunction, params));
                     }
 
-                } else if (_gyroBias and _accelerometerBias) {
+                } else if (gyroBias and accelerometerBias) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
                     AccelerometerStepCostFlags::AccBias>;
@@ -963,7 +969,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
                     }
-                } else if (_gyroBias and _accelerometerScale) {
+                } else if (gyroBias and accelerometerScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
                     AccelerometerStepCostFlags::AccScale>;
@@ -1010,7 +1016,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
                     }
 
-                } else if (_gyroBias) {
+                } else if (gyroBias) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias>;
 
@@ -1053,7 +1059,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<7,3>(accStepCostFunction, params));
                     }
-                } else if (_gyroScale and _accelerometerBias and _accelerometerScale) {
+                } else if (gyroScale and accelerometerBias and accelerometerScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
                     AccelerometerStepCostFlags::AccBias|
@@ -1103,7 +1109,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<9,3>(accStepCostFunction, params));
                     }
 
-                } else if (_gyroScale and _accelerometerBias) {
+                } else if (gyroScale and accelerometerBias) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
                     AccelerometerStepCostFlags::AccBias>;
@@ -1149,7 +1155,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
                     }
-                } else if (_gyroScale and _accelerometerScale) {
+                } else if (gyroScale and accelerometerScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale |
                     AccelerometerStepCostFlags::AccScale>;
@@ -1196,7 +1202,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
                     }
 
-                } else if (_gyroScale) {
+                } else if (gyroScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale>;
 
@@ -1239,7 +1245,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<7,3>(accStepCostFunction, params));
                     }
-                } else if (_accelerometerBias and _accelerometerScale) {
+                } else if (accelerometerBias and accelerometerScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::AccBias|
                     AccelerometerStepCostFlags::AccScale>;
@@ -1286,7 +1292,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(accStepCostFunction, params));
                     }
 
-                } else if (_accelerometerBias) {
+                } else if (accelerometerBias) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::AccBias>;
 
@@ -1329,7 +1335,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                         QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<7,3>(accStepCostFunction, params));
                     }
-                } else if (_accelerometerScale) {
+                } else if (accelerometerScale) {
 
                     using AccCost = AccelerometerStepCost<AccelerometerStepCostFlags::AccScale>;
 
@@ -1450,12 +1456,18 @@ bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
             continue;
         }
 
+        bool accelerometerBias = trajectory->estAccelerometerBias();
+        bool accelerometerScale = trajectory->estAccelerometerScale();
+
+        bool gyroBias = trajectory->estGyroBias();
+        bool gyroScale = trajectory->estGyroScale();
+
         int accId = trajectory->accelerometerId();
 
         if (_accelerometerParametersIndex.contains(accId)) {
             int paramIdx = _accelerometerParametersIndex[accId];
 
-            if (_accelerometerBias) {
+            if (accelerometerBias) {
 
                 std::array<double,3> const& bias = _accelerometersBiases[paramIdx];
 
@@ -1464,11 +1476,35 @@ bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
                 trajectory->setOptAccelerometerBiasZ(bias[2]);
             }
 
-            if (_accelerometerScale) {
+            if (accelerometerScale) {
 
                 std::array<double,3> const& scale = _accelerometersScales[paramIdx];
 
                 trajectory->setOptAccelerometerScaleX(scale[0]);
+                trajectory->setOptAccelerometerScaleY(scale[1]);
+                trajectory->setOptAccelerometerScaleZ(scale[2]);
+            }
+        }
+
+        int gyroId = trajectory->gyroId();
+
+        if (_gyroParametersIndex.contains(gyroId)) {
+            int paramIdx = _gyroParametersIndex[gyroId];
+
+            if (gyroBias) {
+
+                std::array<double,3> const& bias = _gyrosBiases[paramIdx];
+
+                trajectory->setOptAccelerometerBiasX(bias[0]);
+                trajectory->setOptAccelerometerBiasY(bias[1]);
+                trajectory->setOptAccelerometerBiasZ(bias[2]);
+            }
+
+            if (gyroScale) {
+
+                std::array<double,3> const& scale = _gyrosScales[paramIdx];
+
+                trajectory->setOptGyroScaleX(scale[0]);
                 trajectory->setOptAccelerometerScaleY(scale[1]);
                 trajectory->setOptAccelerometerScaleZ(scale[2]);
             }

@@ -101,12 +101,6 @@ protected:
 
     double _defaultIntegrationTime;
 
-    bool _accelerometerBias;
-    bool _accelerometerScale;
-
-    bool _gyroBias;
-    bool _gyroScale;
-
     std::vector<std::array<double,3>> _accelerometersBiases;
     std::vector<std::array<double,3>> _accelerometersScales;
 
