@@ -29,7 +29,7 @@ TrajectoryComparisonEditor::TrajectoryComparisonEditor(QWidget *parent) :
     _positionDeltasPlot->addGraph(); // y
     _positionDeltasPlot->addGraph(); // z
     _positionDeltasPlot->xAxis->setLabel("time");
-    _positionDeltasPlot->yAxis->setLabel("position error");
+    _positionDeltasPlot->yAxis->setLabel("position error [mapping units]");
 
     _positionDeltasPlot->graph(0)->setPen(QPen(Qt::red));
     _positionDeltasPlot->graph(1)->setPen(QPen(Qt::green));
@@ -50,7 +50,7 @@ TrajectoryComparisonEditor::TrajectoryComparisonEditor(QWidget *parent) :
     _orientationDeltasPlot->addGraph(); // y
     _orientationDeltasPlot->addGraph(); // z
     _orientationDeltasPlot->xAxis->setLabel("time");
-    _orientationDeltasPlot->yAxis->setLabel("orientation error");
+    _orientationDeltasPlot->yAxis->setLabel("orientation error [rad]");
 
     _orientationDeltasPlot->graph(0)->setPen(QPen(Qt::red));
     _orientationDeltasPlot->graph(1)->setPen(QPen(Qt::green));
