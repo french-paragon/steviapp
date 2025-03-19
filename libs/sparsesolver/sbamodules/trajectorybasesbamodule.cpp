@@ -1495,9 +1495,9 @@ bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
 
                 std::array<double,3> const& bias = _gyrosBiases[paramIdx];
 
-                trajectory->setOptAccelerometerBiasX(bias[0]);
-                trajectory->setOptAccelerometerBiasY(bias[1]);
-                trajectory->setOptAccelerometerBiasZ(bias[2]);
+                trajectory->setOptGyroBiasX(bias[0]);
+                trajectory->setOptGyroBiasY(bias[1]);
+                trajectory->setOptGyroBiasZ(bias[2]);
             }
 
             if (gyroScale) {
@@ -1505,8 +1505,8 @@ bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
                 std::array<double,3> const& scale = _gyrosScales[paramIdx];
 
                 trajectory->setOptGyroScaleX(scale[0]);
-                trajectory->setOptAccelerometerScaleY(scale[1]);
-                trajectory->setOptAccelerometerScaleZ(scale[2]);
+                trajectory->setOptGyroScaleY(scale[1]);
+                trajectory->setOptGyroScaleZ(scale[2]);
             }
         }
 
