@@ -176,9 +176,9 @@ std::optional<Eigen::Vector3f> Landmark::getOptimizableCoordinates(bool optimize
             return std::nullopt;
         }
 
-        vx = optXCoord();
-        vy = optYCoord();
-        vz = optZCoord();
+        vx = optXCoord().value();
+        vy = optYCoord().value();
+        vz = optZCoord().value();
 
     } else {
 
@@ -351,17 +351,17 @@ void Landmark::extendDataModel() {
 	ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));
 
 	//Position
-	og->addCatProperty<float, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+    og->addCatProperty<floatParameter, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
 																									 &Point3D::optXCoord,
 																									 &Point3D::setOptXCoord,
 																									 &Point3D::optPosChanged);
 
-	og->addCatProperty<float, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+    og->addCatProperty<floatParameter, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
 																									 &Point3D::optYCoord,
 																									 &Point3D::setOptYCoord,
 																									 &Point3D::optPosChanged);
 
-	og->addCatProperty<float, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+    og->addCatProperty<floatParameter, Point3D, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
 																									 &Point3D::optZCoord,
 																									 &Point3D::setOptZCoord,
 																									 &Point3D::optPosChanged);

@@ -589,6 +589,14 @@ std::optional<Eigen::MatrixXd> ModularSBASolver::getCovarianceBlock(std::pair<co
         return std::nullopt;
     }
 
+    if (!_problem.HasParameterBlock(params.first)) {
+        return std::nullopt;
+    }
+
+    if (!_problem.HasParameterBlock(params.second)) {
+        return std::nullopt;
+    }
+
     int p1s = _problem.ParameterBlockSize(params.first);
     int p2s = _problem.ParameterBlockSize(params.second);
 

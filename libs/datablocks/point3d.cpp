@@ -75,32 +75,44 @@ void Point3D::clearOptPos() {
 	}
 }
 
-float Point3D::optXCoord() const {
-	return _o_pos.value(0);
+floatParameter Point3D::optXCoord() const {
+    floatParameter ret = _o_pos.value(0);
+    if (_o_pos.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_pos.stddev(0,0)));
+    }
+    return ret;
 }
-void Point3D::setOptXCoord(const float &x) {
-	if (_o_pos.value(0) != x) {
-		_o_pos.value(0) = x;
+void Point3D::setOptXCoord(const floatParameter &x) {
+    if (_o_pos.value(0) != x.value()) {
+        _o_pos.value(0) = x.value();
 		emit optPosChanged();
 	}
 }
 
-float Point3D::optYCoord() const {
-	return _o_pos.value(1);
+floatParameter Point3D::optYCoord() const {
+    floatParameter ret = _o_pos.value(1);
+    if (_o_pos.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_pos.stddev(1,1)));
+    }
+    return ret;
 }
-void Point3D::setOptYCoord(const float &y) {
-	if (_o_pos.value(1) != y) {
-		_o_pos.value(1) = y;
+void Point3D::setOptYCoord(const floatParameter &y) {
+    if (_o_pos.value(1) != y.value()) {
+        _o_pos.value(1) = y.value();
 		emit optPosChanged();
 	}
 }
 
-float Point3D::optZCoord() const {
-	return _o_pos.value(2);
+floatParameter Point3D::optZCoord() const {
+    floatParameter ret = _o_pos.value(2);
+    if (_o_pos.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_pos.stddev(2,2)));
+    }
+    return ret;
 }
-void Point3D::setOptZCoord(const float &z) {
-	if (_o_pos.value(2) != z) {
-		_o_pos.value(2) = z;
+void Point3D::setOptZCoord(const floatParameter &z) {
+    if (_o_pos.value(2) != z.value()) {
+        _o_pos.value(2) = z.value();
 		emit optPosChanged();
 	}
 }

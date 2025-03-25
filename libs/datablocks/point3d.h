@@ -37,14 +37,14 @@ public:
 	void setOptPos(floatParameterGroup<3> const& o_pos);
 	void clearOptPos();
 
-	float optXCoord() const;
-	void setOptXCoord(const float &x);
+    floatParameter optXCoord() const;
+    void setOptXCoord(const floatParameter &x);
 
-	float optYCoord() const;
-	void setOptYCoord(const float &y);
+    floatParameter optYCoord() const;
+    void setOptYCoord(const floatParameter &y);
 
-	float optZCoord() const;
-	void setOptZCoord(const float &z);
+    floatParameter optZCoord() const;
+    void setOptZCoord(const floatParameter &z);
 
 	/*!
 	 * \brief getPointVec is an accessor for the point coordinates

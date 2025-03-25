@@ -230,7 +230,76 @@ bool LandmarksSBAModule::writeResults(ModularSBASolver* solver) {
     return true;
 
 }
+
+std::vector<std::pair<const double*, const double*>> LandmarksSBAModule::requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) {
+
+    std::vector<std::pair<const double*, const double*>> ret;
+
+    Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return ret;
+    }
+
+    QVector<qint64> lmIdxs = currentProject->getIdsByClass(Landmark::staticMetaObject.className());
+
+    ret.reserve(lmIdxs.size());
+
+    for (qint64 lmId : lmIdxs) {
+
+        Landmark* lm = qobject_cast<Landmark*>(currentProject->getById(lmId));
+
+        if (lm->isFixed()) {
+            continue;
+        }
+
+        ModularSBASolver::PositionNode* lm_p = solver->getPositionNode(lmId);
+
+        if (!problem.HasParameterBlock(lm_p->pos.data())) {
+            continue;
+        }
+
+        ret.push_back({lm_p->pos.data(), lm_p->pos.data()});
+    }
+
+    return ret;
+
+}
+
 bool LandmarksSBAModule::writeUncertainty(ModularSBASolver* solver) {
+
+    Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    QVector<qint64> lmIdxs = currentProject->getIdsByClass(Landmark::staticMetaObject.className());
+
+    for (qint64 lmId : lmIdxs) {
+
+        Landmark* lm = qobject_cast<Landmark*>(currentProject->getById(lmId));
+
+        if (lm->isFixed()) {
+            continue;
+        }
+
+        ModularSBASolver::PositionNode* lm_p = solver->getPositionNode(lmId);
+
+        std::optional<Eigen::MatrixXd> covBlock = solver->getCovarianceBlock({lm_p->pos.data(),lm_p->pos.data()});
+
+        if (covBlock.has_value()) {
+            floatParameterGroup<3> oP = lm->optPos();
+            oP.setUncertain();
+            oP.stddev(0,0) = covBlock.value()(0,0);
+            oP.stddev(1,1) = covBlock.value()(1,1);
+            oP.stddev(2,2) = covBlock.value()(2,2);
+            oP.stddev(0,1) = covBlock.value()(0,1);
+            oP.stddev(1,2) = covBlock.value()(1,2);
+            oP.stddev(2,0) = covBlock.value()(2,0);
+            lm->setOptPos(oP);
+        }
+    }
 
     return true;
 

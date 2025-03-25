@@ -77,19 +77,19 @@ int StereoVisionApp::alignLocalCoordinateSystemToPoints(QList<qint64> lcsIds, Pr
 			localCoordinates(1,i) = lmlc->yCoord().value();
 			localCoordinates(2,i) = lmlc->zCoord().value();
 
-			worldCoordinates(0,i) = lm->optXCoord();
-			worldCoordinates(1,i) = lm->optYCoord();
-			worldCoordinates(2,i) = lm->optZCoord();
+            worldCoordinates(0,i) = lm->optXCoord().value();
+            worldCoordinates(1,i) = lm->optYCoord().value();
+            worldCoordinates(2,i) = lm->optZCoord().value();
 
-			obs[3*i] = lm->optXCoord();
+            obs[3*i] = lm->optXCoord().value();
 			idxs[3*i] = i;
 			coordinates[3*i] = StereoVision::Geometry::Axis::X;
 
-			obs[3*i+1] = lm->optYCoord();
+            obs[3*i+1] = lm->optYCoord().value();
 			idxs[3*i+1] = i;
 			coordinates[3*i+1] = StereoVision::Geometry::Axis::Y;
 
-			obs[3*i+2] = lm->optZCoord();
+            obs[3*i+2] = lm->optZCoord().value();
 			idxs[3*i+2] = i;
 			coordinates[3*i+2] = StereoVision::Geometry::Axis::Z;
 		}
