@@ -121,34 +121,46 @@ void RigidBody::clearOptPos() {
 	}
 }
 
-float RigidBody::optXCoord() const {
-	return _o_pos.value(0);
+floatParameter RigidBody::optXCoord() const {
+    floatParameter ret = _o_pos.value(0);
+    if (_o_pos.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_pos.stddev(0,0)));
+    }
+    return ret;
 }
-void RigidBody::setOptXCoord(const float &x) {
-	if (_o_pos.value(0) != x) {
-		_o_pos.value(0) = x;
+void RigidBody::setOptXCoord(const floatParameter &x) {
+    if (_o_pos.value(0) != x.value()) {
+        _o_pos.value(0) = x.value();
 		emit optPosChanged();
         isChanged();
 	}
 }
 
-float RigidBody::optYCoord() const {
-	return _o_pos.value(1);
+floatParameter RigidBody::optYCoord() const {
+    floatParameter ret = _o_pos.value(1);
+    if (_o_pos.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_pos.stddev(1,1)));
+    }
+    return ret;
 }
-void RigidBody::setOptYCoord(const float &y) {
-	if (_o_pos.value(1) != y) {
-		_o_pos.value(1) = y;
+void RigidBody::setOptYCoord(const floatParameter &y) {
+    if (_o_pos.value(1) != y.value()) {
+        _o_pos.value(1) = y.value();
 		emit optPosChanged();
         isChanged();
 	}
 }
 
-float RigidBody::optZCoord() const {
-	return _o_pos.value(2);
+floatParameter RigidBody::optZCoord() const {
+    floatParameter ret = _o_pos.value(2);
+    if (_o_pos.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_pos.stddev(2,2)));
+    }
+    return ret;
 }
-void RigidBody::setOptZCoord(const float &z) {
-	if (_o_pos.value(2) != z) {
-		_o_pos.value(2) = z;
+void RigidBody::setOptZCoord(const floatParameter &z) {
+    if (_o_pos.value(2) != z.value()) {
+        _o_pos.value(2) = z.value();
 		emit optPosChanged();
         isChanged();
 	}
@@ -175,34 +187,46 @@ void RigidBody::clearOptRot() {
 	}
 }
 
-float RigidBody::optXRot() const {
-	return _o_rot.value(0);
+floatParameter RigidBody::optXRot() const {
+    floatParameter ret = _o_rot.value(0);
+    if (_o_rot.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_rot.stddev(0,0)));
+    }
+    return ret;
 }
-void RigidBody::setOptXRot(const float &rx) {
-	if (_o_rot.value(0) != rx) {
-		_o_rot.value(0) = rx;
+void RigidBody::setOptXRot(const floatParameter &rx) {
+    if (_o_rot.value(0) != rx.value()) {
+        _o_rot.value(0) = rx.value();
 		emit optRotChanged();
         isChanged();
 	}
 }
 
-float RigidBody::optYRot() const {
-	return _o_rot.value(1);
+floatParameter RigidBody::optYRot() const {
+    floatParameter ret = _o_rot.value(1);
+    if (_o_rot.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_rot.stddev(1,1)));
+    }
+    return ret;
 }
-void RigidBody::setOptYRot(const float &ry){
-	if (_o_rot.value(1) != ry) {
-		_o_rot.value(1) = ry;
+void RigidBody::setOptYRot(const floatParameter &ry){
+    if (_o_rot.value(1) != ry.value()) {
+        _o_rot.value(1) = ry.value();
 		emit optRotChanged();
         isChanged();
 	}
 }
 
-float RigidBody::optZRot() const {
-	return _o_rot.value(2);
+floatParameter RigidBody::optZRot() const {
+    floatParameter ret = _o_rot.value(2);
+    if (_o_rot.isUncertain()) {
+        ret.setUncertainty(std::sqrt(_o_rot.stddev(2,2)));
+    }
+    return ret;
 }
-void RigidBody::setOptZRot(const float &rz) {
-	if (_o_rot.value(2) != rz) {
-		_o_rot.value(2) = rz;
+void RigidBody::setOptZRot(const floatParameter &rz) {
+    if (_o_rot.value(2) != rz.value()) {
+        _o_rot.value(2) = rz.value();
 		emit optRotChanged();
         isChanged();
 	}

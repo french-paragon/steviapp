@@ -268,33 +268,33 @@ void LocalCoordinateSystem::extendDataModel() {
 	ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));
 
 	//Position
-	og->addCatProperty<float, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+    og->addCatProperty<floatParameter, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
 																								  &LocalCoordinateSystem::optXCoord,
 																								  &LocalCoordinateSystem::setOptXCoord,
 																								  &LocalCoordinateSystem::optPosChanged);
 
-	og->addCatProperty<float, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+    og->addCatProperty<floatParameter, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
 																								  &LocalCoordinateSystem::optYCoord,
 																								  &LocalCoordinateSystem::setOptYCoord,
 																								  &LocalCoordinateSystem::optPosChanged);
 
-	og->addCatProperty<float, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+    og->addCatProperty<floatParameter, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
 																								  &LocalCoordinateSystem::optZCoord,
 																								  &LocalCoordinateSystem::setOptZCoord,
 																								  &LocalCoordinateSystem::optPosChanged);
 
 	//Rotation
-	og->addCatProperty<float, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Raxis"),
+    og->addCatProperty<floatParameter, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Raxis"),
 																								  &LocalCoordinateSystem::optXRot,
 																								  &LocalCoordinateSystem::setOptXRot,
 																								  &LocalCoordinateSystem::optRotChanged);
 
-	og->addCatProperty<float, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Raxis"),
+    og->addCatProperty<floatParameter, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Raxis"),
 																								  &LocalCoordinateSystem::optYRot,
 																								  &LocalCoordinateSystem::setOptYRot,
 																								  &LocalCoordinateSystem::optRotChanged);
 
-	og->addCatProperty<float, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Raxis"),
+    og->addCatProperty<floatParameter, LocalCoordinateSystem, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Raxis"),
 																								  &LocalCoordinateSystem::optZRot,
 																								  &LocalCoordinateSystem::setOptZRot,
 																								  &LocalCoordinateSystem::optRotChanged);

@@ -397,33 +397,33 @@ void Image::extendDataModel() {
 	ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));
 
 	//Position
-	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+    og->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
 																								  &Image::optXCoord,
 																								  &Image::setOptXCoord,
 																								  &Image::optPosChanged);
 
-	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+    og->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
 																								  &Image::optYCoord,
 																								  &Image::setOptYCoord,
 																								  &Image::optPosChanged);
 
-	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+    og->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
 																								  &Image::optZCoord,
 																								  &Image::setOptZCoord,
 																								  &Image::optPosChanged);
 
 	//Rotation
-	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Raxis"),
+    og->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Raxis"),
 																								  &Image::optXRot,
 																								  &Image::setOptXRot,
 																								  &Image::optRotChanged);
 
-	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Raxis"),
+    og->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Raxis"),
 																								  &Image::optYRot,
 																								  &Image::setOptYRot,
 																								  &Image::optRotChanged);
 
-	og->addCatProperty<float, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Raxis"),
+    og->addCatProperty<floatParameter, Image, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Raxis"),
 																								  &Image::optZRot,
 																								  &Image::setOptZRot,
 																								  &Image::optRotChanged);

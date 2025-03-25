@@ -28,6 +28,9 @@ public:
 	bool initWithCurrentSol() const;
 	int numberOfSteps() const;
 
+    void setComputeUncertainty(bool compute);
+    void setUseSparseOptimizer(bool useSparse);
+
 	void setNumberOfSteps(int nSteps);
 
 	FixedParameters getFixedParameters() const;

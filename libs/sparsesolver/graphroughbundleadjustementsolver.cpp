@@ -565,13 +565,13 @@ bool GraphRoughBundleAdjustementSolver::init() {
 		Eigen::Matrix3d R;
 
 		if (hasMeasure and _fixedParameters&FixedParameter::StereoRigs) {
-			t.x() = rig->optXCoord();
-			t.y() = rig->optYCoord();
-			t.z() = rig->optZCoord();
+            t.x() = rig->optXCoord().value();
+            t.y() = rig->optYCoord().value();
+            t.z() = rig->optZCoord().value();
 
-			float eX = rig->optXRot();
-			float eY = rig->optYRot();
-			float eZ = rig->optZRot();
+            float eX = rig->optXRot().value();
+            float eY = rig->optYRot().value();
+            float eZ = rig->optZRot().value();
 
 			R = StereoVision::Geometry::eulerDegXYZToRotation(eX, eY, eZ).cast<double>();
 		} else if (hasPrior) {

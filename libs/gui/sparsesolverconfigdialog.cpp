@@ -55,6 +55,13 @@ int SparseSolverConfigDialog::numberOfSteps() const {
 	return ui->nStepSpinBoxpinBox->value();
 }
 
+void SparseSolverConfigDialog::setComputeUncertainty(bool compute) {
+    return ui->predictUncertaintyCheckBox->setChecked(compute);
+}
+void SparseSolverConfigDialog::setUseSparseOptimizer(bool useSparse) {
+    return ui->useSparseOptimizerCheckBox->setChecked(useSparse);
+}
+
 void SparseSolverConfigDialog::setNumberOfSteps(int nSteps) {
 	ui->nStepSpinBoxpinBox->setValue(nSteps);
 }

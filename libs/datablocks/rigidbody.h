@@ -39,27 +39,27 @@ public:
 	void setOptPos(floatParameterGroup<3> const& o_pos);
 	void clearOptPos();
 
-	float optXCoord() const;
-	void setOptXCoord(const float &x);
+    floatParameter optXCoord() const;
+    void setOptXCoord(const floatParameter &x);
 
-	float optYCoord() const;
-	void setOptYCoord(const float &y);
+    floatParameter optYCoord() const;
+    void setOptYCoord(const floatParameter &y);
 
-	float optZCoord() const;
-	void setOptZCoord(const float &z);
+    floatParameter optZCoord() const;
+    void setOptZCoord(const floatParameter &z);
 
 	floatParameterGroup<3> optRot() const;
 	void setOptRot(floatParameterGroup<3> const& o_rot);
 	void clearOptRot();
 
-	float optXRot() const;
-	void setOptXRot(const float &rx);
+    floatParameter optXRot() const;
+    void setOptXRot(const floatParameter &rx);
 
-	float optYRot() const;
-	void setOptYRot(const float &ry);
+    floatParameter optYRot() const;
+    void setOptYRot(const floatParameter &ry);
 
-	float optZRot() const;
-        void setOptZRot(const float &rz);
+    floatParameter optZRot() const;
+        void setOptZRot(const floatParameter &rz);
 
         /*!
          * \brief getTransform is an accessor for the transform encoded by the rigid body

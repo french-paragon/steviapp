@@ -463,7 +463,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
     //gui input
 
-	bool computeUncertainty = true;
+    bool computeUncertainty = false;
 	bool useSparseOptimizer = true;
     bool verbose = true;
 	int nSteps = pnStep;
@@ -475,7 +475,9 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		SparseSolverConfigDialog d(w);
 		d.setModal(true);
 		d.setWindowTitle(QObject::tr("Sparse optimizer options"));
-		d.enableUseCurrentSolutionOption(false);
+        d.enableUseCurrentSolutionOption(false);
+        d.setComputeUncertainty(computeUncertainty);
+        d.setUseSparseOptimizer(useSparseOptimizer);
 
 		d.setFixedParameters(fixedParameters);
 

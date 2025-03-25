@@ -58,33 +58,33 @@ void Mounting::extendDataModel() {
     ItemDataModel::Category* og = _dataModel->addCategory(tr("Optimized geometry"));
 
     //Position
-    og->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+    og->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
                                                                                                   &RigidBody::optXCoord,
                                                                                                   &RigidBody::setOptXCoord,
                                                                                                   &RigidBody::optPosChanged);
 
-    og->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+    og->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
                                                                                                   &RigidBody::optYCoord,
                                                                                                   &RigidBody::setOptYCoord,
                                                                                                   &RigidBody::optPosChanged);
 
-    og->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+    og->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
                                                                                                   &RigidBody::optZCoord,
                                                                                                   &RigidBody::setOptZCoord,
                                                                                                   &RigidBody::optPosChanged);
 
     //Rotation
-    og->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Raxis"),
+    og->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Raxis"),
                                                                                                   &RigidBody::optXRot,
                                                                                                   &RigidBody::setOptXRot,
                                                                                                   &RigidBody::optRotChanged);
 
-    og->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Raxis"),
+    og->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Raxis"),
                                                                                                   &RigidBody::optYRot,
                                                                                                   &RigidBody::setOptYRot,
                                                                                                   &RigidBody::optRotChanged);
 
-    og->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Raxis"),
+    og->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Raxis"),
                                                                                                   &RigidBody::optZRot,
                                                                                                   &RigidBody::setOptZRot,
                                                                                                   &RigidBody::optRotChanged);

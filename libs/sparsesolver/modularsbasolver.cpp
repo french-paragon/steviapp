@@ -61,7 +61,8 @@ ModularSBASolver::ModularSBASolver(Project *p, bool computeUncertainty, bool spa
     _compute_marginals(computeUncertainty),
     _sparse(sparse),
     _verbose(verbose),
-    _loggingDir("")
+    _loggingDir(""),
+    _covariance(nullptr)
 {
 
 }
@@ -582,6 +583,41 @@ bool ModularSBASolver::itemIsObservable(qint64 itemId) const {
     return _observabilityGraph.isIdConstrained(itemId);
 }
 
+std::optional<Eigen::MatrixXd> ModularSBASolver::getCovarianceBlock(std::pair<const double*, const double*> const& params) {
+
+    if (_covariance == nullptr) {
+        return std::nullopt;
+    }
+
+    int p1s = _problem.ParameterBlockSize(params.first);
+    int p2s = _problem.ParameterBlockSize(params.second);
+
+    int covSize = p1s*p2s;
+
+    std::vector<double> covvec(covSize);
+
+    bool ok = _covariance->GetCovarianceBlock(params.first, params.second, covvec.data());
+
+    if (!ok) {
+        return std::nullopt;
+    }
+
+    Eigen::MatrixXd ret;
+    ret.resize(p1s, p2s);
+
+    int p = 0;
+
+    for (int i = 0; i < p1s; i++) {
+        for (int j = 0; j < p2s; j++) {
+            ret(i,j) = covvec[p];
+            p++;
+        }
+    }
+
+    return ret;
+
+}
+
 bool ModularSBASolver::init() {
 
     QTextStream out(stdout);
@@ -763,7 +799,46 @@ bool ModularSBASolver::opt_step() {
 
 }
 bool ModularSBASolver::std_step() {
-    //TODO: find how the modules request which parameters uncertainty they need.
+
+    if (!_compute_marginals) {
+        return true;
+    }
+
+    if (_covariance != nullptr) {
+        delete _covariance;
+    }
+
+    ceres::Covariance::Options options;
+    options.algorithm_type = ceres::SPARSE_QR;
+
+    _covariance = new ceres::Covariance(options);
+
+    std::set<std::pair<const double*, const double*>> pairs;
+
+    for (SBAModule* module : _modules) {
+        std::vector<std::pair<const double*, const double*>> indices = module->requestUncertainty(this, _problem);
+
+        for (auto const& pair : indices) {
+            pairs.insert(pair);
+        }
+    }
+
+    for (ProjectorModule* projector : _projectors) {
+        std::vector<std::pair<const double*, const double*>> indices = projector->requestUncertainty(this, _problem);
+
+        for (auto const& pair : indices) {
+            pairs.insert(pair);
+        }
+    }
+
+    std::vector<std::pair<const double*, const double*>> vpairs(pairs.begin(), pairs.end());
+
+    bool ok = _covariance->Compute(vpairs, &_problem);
+
+    if (!ok) {
+        return false;
+    }
+
     return true; //TODO: implement the stochastic approach we proposed
 
 }
@@ -797,7 +872,29 @@ bool ModularSBASolver::writeResults() {
 
 }
 bool ModularSBASolver::writeUncertainty() {
-    //todo, find a mechanism for the modules to write uncertainty
+
+    if (_currentProject == nullptr) {
+        return false;
+    }
+
+    bool ok = true;
+
+    for (SBAModule* module : _modules) {
+        ok = module->writeUncertainty(this);
+
+        if (!ok) {
+            return false;
+        }
+    }
+
+    for (ProjectorModule* projector : _projectors) {
+        ok = projector->writeUncertainty(this);
+
+        if (!ok) {
+            return false;
+        }
+    }
+
     return true;
 }
 void ModularSBASolver::cleanup() {
@@ -808,6 +905,11 @@ void ModularSBASolver::cleanup() {
 
     for (ProjectorModule* projector : _projectors) {
         projector->cleanup(this);
+    }
+
+    if (_covariance != nullptr) {
+        delete _covariance;
+        _covariance = nullptr;
     }
 
     //clear the basic nodes
@@ -837,11 +939,19 @@ ModularSBASolver::SBAModule::~SBAModule() {
 
 }
 
+std::vector<std::pair<const double*, const double*>> ModularSBASolver::SBAModule::requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) {
+    return std::vector<std::pair<const double*, const double*>>();
+}
+
 ModularSBASolver::ProjectorModule::ProjectorModule() {
 
 }
 ModularSBASolver::ProjectorModule::~ProjectorModule() {
 
+}
+
+std::vector<std::pair<const double*, const double*>> ModularSBASolver::ProjectorModule::requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) {
+    return std::vector<std::pair<const double*, const double*>>();
 }
 ModularSBASolver::ValueBlockLogger::ValueBlockLogger() {
 

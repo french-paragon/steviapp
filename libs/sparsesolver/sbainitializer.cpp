@@ -1786,9 +1786,9 @@ std::tuple<StereoVision::Geometry::AffineTransform<float>, bool> StereoRigInitia
 	if (getPreOptimizedFixedParameters() & FixedParameter::StereoRigs) {
 
 		if (rp.rig->optRot().isSet()) {
-			R = StereoVision::Geometry::rodriguezFormula(Eigen::Vector3f(rp.rig->optXRot(),
-																		 rp.rig->optYRot(),
-																		 rp.rig->optZRot()));
+            R = StereoVision::Geometry::rodriguezFormula(Eigen::Vector3f(rp.rig->optXRot().value(),
+                                                                         rp.rig->optYRot().value(),
+                                                                         rp.rig->optZRot().value()));
 			alreadyOptimizedRig = true;
 
 		} else {
@@ -1810,9 +1810,9 @@ std::tuple<StereoVision::Geometry::AffineTransform<float>, bool> StereoRigInitia
 	if (getPreOptimizedFixedParameters() & FixedParameter::StereoRigs) {
 
 		if (rp.rig->optPos().isSet()) {
-			t = Eigen::Vector3f(rp.rig->optXCoord(),
-								rp.rig->optYCoord(),
-								rp.rig->optZCoord());
+            t = Eigen::Vector3f(rp.rig->optXCoord().value(),
+                                rp.rig->optYCoord().value(),
+                                rp.rig->optZCoord().value());
 
 		} else {
 

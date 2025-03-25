@@ -303,33 +303,33 @@ void StereoRig::extendDataModel() {
 	ItemDataModel::Category* op = _dataModel->addCategory(tr("Optimized properties"));
 
 	//Optimized Position
-	op->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
+    op->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X pos"),
 																											   &RigidBody::optXCoord,
 																											   nullptr,
 																											   &RigidBody::optPosChanged);
 
-	op->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
+    op->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y pos"),
 																											   &RigidBody::optYCoord,
 																											   nullptr,
 																											   &RigidBody::optPosChanged);
 
-	op->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
+    op->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z pos"),
 																											   &RigidBody::optZCoord,
 																											   nullptr,
 																											   &RigidBody::optPosChanged);
 
 	//Optimized Rotation
-	op->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Rot axis"),
+    op->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("X Rot axis"),
 																											   &RigidBody::optXRot,
 																											   nullptr,
 																											   &RigidBody::optRotChanged);
 
-	op->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Rot axis"),
+    op->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Y Rot axis"),
 																											   &RigidBody::optYRot,
 																											   nullptr,
 																											   &RigidBody::optRotChanged);
 
-	op->addCatProperty<float, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Rot axis"),
+    op->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Z Rot axis"),
 																											   &RigidBody::optZRot,
 																											   nullptr,
 																											   &RigidBody::optRotChanged);

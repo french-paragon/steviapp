@@ -26,6 +26,7 @@ public:
     virtual bool setupParameters(ModularSBASolver* solver) override;
     virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) override;
     virtual bool writeResults(ModularSBASolver* solver) override;
+    virtual std::vector<std::pair<const double*, const double*>> requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) override;
     virtual bool writeUncertainty(ModularSBASolver* solver) override;
     virtual void cleanup(ModularSBASolver* solver) override;
 };

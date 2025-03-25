@@ -165,7 +165,98 @@ bool MountingsSBAModule::writeResults(ModularSBASolver* solver) {
     return true;
 
 }
+std::vector<std::pair<const double*, const double*>> MountingsSBAModule::requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) {
+
+    StereoVisionApp::Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return std::vector<std::pair<const double*, const double*>>();
+    }
+
+    QVector<qint64> mountingIdxs = currentProject->getIdsByClass(Mounting::staticMetaObject.className());
+
+    std::vector<std::pair<const double*, const double*>> ret;
+    ret.reserve(2*mountingIdxs.size());
+
+    for (qint64 id : mountingIdxs) {
+
+        ModularSBASolver::PoseNode* mounting_p = solver->getPoseNode(id);
+
+        if (mounting_p == nullptr) {
+            continue;
+        }
+
+        if (!problem.IsParameterBlockConstant(mounting_p->t.data())) {
+            ret.push_back({mounting_p->t.data(),mounting_p->t.data()});
+        }
+
+        if (!problem.IsParameterBlockConstant(mounting_p->rAxis.data())) {
+            ret.push_back({mounting_p->rAxis.data(),mounting_p->rAxis.data()});
+        }
+    }
+
+    return ret;
+}
 bool MountingsSBAModule::writeUncertainty(ModularSBASolver* solver) {
+
+    StereoVisionApp::Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    QVector<qint64> mountingIdxs = currentProject->getIdsByClass(Mounting::staticMetaObject.className());
+
+    std::vector<std::pair<const double*, const double*>> ret;
+    ret.reserve(2*mountingIdxs.size());
+
+    for (qint64 id : mountingIdxs) {
+
+        ModularSBASolver::PoseNode* mounting_p = solver->getPoseNode(id);
+
+        if (mounting_p == nullptr) {
+            continue;
+        }
+
+        Mounting* mounting = currentProject->getDataBlock<Mounting>(id);
+
+        if (mounting == nullptr) {
+            continue;
+        }
+
+        if (mounting->isFixed()) {
+            continue;
+        }
+
+        std::optional<Eigen::MatrixXd> covBlock = solver->getCovarianceBlock({mounting_p->t.data(),mounting_p->t.data()});
+
+        if (covBlock.has_value()) {
+            floatParameterGroup<3> oT = mounting->optPos();
+            oT.setUncertain();
+            oT.stddev(0,0) = covBlock.value()(0,0);
+            oT.stddev(1,1) = covBlock.value()(1,1);
+            oT.stddev(2,2) = covBlock.value()(2,2);
+            oT.stddev(0,1) = covBlock.value()(0,1);
+            oT.stddev(1,2) = covBlock.value()(1,2);
+            oT.stddev(2,0) = covBlock.value()(2,0);
+            mounting->setOptPos(oT);
+        }
+
+        covBlock = solver->getCovarianceBlock({mounting_p->rAxis.data(),mounting_p->rAxis.data()});
+
+        if (covBlock.has_value()) {
+            floatParameterGroup<3> oR = mounting->optRot();
+            oR.setUncertain();
+            oR.stddev(0,0) = covBlock.value()(0,0);
+            oR.stddev(1,1) = covBlock.value()(1,1);
+            oR.stddev(2,2) = covBlock.value()(2,2);
+            oR.stddev(0,1) = covBlock.value()(0,1);
+            oR.stddev(1,2) = covBlock.value()(1,2);
+            oR.stddev(2,0) = covBlock.value()(2,0);
+            mounting->setOptRot(oR);
+        }
+    }
+
     return true;
 }
 void MountingsSBAModule::cleanup(ModularSBASolver* solver) {

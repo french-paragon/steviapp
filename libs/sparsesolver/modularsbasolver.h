@@ -70,6 +70,13 @@ public:
          */
         virtual bool writeResults(ModularSBASolver* solver) = 0;
         /*!
+         * \brief requestUncertainty gives the blocks of the covariance matrix the module excpects to see computed
+         * \return the list of parameters blocks pairs in the ceres problem the covariance of will be requested.
+         *
+         * by default this function returns nothing.
+         */
+        virtual std::vector<std::pair<const double*, const double*>> requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem);
+        /*!
          * \brief writeUncertainty write uncertainty back to the project
          * \param solver the modular solver
          * \return false in case of error, true otherwise.
@@ -141,6 +148,13 @@ public:
                                                     ceres::Problem & problem) = 0;
 
         virtual bool writeResults(ModularSBASolver* solver) = 0;
+        /*!
+         * \brief requestUncertainty gives the blocks of the covariance matrix the module excpects to see computed
+         * \return the list of parameters blocks pairs in the ceres problem the covariance of will be requested.
+         *
+         * by default this function returns nothing.
+         */
+        virtual std::vector<std::pair<const double*, const double*>> requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem);
         virtual bool writeUncertainty(ModularSBASolver* solver) = 0;
         virtual void cleanup(ModularSBASolver* solver) = 0;
     };
@@ -447,6 +461,8 @@ public:
      */
     bool itemIsObservable(qint64 itemId) const;
 
+    std::optional<Eigen::MatrixXd> getCovarianceBlock(std::pair<const double*, const double*> const& params);
+
 protected:
 
     bool init() override;
@@ -471,6 +487,7 @@ protected:
     ceres::Problem _problem;
     std::vector<SBAModule*> _modules;
     QVector<ProjectorModule*> _projectors;
+    ceres::Covariance* _covariance;
 
     QMap<QString, ValueBlockLogger*> _loggers;
     QString _loggingDir;

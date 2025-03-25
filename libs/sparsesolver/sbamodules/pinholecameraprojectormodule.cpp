@@ -315,6 +315,10 @@ bool PinholePushBroomCamProjectorModule::init(ModularSBASolver* solver, ceres::P
 
 bool PinholePushBroomCamProjectorModule::writeResults(ModularSBASolver* solver) {
 
+    if (_associatedCamera == nullptr) {
+        return false;
+    }
+
     PushBroomPinholeCamera*& cam = _associatedCamera;
 
     if (cam->isFixed()) {
@@ -344,8 +348,111 @@ bool PinholePushBroomCamProjectorModule::writeResults(ModularSBASolver* solver) 
 
 }
 
+std::vector<std::pair<const double*, const double*>> PinholePushBroomCamProjectorModule::requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) {
+
+    std::vector<std::pair<const double*, const double*>> ret;
+    ret.reserve(4);
+
+    if (!problem.IsParameterBlockConstant(&_fLen)) {
+        ret.push_back({&_fLen,&_fLen});
+    }
+
+    if (!problem.IsParameterBlockConstant(&_principalPoint)) {
+        ret.push_back({&_principalPoint,&_principalPoint});
+    }
+
+    if (!problem.IsParameterBlockConstant(_horizontalDistortion.data())) {
+        ret.push_back({_horizontalDistortion.data(),_horizontalDistortion.data()});
+    }
+
+    if (!problem.IsParameterBlockConstant(_verticalDistortion.data())) {
+        ret.push_back({_verticalDistortion.data(),_verticalDistortion.data()});
+    }
+
+    return ret;
+
+}
+
 bool PinholePushBroomCamProjectorModule::writeUncertainty(ModularSBASolver* solver) {
-    //TODO: get a way to write uncertainty.
+
+    if (_associatedCamera == nullptr) {
+        return false;
+    }
+
+    std::optional<Eigen::MatrixXd> covBlock = solver->getCovarianceBlock({&_fLen,&_fLen});
+
+    if (covBlock.has_value()) {
+        floatParameter fLen = _associatedCamera->optimizedFLen();
+        fLen.setUncertainty(std::sqrt(covBlock.value()(0,0)));
+        _associatedCamera->setOptimizedFLen(fLen);
+    }
+
+    covBlock = solver->getCovarianceBlock({&_principalPoint,&_principalPoint});
+
+    if (covBlock.has_value()) {
+        floatParameter oCX = _associatedCamera->optimizedOpticalCenterX();
+        oCX.setUncertainty(std::sqrt(covBlock.value()(0,0)));
+        _associatedCamera->setOptimizedOpticalCenterX(oCX);
+    }
+
+    covBlock = solver->getCovarianceBlock({_horizontalDistortion.data(),_horizontalDistortion.data()});
+
+    if (covBlock.has_value()) {
+
+        floatParameter oA0 = _associatedCamera->optimizedA0();
+        oA0.setUncertainty(std::sqrt(covBlock.value()(0,0)));
+        _associatedCamera->setOptimizedA0(oA0);
+
+        floatParameter oA1 = _associatedCamera->optimizedA1();
+        oA1.setUncertainty(std::sqrt(covBlock.value()(1,1)));
+        _associatedCamera->setOptimizedA1(oA1);
+
+        floatParameter oA2 = _associatedCamera->optimizedA2();
+        oA2.setUncertainty(std::sqrt(covBlock.value()(2,2)));
+        _associatedCamera->setOptimizedA2(oA2);
+
+        floatParameter oA3 = _associatedCamera->optimizedA3();
+        oA3.setUncertainty(std::sqrt(covBlock.value()(3,3)));
+        _associatedCamera->setOptimizedA3(oA3);
+
+        floatParameter oA4 = _associatedCamera->optimizedA4();
+        oA4.setUncertainty(std::sqrt(covBlock.value()(4,4)));
+        _associatedCamera->setOptimizedA4(oA4);
+
+        floatParameter oA5 = _associatedCamera->optimizedA5();
+        oA5.setUncertainty(std::sqrt(covBlock.value()(5,5)));
+        _associatedCamera->setOptimizedA5(oA5);
+    }
+
+    covBlock = solver->getCovarianceBlock({_verticalDistortion.data(),_verticalDistortion.data()});
+
+    if (covBlock.has_value()) {
+
+        floatParameter oB0 = _associatedCamera->optimizedB0();
+        oB0.setUncertainty(std::sqrt(covBlock.value()(0,0)));
+        _associatedCamera->setOptimizedB0(oB0);
+
+        floatParameter oB1 = _associatedCamera->optimizedB1();
+        oB1.setUncertainty(std::sqrt(covBlock.value()(1,1)));
+        _associatedCamera->setOptimizedB1(oB1);
+
+        floatParameter oB2 = _associatedCamera->optimizedB2();
+        oB2.setUncertainty(std::sqrt(covBlock.value()(2,2)));
+        _associatedCamera->setOptimizedB2(oB2);
+
+        floatParameter oB3 = _associatedCamera->optimizedB3();
+        oB3.setUncertainty(std::sqrt(covBlock.value()(3,3)));
+        _associatedCamera->setOptimizedB3(oB3);
+
+        floatParameter oB4 = _associatedCamera->optimizedB4();
+        oB4.setUncertainty(std::sqrt(covBlock.value()(4,4)));
+        _associatedCamera->setOptimizedB4(oB4);
+
+        floatParameter oB5 = _associatedCamera->optimizedB5();
+        oB5.setUncertainty(std::sqrt(covBlock.value()(5,5)));
+        _associatedCamera->setOptimizedB5(oB5);
+    }
+
     return true;
 }
 
