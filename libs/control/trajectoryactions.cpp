@@ -477,6 +477,7 @@ void exportTrajectory(Trajectory* traj,
     QVBoxLayout layout(&exportOptionDialog);
     QFormLayout formLayout;
     QComboBox optimizedOptionBox;
+    QComboBox rotationBox;
     QComboBox geoBox;
     QDialogButtonBox buttonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel);
 
@@ -485,14 +486,35 @@ void exportTrajectory(Trajectory* traj,
     }
     optimizedOptionBox.addItem(QObject::tr("Initial"), NotOptimized);
 
+    rotationBox.addItem(QObject::tr("Axis Angle"), static_cast<int>(TrajectoryExportOrientationConvention::AxisAngle));
+    rotationBox.addItem(QObject::tr("Euler XYZ"), static_cast<int>(TrajectoryExportOrientationConvention::EulerXYZ));
+    rotationBox.addItem(QObject::tr("Euler ZYX"), static_cast<int>(TrajectoryExportOrientationConvention::EulerZYX));
+
     geoBox.addItem(QObject::tr("Export in Geographic coordinates"), Geographic);
     geoBox.addItem(QObject::tr("Export in ECEF coordinates"), ECEF);
+
+    int eulerAnglesIndex = rotationBox.findData(static_cast<int>(TrajectoryExportOrientationConvention::EulerZYX));
+    rotationBox.setCurrentIndex(eulerAnglesIndex);
+
+    QObject::connect(&geoBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            &rotationBox, [&rotationBox, &geoBox] () {
+        int exportFrame = geoBox.currentData().toInt();
+        if (exportFrame == ECEF) {
+            int axisAnglesIndex = rotationBox.findData(static_cast<int>(TrajectoryExportOrientationConvention::AxisAngle));
+            rotationBox.setCurrentIndex(axisAnglesIndex);
+        }
+        if (exportFrame == Geographic) {
+            int eulerAnglesIndex = rotationBox.findData(static_cast<int>(TrajectoryExportOrientationConvention::EulerZYX));
+            rotationBox.setCurrentIndex(eulerAnglesIndex);
+        }
+    });
 
     QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &exportOptionDialog, &QDialog::accept);
     QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &exportOptionDialog, &QDialog::reject);
 
     formLayout.addRow(QObject::tr("Optimized:"), &optimizedOptionBox);
     formLayout.addRow(QObject::tr("Representation:"), &geoBox);
+    formLayout.addRow(QObject::tr("Orientation format:"), &rotationBox);
     layout.addLayout(&formLayout);
     layout.addWidget(&buttonBox);
 
@@ -503,16 +525,22 @@ void exportTrajectory(Trajectory* traj,
     }
 
     bool exportOptimized = optimizedOptionBox.currentData().toInt() == Optimized;
+    TrajectoryExportOrientationConvention orientationConvention =
+            static_cast<TrajectoryExportOrientationConvention>(rotationBox.currentData().toInt());
     int exportFrame = geoBox.currentData().toInt();
 
     if (exportFrame == ECEF) {
-        exportTrajectory(traj,"", exportOptimized, sensor2body);
+        exportTrajectory(traj,"", exportOptimized, orientationConvention, sensor2body);
     } else if (exportFrame == Geographic) {
-        exportTrajectoryGeographic(traj,"", exportOptimized, sensor2body);
+        exportTrajectoryGeographic(traj,"", exportOptimized, orientationConvention, sensor2body);
     }
 }
 
-void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized, const StereoVision::Geometry::RigidBodyTransform<double> &sensor2body) {
+void exportTrajectory(Trajectory* traj,
+                      QString filePath,
+                      bool exportOptimized,
+                      TrajectoryExportOrientationConvention const& orientationConvention,
+                      const StereoVision::Geometry::RigidBodyTransform<double> &sensor2body) {
 
     if (traj == nullptr) {
         return;
@@ -575,7 +603,21 @@ void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized, 
 
     QTextStream out(&outFile);
 
-    out << "#trajectory is given in ECEF, pose represent platform2ecef transform, rotation is given as rotation axis in radian" << "\n";
+    QString rRep;
+
+    switch (orientationConvention) {
+    case TrajectoryExportOrientationConvention::EulerZYX:
+        rRep = "ZYX euler angles in degrees";
+        break;
+    case TrajectoryExportOrientationConvention::EulerXYZ:
+        rRep = "XYZ euler angles in degrees";
+        break;
+    case TrajectoryExportOrientationConvention::AxisAngle:
+        rRep = "axis angle in radians";
+        break;
+    }
+
+    out << "#trajectory is given in ECEF, pose represent platform2ecef transform, rotation is given as " << rRep << "\n";
     out << "time,x,y,z,rx,ry,rz" << "\n";
 
     Trajectory::TimeTrajectorySequence& trajSeq = exportTraj.value();
@@ -588,14 +630,29 @@ void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized, 
 
         platform2ecef = platform2ecef*sensor2body; //if the platform is a sensor, apply the sensor2body transform beforehand
 
+        Eigen::Matrix3d rMat = StereoVision::Geometry::rodriguezFormula(platform2ecef.r);
+
+        Eigen::Vector3d angles;
+
+        switch (orientationConvention) {
+        case TrajectoryExportOrientationConvention::EulerZYX:
+            angles = StereoVision::Geometry::rMat2eulerRadzyx(rMat)/M_PI * 180;
+            break;
+        case TrajectoryExportOrientationConvention::EulerXYZ:
+            angles = StereoVision::Geometry::rMat2eulerRadxyz(rMat)/M_PI * 180;
+            break;
+        case TrajectoryExportOrientationConvention::AxisAngle:
+            angles = platform2ecef.r;
+            break;
+        }
 
         out << QString("%1").arg(time,0, 'f', 6) << ',';
         out << QString("%1").arg(platform2ecef.t.x(),0, 'f', 3) << ',';
         out << QString("%1").arg(platform2ecef.t.y(),0, 'f', 3) << ',';
         out << QString("%1").arg(platform2ecef.t.z(),0, 'f', 3) << ',';
-        out << QString("%1").arg(platform2ecef.r.x(),0, 'f', 6) << ',';
-        out << QString("%1").arg(platform2ecef.r.y(),0, 'f', 6) << ',';
-        out << QString("%1").arg(platform2ecef.r.z(),0, 'f', 6);
+        out << QString("%1").arg(angles.x(),0, 'f', 6) << ',';
+        out << QString("%1").arg(angles.y(),0, 'f', 6) << ',';
+        out << QString("%1").arg(angles.z(),0, 'f', 6);
         out << "\n";
     }
 
@@ -604,7 +661,11 @@ void exportTrajectory(Trajectory* traj, QString filePath, bool exportOptimized, 
 }
 
 
-void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportOptimized, const StereoVision::Geometry::RigidBodyTransform<double> &sensor2body) {
+void exportTrajectoryGeographic(Trajectory* traj,
+                                QString filePath,
+                                bool exportOptimized,
+                                TrajectoryExportOrientationConvention const& orientationConvention,
+                                const StereoVision::Geometry::RigidBodyTransform<double> &sensor2body) {
 
     if (traj == nullptr) {
         return;
@@ -732,8 +793,26 @@ void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportO
 
     QTextStream out(&outFile);
 
-    out << "#trajectory is given in WGG84 geographic coordinates (EPSG:4979), rotation is given as XYZ euler angles (degree) in local NED frame" << "\n";
-    out << "time,lat,lon,height,roll,pitch,heading" << "\n";
+    QString rRep;
+    QString rCols;
+
+    switch (orientationConvention) {
+    case TrajectoryExportOrientationConvention::EulerZYX:
+        rRep = "ZYX euler angles (degree)";
+        rCols = "roll,pitch,heading";
+        break;
+    case TrajectoryExportOrientationConvention::EulerXYZ:
+        rRep = "XYZ euler angles (degree)";
+        rCols = "roll,pitch,heading";
+        break;
+    case TrajectoryExportOrientationConvention::AxisAngle:
+        rRep = "axis angle (radians)";
+        rCols = "rx,ry,rz";
+        break;
+    }
+
+    out << "#trajectory is given in WGG84 geographic coordinates (EPSG:4979), rotation is given as " << rRep << " in local NED frame" << "\n";
+    out << "time,lat,lon,height," << rCols << "\n";
 
     for (int i = 0; i < trajSeq.nPoints(); i++) {
         double& time = trajSeq[i].time;
@@ -751,8 +830,19 @@ void exportTrajectoryGeographic(Trajectory* traj, QString filePath, bool exportO
 
         Eigen::Matrix3d& rMat = platform2local.R;
 
-        Eigen::Vector3d angles
-                = StereoVision::Geometry::rMat2eulerRadzyx(rMat)/M_PI * 180;
+        Eigen::Vector3d angles;
+
+        switch (orientationConvention) {
+        case TrajectoryExportOrientationConvention::EulerZYX:
+            angles = StereoVision::Geometry::rMat2eulerRadzyx(rMat)/M_PI * 180;
+            break;
+        case TrajectoryExportOrientationConvention::EulerXYZ:
+            angles = StereoVision::Geometry::rMat2eulerRadxyz(rMat)/M_PI * 180;
+            break;
+        case TrajectoryExportOrientationConvention::AxisAngle:
+            angles = StereoVision::Geometry::inverseRodriguezFormula(rMat);
+            break;
+        }
 
         out << QString("%1").arg(time,0, 'f', 6) << ',';
         out << QString("%1").arg(positions(0,i),0, 'f', 14) << ',';

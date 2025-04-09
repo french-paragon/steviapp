@@ -21,6 +21,12 @@ void setGyroMounting(Trajectory* traj);
  */
 void checkTrajectoryConsistency(Trajectory* traj);
 
+enum class TrajectoryExportOrientationConvention {
+    AxisAngle,
+    EulerXYZ,
+    EulerZYX
+};
+
 /*!
  * \brief exportTrajectory export the trajectory, with possible a sensor2body transform, selecting the options with a gui
  * \param traj the trajectory
@@ -39,6 +45,7 @@ void exportTrajectory(Trajectory* traj,
 void exportTrajectory(Trajectory* traj,
                       QString filePath,
                       bool exportOptimized = false,
+                      TrajectoryExportOrientationConvention const& orientationConvention = TrajectoryExportOrientationConvention::AxisAngle,
                       StereoVision::Geometry::RigidBodyTransform<double> const& sensor2body = StereoVision::Geometry::RigidBodyTransform<double>());
 /*!
  * \brief exportTrajectoryGeographic export the trajectory in SBET compatible representation, with possible a sensor2body transform
@@ -50,6 +57,7 @@ void exportTrajectory(Trajectory* traj,
 void exportTrajectoryGeographic(Trajectory* traj,
                                 QString filePath = "",
                                 bool exportOptimized = false,
+                                TrajectoryExportOrientationConvention const& orientationConvention = TrajectoryExportOrientationConvention::EulerZYX,
                                 StereoVision::Geometry::RigidBodyTransform<double> const& sensor2body = StereoVision::Geometry::RigidBodyTransform<double>());
 
 } // namespace StereoVisionApp

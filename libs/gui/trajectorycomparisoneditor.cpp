@@ -274,9 +274,13 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
             maxAbsPosError = std::abs(posZerrors[i]);
         }
 
-        rotXerrors[i] = delta.r.x();
-        rotYerrors[i] = delta.r.y();
-        rotZerrors[i] = delta.r.z();
+        double& drx = delta.r.x();
+        double& dry = delta.r.y();
+        double& drz = delta.r.z();
+
+        rotXerrors[i] = drx;
+        rotYerrors[i] = dry;
+        rotZerrors[i] = drz;
 
         if (std::abs(rotXerrors[i]) > maxAbsRotError) {
             maxAbsRotError = std::abs(rotXerrors[i]);
