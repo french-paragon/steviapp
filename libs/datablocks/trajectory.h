@@ -218,6 +218,136 @@ public:
     }
     void setPositionColumn(Axis axis, int col);
 
+    inline QString gpsFile() const {
+        return _gpsFile;
+    }
+
+    void setGpsFile(QString const& path);
+
+    inline QString gpsEpsg() const {
+        return _gpsDefinition.crs_epsg;
+    }
+
+    void setGpsEpsg(QString const& code);
+
+    inline TopocentricConvention gpsTopocentricConvention() const {
+        return _gpsDefinition.topocentric_convention;
+    }
+    void setGpsTopocentricConvention(TopocentricConvention convention);
+
+    inline double gpsTimeScale() const {
+        return _gpsDefinition.timeScale;
+    }
+
+    inline double gpsTimeDelta() const {
+        return _gpsDefinition.timeDelta;
+    }
+
+    void setGpsTimeScale(float timeScale);
+    void setGpsTimeDelta(float timeDelta);
+
+    inline int gpsPosColumns(Axis axis) {
+        switch (axis) {
+        case T:
+            return _gpsDefinition.pos_t_col;
+        case X:
+            return _gpsDefinition.pos_x_col;
+        case Y:
+            return _gpsDefinition.pos_y_col;
+        case Z:
+            return _gpsDefinition.pos_z_col;
+        default:
+            return -1;
+        }
+    }
+
+    void setGpsPosColumn(Axis axis, int col);
+
+    inline int gpsSpeedColumns(Axis axis) {
+        switch (axis) {
+        case T:
+            return _gpsDefinition.pos_t_col;
+        case X:
+            return _gpsDefinition.speed_x_col;
+        case Y:
+            return _gpsDefinition.speed_y_col;
+        case Z:
+            return _gpsDefinition.speed_z_col;
+        default:
+            return -1;
+        }
+    }
+
+    void setGpsSpeedColumn(Axis axis, int col);
+
+    inline int gpsVarColumns(Axis axis) {
+        switch (axis) {
+        case T:
+            return _gpsDefinition.pos_t_col;
+        case X:
+            return _gpsDefinition.var_x_col;
+        case Y:
+            return _gpsDefinition.var_y_col;
+        case Z:
+            return _gpsDefinition.var_z_col;
+        default:
+            return -1;
+        }
+    }
+
+    void setGpsVarColumn(Axis axis, int col);
+
+    inline int gpsCovColumns(Axis axis1, Axis axis2) {
+        int mask = axis1 | axis2;
+        switch (mask) {
+        case X|Y :
+            return _gpsDefinition.cov_xy_col;
+        case Y|Z :
+            return _gpsDefinition.cov_yz_col;
+        case Z|X :
+            return _gpsDefinition.cov_zx_col;
+        default:
+            break;
+        }
+        return -1;
+    }
+
+    void setGpsCovColumn(Axis axis1, Axis axis2, int col);
+
+    inline int gpsSpeedVarColumns(Axis axis) {
+        switch (axis) {
+        case T:
+            return _gpsDefinition.pos_t_col;
+        case X:
+            return _gpsDefinition.var_speed_x_col;
+        case Y:
+            return _gpsDefinition.var_speed_y_col;
+        case Z:
+            return _gpsDefinition.var_speed_z_col;
+        default:
+            return -1;
+        }
+    }
+
+    void setGpsSpeedVarColumn(Axis axis, int col);
+
+    inline int gpsSpeedCovColumns(Axis axis1, Axis axis2) {
+        int mask = axis1 | axis2;
+        switch (mask) {
+        case X|Y :
+            return _gpsDefinition.cov_speed_xy_col;
+        case Y|Z :
+            return _gpsDefinition.cov_speed_yz_col;
+        case Z|X :
+            return _gpsDefinition.cov_speed_zx_col;
+        default:
+            break;
+        }
+        return -1;
+    }
+
+    void setGpsSpeedCovColumn(Axis axis1, Axis axis2, int col);
+
     inline QString accelerometerFile() const {
         return _accelerationFile;
     }
@@ -625,6 +755,38 @@ protected:
     } _positionDefinition;
 
     QString _positionFile;
+
+    struct GpsDefinition {
+
+        TopocentricConvention topocentric_convention;
+        QString crs_epsg;
+
+        double timeDelta;
+        double timeScale;
+
+        int pos_t_col;
+        int pos_x_col;
+        int pos_y_col;
+        int pos_z_col;
+        int speed_x_col;
+        int speed_y_col;
+        int speed_z_col;
+        int var_x_col;
+        int var_y_col;
+        int var_z_col;
+        int cov_xy_col;
+        int cov_yz_col;
+        int cov_zx_col;
+        int var_speed_x_col;
+        int var_speed_y_col;
+        int var_speed_z_col;
+        int cov_speed_xy_col;
+        int cov_speed_yz_col;
+        int cov_speed_zx_col;
+
+    } _gpsDefinition;
+
+    QString _gpsFile;
 
     struct AccelerometerDefinition {
 

@@ -3,6 +3,7 @@
 #include "datablocks/trajectory.h"
 
 #include "gui/dialogs/trajectoryeditpositionoptionsdialog.h"
+#include "gui/dialogs/trajectoryeditgpsoptionsdialog.h"
 #include "gui/dialogs/trajectoryeditorientationoptionsdialog.h"
 
 #include "gui/dialogs/trajectoryeditaccelerometeroptionsdialog.h"
@@ -55,6 +56,16 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
 
     });
     actions.append(setPositionData);
+
+    QAction* setGPSData = new QAction(tr("set GPS data"), parent);
+    connect(setGPSData, &QAction::triggered, traj, [traj] () {
+
+        MainWindow* mw = MainWindow::getActiveMainWindow();
+
+        TrajectoryEditGpsOptionsDialog::ConfigureTrajectoryGpsOptions(traj, mw);
+
+    });
+    actions.append(setGPSData);
 
     QAction* setOrientationData = new QAction(tr("set orientation data"), parent);
     connect(setOrientationData, &QAction::triggered, traj, [traj] () {

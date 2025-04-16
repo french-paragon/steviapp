@@ -49,6 +49,39 @@ Trajectory::Trajectory(Project* parent) :
     _angularSpeedParameters._estimates_bias = false;
     _angularSpeedParameters._estimates_gain = false;
 
+    _gpsFile = "";
+    _gpsDefinition.crs_epsg = "";
+    _gpsDefinition.topocentric_convention = NED;
+
+    _gpsDefinition.timeDelta = 0;
+    _gpsDefinition.timeScale = 1;
+
+    _gpsDefinition.pos_t_col = -1;
+
+    _gpsDefinition.pos_x_col = -1;
+    _gpsDefinition.pos_y_col = -1;
+    _gpsDefinition.pos_z_col= -1;
+
+    _gpsDefinition.speed_x_col = -1;
+    _gpsDefinition.speed_y_col = -1;
+    _gpsDefinition.speed_z_col = -1;
+
+    _gpsDefinition.var_x_col = -1;
+    _gpsDefinition.var_y_col = -1;
+    _gpsDefinition.var_z_col = -1;
+
+    _gpsDefinition.cov_xy_col = -1;
+    _gpsDefinition.cov_yz_col = -1;
+    _gpsDefinition.cov_zx_col = -1;
+
+    _gpsDefinition.var_speed_x_col = -1;
+    _gpsDefinition.var_speed_y_col = -1;
+    _gpsDefinition.var_speed_z_col = -1;
+
+    _gpsDefinition.cov_speed_xy_col = -1;
+    _gpsDefinition.cov_speed_yz_col = -1;
+    _gpsDefinition.cov_speed_zx_col = -1;
+
     extendDataModel();
 }
 
@@ -1344,6 +1377,220 @@ void Trajectory::setPositionColumn(Axis axis, int col) {
         break;
     }
 }
+
+void Trajectory::setGpsFile(QString const& path) {
+    if (path != _gpsFile) {
+        _gpsFile = path;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setGpsEpsg(QString const& code) {
+    if (code != _gpsDefinition.crs_epsg) {
+        _gpsDefinition.crs_epsg = code;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setGpsTimeScale(float timeScale) {
+    if (timeScale != _gpsDefinition.timeScale) {
+        _gpsDefinition.timeScale = timeScale;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+void Trajectory::setGpsTimeDelta(float timeDelta) {
+    if (timeDelta != _gpsDefinition.timeDelta) {
+        _gpsDefinition.timeDelta = timeDelta;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setGpsPosColumn(Axis axis, int col) {
+    switch (axis) {
+    case T:
+        if (col != _gpsDefinition.pos_t_col){
+            _gpsDefinition.pos_t_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case X:
+        if (col != _gpsDefinition.pos_x_col) {
+            _gpsDefinition.pos_x_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Y:
+        if (col != _gpsDefinition.pos_y_col) {
+            _gpsDefinition.pos_y_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Z:
+        if (col != _gpsDefinition.pos_z_col) {
+            _gpsDefinition.pos_z_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void Trajectory::setGpsSpeedColumn(Axis axis, int col) {
+
+    switch (axis) {
+    case T:
+        if (col != _gpsDefinition.pos_t_col){
+            _gpsDefinition.pos_t_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case X:
+        if (col != _gpsDefinition.speed_x_col) {
+            _gpsDefinition.speed_x_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Y:
+        if (col != _gpsDefinition.speed_y_col) {
+            _gpsDefinition.speed_y_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Z:
+        if (col != _gpsDefinition.speed_z_col) {
+            _gpsDefinition.speed_z_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void Trajectory::setGpsVarColumn(Axis axis, int col) {
+
+    switch (axis) {
+    case T:
+        if (col != _gpsDefinition.pos_t_col){
+            _gpsDefinition.pos_t_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case X:
+        if (col != _gpsDefinition.var_x_col) {
+            _gpsDefinition.var_x_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Y:
+        if (col != _gpsDefinition.var_y_col) {
+            _gpsDefinition.var_y_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Z:
+        if (col != _gpsDefinition.var_z_col) {
+            _gpsDefinition.var_z_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void Trajectory::setGpsCovColumn(Axis axis1, Axis axis2, int col) {
+    int mask = axis1 | axis2;
+    switch (mask) {
+    case X|Y :
+        if (col != _gpsDefinition.cov_xy_col){
+            _gpsDefinition.cov_xy_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Y|Z :
+        if (col != _gpsDefinition.cov_yz_col){
+            _gpsDefinition.cov_yz_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Z|X :
+        if (col != _gpsDefinition.cov_zx_col){
+            _gpsDefinition.cov_zx_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void Trajectory::setGpsSpeedVarColumn(Axis axis, int col) {
+
+    switch (axis) {
+    case T:
+        if (col != _gpsDefinition.pos_t_col){
+            _gpsDefinition.pos_t_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case X:
+        if (col != _gpsDefinition.var_speed_x_col) {
+            _gpsDefinition.var_speed_x_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Y:
+        if (col != _gpsDefinition.var_speed_y_col) {
+            _gpsDefinition.var_speed_y_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Z:
+        if (col != _gpsDefinition.var_speed_z_col) {
+            _gpsDefinition.var_speed_z_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void Trajectory::setGpsSpeedCovColumn(Axis axis1, Axis axis2, int col) {
+    int mask = axis1 | axis2;
+    switch (mask) {
+    case X|Y :
+        if (col != _gpsDefinition.cov_speed_xy_col){
+            _gpsDefinition.cov_speed_xy_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Y|Z :
+        if (col != _gpsDefinition.cov_speed_yz_col){
+            _gpsDefinition.cov_speed_yz_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    case Z|X :
+        if (col != _gpsDefinition.cov_speed_zx_col){
+            _gpsDefinition.cov_speed_zx_col = col;
+            Q_EMIT trajectoryDataChanged();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void Trajectory::setGpsTopocentricConvention(TopocentricConvention convention) {
+    if (convention != _gpsDefinition.topocentric_convention) {
+        _gpsDefinition.topocentric_convention = convention;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
 void Trajectory::setAccelerometerFile(QString const& path) {
     if (path != _accelerationFile) {
         _accelerationFile = path;
@@ -1834,6 +2081,39 @@ QJsonObject Trajectory::encodeJson() const {
     obj.insert("positionDefinition", positionDefinition);
     obj.insert("positionFile", _positionFile);
 
+    QJsonObject gpsDefinition;
+
+    gpsDefinition.insert("topocentric_convention", _gpsDefinition.topocentric_convention);
+    gpsDefinition.insert("crs_epsg", _gpsDefinition.crs_epsg);
+
+    gpsDefinition.insert("time_delta", _gpsDefinition.timeDelta);
+    gpsDefinition.insert("time_scale", _gpsDefinition.timeScale);
+
+    gpsDefinition.insert("pos_t_col", _gpsDefinition.pos_t_col);
+    gpsDefinition.insert("pos_x_col", _gpsDefinition.pos_x_col);
+    gpsDefinition.insert("pos_y_col", _gpsDefinition.pos_y_col);
+    gpsDefinition.insert("pos_z_col", _gpsDefinition.pos_z_col);
+    gpsDefinition.insert("speed_x_col", _gpsDefinition.speed_x_col);
+    gpsDefinition.insert("speed_y_col", _gpsDefinition.speed_y_col);
+    gpsDefinition.insert("speed_z_col", _gpsDefinition.speed_z_col);
+    gpsDefinition.insert("var_x_col", _gpsDefinition.var_x_col);
+    gpsDefinition.insert("var_y_col", _gpsDefinition.var_y_col);
+    gpsDefinition.insert("var_z_col", _gpsDefinition.var_z_col);
+    gpsDefinition.insert("cov_xy_col", _gpsDefinition.cov_xy_col);
+    gpsDefinition.insert("cov_yz_col", _gpsDefinition.cov_yz_col);
+    gpsDefinition.insert("cov_zx_col", _gpsDefinition.cov_zx_col);
+    gpsDefinition.insert("var_speed_x_col", _gpsDefinition.var_speed_x_col);
+    gpsDefinition.insert("var_speed_y_col", _gpsDefinition.var_speed_y_col);
+    gpsDefinition.insert("var_speed_z_col", _gpsDefinition.var_speed_z_col);
+    gpsDefinition.insert("cov_speed_xy_col", _gpsDefinition.cov_speed_xy_col);
+    gpsDefinition.insert("cov_speed_yz_col", _gpsDefinition.cov_speed_yz_col);
+    gpsDefinition.insert("cov_speed_zx_col", _gpsDefinition.cov_speed_zx_col);
+
+    if (!_gpsFile.isEmpty()) {
+        obj.insert("gpsDefinition", gpsDefinition);
+        obj.insert("gpsFile", _gpsFile);
+    }
+
     QJsonObject orientationDefinition;
 
     e = QMetaEnum::fromType<TopocentricConvention>();
@@ -2015,6 +2295,193 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
 
     if (data.contains("angularSpeedFile")) {
         _angularSpeedFile = data.value("angularSpeedFile").toString();
+    }
+
+    if (data.contains("gpsDefinition")) {
+
+        QJsonObject gpsDefinition = data.value("gpsDefinition").toObject();
+
+        if (gpsDefinition.contains("crs_epsg")) {
+            _gpsDefinition.crs_epsg = gpsDefinition.value("crs_epsg").toString("");
+        }
+
+        if (gpsDefinition.contains("topocentric_convention")) {
+            QMetaEnum e = QMetaEnum::fromType<TopocentricConvention>();
+            bool ok = true;
+            int val = e.keysToValue(gpsDefinition.value("topocentric_convention").toString().toLocal8Bit().data(), &ok);
+
+            if (ok) {
+                _gpsDefinition.topocentric_convention = static_cast<TopocentricConvention>(val);
+            } else {
+                _gpsDefinition.topocentric_convention = NED; //default
+            }
+        }
+
+        if (gpsDefinition.contains("time_delta")) {
+            _gpsDefinition.timeDelta = gpsDefinition.value("time_delta").toDouble(0);
+        } else {
+            _gpsDefinition.timeDelta = 0;
+        }
+
+        if (gpsDefinition.contains("time_scale")) {
+            _gpsDefinition.timeScale = gpsDefinition.value("time_scale").toDouble(1);
+        } else {
+            _gpsDefinition.timeScale = 1;
+        }
+
+        if (gpsDefinition.contains("pos_t_col")) {
+            _gpsDefinition.pos_t_col = gpsDefinition.value("pos_t_col").toInt(-1);
+        } else {
+            _gpsDefinition.pos_t_col = -1;
+        }
+
+        if (gpsDefinition.contains("pos_x_col")) {
+            _gpsDefinition.pos_x_col = gpsDefinition.value("pos_x_col").toInt(-1);
+        } else {
+            _gpsDefinition.pos_x_col = -1;
+        }
+
+        if (gpsDefinition.contains("pos_y_col")) {
+            _gpsDefinition.pos_y_col = gpsDefinition.value("pos_y_col").toInt(-1);
+        } else {
+            _gpsDefinition.pos_y_col = -1;
+        }
+
+        if (gpsDefinition.contains("pos_z_col")) {
+            _gpsDefinition.pos_z_col = gpsDefinition.value("pos_z_col").toInt(-1);
+        } else {
+            _gpsDefinition.pos_z_col= -1;
+        }
+
+        if (gpsDefinition.contains("speed_x_col")) {
+            _gpsDefinition.speed_x_col = gpsDefinition.value("speed_x_col").toInt(-1);
+        } else {
+            _gpsDefinition.speed_x_col = -1;
+        }
+
+        if (gpsDefinition.contains("speed_y_col")) {
+            _gpsDefinition.speed_y_col = gpsDefinition.value("speed_y_col").toInt(-1);
+        } else {
+            _gpsDefinition.speed_y_col = -1;
+        }
+
+        if (gpsDefinition.contains("speed_z_col")) {
+            _gpsDefinition.speed_z_col = gpsDefinition.value("speed_z_col").toInt(-1);
+        } else {
+            _gpsDefinition.speed_z_col = -1;
+        }
+
+        if (gpsDefinition.contains("var_x_col")) {
+            _gpsDefinition.var_x_col = gpsDefinition.value("var_x_col").toInt(-1);
+        } else {
+            _gpsDefinition.var_x_col = -1;
+        }
+
+        if (gpsDefinition.contains("var_y_col")) {
+            _gpsDefinition.var_y_col = gpsDefinition.value("var_y_col").toInt(-1);
+        } else {
+            _gpsDefinition.var_y_col = -1;
+        }
+
+        if (gpsDefinition.contains("var_z_col")) {
+            _gpsDefinition.var_z_col = gpsDefinition.value("var_z_col").toInt(-1);
+        } else {
+            _gpsDefinition.var_z_col = -1;
+        }
+
+        if (gpsDefinition.contains("cov_xy_col")) {
+            _gpsDefinition.cov_xy_col = gpsDefinition.value("cov_xy_col").toInt(-1);
+        } else {
+            _gpsDefinition.cov_xy_col = -1;
+        }
+
+        if (gpsDefinition.contains("cov_yz_col")) {
+            _gpsDefinition.cov_yz_col = gpsDefinition.value("cov_yz_col").toInt(-1);
+        } else {
+            _gpsDefinition.cov_yz_col = -1;
+        }
+
+        if (gpsDefinition.contains("cov_zx_col")) {
+            _gpsDefinition.cov_zx_col = gpsDefinition.value("cov_zx_col").toInt(-1);
+        } else {
+            _gpsDefinition.cov_zx_col = -1;
+        }
+
+        if (gpsDefinition.contains("var_speed_x_col")) {
+            _gpsDefinition.var_speed_x_col = gpsDefinition.value("var_speed_x_col").toInt(-1);
+        } else {
+            _gpsDefinition.var_speed_x_col = -1;
+        }
+
+        if (gpsDefinition.contains("var_speed_y_col")) {
+            _gpsDefinition.var_speed_y_col = gpsDefinition.value("var_speed_y_col").toInt(-1);
+        } else {
+            _gpsDefinition.var_speed_y_col = -1;
+        }
+
+        if (gpsDefinition.contains("var_speed_z_col")) {
+            _gpsDefinition.var_speed_z_col = gpsDefinition.value("var_speed_z_col").toInt(-1);
+        } else {
+            _gpsDefinition.var_speed_z_col = -1;
+        }
+
+        if (gpsDefinition.contains("cov_speed_xy_col")) {
+            _gpsDefinition.cov_speed_xy_col = gpsDefinition.value("cov_speed_xy_col").toInt(-1);
+        } else {
+            _gpsDefinition.cov_speed_xy_col = -1;
+        }
+
+        if (gpsDefinition.contains("cov_speed_yz_col")) {
+            _gpsDefinition.cov_speed_yz_col = gpsDefinition.value("cov_speed_yz_col").toInt(-1);
+        } else {
+            _gpsDefinition.cov_speed_yz_col = -1;
+        }
+
+        if (gpsDefinition.contains("cov_speed_zx_col")) {
+            _gpsDefinition.cov_speed_zx_col = gpsDefinition.value("cov_speed_zx_col").toInt(-1);
+        } else {
+            _gpsDefinition.cov_speed_zx_col = -1;
+        }
+    } else {
+
+
+        _gpsDefinition.crs_epsg = "";
+        _gpsDefinition.topocentric_convention = NED;
+
+        _gpsDefinition.timeDelta = 0;
+        _gpsDefinition.timeScale = 1;
+
+        _gpsDefinition.pos_t_col = -1;
+
+        _gpsDefinition.pos_x_col = -1;
+        _gpsDefinition.pos_y_col = -1;
+        _gpsDefinition.pos_z_col= -1;
+
+        _gpsDefinition.speed_x_col = -1;
+        _gpsDefinition.speed_y_col = -1;
+        _gpsDefinition.speed_z_col = -1;
+
+        _gpsDefinition.var_x_col = -1;
+        _gpsDefinition.var_y_col = -1;
+        _gpsDefinition.var_z_col = -1;
+
+        _gpsDefinition.cov_xy_col = -1;
+        _gpsDefinition.cov_yz_col = -1;
+        _gpsDefinition.cov_zx_col = -1;
+
+        _gpsDefinition.var_speed_x_col = -1;
+        _gpsDefinition.var_speed_y_col = -1;
+        _gpsDefinition.var_speed_z_col = -1;
+
+        _gpsDefinition.cov_speed_xy_col = -1;
+        _gpsDefinition.cov_speed_yz_col = -1;
+        _gpsDefinition.cov_speed_zx_col = -1;
+    }
+
+    if (data.contains("gpsFile")) {
+        _gpsFile = data.value("gpsFile").toString();
+    } else {
+        _gpsFile = "";
     }
 
     if (data.contains("positionDefinition")) {

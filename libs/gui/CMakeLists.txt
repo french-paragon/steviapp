@@ -64,6 +64,7 @@ set(LIB_SRC imagewidget.cpp
             dialogs/trajectoryeditorientationoptionsdialog.cpp
             dialogs/trajectoryeditaccelerometeroptionsdialog.cpp
             dialogs/trajectoryeditgyrooptionsdialog.cpp
+            dialogs/trajectoryeditgpsoptionsdialog.cpp
             inputsWidgets/rigidbodytransforminputwidget.h
             inputsWidgets/rigidbodytransforminputwidget.cpp
 )
@@ -125,6 +126,7 @@ set(LIB_HEADERS_DIALOG
     dialogs/trajectoryeditorientationoptionsdialog.h
     dialogs/trajectoryeditaccelerometeroptionsdialog.h
     dialogs/trajectoryeditgyrooptionsdialog.h
+    dialogs/trajectoryeditgpsoptionsdialog.h
 )
 
 if (ADD_DEVEL_TOOLS)
