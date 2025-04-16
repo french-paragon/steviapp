@@ -5,6 +5,7 @@
 #include <QString>
 
 #include <optional>
+#include <array>
 
 namespace StereoVisionApp {
 
