@@ -6,6 +6,7 @@
 #include "mainwindow.h"
 
 #include <QInputDialog>
+#include <QMessageBox>
 
 #include <limits>
 
@@ -101,6 +102,21 @@ bool estimateLocalCoordinateSystem(Project* p) {
 
     if (p == nullptr) {
         return false;
+    }
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (p->hasLocalCoordinateFrame()) {
+        if (mw != nullptr) {
+            QMessageBox::StandardButton button = QMessageBox::question(mw,
+                                  QObject::tr("Project already has a local coordinate frame!"),
+                                  QObject::tr("Do you want to replace the current frame ? (This will invalidate the solution)"),
+                                  QMessageBox::StandardButton::Yes|QMessageBox::StandardButton::No);
+
+            if (button != QMessageBox::StandardButton::Yes) {
+                return false;
+            }
+        }
     }
 
     int count = 0;
