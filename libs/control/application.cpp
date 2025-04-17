@@ -251,8 +251,9 @@ void StereoVisionApplication::loadApplicationPlugins() {
         plugin->load();
 
         if (plugin->instance() == nullptr) {
-            delete plugin;
             err << "Error, could not load plugin : \"" << pluginPath << "\", skipping!" << Qt::endl;
+            err << "Last error was: " << plugin->errorString() << Qt::endl;
+            delete plugin;
             continue;
         }
 
