@@ -10,7 +10,7 @@
 #include "gui/cameracalibrationoptionsdialog.h"
 #include "gui/stepprocessmonitorbox.h"
 
-#include "sparsesolver/graphcameracalibrator.h"
+//#include "sparsesolver/graphcameracalibrator.h"
 
 #include <QThread>
 #include <QDebug>
@@ -20,7 +20,7 @@ namespace StereoVisionApp {
 
 void runCameraCalibration(Project* project, qint64 calibration) {
 
-	if (project == nullptr) {
+    /*if (project == nullptr) {
 		return;
 	}
 
@@ -100,7 +100,7 @@ void runCameraCalibration(Project* project, qint64 calibration) {
 
 	t->start();
 	solver->run();
-
+    */
 
 }
 

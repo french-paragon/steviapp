@@ -433,6 +433,420 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
 }
 
+
+StatusOptionalReturn<Trajectory::RawGpsData> Trajectory::loadGPSData() const {
+
+    using RType = StatusOptionalReturn<Trajectory::RawGpsData>;
+
+    RType retOpt = loadRawGPSData();
+
+    if (!retOpt.isValid()) {
+        return RType::error(retOpt.errorMessage());
+    }
+
+    Trajectory::RawGpsData& ret = retOpt.value();
+
+    if (!ret.position.has_value() and
+        !ret.velocities.has_value() and
+        !ret.posSigma.has_value() and
+        !ret.speedSigma.has_value()) {
+        return RType::error("Empty gps data!");
+    }
+
+    if (_positionDefinition.crs_epsg.isEmpty()) {
+        return ret; // no transformation required
+    }
+
+    if (!ret.position.has_value()) {
+        return RType::error("Missing position information to convert to ecef!");
+    }
+
+    std::vector<Trajectory::TimeCartesianBlock>& positions = ret.position.value();
+
+    const char* wgs84_ecef = "EPSG:4978";
+
+    PJ_CONTEXT* ctx = proj_context_create();
+
+    PJ* toEcef = proj_create_crs_to_crs(ctx,
+                                        _positionDefinition.crs_epsg.toStdString().c_str(),
+                                        wgs84_ecef,
+                                        nullptr);
+
+    if (toEcef == 0) { //in case of error
+        proj_context_destroy(ctx);
+        return RType::error("Error when initilizing the proj transform from the trajectory to ECEF");
+    }
+
+    int delta_x = 1;
+    int delta_y = 1;
+    int delta_z = 1;
+
+    if (positions.size() > 1) {
+
+        std::byte* addr_x1 = reinterpret_cast<std::byte*>(&positions[0].val.x());
+        std::byte* addr_x2 = reinterpret_cast<std::byte*>(&positions[1].val.x());
+
+        std::byte* addr_y1 = reinterpret_cast<std::byte*>(&positions[0].val.y());
+        std::byte* addr_y2 = reinterpret_cast<std::byte*>(&positions[1].val.y());
+
+        std::byte* addr_z1 = reinterpret_cast<std::byte*>(&positions[0].val.z());
+        std::byte* addr_z2 = reinterpret_cast<std::byte*>(&positions[1].val.z());
+
+        delta_x = addr_x2 - addr_x1; //assumes elements in the vector are evenly spaced
+        delta_y = addr_y2 - addr_y1;
+        delta_z = addr_z2 - addr_z1;
+    }
+
+    proj_trans_generic(toEcef, PJ_FWD,
+                       &positions[0].val.x(), delta_x, positions.size(),
+                       &positions[0].val.y(), delta_y, positions.size(),
+                       &positions[0].val.z(), delta_z, positions.size(),
+                       nullptr, 0, 0);
+
+    proj_destroy(toEcef);
+    proj_context_destroy(ctx);
+
+    if (!ret.velocities.has_value() and
+        !ret.posSigma.has_value() and
+        !ret.speedSigma.has_value()) {
+
+        return ret;
+    }
+
+    Eigen::Array<double,3,Eigen::Dynamic> posData;
+    posData.resize(3,positions.size());
+
+    for (int i = 0; i < positions.size(); i++) {
+        posData(0,i) = positions[i].val.x();
+        posData(1,i) = positions[i].val.y();
+        posData(2,i) = positions[i].val.z();
+    }
+
+    Geo::TopocentricConvention topoConv = static_cast<Geo::TopocentricConvention>(_gpsDefinition.topocentric_convention);
+    auto optLocalFrames = Geo::getLTPC2ECEF(posData, wgs84_ecef, topoConv);
+
+    if (!optLocalFrames.has_value()) {
+        return RType::error("Error when evaluating trajectory local frame!");
+    }
+
+    std::vector<StereoVision::Geometry::AffineTransform<double>>& localFrames = optLocalFrames.value();
+
+    if (localFrames.size() != positions.size()) {
+        return RType::error("Unexpected number of local frames returned!");
+    }
+
+    if (ret.velocities.has_value()) {
+        std::vector<Trajectory::TimeCartesianBlock>& velocities = ret.velocities.value();
+
+        if (velocities.size() != localFrames.size()) {
+            return RType::error("Unexpected number of velocities returned!");
+        }
+
+        for (int i = 0; i < velocities.size(); i++) {
+            velocities[i].val = localFrames[i].R*velocities[i].val;
+        }
+    }
+
+    if (ret.posSigma.has_value()) {
+        std::vector<Trajectory::TimeVarianceBlock>& sigmas = ret.posSigma.value();
+
+        if (sigmas.size() != localFrames.size()) {
+            return RType::error("Unexpected number of position covariances returned!");
+        }
+
+        for (int i = 0; i < sigmas.size(); i++) {
+            sigmas[i].val = localFrames[i].R*sigmas[i].val*localFrames[i].R.transpose();
+        }
+    }
+
+    if (ret.speedSigma.has_value()) {
+        std::vector<Trajectory::TimeVarianceBlock>& sigmas = ret.speedSigma.value();
+
+        if (sigmas.size() != localFrames.size()) {
+            return RType::error("Unexpected number of position covariances returned!");
+        }
+
+        for (int i = 0; i < sigmas.size(); i++) {
+            sigmas[i].val = localFrames[i].R*sigmas[i].val*localFrames[i].R.transpose();
+        }
+    }
+
+    return ret;
+
+}
+
+StatusOptionalReturn<Trajectory::RawGpsData> Trajectory::loadRawGPSData() const {
+
+    using RType = StatusOptionalReturn<Trajectory::RawGpsData>;
+
+    QFile trajFile(_positionFile);
+
+    if (!trajFile.open(QIODevice::ReadOnly)) {
+        return RType::error("Could not open position file!");
+    }
+
+    QString lineData;
+
+    Trajectory::RawGpsData ret = {std::nullopt,
+                                  std::nullopt,
+                                  std::nullopt,
+                                  std::nullopt};
+
+    int lineCount = 0;
+
+    QString sepPattern = "";
+
+    for (int i = 0; i < _separators.size(); i++) {
+        sepPattern += QRegularExpression::escape(_separators[i]);
+        if (i != _separators.size()-1) {
+            sepPattern += "|";
+        }
+    }
+
+    QRegularExpression sep(sepPattern);
+
+    //compute the minimum numbers of items in a line
+    int minLineElements = _gpsDefinition.pos_t_col;
+
+    minLineElements = std::max(_gpsDefinition.pos_x_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.pos_y_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.pos_z_col, minLineElements);
+
+    minLineElements = std::max(_gpsDefinition.speed_x_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.speed_y_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.speed_z_col, minLineElements);
+
+    minLineElements = std::max(_gpsDefinition.var_x_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.var_y_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.var_z_col, minLineElements);
+
+    minLineElements = std::max(_gpsDefinition.var_speed_x_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.var_speed_y_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.var_speed_z_col, minLineElements);
+
+    minLineElements = std::max(_gpsDefinition.cov_xy_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.cov_yz_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.cov_zx_col, minLineElements);
+
+    minLineElements = std::max(_gpsDefinition.cov_speed_xy_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.cov_speed_yz_col, minLineElements);
+    minLineElements = std::max(_gpsDefinition.cov_speed_zx_col, minLineElements);
+
+    minLineElements += 1;
+
+    bool positionPresent = _gpsDefinition.pos_x_col >= 0 and
+                           _gpsDefinition.pos_y_col >= 0 and
+                           _gpsDefinition.pos_z_col >= 0;
+
+    bool velocityPresent = _gpsDefinition.speed_x_col >= 0 and
+                           _gpsDefinition.speed_y_col >= 0 and
+                           _gpsDefinition.speed_z_col >= 0;
+
+    bool positionVarPresent = _gpsDefinition.var_x_col >= 0 and
+                           _gpsDefinition.var_y_col >= 0 and
+                           _gpsDefinition.var_z_col >= 0;
+
+    bool velocityVarPresent = _gpsDefinition.var_speed_x_col >= 0 and
+                           _gpsDefinition.var_speed_y_col >= 0 and
+                           _gpsDefinition.var_speed_z_col >= 0;
+
+    if (!positionPresent and !velocityPresent) {
+        return RType::error("Missing both positions and velocity data!");
+    }
+
+    if (positionPresent) {
+        ret.position = std::vector<TimeCartesianBlock>();
+    }
+
+    if (velocityPresent) {
+        ret.velocities = std::vector<TimeCartesianBlock>();
+    }
+
+    if (positionVarPresent) {
+        ret.posSigma = std::vector<TimeVarianceBlock>();
+    }
+
+    if (velocityVarPresent) {
+        ret.speedSigma = std::vector<TimeVarianceBlock>();
+    }
+
+    while (!trajFile.atEnd()) {
+
+        QByteArray line = trajFile.readLine();
+        QString str = QString::fromLocal8Bit(line);
+
+        if (str.startsWith(_commentPattern)) {
+            continue;
+        }
+
+        QStringList splitted = str.split(sep, Qt::SkipEmptyParts);
+
+        if (splitted.size() < minLineElements) {
+            continue;
+        }
+
+        bool ok = true;
+
+        double time = splitted[_gpsDefinition.pos_t_col].toDouble(&ok);
+        time = _gpsDefinition.timeScale*time + _gpsDefinition.timeDelta;
+
+        if (!ok) {
+            continue;
+        }
+
+        Trajectory::TimeCartesianBlock posEntry;
+        Trajectory::TimeCartesianBlock speedEntry;
+        Trajectory::TimeVarianceBlock posVarEntry;
+        Trajectory::TimeVarianceBlock speedVarEntry;
+
+        if (positionPresent) {
+
+            posEntry.val.x() = splitted[_gpsDefinition.pos_x_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+            posEntry.val.y() = splitted[_gpsDefinition.pos_y_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+            posEntry.val.z() = splitted[_gpsDefinition.pos_z_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+        }
+
+        if (velocityPresent) {
+
+            speedEntry.val.x() = splitted[_gpsDefinition.speed_x_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+            speedEntry.val.y() = splitted[_gpsDefinition.speed_y_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+            speedEntry.val.z() = splitted[_gpsDefinition.speed_z_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+        }
+
+        if (positionVarPresent) {
+
+            posVarEntry.val = Eigen::Matrix3d::Identity();
+
+            posVarEntry.val(0,0) = splitted[_gpsDefinition.var_x_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+            posVarEntry.val(1,1) = splitted[_gpsDefinition.var_x_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+            posVarEntry.val(2,2) = splitted[_gpsDefinition.var_x_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+
+            if (_gpsDefinition.cov_xy_col >= 0) {
+                double val = splitted[_gpsDefinition.cov_xy_col].toDouble(&ok);
+                if (!ok) {
+                    continue;
+                }
+                posVarEntry.val(0,1) = val;
+                posVarEntry.val(1,0) = val;
+            }
+
+            if (_gpsDefinition.cov_yz_col >= 0) {
+                double val = splitted[_gpsDefinition.cov_yz_col].toDouble(&ok);
+                if (!ok) {
+                    continue;
+                }
+                posVarEntry.val(1,2) = val;
+                posVarEntry.val(2,1) = val;
+            }
+
+            if (_gpsDefinition.cov_zx_col >= 0) {
+                double val = splitted[_gpsDefinition.cov_zx_col].toDouble(&ok);
+                if (!ok) {
+                    continue;
+                }
+                posVarEntry.val(0,2) = val;
+                posVarEntry.val(2,0) = val;
+            }
+
+        }
+
+        if (velocityVarPresent) {
+
+            speedVarEntry.val = Eigen::Matrix3d::Identity();
+
+            speedVarEntry.val(0,0) = splitted[_gpsDefinition.var_speed_x_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+            speedVarEntry.val(1,1) = splitted[_gpsDefinition.var_speed_x_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+            speedVarEntry.val(2,2) = splitted[_gpsDefinition.var_speed_x_col].toDouble(&ok);
+            if (!ok) {
+                continue;
+            }
+
+            if (_gpsDefinition.cov_speed_xy_col >= 0) {
+                double val = splitted[_gpsDefinition.cov_speed_xy_col].toDouble(&ok);
+                if (!ok) {
+                    continue;
+                }
+                speedVarEntry.val(0,1) = val;
+                speedVarEntry.val(1,0) = val;
+            }
+
+            if (_gpsDefinition.cov_speed_yz_col >= 0) {
+                double val = splitted[_gpsDefinition.cov_speed_yz_col].toDouble(&ok);
+                if (!ok) {
+                    continue;
+                }
+                speedVarEntry.val(1,2) = val;
+                speedVarEntry.val(2,1) = val;
+            }
+
+            if (_gpsDefinition.cov_speed_zx_col >= 0) {
+                double val = splitted[_gpsDefinition.cov_speed_zx_col].toDouble(&ok);
+                if (!ok) {
+                    continue;
+                }
+                speedVarEntry.val(0,2) = val;
+                speedVarEntry.val(2,0) = val;
+            }
+
+        }
+
+        if (positionPresent) {
+            posEntry.time = time;
+            ret.position->push_back(posEntry);
+        }
+
+        if (velocityPresent) {
+            speedEntry.time = time;
+            ret.velocities->push_back(speedEntry);
+        }
+
+        if (positionVarPresent) {
+            posVarEntry.time = time;
+            ret.posSigma->push_back(posVarEntry);
+        }
+
+        if (velocityVarPresent) {
+            speedVarEntry.time = time;
+            ret.speedSigma->push_back(speedVarEntry);
+        }
+    }
+
+    return ret;
+}
+
 StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::guidedSubsampleTrajectory
                 (std::vector<Trajectory::TimeTrajectoryBlock> const& trajectory,
                  std::vector<Trajectory::TimeTrajectoryBlock> const& guide) {
@@ -620,6 +1034,16 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadPosition
     }
 
     return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
+}
+
+StatusOptionalReturn<Trajectory::GpsData> Trajectory::loadGpsSequence() const {
+
+    using RType = StatusOptionalReturn<Trajectory::GpsData>;
+
+    RType ret({std::nullopt, std::nullopt, std::nullopt, std::nullopt});
+
+
+
 }
 
 StatusOptionalReturn<std::vector<Eigen::Vector3f> > Trajectory::loadTrajectoryPathInProjectLocalFrame() const {
@@ -1138,6 +1562,95 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
     _trajectoryCache = TimeTrajectorySequence(std::move(data));
 
     return _trajectoryCache.value();
+}
+
+StatusOptionalReturn<Trajectory::GpsData> Trajectory::loadGpsDataInProjectLocalFrame() const{
+    using RType = StatusOptionalReturn<Trajectory::GpsData>;
+
+    std::optional<StereoVision::Geometry::AffineTransform<float>> transform2projFrame = std::nullopt;
+
+    Project* proj = getProject();
+
+    if (proj != nullptr) {
+        if (proj->hasLocalCoordinateFrame()) {
+            transform2projFrame = proj->ecef2local();
+        }
+    }
+
+    StatusOptionalReturn<RawGpsData> dataOpt = loadGPSData();
+
+    if (!dataOpt.isValid()) {
+        return RType::error(dataOpt.errorMessage());
+    }
+
+    Trajectory::GpsData ret = {std::nullopt, std::nullopt, std::nullopt, std::nullopt};
+
+    RawGpsData& rawData = dataOpt.value();
+
+    if (transform2projFrame.has_value()) {
+
+        StereoVision::Geometry::AffineTransform<double> transform = transform2projFrame.value().cast<double>();
+
+        if (rawData.position.has_value()) {
+
+            auto& positions = rawData.position.value();
+
+            for (int i = 0; i < positions.size(); i++) {
+
+                positions[i].val = transform*positions[i].val;
+            }
+        }
+
+        if (rawData.velocities.has_value()) {
+
+            auto& velocities = rawData.velocities.value();
+
+            for (int i = 0; i < velocities.size(); i++) {
+
+                velocities[i].val = transform.R*velocities[i].val;
+            }
+        }
+
+        if (rawData.posSigma.has_value()) {
+
+            auto& posSigma = rawData.posSigma.value();
+
+            for (int i = 0; i < posSigma.size(); i++) {
+
+                posSigma[i].val = transform.R*posSigma[i].val*transform.R.transpose();
+            }
+        }
+
+        if (rawData.speedSigma.has_value()) {
+
+            auto& speedSigma = rawData.speedSigma.value();
+
+            for (int i = 0; i < speedSigma.size(); i++) {
+
+                speedSigma[i].val = transform.R*speedSigma[i].val*transform.R.transpose();
+            }
+        }
+
+    }
+
+    if (rawData.position.has_value()) {
+        ret.position = TimeCartesianSequence(std::move(rawData.position.value()));
+    }
+
+    if (rawData.velocities.has_value()) {
+        ret.velocities = TimeCartesianSequence(std::move(rawData.velocities.value()));
+    }
+
+    if (rawData.posSigma.has_value()) {
+        ret.posSigma = TimeVarianceSequence(std::move(rawData.posSigma.value()));
+    }
+
+    if (rawData.speedSigma.has_value()) {
+        ret.speedSigma = TimeVarianceSequence(std::move(rawData.speedSigma.value()));
+    }
+
+    return ret;
+
 }
 
 StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProjectLocalFrameSequence() const {

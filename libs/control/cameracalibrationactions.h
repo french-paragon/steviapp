@@ -7,7 +7,7 @@ namespace StereoVisionApp {
 
 class Project;
 
-void runCameraCalibration(Project* project, qint64 calibration);
+//void runCameraCalibration(Project* project, qint64 calibration);
 
 } // namespace StereoVisionApp
 

@@ -64,7 +64,7 @@ QList<QAction*> CameraCalibrationActionManager::factorizeItemContextActions(QObj
 	QList<QAction*> lst;
 
 	if (mw != nullptr) {
-		QAction* edit = new QAction(tr("Edit"), parent);
+        /*QAction* edit = new QAction(tr("Edit"), parent);
 		connect(edit, &QAction::triggered, [mw, calib] () {
 
 			Editor* e = mw->openEditor(CameraCalibrationEditor::staticMetaObject.className());
@@ -74,7 +74,7 @@ QList<QAction*> CameraCalibrationActionManager::factorizeItemContextActions(QObj
 			le->setCalibration(calib);
 
 		});
-		lst << edit;
+        lst << edit;*/
 	}
 
 	QAction* remove = new QAction(tr("Remove"), parent);

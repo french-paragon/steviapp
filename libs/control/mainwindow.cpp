@@ -65,10 +65,10 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->actionclear_solution, &QAction::triggered, this, &MainWindow::clearOptimSolution);
 	connect(ui->actionsolve_coarse, &QAction::triggered, this, &MainWindow::runCoarseOptim);
 	connect(ui->actionsolve_sparse, &QAction::triggered, this, &MainWindow::runSparseOptim);
-	connect(ui->actionsolve_stereo_rig, &QAction::triggered, this, [this] () {solveSparseStereoRig(_activeProject, this); });
+    //connect(ui->actionsolve_stereo_rig, &QAction::triggered, this, [this] () {solveSparseStereoRig(_activeProject, this); });
 	connect(ui->actionOpenSparseAlignEditor, &QAction::triggered, this, [this] () {openSparseViewer(); });
-	connect(ui->actionFindInitialSolution, &QAction::triggered, this, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
-	connect(ui->actionInit_stereo_rig, &QAction::triggered, this, [this] () {if (_activeProject != nullptr) {initMonoStereoRigSolution(_activeProject, this); } });
+    //connect(ui->actionFindInitialSolution, &QAction::triggered, this, [this] () {if (_activeProject != nullptr) {initSolution(_activeProject, this); } });
+    //connect(ui->actionInit_stereo_rig, &QAction::triggered, this, [this] () {if (_activeProject != nullptr) {initMonoStereoRigSolution(_activeProject, this); } });
 	connect(ui->actionopen_Sparse_solution_editor, &QAction::triggered, this, [this] () {openSparseViewer(); });
 
     connect(ui->actioncompute_local_frame, &QAction::triggered,
@@ -485,7 +485,7 @@ void MainWindow::clearOptimSolution() {
 void MainWindow::runCoarseOptim() {
 
 	if (_activeProject != nullptr) {
-		solveCoarse(_activeProject, this);
+        //solveCoarse(_activeProject, this);
 	} else {
 		QMessageBox::warning(this, tr("Impossible to optimize !"), tr("No project set"));
 	}

@@ -101,9 +101,18 @@ public:
 
     using TimeCartesianSequence = IndexedTimeSequence<Eigen::Vector3d, double>;
     using TimeTrajectorySequence = IndexedTimeSequence<PoseType, double>;
+    using TimeVarianceSequence = IndexedTimeSequence<Eigen::Matrix3d, double>;
 
     using TimeCartesianBlock = TimeCartesianSequence::TimedElement;
     using TimeTrajectoryBlock = TimeTrajectorySequence::TimedElement;
+    using TimeVarianceBlock = TimeVarianceSequence::TimedElement;
+
+    struct GpsData {
+        std::optional<TimeCartesianSequence> position;
+        std::optional<TimeCartesianSequence> velocities;
+        std::optional<TimeVarianceSequence> posSigma;
+        std::optional<TimeVarianceSequence> speedSigma;
+    };
 
     static StatusOptionalReturn<std::vector<TimeTrajectoryBlock>> guidedSubsampleTrajectory
     (std::vector<TimeTrajectoryBlock> const& trajectory,
@@ -134,6 +143,12 @@ public:
     StatusOptionalReturn<TimeCartesianSequence> loadPositionSequence() const;
 
     /*!
+     * \brief loadGpsSequence load the GPS data, converted to ECEF if a conversion is defined
+     * \return a GpsData block, with (possibly), the position and velocities data, as well as their covariance matrices
+     */
+    StatusOptionalReturn<GpsData> loadGpsSequence() const;
+
+    /*!
      * \brief loadTrajectoryPathInProjectLocalFrame load the position data, and apply the conversion from ECEF to project local frame on the fly.
      * \return a vector of Eigen::Vector3f
      *
@@ -148,6 +163,11 @@ public:
      */
     StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float>>> loadTrajectoryInProjectLocalFrame(bool optimized = false) const;
 
+    /*!
+     * \brief loadGpsDataInProjectLocalFrame load the gps data, and apply the conversion from ECEF to project local frame on the fly.
+     * \return a struct with the gps data (positions, velocities and their variances, as optionals)
+     */
+    StatusOptionalReturn<GpsData> loadGpsDataInProjectLocalFrame() const;
 
     /*!
      * \brief loadTrajectorySequence load the trajectory (as sequence of pose from plateform to ECEF if a geodetic conversion is defined)
@@ -662,6 +682,16 @@ protected:
      * \return a vector of time position blocks
      */
     StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadPositionData() const;
+
+    struct RawGpsData {
+        std::optional<std::vector<TimeCartesianBlock>> position;
+        std::optional<std::vector<TimeCartesianBlock>> velocities;
+        std::optional<std::vector<TimeVarianceBlock>> posSigma;
+        std::optional<std::vector<TimeVarianceBlock>> speedSigma;
+    };
+
+    StatusOptionalReturn<RawGpsData> loadGPSData() const;
+    StatusOptionalReturn<RawGpsData> loadRawGPSData() const;
 
     /*!
      * \brief loadPositionRawData load the position raw data (i.e. without any geodetic conversion).

@@ -1,12 +1,5 @@
 #include "graphcameracalibrator.h"
 
-#include "g2o/core/sparse_optimizer.h"
-#include "g2o/core/optimization_algorithm_levenberg.h"
-#include "g2o/core/optimization_algorithm_gauss_newton.h"
-#include "g2o/core/solver.h"
-#include "g2o/solvers/dense/linear_solver_dense.h"
-#include "g2o/solvers/csparse/linear_solver_csparse.h"
-
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 #include "datablocks/cameracalibration.h"

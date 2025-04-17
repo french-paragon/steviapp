@@ -2,36 +2,36 @@ define_stereovisionapp_lib(SOLVING Solving)
 
 set(LIB_SRC initialsolution.cpp
             sbagraphreductor.cpp
-            sbainitializer.cpp
+            #sbainitializer.cpp
             sparsesolverbase.cpp
-            graphroughbundleadjustementsolver.cpp
-            graphsbasolver.cpp
+            #graphroughbundleadjustementsolver.cpp
+            #graphsbasolver.cpp
             ceressbasolver.cpp
             modularsbasolver.cpp
-            graphstereorigsolver.cpp
-            graphcameracalibrator.cpp
+            #graphstereorigsolver.cpp
+            #graphcameracalibrator.cpp
             imagepointssolutionmodel.cpp
             landmarkpointssolutionmodel.cpp
             localcoordinatespointssolutionmodel.cpp
-            vertices/camerapose.cpp
-            vertices/camparam.cpp
-            vertices/vertexrigidbodypose.cpp
-            vertices/vertexcamerapose.cpp
-            vertices/vertexcameraparam.cpp
-            vertices/vertexcameraradialdistortion.cpp
-            vertices/vertexcameraskewdistortion.cpp
-            vertices/vertexcameratangentialdistortion.cpp
-            vertices/vertexlandmarkpos.cpp
-            edges/edgeparametrizedxyz2uv.cpp
-            edges/edgese3fullprior.cpp
-            edges/edgese3rpyprior.cpp
-            edges/edgese3xyzprior.cpp
-            edges/edgexyzprior.cpp
-            edges/edgepointdistance.cpp
-            edges/edgepointsangle.cpp
-            edges/edgecameralandmarkdirectionalalignement.cpp
-            edges/edgecamerase3leverarm.cpp
-            edges/edgelocalpointcoordinates.cpp
+            #vertices/camerapose.cpp
+            #vertices/camparam.cpp
+            #vertices/vertexrigidbodypose.cpp
+            #vertices/vertexcamerapose.cpp
+            #vertices/vertexcameraparam.cpp
+            #vertices/vertexcameraradialdistortion.cpp
+            #vertices/vertexcameraskewdistortion.cpp
+            #vertices/vertexcameratangentialdistortion.cpp
+            #vertices/vertexlandmarkpos.cpp
+            #edges/edgeparametrizedxyz2uv.cpp
+            #edges/edgese3fullprior.cpp
+            #edges/edgese3rpyprior.cpp
+            #edges/edgese3xyzprior.cpp
+            #edges/edgexyzprior.cpp
+            #edges/edgepointdistance.cpp
+            #edges/edgepointsangle.cpp
+            #edges/edgecameralandmarkdirectionalalignement.cpp
+            #edges/edgecamerase3leverarm.cpp
+            #edges/edgelocalpointcoordinates.cpp
             costfunctors/posedecoratorfunctors.h
             costfunctors/leverarmcostfunctor.cpp
             costfunctors/parametrizedxyz2uvcost.cpp
@@ -55,17 +55,17 @@ set(LIB_SRC initialsolution.cpp
 set(LIB_HEADERS
     initialsolution.h
     sbagraphreductor.h
-    sbainitializer.h
-    graphsbasolver.h
+    #sbainitializer.h
+    #graphsbasolver.h
     ceressbasolver.h
     modularsbasolver.h
     fixedpreoptimizedparameters.h
     landmarkpointssolutionmodel.h
     localcoordinatespointssolutionmodel.h
-    graphroughbundleadjustementsolver.h
+    #graphroughbundleadjustementsolver.h
     sparsesolverbase.h
-    graphcameracalibrator.h
-    graphstereorigsolver.h
+    #graphcameracalibrator.h
+    #graphstereorigsolver.h
     imagepointssolutionmodel.h
     helperfunctions.h
 )
@@ -124,15 +124,15 @@ add_library(
     ${SOLVING_LIB}
     ${LIB_SRC}
     ${LIB_HEADERS}
-    ${LIB_HEADERS_EDGES}
-    ${LIB_HEADERS_VERTICES}
+    #${LIB_HEADERS_EDGES}
+    #${LIB_HEADERS_VERTICES}
     ${LIB_HEADERS_COST_FUNCTORS}
     ${LIB_HEADERS_SBA_MODULES}
 )
 
 target_link_libraries(${SOLVING_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(${SOLVING_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} StereoVision::stevi)
-target_link_libraries(${SOLVING_LIB} PRIVATE ${G2O_LIBS} ${CERES_LIBRARIES} ${CSPARSE_LIBRARY})
+target_link_libraries(${SOLVING_LIB} PRIVATE ${CERES_LIBRARIES})
 
 install_stereovisionapp_sdklib(${SOLVING_LIB})
 

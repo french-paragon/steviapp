@@ -10,12 +10,12 @@
 #include "gui/stepprocessmonitorbox.h"
 #include "gui/sparsealignementeditor.h"
 
-#include "sparsesolver/graphroughbundleadjustementsolver.h"
-#include "sparsesolver/graphsbasolver.h"
+//#include "sparsesolver/graphroughbundleadjustementsolver.h"
+//#include "sparsesolver/graphsbasolver.h"
 #include "sparsesolver/ceressbasolver.h"
-#include "sparsesolver/graphstereorigsolver.h"
-#include "sparsesolver/sbagraphreductor.h"
-#include "sparsesolver/sbainitializer.h"
+//#include "sparsesolver/graphstereorigsolver.h"
+//#include "sparsesolver/sbagraphreductor.h"
+//#include "sparsesolver/sbainitializer.h"
 #include "sparsesolver/modularsbasolver.h"
 #include "sparsesolver/sbamodules/trajectorybasesbamodule.h"
 #include "sparsesolver/sbamodules/localcoordinatesystemsbamodule.h"
@@ -31,6 +31,8 @@
 #include <QThread>
 #include <QMessageBox>
 #include <QTextStream>
+#include <QFileInfo>
+#include <QDir>
 
 #include <eigen3/Eigen/Geometry>
 
@@ -65,7 +67,7 @@ bool resetSolution(Project* p, MainWindow* w) {
 
 void solveCoarse(Project* p, MainWindow* w, int pnStep) {
 
-	bool useSparseOptimizer = true;
+    /*bool useSparseOptimizer = true;
 	bool initWithCurrentSolution = false;
 	int nSteps = pnStep;
 
@@ -129,12 +131,12 @@ void solveCoarse(Project* p, MainWindow* w, int pnStep) {
 	}
 
 	t->start();
-	solver->run();
+    solver->run();*/
 }
 
 void initSolution(Project* p, MainWindow* w) {
 
-	qint64 initial_frame = -1;
+    /*qint64 initial_frame = -1;
 
 	FixedParameters fixedParameters = FixedParameter::CameraInternal|FixedParameter::StereoRigs;
 
@@ -277,12 +279,12 @@ void initSolution(Project* p, MainWindow* w) {
 
 	if (w != nullptr) {
 		w->openSparseViewer();
-	}
+    }*/
 }
 
 void initMonoStereoRigSolution(Project* p, MainWindow* w) {
 
-	qint64 initial_frame = -1;
+    /*qint64 initial_frame = -1;
 	FixedParameters fixed_parameters = NoFixedParameters;
 
 	if (w != nullptr) {
@@ -378,7 +380,7 @@ void initMonoStereoRigSolution(Project* p, MainWindow* w) {
 
 	if (w != nullptr) {
 		w->openSparseViewer();
-	}
+    }*/
 }
 
 void checkBasicSBAModulesRegistration(SBASolverModulesInterface* interface) {
@@ -601,7 +603,7 @@ void solveSparseHeadless(Project* p,
 
 void solveSparseStereoRig(Project* p, MainWindow* w, int pnStep) {
 
-	bool computeUncertainty = true;
+    /*bool computeUncertainty = true;
 	bool useSparseOptimizer = true;
 	int nSteps = pnStep;
 
@@ -672,7 +674,7 @@ void solveSparseStereoRig(Project* p, MainWindow* w, int pnStep) {
 	}
 
 	t->start();
-	solver->run();
+    solver->run();*/
 }
 
 } //namespace StereoVisionApp

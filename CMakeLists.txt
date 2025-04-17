@@ -110,7 +110,6 @@ find_package(pybind11 REQUIRED)
 #configure submodules
 add_subdirectory(modules)
 include_directories(${MODULES_INCLUDE_DIRECTORIES} libs)
-message(${MODULES_LINK_DIRECTORIES})
 link_directories(${MODULES_LINK_DIRECTORIES})
 
 add_subdirectory(libs)
