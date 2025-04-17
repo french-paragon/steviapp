@@ -12,7 +12,8 @@ namespace StereoVisionApp {
 
 TrajectoryComparisonEditor::TrajectoryComparisonEditor(QWidget *parent) :
     Editor(parent),
-    _trajectory(nullptr)
+    _trajectory(nullptr),
+    _trajectory2(nullptr)
 {
 
     QVBoxLayout* layout = new QVBoxLayout(this);
