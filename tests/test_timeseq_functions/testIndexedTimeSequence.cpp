@@ -24,9 +24,10 @@ void TestIndexedTimeSequence::testGetValueAtTime() {
 
     StereoVisionApp::IndexedTimeSequence<double> sequence(data);
 
+    //check elements within the sequence
     for (int i = 0; i < nElements-1; i++) {
 
-        std::array<double,3> dts = {0.25, 0.5, 0.75};
+        std::array<double,5> dts = {0, 0.25, 0.5, 0.75};
 
         for (double dt : dts) {
 
@@ -40,6 +41,24 @@ void TestIndexedTimeSequence::testGetValueAtTime() {
 
         }
 
+    }
+
+    //check elements outside of the sequence (nearest interpolation is applied outside the sequence)
+    std::array<double,5> dts = {0.25, 0.5, 0.75};
+
+    for (double dt : dts) {
+
+        double time0 = -dt;
+        double timeN = nElements-1 + dt;
+
+        auto interpolable0 = sequence.getValueAtTime(time0);
+        auto interpolableN= sequence.getValueAtTime(timeN);
+
+        double val0 = interpolable0.weigthLower*interpolable0.valLower + interpolable0.weigthUpper*interpolable0.valUpper;
+        double valN = interpolableN.weigthLower*interpolableN.valLower + interpolableN.weigthUpper*interpolableN.valUpper;
+
+        QCOMPARE(val0, 0);
+        QCOMPARE(valN, nElements-1);
     }
 
 }

@@ -165,33 +165,43 @@ public:
     }
 
     TimeT indexTimePerStep() const {
-        return (_finalTime - _initialTime)/_indicesFromTimeIntervals->size();
+        if (_indicesFromTimeIntervals->size() <= 1) {
+            return 1; //by default return something for sequences with just one element.
+        }
+        TimeT deltaT = (_finalTime - _initialTime)/_indicesFromTimeIntervals->size();
+        if (deltaT <= 0) {
+            return 1;
+        }
+        return deltaT;
     }
 
     TimeInterpolableVals getValueAtTime(TimeT time) const {
 
         if (time <= _initialTime) {
-            return TimeInterpolableVals{0, T(), 1, _sequence->front().val};
+            return TimeInterpolableVals{0, _sequence->front().val, 1, _sequence->front().val};
         }
 
         if (time >= _finalTime) {
-            return TimeInterpolableVals{1, _sequence->back().val, 0, T()};
+            return TimeInterpolableVals{1, _sequence->back().val, 0, _sequence->back().val};
         }
 
         double deltaT = indexTimePerStep();
         double localTime = time - _initialTime;
 
         int initialIndexIdx = static_cast<int>(std::floor(localTime/deltaT));
+        initialIndexIdx = std::clamp<int>(initialIndexIdx,0,_indicesFromTimeIntervals->size()-1);
         int initialSearchIdx = (*_indicesFromTimeIntervals)[initialIndexIdx];
 
-        initialSearchIdx = std::max(0, initialSearchIdx-1);
+        initialSearchIdx = std::clamp<int>(initialSearchIdx-1, 0, _sequence->size()-1);
 
-        for (int i = initialSearchIdx; i < _sequence->size()-1; i++) {
+        for (int i = initialSearchIdx; i < _sequence->size(); i++) {
 
-            if ((*_sequence)[i].time <= time and (*_sequence)[i+1].time >= time) {
-                double timeDelta = (*_sequence)[i+1].time - (*_sequence)[i].time;
+            int nextId = std::min<int>(i+1,_sequence->size()-1);
+
+            if ((*_sequence)[i].time <= time and (*_sequence)[nextId].time >= time) {
+                double timeDelta = (*_sequence)[nextId].time - (*_sequence)[i].time;
                 double preDelta = time - (*_sequence)[i].time;
-                double postDelta = (*_sequence)[i+1].time - time;
+                double postDelta = (*_sequence)[nextId].time - time;
 
                 double wPre = preDelta/timeDelta;
                 double wPost = postDelta/timeDelta;
@@ -201,7 +211,7 @@ public:
                     wPost = 0.5;
                 }
 
-                return {wPost, (*_sequence)[i].val, wPre, (*_sequence)[i+1].val};
+                return {wPost, (*_sequence)[i].val, wPre, (*_sequence)[nextId].val};
             }
 
         }
