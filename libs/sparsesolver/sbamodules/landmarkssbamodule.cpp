@@ -23,7 +23,7 @@ bool LandmarksSBAModule::addGraphReductorVariables(Project *currentProject, Gene
         return false;
     }
 
-    QVector<qint64> lmks_v = currentProject->getIdsByClass(LandmarkFactory::landmarkClassName());
+    QVector<qint64> lmks_v = currentProject->getIdsByClass(Landmark::staticMetaObject.className());
 
     for (qint64 id : lmks_v) {
         graphReductor->insertItem(id, 3);
@@ -33,6 +33,28 @@ bool LandmarksSBAModule::addGraphReductorVariables(Project *currentProject, Gene
 }
 
 bool LandmarksSBAModule::addGraphReductorObservations(Project *currentProject, GenericSBAGraphReductor* graphReductor) {
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    QVector<qint64> lmIdxs = currentProject->getIdsByClass(Landmark::staticMetaObject.className());
+
+    for (qint64 lmId : lmIdxs) {
+
+        Landmark* lm = qobject_cast<Landmark*>(currentProject->getById(lmId));
+
+        if (lm == nullptr) {
+            continue;
+        }
+
+        if (!lm->xCoord().isSet() or !lm->yCoord().isSet() or !lm->zCoord().isSet()) {
+            continue;
+        }
+
+        graphReductor->insertSelfObservation(lmId,3);
+
+    }
     return true;
 }
 
