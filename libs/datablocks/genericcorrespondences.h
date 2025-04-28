@@ -179,7 +179,7 @@ template<bool withId, bool withCRS, int nFloats, int nOptFloats>
 
             bool ok;
 
-            qint64 blockId;
+            qint64 blockId = 0;
 
             if (withId) {
                 blockId = split[0].toInt(&ok);
