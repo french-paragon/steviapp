@@ -18,11 +18,6 @@
 #include <ceres/normal_prior.h>
 #include <ceres/iteration_callback.h>
 
-#include "./costfunctors/parametrizedxyz2uvcost.h"
-#include "./costfunctors/weightedcostfunction.h"
-#include "./costfunctors/interpolatedvectorprior.h"
-#include "./costfunctors/leverarmcostfunctor.h"
-
 #include <QDir>
 #include <QFile>
 
@@ -62,9 +57,10 @@ ModularSBASolver::ModularSBASolver(Project *p, bool computeUncertainty, bool spa
     _sparse(sparse),
     _verbose(verbose),
     _loggingDir(""),
+    _problem(nullptr),
     _covariance(nullptr)
 {
-
+    _problem = new ceres::Problem();
 }
 
 ModularSBASolver::~ModularSBASolver() {
@@ -79,6 +75,14 @@ ModularSBASolver::~ModularSBASolver() {
 
     for (ValueBlockLogger* logger : _loggers) {
         delete logger;
+    }
+
+    if (_problem != nullptr) { //temporary remove this, as it causes a segfault on ubuntu 24.04 for unknown reason.
+        cleanUpProblem();
+    }
+
+    if (_covariance != nullptr) {
+        delete _covariance;
     }
 
 }
@@ -473,8 +477,8 @@ ModularSBASolver::LeverArmNode* ModularSBASolver::getNodeForLeverArm(QPair<qint6
         _leverArmParameters[idx].rAxis[i] = 0;
     }
 
-    _problem.AddParameterBlock(_leverArmParameters[idx].t.data(), _leverArmParameters[idx].t.size());
-    _problem.AddParameterBlock(_leverArmParameters[idx].rAxis.data(), _leverArmParameters[idx].rAxis.size());
+    _problem->AddParameterBlock(_leverArmParameters[idx].t.data(), _leverArmParameters[idx].t.size());
+    _problem->AddParameterBlock(_leverArmParameters[idx].rAxis.data(), _leverArmParameters[idx].rAxis.size());
 
     return &_leverArmParameters[idx];
 
@@ -589,16 +593,16 @@ std::optional<Eigen::MatrixXd> ModularSBASolver::getCovarianceBlock(std::pair<co
         return std::nullopt;
     }
 
-    if (!_problem.HasParameterBlock(params.first)) {
+    if (!_problem->HasParameterBlock(params.first)) {
         return std::nullopt;
     }
 
-    if (!_problem.HasParameterBlock(params.second)) {
+    if (!_problem->HasParameterBlock(params.second)) {
         return std::nullopt;
     }
 
-    int p1s = _problem.ParameterBlockSize(params.first);
-    int p2s = _problem.ParameterBlockSize(params.second);
+    int p1s = _problem->ParameterBlockSize(params.first);
+    int p2s = _problem->ParameterBlockSize(params.second);
 
     int covSize = p1s*p2s;
 
@@ -646,7 +650,13 @@ bool ModularSBASolver::init() {
 
     //reset the problem and observability graph
     _observabilityGraph.clear();
-    _problem = ceres::Problem();
+    if (_problem != nullptr) {
+        cleanUpProblem();
+    }
+    ceres::Problem::Options options;
+    options.cost_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
+    options.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
+    _problem = new ceres::Problem(options);
 
     bool ok = true;
 
@@ -693,7 +703,7 @@ bool ModularSBASolver::init() {
 
     //setup the projectors
     for (ProjectorModule* module : _projectors) {
-        ok = module->init(this, _problem);
+        ok = module->init(this, *_problem);
 
         if (!ok) {
             return false;
@@ -704,7 +714,7 @@ bool ModularSBASolver::init() {
     for (SBAModule* module : _modules) {
 
         out << "\r" << "Init module: " << module->moduleName() << " " << Qt::flush;
-        ok = module->init(this, _problem);
+        ok = module->init(this, *_problem);
 
         if (!ok) {
             return false;
@@ -732,10 +742,10 @@ bool ModularSBASolver::initManagedParameters() {
             continue;
         }
 
-        _problem.AddParameterBlock(node.pos.data(), node.pos.size());
+        _problem->AddParameterBlock(node.pos.data(), node.pos.size());
 
         if (block->isFixed()) {
-            _problem.SetParameterBlockConstant(node.pos.data());
+            _problem->SetParameterBlockConstant(node.pos.data());
         }
     }
 
@@ -747,12 +757,12 @@ bool ModularSBASolver::initManagedParameters() {
             continue;
         }
 
-        _problem.AddParameterBlock(node.rAxis.data(), node.rAxis.size());
-        _problem.AddParameterBlock(node.t.data(), node.t.size());
+        _problem->AddParameterBlock(node.rAxis.data(), node.rAxis.size());
+        _problem->AddParameterBlock(node.t.data(), node.t.size());
 
         if (block->isFixed()) {
-            _problem.SetParameterBlockConstant(node.rAxis.data());
-            _problem.SetParameterBlockConstant(node.t.data());
+            _problem->SetParameterBlockConstant(node.rAxis.data());
+            _problem->SetParameterBlockConstant(node.t.data());
         }
     }
 
@@ -764,17 +774,61 @@ bool ModularSBASolver::initManagedParameters() {
             continue;
         }
 
-        _problem.AddParameterBlock(node.rAxis.data(), node.rAxis.size());
-        _problem.AddParameterBlock(node.t.data(), node.t.size());
+        _problem->AddParameterBlock(node.rAxis.data(), node.rAxis.size());
+        _problem->AddParameterBlock(node.t.data(), node.t.size());
 
         if (block->isFixed()) {
-            _problem.SetParameterBlockConstant(node.rAxis.data());
-            _problem.SetParameterBlockConstant(node.t.data());
+            _problem->SetParameterBlockConstant(node.rAxis.data());
+            _problem->SetParameterBlockConstant(node.t.data());
         }
     }
 
     return true;
 
+}
+
+
+
+void ModularSBASolver::cleanUpProblem() {
+
+    std::set<const ceres::CostFunction*> costs_processed;
+    std::set<const ceres::LossFunction*> loss_processed;
+    std::vector<ceres::ResidualBlockId> costs;
+
+    if (_problem == nullptr) {
+        return;
+    }
+
+    return; //deactivate cleaning up for the moment, to avoid segfault.
+
+    _problem->GetResidualBlocks(&costs);
+
+    for (ceres::ResidualBlockId id : costs) {
+
+        const ceres::CostFunction* cfunc = _problem->GetCostFunctionForResidualBlock(id);
+        const ceres::LossFunction* lfunc = _problem->GetLossFunctionForResidualBlock(id);
+
+        if (costs_processed.count(cfunc) > 0) {
+            continue;
+        }
+
+        _problem->RemoveResidualBlock(id);
+        if (cfunc != nullptr) {
+            if (costs_processed.count(cfunc) == 0) {
+                costs_processed.insert(cfunc);
+                delete cfunc;
+            }
+        }
+        if (lfunc != nullptr) {
+            if (loss_processed.count(lfunc) == 0) {
+                loss_processed.insert(lfunc);
+                delete cfunc;
+            }
+        }
+    }
+
+    delete _problem;
+    _problem = nullptr;
 }
 
 bool ModularSBASolver::opt_step() {
@@ -799,15 +853,24 @@ bool ModularSBASolver::opt_step() {
 
     ceres::Solver::Summary summary;
 
-    ceres::Solve(options, &_problem, &summary);
+    ceres::Solve(options, _problem, &summary);
 
     _not_first_step = true;
 
     delete iterationCallBack;
+
+    if (_verbose) {
+        std::cout << "Optimization complete!" << std::endl;
+    }
+
     return true;
 
 }
 bool ModularSBASolver::std_step() {
+
+    if (_verbose) {
+        std::cout << "Start computing uncertainty!" << std::endl;
+    }
 
     if (!_compute_marginals) {
         return true;
@@ -825,7 +888,7 @@ bool ModularSBASolver::std_step() {
     std::set<std::pair<const double*, const double*>> pairs;
 
     for (SBAModule* module : _modules) {
-        std::vector<std::pair<const double*, const double*>> indices = module->requestUncertainty(this, _problem);
+        std::vector<std::pair<const double*, const double*>> indices = module->requestUncertainty(this, *_problem);
 
         for (auto const& pair : indices) {
             pairs.insert(pair);
@@ -833,7 +896,7 @@ bool ModularSBASolver::std_step() {
     }
 
     for (ProjectorModule* projector : _projectors) {
-        std::vector<std::pair<const double*, const double*>> indices = projector->requestUncertainty(this, _problem);
+        std::vector<std::pair<const double*, const double*>> indices = projector->requestUncertainty(this, *_problem);
 
         for (auto const& pair : indices) {
             pairs.insert(pair);
@@ -842,7 +905,11 @@ bool ModularSBASolver::std_step() {
 
     std::vector<std::pair<const double*, const double*>> vpairs(pairs.begin(), pairs.end());
 
-    bool ok = _covariance->Compute(vpairs, &_problem);
+    bool ok = _covariance->Compute(vpairs, _problem);
+
+    if (_verbose) {
+        std::cout << "Uncertainty computed!" << std::endl;
+    }
 
     if (!ok) {
         return false;
@@ -857,18 +924,36 @@ bool ModularSBASolver::writeResults() {
         return false;
     }
 
+    if (_verbose) {
+        std::cout << "Start writing results!" << std::endl;
+    }
+
     bool ok = true;
 
+
+    if (_verbose) {
+        std::cout << "Logging data!" << std::endl;
+    }
     logDatas("after_opt.log");
+    if (_verbose) {
+        std::cout << "Logging data done!" << std::endl;
+    }
 
     for (SBAModule* module : _modules) {
+        if (_verbose) {
+            std::cout << "\r\t writing results for module: " << module->moduleName().toStdString() << "  " << std::flush;
+        }
         ok = module->writeResults(this);
 
         if (!ok) {
             return false;
         }
     }
+    std::cout << "\n";
 
+    if (_verbose) {
+        std::cout << "\r\t writing results for projectors modules" << std::endl;
+    }
     for (ProjectorModule* projector : _projectors) {
         ok = projector->writeResults(this);
 
@@ -884,6 +969,10 @@ bool ModularSBASolver::writeUncertainty() {
 
     if (_currentProject == nullptr) {
         return false;
+    }
+
+    if (_verbose) {
+        std::cout << "Start writing uncertainty!" << std::endl;
     }
 
     bool ok = true;
@@ -908,6 +997,10 @@ bool ModularSBASolver::writeUncertainty() {
 }
 void ModularSBASolver::cleanup() {
 
+    if (_verbose) {
+        std::cout << "Start cleanup!" << std::endl;
+    }
+
     for (SBAModule* module : _modules) {
         module->cleanup(this);
     }
@@ -916,9 +1009,17 @@ void ModularSBASolver::cleanup() {
         projector->cleanup(this);
     }
 
+    if (_verbose) {
+        std::cout << "Modules cleanup ended!" << std::endl;
+    }
+
     if (_covariance != nullptr) {
         delete _covariance;
         _covariance = nullptr;
+    }
+
+    if (_verbose) {
+        std::cout << "Covariance cleanup ended!" << std::endl;
     }
 
     //clear the basic nodes
@@ -934,7 +1035,18 @@ void ModularSBASolver::cleanup() {
     _leverArmParameters.clear();
     _leverArmParametersIndex.clear();
 
-    _problem = ceres::Problem(); //reset problem
+    if (_verbose) {
+        std::cout << "Parameters block cleanup ended!" << std::endl;
+    }
+
+    //reset problem
+    if (_problem != nullptr) {
+        cleanUpProblem();
+    }
+
+    if (_verbose) {
+        std::cout << "Problem reseted!" << std::endl;
+    }
 }
 
 bool ModularSBASolver::splitOptSteps() const {

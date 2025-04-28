@@ -155,14 +155,7 @@ bool LandmarksSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem
 
             Eigen::Vector3d vecPrior = coordPrior.value().cast<double>();
 
-            vecPrior = solver->getTransform2LocalFrame()*vecPrior;
-
-            ceres::Vector m;
-            m.resize(3);
-
-            m[0] = vecPrior.x();
-            m[1] = vecPrior.y();
-            m[2] = vecPrior.z();
+            Eigen::Vector3d m = solver->getTransform2LocalFrame()*vecPrior;
 
             Eigen::Matrix3d stiffness = Eigen::Matrix3d::Identity();
 

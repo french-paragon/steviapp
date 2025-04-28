@@ -28,6 +28,14 @@ TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double defaultIntegrationTime) 
 
     _gyrosBiases = std::vector<std::array<double,3>>();
     _gyrosScales = std::vector<std::array<double,3>>();
+
+    _defaultGpsAccuracy = 1;
+    _defaultOrientAccuracy = 1;
+
+    _defaultAccAccuracy = 1;
+    _defaultGyroAccuracy = 1;
+
+    _gravity = {0,0,0};
 }
 
 QString TrajectoryBaseSBAModule::moduleName() const {
@@ -64,6 +72,10 @@ bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
     _gravity = {0,0,-9.81};
 
     QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
+
+    if (trajectoriesIdxs.isEmpty()) {
+        return true;
+    }
 
     _accelerometersBiases.reserve(trajectoriesIdxs.size());
     _accelerometersScales.reserve(trajectoriesIdxs.size());
@@ -158,6 +170,12 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
         return false;
     }
 
+    QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
+
+    if (trajectoriesIdxs.isEmpty()) {
+        return true;
+    }
+
     problem.AddParameterBlock(_gravity.data(), _gravity.size());
 
    Eigen::Matrix3d gInfos = Eigen::Matrix3d::Zero();
@@ -170,8 +188,6 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
     ceres::NormalPrior* g_prior = new ceres::NormalPrior(gInfos, gVec);
 
     problem.AddResidualBlock(g_prior, nullptr, _gravity.data());
-
-    QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
 
     for (qint64 trajId : trajectoriesIdxs) {
 
@@ -304,10 +320,10 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
             //GPS initilation and cost
             auto interpolatablePos = optGps.value().getValueAtTime(time);
-            Eigen::Vector3d pos =
+            Eigen::Vector3d interpolatedPos =
                     interpolatablePos.weigthLower*interpolatablePos.valLower +
                     interpolatablePos.weigthUpper*interpolatablePos.valUpper;
-            pos = world2local*pos;
+            Eigen::Vector3d pos = world2local*interpolatedPos;
 
             auto interpolatablePose = optPose.value().getValueAtTime(time); //plateform to world.
             StereoVision::Geometry::RigidBodyTransform<double> interpolated =
@@ -323,8 +339,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             trajNode->nodes[i].rAxis = {rot[0], rot[1], rot[2]};
 
 #ifndef NDEBUG
-            bool posFinite = pos.array().isFinite().all();
-            bool rotFinite = rot.array().isFinite().all();
+            bool posFinite = pos.allFinite();
+            bool rotFinite = rot.allFinite();
 
             if (!posFinite or !rotFinite) {
                 std::cerr << "Error while initializing trajectory" << traj->objectName().toStdString() << " at node " << i << std::endl;
@@ -339,7 +355,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 problem.SetParameterBlockConstant(trajNode->nodes[i].rAxis.data());
             }
 
-            if (i == 0) { //need at least two nodes for first order cost function
+            if (i == 0) { //need at least two nodes for first order cost functions
                 continue;
             }
 
@@ -669,11 +685,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 accAccuracy = _defaultAccAccuracy;
             }
 
-            if (optGyro.isValid() and optImu.isValid()) {
-
-                if (i == 0 or i == 1) { //need at least three nodes for second order cost function
-                    continue;
-                }
+            if (optGyro.isValid() and optImu.isValid() and i > 1) { //need at least three nodes for second order cost function
 
                 if (gyroBias and gyroScale and accelerometerBias and accelerometerScale) {
 

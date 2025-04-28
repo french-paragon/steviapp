@@ -468,6 +468,8 @@ protected:
     bool init() override;
     bool initManagedParameters();
 
+    void cleanUpProblem();
+
 
     bool opt_step() override;
     bool std_step() override;
@@ -484,7 +486,7 @@ protected:
 
     GenericSBAGraphReductor _observabilityGraph;
 
-    ceres::Problem _problem;
+    ceres::Problem* _problem;
     std::vector<SBAModule*> _modules;
     QVector<ProjectorModule*> _projectors;
     ceres::Covariance* _covariance;
