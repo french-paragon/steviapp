@@ -1017,7 +1017,7 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadOrientat
 
 }
 
-StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadPositionSequence() const {
+StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadPositionSequence(std::optional<StereoVision::Geometry::AffineTransform<double>> sequenceTransform) const {
 
     using RType = StatusOptionalReturn<Trajectory::TimeCartesianSequence>;
 
@@ -1033,17 +1033,14 @@ StatusOptionalReturn<Trajectory::TimeCartesianSequence> Trajectory::loadPosition
         return RType::error("Empty trajectory!");
     }
 
+    if (sequenceTransform.has_value()) {
+        for (int i = 0; i < data.size(); i++) {
+            Eigen::Vector3d tmp = sequenceTransform.value()*data[i].val;
+            data[i].val = tmp;
+        }
+    }
+
     return IndexedTimeSequence<Eigen::Vector3d, double>(std::move(data));
-}
-
-StatusOptionalReturn<Trajectory::GpsData> Trajectory::loadGpsSequence() const {
-
-    using RType = StatusOptionalReturn<Trajectory::GpsData>;
-
-    RType ret({std::nullopt, std::nullopt, std::nullopt, std::nullopt});
-
-
-
 }
 
 StatusOptionalReturn<std::vector<Eigen::Vector3f> > Trajectory::loadTrajectoryPathInProjectLocalFrame() const {
@@ -1564,18 +1561,8 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
     return _trajectoryCache.value();
 }
 
-StatusOptionalReturn<Trajectory::GpsData> Trajectory::loadGpsDataInProjectLocalFrame() const{
+StatusOptionalReturn<Trajectory::GpsData> Trajectory::loadGpsSequences(std::optional<StereoVision::Geometry::AffineTransform<double>> sequenceTransform) const{
     using RType = StatusOptionalReturn<Trajectory::GpsData>;
-
-    std::optional<StereoVision::Geometry::AffineTransform<float>> transform2projFrame = std::nullopt;
-
-    Project* proj = getProject();
-
-    if (proj != nullptr) {
-        if (proj->hasLocalCoordinateFrame()) {
-            transform2projFrame = proj->ecef2local();
-        }
-    }
 
     StatusOptionalReturn<RawGpsData> dataOpt = loadGPSData();
 
@@ -1587,9 +1574,9 @@ StatusOptionalReturn<Trajectory::GpsData> Trajectory::loadGpsDataInProjectLocalF
 
     RawGpsData& rawData = dataOpt.value();
 
-    if (transform2projFrame.has_value()) {
+    if (sequenceTransform.has_value()) {
 
-        StereoVision::Geometry::AffineTransform<double> transform = transform2projFrame.value().cast<double>();
+        StereoVision::Geometry::AffineTransform<double>& transform = sequenceTransform.value();
 
         if (rawData.position.has_value()) {
 

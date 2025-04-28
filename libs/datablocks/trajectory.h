@@ -138,15 +138,10 @@ public:
 
     /*!
      * \brief loadPositionSequence load an IndexedTimeSequence for the position (converted to ECEF if a geodetic conversion is defined)
+     * \arg sequenceTransform a rigid transform from ecef to a local cartesian frame to apply on the fly
      * \return optionnaly a TimeCartesianSequence
      */
-    StatusOptionalReturn<TimeCartesianSequence> loadPositionSequence() const;
-
-    /*!
-     * \brief loadGpsSequence load the GPS data, converted to ECEF if a conversion is defined
-     * \return a GpsData block, with (possibly), the position and velocities data, as well as their covariance matrices
-     */
-    StatusOptionalReturn<GpsData> loadGpsSequence() const;
+    StatusOptionalReturn<TimeCartesianSequence> loadPositionSequence(std::optional<StereoVision::Geometry::AffineTransform<double>> sequenceTransform = std::nullopt) const;
 
     /*!
      * \brief loadTrajectoryPathInProjectLocalFrame load the position data, and apply the conversion from ECEF to project local frame on the fly.
@@ -164,10 +159,11 @@ public:
     StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float>>> loadTrajectoryInProjectLocalFrame(bool optimized = false) const;
 
     /*!
-     * \brief loadGpsDataInProjectLocalFrame load the gps data, and apply the conversion from ECEF to project local frame on the fly.
+     * \brief loadGpsSequences load the gps data, and apply the conversion to ECEF on the fly.
+     * \arg sequenceTransform a rigid transform from ecef to a local cartesian frame to apply on the fly
      * \return a struct with the gps data (positions, velocities and their variances, as optionals)
      */
-    StatusOptionalReturn<GpsData> loadGpsDataInProjectLocalFrame() const;
+    StatusOptionalReturn<GpsData> loadGpsSequences(std::optional<StereoVision::Geometry::AffineTransform<double>> sequenceTransform = std::nullopt) const;
 
     /*!
      * \brief loadTrajectorySequence load the trajectory (as sequence of pose from plateform to ECEF if a geodetic conversion is defined)
