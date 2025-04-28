@@ -159,6 +159,7 @@ int main(int argc, char *argv[])
     aml.registerDatablockActionManager(new StereoVisionApp::FixedStereoPlusColorSequenceActionManager(&pF));
     aml.registerDatablockActionManager(new StereoVisionApp::CorrespondencesSetActionsManager(&pF));
 
+    Q_INIT_RESOURCE(gl_shaders);
     a.loadRessources();
 
 	StereoVisionApp::MainWindow* w = a.mainWindow();
