@@ -2,6 +2,7 @@
 #define STATUSOPTIONALRETURN_H
 
 #include <string>
+#include <optional>
 
 namespace StereoVisionApp {
 
@@ -11,32 +12,30 @@ class StatusOptionalReturn {
 public:
     static StatusOptionalReturn<R_T> error(const char* msg) {
         StatusOptionalReturn<R_T> ret;
-        ret._valid = false;
+        ret._val = std::nullopt;
         ret._error_msg = std::string(msg);
 
         return ret;
     }
 
     StatusOptionalReturn(R_T const& val) :
-        _val(val),
-        _valid(true)
+        _val(val)
     {
 
     }
 
     StatusOptionalReturn(R_T && val) :
-        _val(val),
-        _valid(true)
+        _val(std::move(val))
     {
 
     }
 
     inline bool isValid() const {
-        return _valid;
+        return _val.has_value();
     }
 
     inline R_T& value() {
-        return _val;
+        return _val.value();
     }
 
     inline const char* errorMessage() const {
@@ -46,11 +45,10 @@ public:
 protected:
 
     StatusOptionalReturn() {
-        _valid = true;
+        _val = std::nullopt;
     }
 
-    bool _valid;
-    R_T _val;
+    std::optional<R_T> _val;
 
     std::string _error_msg;
 
