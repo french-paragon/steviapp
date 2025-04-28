@@ -795,7 +795,7 @@ bool ModularSBASolver::opt_step() {
 
     options.max_num_iterations = optimizationSteps();
 
-    options.callbacks = {iterationCallBack};
+    options.callbacks = {iterationCallBack}; //remember, the solver does not take ownership of these callbacks!
 
     ceres::Solver::Summary summary;
 
@@ -803,6 +803,7 @@ bool ModularSBASolver::opt_step() {
 
     _not_first_step = true;
 
+    delete iterationCallBack;
     return true;
 
 }

@@ -163,7 +163,9 @@ ItemDataModel::Category::Category(ItemDataModel* model, QString descrName) :
 
 }
 ItemDataModel::Category::~Category() {
-
+    for (ItemPropertyDescription* itemDescr : _itemProperties) {
+        delete itemDescr;
+    }
 }
 
 ItemDataModel::Node::NodeType ItemDataModel::Category::type() const {

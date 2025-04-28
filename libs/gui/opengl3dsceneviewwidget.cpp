@@ -121,6 +121,10 @@ OpenGl3DSceneViewWidget::~OpenGl3DSceneViewWidget() {
                 oglDrawable->clearObjectsIdsRessources();
             }
 
+            if (_obj_raycasting_fbo != nullptr) {
+                delete _obj_raycasting_fbo;
+            }
+
             _obj_raycasting_context->doneCurrent();
         }
 
