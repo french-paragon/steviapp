@@ -9,7 +9,7 @@
 #include "costfunctors/local3dcoalignementcost.h"
 #include "costfunctors/localpointprojectioncost.h"
 
-#include <ceres/normal_prior.h>
+#include "costfunctors/fixedsizenormalprior.h"
 
 namespace StereoVisionApp {
 
@@ -167,8 +167,8 @@ bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspo
         stiffness(2,2) = 1/(geoPos.sigmaZ.value());
     }
 
-    ceres::NormalPrior* costFunc =
-            new ceres::NormalPrior(stiffness, pointPos.value());
+    FixedSizeNormalPrior<3,3>* costFunc =
+        new FixedSizeNormalPrior<3,3>(stiffness, pointPos.value());
 
     problem.AddResidualBlock(costFunc, nullptr, posData);
 
@@ -249,11 +249,11 @@ bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Corresp
         return false;
     }
 
-    ceres::NormalPrior* costFunc =
-            new ceres::NormalPrior(M, x);
+    FixedSizeNormalPrior<3,2>* costFunc =
+            new FixedSizeNormalPrior<3,2>(M, x);
 
-    ceres::NormalPrior* errorFunc =
-            new ceres::NormalPrior(A, x);
+    FixedSizeNormalPrior<3,2>* errorFunc =
+            new FixedSizeNormalPrior<3,2>(A, x);
 
     QString loggerName = QString("Geo projection constraint for %1 (id = %2, class = %3)")
             .arg(targetBlock->objectName())
@@ -547,8 +547,8 @@ bool CorrespondencesSetSBAModule::setupXYZPrior(Correspondences::Typed<Correspon
         stiffness(2,2) = 1/(xyz.sigmaZ.value());
     }
 
-    ceres::NormalPrior* costFunc =
-            new ceres::NormalPrior(stiffness, localPos);
+    FixedSizeNormalPrior<3,3>* costFunc =
+            new FixedSizeNormalPrior<3,3>(stiffness, localPos);
 
     problem.AddResidualBlock(costFunc, nullptr, targetData);
 

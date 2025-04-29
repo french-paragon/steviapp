@@ -8,7 +8,7 @@
 #include "../costfunctors/parametrizedxyz2uvcost.h"
 #include "../costfunctors/leverarmcostfunctor.h"
 
-#include <ceres/normal_prior.h>
+#include "../costfunctors/fixedsizenormalprior.h"
 
 namespace StereoVisionApp {
 
@@ -201,38 +201,32 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
 
         if (!im->isFixed() and im->xCoord().isUncertain() and im->yCoord().isUncertain() and im->zCoord().isUncertain()) {
 
-            ceres::Matrix At;
-            At.setConstant(3,3,0);
+            Eigen::Matrix3d At = Eigen::Matrix3d::Identity();
 
             At(0,0) = 1./std::abs(im->xCoord().stddev());
             At(1,1) = 1./std::abs(im->yCoord().stddev());
             At(2,2) = 1./std::abs(im->zCoord().stddev());
 
-            ceres::Vector bt;
-            bt.resize(3);
-
+            Eigen::Vector3d bt;
             bt << t_prior[0],t_prior[1], t_prior[2];
 
-            ceres::NormalPrior* tPrior = new ceres::NormalPrior(At, bt);
+            FixedSizeNormalPrior<3,3>* tPrior = new FixedSizeNormalPrior<3,3>(At, bt);
             problem.AddResidualBlock(tPrior, nullptr, imNode->t.data());
 
         }
 
         if (!im->isFixed() and im->xRot().isUncertain() and im->yRot().isUncertain() and im->zRot().isUncertain()) {
 
-            ceres::Matrix Araxis;
-            Araxis.setConstant(3, 3, 0);
+            Eigen::Matrix3d Araxis = Eigen::Matrix3d::Identity();
 
             Araxis(0,0) = 1./std::abs(im->xRot().stddev());
             Araxis(1,1) = 1./std::abs(im->yRot().stddev());
             Araxis(2,2) = 1./std::abs(im->zRot().stddev());
 
-            ceres::Vector braxis;
-            braxis.resize(3);
-
+            Eigen::Vector3d  braxis;
             braxis << raxis_prior[0],raxis_prior[1], raxis_prior[2];
 
-            ceres::NormalPrior* rAxisPrior = new ceres::NormalPrior(Araxis, (braxis));
+            FixedSizeNormalPrior<3,3>* rAxisPrior = new FixedSizeNormalPrior<3,3>(Araxis, (braxis));
             problem.AddResidualBlock(rAxisPrior, nullptr, imNode->rAxis.data());
 
         }

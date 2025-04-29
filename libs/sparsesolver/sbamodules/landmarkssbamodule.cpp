@@ -2,7 +2,7 @@
 
 #include "datablocks/landmark.h"
 
-#include <ceres/normal_prior.h>
+#include "../costfunctors/fixedsizenormalprior.h"
 
 namespace StereoVisionApp {
 
@@ -177,7 +177,7 @@ bool LandmarksSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem
                 stiffness(2,2) = 1e6;
             }
 
-            ceres::NormalPrior* normalPrior = new ceres::NormalPrior(stiffness, m);
+            FixedSizeNormalPrior<3,3>* normalPrior = new FixedSizeNormalPrior<3,3>(stiffness, m);
 
             problem.AddResidualBlock(normalPrior, nullptr, lmNode->pos.data());
         }

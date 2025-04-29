@@ -653,10 +653,7 @@ bool ModularSBASolver::init() {
     if (_problem != nullptr) {
         cleanUpProblem();
     }
-    ceres::Problem::Options options;
-    options.cost_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
-    options.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
-    _problem = new ceres::Problem(options);
+    _problem = new ceres::Problem();
 
     bool ok = true;
 
@@ -791,40 +788,8 @@ bool ModularSBASolver::initManagedParameters() {
 
 void ModularSBASolver::cleanUpProblem() {
 
-    std::set<const ceres::CostFunction*> costs_processed;
-    std::set<const ceres::LossFunction*> loss_processed;
-    std::vector<ceres::ResidualBlockId> costs;
-
     if (_problem == nullptr) {
         return;
-    }
-
-    return; //deactivate cleaning up for the moment, to avoid segfault.
-
-    _problem->GetResidualBlocks(&costs);
-
-    for (ceres::ResidualBlockId id : costs) {
-
-        const ceres::CostFunction* cfunc = _problem->GetCostFunctionForResidualBlock(id);
-        const ceres::LossFunction* lfunc = _problem->GetLossFunctionForResidualBlock(id);
-
-        if (costs_processed.count(cfunc) > 0) {
-            continue;
-        }
-
-        _problem->RemoveResidualBlock(id);
-        if (cfunc != nullptr) {
-            if (costs_processed.count(cfunc) == 0) {
-                costs_processed.insert(cfunc);
-                delete cfunc;
-            }
-        }
-        if (lfunc != nullptr) {
-            if (loss_processed.count(lfunc) == 0) {
-                loss_processed.insert(lfunc);
-                delete cfunc;
-            }
-        }
     }
 
     delete _problem;

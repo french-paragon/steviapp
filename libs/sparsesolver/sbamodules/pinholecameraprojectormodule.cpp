@@ -5,7 +5,7 @@
 
 #include "datablocks/cameras/pushbroompinholecamera.h"
 
-#include <ceres/normal_prior.h>
+#include "costfunctors/fixedsizenormalprior.h"
 
 
 namespace StereoVisionApp {
@@ -172,7 +172,7 @@ bool PinholePushBroomCamProjectorModule::init(ModularSBASolver* solver, ceres::P
             stiffness(0,0) = 1/c->fLen().stddev();
             target(0,0) = c->fLen().value();
 
-            ceres::NormalPrior* prior = new ceres::NormalPrior(stiffness, target);
+            FixedSizeNormalPrior<1,1>* prior = new FixedSizeNormalPrior<1,1>(stiffness, target);
 
             problem.AddResidualBlock(prior, nullptr, &_fLen);
         }
@@ -185,7 +185,7 @@ bool PinholePushBroomCamProjectorModule::init(ModularSBASolver* solver, ceres::P
             stiffness(0,0) = 1/c->opticalCenterX().stddev();
             target(0,0) = c->opticalCenterX().value();
 
-            ceres::NormalPrior* prior = new ceres::NormalPrior(stiffness, target);
+            FixedSizeNormalPrior<1,1>* prior = new FixedSizeNormalPrior<1,1>(stiffness, target);
 
             problem.AddResidualBlock(prior, nullptr, &_principalPoint);
         }
@@ -272,7 +272,7 @@ bool PinholePushBroomCamProjectorModule::init(ModularSBASolver* solver, ceres::P
             stiffness(4,4) = 1/c->a4().stddev();
             stiffness(5,5) = 1/c->a5().stddev();
 
-            ceres::NormalPrior* prior = new ceres::NormalPrior(stiffness, target);
+            FixedSizeNormalPrior<6,6>* prior = new FixedSizeNormalPrior<6,6>(stiffness, target);
 
             problem.AddResidualBlock(prior, nullptr, _horizontalDistortion.data());
 
@@ -302,7 +302,7 @@ bool PinholePushBroomCamProjectorModule::init(ModularSBASolver* solver, ceres::P
             stiffness(4,4) = 1/c->b4().stddev();
             stiffness(5,5) = 1/c->b5().stddev();
 
-            ceres::NormalPrior* prior = new ceres::NormalPrior(stiffness, target);
+            FixedSizeNormalPrior<6,6>* prior = new FixedSizeNormalPrior<6,6>(stiffness, target);
 
             problem.AddResidualBlock(prior, nullptr, _verticalDistortion.data());
 

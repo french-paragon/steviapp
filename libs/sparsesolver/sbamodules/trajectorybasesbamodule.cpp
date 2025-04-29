@@ -3,7 +3,7 @@
 #include "datablocks/trajectory.h"
 #include "datablocks/datatable.h"
 
-#include <ceres/normal_prior.h>
+#include "costfunctors/fixedsizenormalprior.h"
 
 #include "../costfunctors/interpolatedvectorprior.h"
 #include "../costfunctors/imustepcost.h"
@@ -185,7 +185,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
     Eigen::Vector3d gVec;
     gVec << _gravity[0], _gravity[1], _gravity[2];
 
-    ceres::NormalPrior* g_prior = new ceres::NormalPrior(gInfos, gVec);
+    FixedSizeNormalPrior<3,3>* g_prior = new FixedSizeNormalPrior<3,3>(gInfos, gVec);
 
     problem.AddResidualBlock(g_prior, nullptr, _gravity.data());
 
@@ -378,8 +378,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
                     ModularSBASolver::AutoErrorBlockLogger<1,3>::ParamsType params = {trajNode->nodes[i].rAxis.data()};
 
-                    ceres::NormalPrior* orientationPrior = new ceres::NormalPrior(infos, vec);
-                    ceres::NormalPrior* orientationPriorError = new ceres::NormalPrior(Eigen::Matrix3d::Identity(), vec);
+                    FixedSizeNormalPrior<3,3>* orientationPrior = new FixedSizeNormalPrior<3,3>(infos, vec);
+                    FixedSizeNormalPrior<3,3>* orientationPriorError = new FixedSizeNormalPrior<3,3>(Eigen::Matrix3d::Identity(), vec);
 
                     problem.AddResidualBlock(orientationPrior, nullptr,
                                              params.data(),
@@ -433,8 +433,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 //add gps based trajectory priors
                 if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
 
-                    ceres::NormalPrior* gpsPrior = new ceres::NormalPrior(infos, vec);
-                    ceres::NormalPrior* gpsPriorError = new ceres::NormalPrior(Eigen::Matrix3d::Identity(), vec);
+                    FixedSizeNormalPrior<3,3>* gpsPrior = new FixedSizeNormalPrior<3,3>(infos, vec);
+                    FixedSizeNormalPrior<3,3>* gpsPriorError = new FixedSizeNormalPrior<3,3>(Eigen::Matrix3d::Identity(), vec);
 
                     if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
 
