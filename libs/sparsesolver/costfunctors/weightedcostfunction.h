@@ -19,6 +19,7 @@ class WeightedCostFunction : public ceres::SizedCostFunction<kNumResiduals, Ns..
 {
 public:
 
+    static constexpr int nParamsBlocks = sizeof...(Ns);
     using WeigthMatT = Eigen::Matrix<double, kNumResiduals, kNumResiduals>;
     using ResVecT = Eigen::Matrix<double, kNumResiduals, 1>;
     using JacMatT = Eigen::Matrix<double, kNumResiduals, Eigen::Dynamic>;
