@@ -60,10 +60,10 @@ public:
                                            double* posePosition,
                                            Eigen::Vector2d const& ptProjPos,
                                            Eigen::Matrix2d const& ptProjStiffness,
-                                           ceres::Problem & problem,
                                            StereoVision::Geometry::RigidBodyTransform<double> const& offset = StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(),Eigen::Vector3d::Zero()),
                                            double* leverArmOrientation = nullptr,
-                                           double* leverArmPosition = nullptr) override;
+                                           double* leverArmPosition = nullptr,
+                                           QString const& logLabel = "") override;
 
     virtual bool addCrossProjectionCostFunction(double* pose1Orientation,
                                                 double* pose1Position,
@@ -73,13 +73,13 @@ public:
                                                 double* pose2Position,
                                                 Eigen::Vector2d const& ptProj2Pos,
                                                 Eigen::Matrix2d const& ptProj2Stiffness,
-                                                ceres::Problem & problem) override;
+                                                QString const& logLabel = "") override;
 
-    virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) override;
-    virtual bool writeResults(ModularSBASolver* solver) override;
-    virtual std::vector<std::pair<const double*, const double*>> requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) override;
-    virtual bool writeUncertainty(ModularSBASolver* solver) override;
-    virtual void cleanup(ModularSBASolver* solver) override;
+    virtual bool init() override;
+    virtual bool writeResults() override;
+    virtual std::vector<std::pair<const double*, const double*>> requestUncertainty() override;
+    virtual bool writeUncertainty() override;
+    virtual void cleanup() override;
 
 protected:
 

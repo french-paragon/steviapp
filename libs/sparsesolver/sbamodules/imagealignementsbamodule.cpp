@@ -260,12 +260,16 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
             info(0,0) = (iml->x().isUncertain()) ? 1./iml->x().stddev() : 1;
             info(1,1) = (iml->y().isUncertain()) ? 1./iml->y().stddev() : 1;
 
+            QString loggingLabel = QString("Projection cost for image id %1 (%2), landmark id %3 (%4)")
+                                       .arg(im->internalId()).arg(im->objectName())
+                                       .arg(lmId).arg(iml->attachedLandmarkName());
+
             projectionModule->addProjectionCostFunction(lmNode->pos.data(),
                                                         imNode->rAxis.data(),
                                                         imNode->t.data(),
                                                         ptPos,
                                                         info,
-                                                        problem);
+                                                        loggingLabel);
         }
 
         //stick to trajectory
@@ -414,15 +418,19 @@ bool PinholdeCamProjModule::addProjectionCostFunction(double* pointData,
                                                       double* posePosition,
                                                       Eigen::Vector2d const& ptProjPos,
                                                       Eigen::Matrix2d const& ptProjStiffness,
-                                                      ceres::Problem & problem,
                                                       const StereoVision::Geometry::RigidBodyTransform<double> &offset,
                                                       double *leverArmOrientation,
-                                                      double *leverArmPosition) {
+                                                      double *leverArmPosition,
+                                                      const QString &logLabel) {
 
+
+    if (!isSetup()) {
+        return false;
+    }
 
     ParametrizedXYZ2UVCost* projCost = new ParametrizedXYZ2UVCost(ptProjPos, ptProjStiffness);
 
-    problem.AddResidualBlock(new ceres::AutoDiffCostFunction<ParametrizedXYZ2UVCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+    problem().AddResidualBlock(new ceres::AutoDiffCostFunction<ParametrizedXYZ2UVCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
                               pointData,
                               poseOrientation,
                               posePosition,
@@ -432,24 +440,29 @@ bool PinholdeCamProjModule::addProjectionCostFunction(double* pointData,
                               _tangentialDistortion.data(),
                               _skewDistortion.data());
 
-    /*if (_verbose) {
+    if (isVerbose() and !logLabel.isEmpty()) {
 
-        std::array<double,3> res;
+        ParametrizedXYZ2UVCost* projCostLog = new ParametrizedXYZ2UVCost(ptProjPos, Eigen::Matrix2d::Identity());
 
-        (*projCost)(l_p.position.data(),
-                    pose.rAxis.data(),
-                    pose.t.data(),
-                    &c_p.fLen,
-                    c_p.principalPoint.data(),
-                    c_p.radialDistortion.data(),
-                    c_p.tangentialDistortion.data(),
-                    c_p.skewDistortion.data(),
-                    res.data());
+        constexpr int nArgs = 8;
+        QString loggerName = logLabel;
+        std::array<double*, nArgs> params = {pointData,
+                                              poseOrientation,
+                                              posePosition,
+                                              &_fLen,
+                                              _principalPoint.data(),
+                                              _radialDistortion.data(),
+                                              _tangentialDistortion.data(),
+                                              _skewDistortion.data()};
 
-        out << "Image GCP (img " << id << ") ";
-        out << "lm[" << lmId << "] ";
-        out << "initial residuals = [" << res[0] << " " << res[1] << "]\n";
-    }*/
+        ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
+            new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
+            new ceres::AutoDiffCostFunction<ParametrizedXYZ2UVCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+            params,
+            true);
+
+        solver().addLogger(loggerName, projErrorLogger);
+    }
 
     return true;
 }
@@ -461,15 +474,23 @@ bool PinholdeCamProjModule::addCrossProjectionCostFunction(double* pose1Orientat
                                                            double* pose2Orientation,
                                                            double* pose2Position,
                                                            Eigen::Vector2d const& ptProj2Pos,
-                                                           Eigen::Matrix2d const& ptProj2Stiffness,
-                                                           ceres::Problem & problem) {
+                                                           Eigen::Matrix2d const& ptProj2Stiffness, const QString &logLabel) {
+
+
+    if (!isSetup()) {
+        return false;
+    }
 
     //doing a uv2uv projection with distortion is non trivial. For this model of camera distortion it is better to use an intermediate landmark.
     return false;
 
 }
 
-bool PinholdeCamProjModule::init(ModularSBASolver* solver, ceres::Problem & problem) {
+bool PinholdeCamProjModule::init() {
+
+    if (!isSetup()) {
+        return false;
+    }
 
     Camera*& c = _associatedCamera;
 
@@ -489,7 +510,7 @@ bool PinholdeCamProjModule::init(ModularSBASolver* solver, ceres::Problem & prob
         _principalPoint[1] = c->opticalCenterY().value();
     }
 
-    problem.AddParameterBlock(_principalPoint.data(), _principalPoint.size());
+    problem().AddParameterBlock(_principalPoint.data(), _principalPoint.size());
 
     if (c->optimizedFLen().isSet()) {
         _fLen = c->optimizedFLen().value();
@@ -497,11 +518,11 @@ bool PinholdeCamProjModule::init(ModularSBASolver* solver, ceres::Problem & prob
         _fLen = c->fLen().value();
     }
 
-    problem.AddParameterBlock(&_fLen, 1);
+    problem().AddParameterBlock(&_fLen, 1);
 
-    if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
-        problem.SetParameterBlockConstant(&_fLen);
-        problem.SetParameterBlockConstant(_principalPoint.data());
+    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+        problem().SetParameterBlockConstant(&_fLen);
+        problem().SetParameterBlockConstant(_principalPoint.data());
     }
 
 
@@ -520,18 +541,18 @@ bool PinholdeCamProjModule::init(ModularSBASolver* solver, ceres::Problem & prob
         _radialDistortion[2] = c->k3().value();
     }
 
-    problem.AddParameterBlock(_radialDistortion.data(), _radialDistortion.size());
+    problem().AddParameterBlock(_radialDistortion.data(), _radialDistortion.size());
 
     if (!c->useRadialDistortionModel()) {
         _radialDistortion[0] = 0;
         _radialDistortion[1] = 0;
         _radialDistortion[2] = 0;
 
-        problem.SetParameterBlockConstant(_radialDistortion.data());
+        problem().SetParameterBlockConstant(_radialDistortion.data());
     }
 
-    if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
-        problem.SetParameterBlockConstant(_radialDistortion.data());
+    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+        problem().SetParameterBlockConstant(_radialDistortion.data());
     }
 
     if (c->optimizedP1().isSet() and
@@ -546,17 +567,17 @@ bool PinholdeCamProjModule::init(ModularSBASolver* solver, ceres::Problem & prob
         _tangentialDistortion[1] = c->p2().value();
     }
 
-    problem.AddParameterBlock(_tangentialDistortion.data(), _tangentialDistortion.size());
+    problem().AddParameterBlock(_tangentialDistortion.data(), _tangentialDistortion.size());
 
     if (!c->useTangentialDistortionModel()) {
         _tangentialDistortion[0] = 0;
         _tangentialDistortion[1] = 0;
 
-        problem.SetParameterBlockConstant(_tangentialDistortion.data());
+        problem().SetParameterBlockConstant(_tangentialDistortion.data());
     }
 
-    if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
-        problem.SetParameterBlockConstant(_tangentialDistortion.data());
+    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+        problem().SetParameterBlockConstant(_tangentialDistortion.data());
     }
 
     if (c->optimizedB1().isSet() and
@@ -571,27 +592,29 @@ bool PinholdeCamProjModule::init(ModularSBASolver* solver, ceres::Problem & prob
         _skewDistortion[1] = c->B2().value();
     }
 
-    problem.AddParameterBlock(_skewDistortion.data(), _skewDistortion.size());
+    problem().AddParameterBlock(_skewDistortion.data(), _skewDistortion.size());
 
     if (!c->useSkewDistortionModel()) {
         _skewDistortion[0] = 0;
         _skewDistortion[1] = 0;
 
-        problem.SetParameterBlockConstant(_skewDistortion.data());
+        problem().SetParameterBlockConstant(_skewDistortion.data());
     }
 
-    if (c->isFixed() or solver->getFixedParametersFlag()&FixedParameter::CameraInternal) {
+    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
 
-        problem.SetParameterBlockConstant(_skewDistortion.data());
+        problem().SetParameterBlockConstant(_skewDistortion.data());
     }
 
     return true;
 
 }
 
-bool PinholdeCamProjModule::writeResults(ModularSBASolver* solver) {
+bool PinholdeCamProjModule::writeResults() {
 
-
+    if (!isSetup()) {
+        return false;
+    }
 
     Camera* cam = _associatedCamera;
 
@@ -628,14 +651,13 @@ bool PinholdeCamProjModule::writeResults(ModularSBASolver* solver) {
 
 }
 
-bool PinholdeCamProjModule::writeUncertainty(ModularSBASolver* solver) {
+bool PinholdeCamProjModule::writeUncertainty() {
 
     //TODO: get a way to write uncertainty.
     return true;
 }
 
-void PinholdeCamProjModule::cleanup(ModularSBASolver* solver) {
-    Q_UNUSED(solver);
+void PinholdeCamProjModule::cleanup() {
     return;
 }
 

@@ -700,7 +700,8 @@ bool ModularSBASolver::init() {
 
     //setup the projectors
     for (ProjectorModule* module : _projectors) {
-        ok = module->init(this, *_problem);
+        module->setup(this, *_problem); //setup the solver and problem for the module
+        ok = module->init();
 
         if (!ok) {
             return false;
@@ -861,7 +862,7 @@ bool ModularSBASolver::std_step() {
     }
 
     for (ProjectorModule* projector : _projectors) {
-        std::vector<std::pair<const double*, const double*>> indices = projector->requestUncertainty(this, *_problem);
+        std::vector<std::pair<const double*, const double*>> indices = projector->requestUncertainty();
 
         for (auto const& pair : indices) {
             pairs.insert(pair);
@@ -920,7 +921,7 @@ bool ModularSBASolver::writeResults() {
         std::cout << "\r\t writing results for projectors modules" << std::endl;
     }
     for (ProjectorModule* projector : _projectors) {
-        ok = projector->writeResults(this);
+        ok = projector->writeResults();
 
         if (!ok) {
             return false;
@@ -951,7 +952,7 @@ bool ModularSBASolver::writeUncertainty() {
     }
 
     for (ProjectorModule* projector : _projectors) {
-        ok = projector->writeUncertainty(this);
+        ok = projector->writeUncertainty();
 
         if (!ok) {
             return false;
@@ -971,7 +972,7 @@ void ModularSBASolver::cleanup() {
     }
 
     for (ProjectorModule* projector : _projectors) {
-        projector->cleanup(this);
+        projector->cleanup();
     }
 
     if (_verbose) {
@@ -1029,14 +1030,18 @@ std::vector<std::pair<const double*, const double*>> ModularSBASolver::SBAModule
     return std::vector<std::pair<const double*, const double*>>();
 }
 
-ModularSBASolver::ProjectorModule::ProjectorModule() {
+ModularSBASolver::ProjectorModule::ProjectorModule() :
+    _solver(nullptr),
+    _problem(nullptr),
+    _verbose(true)
+{
 
 }
 ModularSBASolver::ProjectorModule::~ProjectorModule() {
 
 }
 
-std::vector<std::pair<const double*, const double*>> ModularSBASolver::ProjectorModule::requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) {
+std::vector<std::pair<const double*, const double*>> ModularSBASolver::ProjectorModule::requestUncertainty() {
     return std::vector<std::pair<const double*, const double*>>();
 }
 ModularSBASolver::ValueBlockLogger::ValueBlockLogger() {

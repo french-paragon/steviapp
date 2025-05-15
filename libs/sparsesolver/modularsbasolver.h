@@ -100,8 +100,55 @@ public:
         ProjectorModule();
         virtual ~ProjectorModule();
 
+        /*!
+         * \brief setup setup the solver and problem for this projector. This is called automatically by the modular sba solver.
+         * \param solver the solver
+         * \param problem the problem
+         */
+        inline void setup(ModularSBASolver* solver, ceres::Problem & problem) {
+            _solver = solver;
+            _problem = &problem;
+        }
 
-        virtual bool init(ModularSBASolver* solver, ceres::Problem & problem) = 0;
+        inline bool isSetup() const {
+            return _solver != nullptr and _problem != nullptr;
+        }
+
+        /*!
+         * \brief solver get a reference to the current solver
+         * \return a reference to the current solver
+         */
+        inline ModularSBASolver& solver() {
+            return *_solver;
+        }
+
+        /*!
+         * \brief problem get a reference to the current problem
+         * \return a reference to the current problem
+         */
+        inline ceres::Problem& problem() {
+            return *_problem;
+        }
+
+        /*!
+         * \brief isVerbose indicate if the module is verbose or not
+         * \return true if the module is verbose.
+         *
+         * When the module is verbose, it is expected to log stuff (albeit the responsability of doing so is left to the subclasses).
+         */
+        inline bool isVerbose() const {
+            return _verbose;
+        }
+
+        /*!
+         * \brief setVerbose set the module verbose
+         * \param verbose if the module is verbose or not
+         */
+        inline void setVerbose(bool verbose = true) {
+            _verbose = verbose;
+        }
+
+        virtual bool init() = 0;
 
         /*!
          * \brief addProjectionCostFunction add a projection between a point and a pose
@@ -110,7 +157,6 @@ public:
          * \param posePosition the pointer to the optimizable pose position.
          * \param ptProjPos the projected position of the point
          * \param ptProjStiffness the uncertainty in the projected position of the point, given as the stiffness matrix
-         * \param problem the problem to add the projection cost to.
          * \return true on success.
          *
          */
@@ -119,10 +165,71 @@ public:
                                                double* posePosition,
                                                Eigen::Vector2d const& ptProjPos,
                                                Eigen::Matrix2d const& ptProjStiffness,
-                                               ceres::Problem & problem,
                                                StereoVision::Geometry::RigidBodyTransform<double> const& offset = StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(),Eigen::Vector3d::Zero()),
                                                double* leverArmOrientation = nullptr,
-                                               double* leverArmPosition = nullptr) = 0;
+                                               double* leverArmPosition = nullptr,
+                                               QString const& logLabel = "") = 0;
+
+        inline bool addProjectionCostFunction(double* pointData,
+                                              double* poseOrientation,
+                                              double* posePosition,
+                                              Eigen::Vector2d const& ptProjPos,
+                                              Eigen::Matrix2d const& ptProjStiffness,
+                                              QString const& logLabel) {
+
+            static const StereoVision::Geometry::RigidBodyTransform<double> fixed =
+                StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(),Eigen::Vector3d::Zero());
+            return addProjectionCostFunction(pointData,
+                                             poseOrientation,
+                                             posePosition,
+                                             ptProjPos,
+                                             ptProjStiffness,
+                                             fixed,
+                                             nullptr,
+                                             nullptr,
+                                             logLabel);
+        }
+
+        inline bool addProjectionCostFunction(double* pointData,
+                                              double* poseOrientation,
+                                              double* posePosition,
+                                              Eigen::Vector2d const& ptProjPos,
+                                              Eigen::Matrix2d const& ptProjStiffness,
+                                              StereoVision::Geometry::RigidBodyTransform<double> const& offset,
+                                              QString const& logLabel) {
+
+            return addProjectionCostFunction(pointData,
+                                             poseOrientation,
+                                             posePosition,
+                                             ptProjPos,
+                                             ptProjStiffness,
+                                             offset,
+                                             nullptr,
+                                             nullptr,
+                                             logLabel);
+        }
+
+        inline bool addProjectionCostFunction(double* pointData,
+                                              double* poseOrientation,
+                                              double* posePosition,
+                                              Eigen::Vector2d const& ptProjPos,
+                                              Eigen::Matrix2d const& ptProjStiffness,
+                                              double* leverArmOrientation,
+                                              double* leverArmPosition,
+                                              QString const& logLabel) {
+
+            static const StereoVision::Geometry::RigidBodyTransform<double> fixed =
+                StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(),Eigen::Vector3d::Zero());
+            return addProjectionCostFunction(pointData,
+                                             poseOrientation,
+                                             posePosition,
+                                             ptProjPos,
+                                             ptProjStiffness,
+                                             fixed,
+                                             leverArmOrientation,
+                                             leverArmPosition,
+                                             logLabel);
+        }
 
         /*!
          * \brief addCrossProjectionCostFunction add a cross projection between two poses (i.e. two frames seeing the same point, but the point is not explicitly instanced)
@@ -145,18 +252,24 @@ public:
                                                     double* pose2Position,
                                                     Eigen::Vector2d const& ptProj2Pos,
                                                     Eigen::Matrix2d const& ptProj2Stiffness,
-                                                    ceres::Problem & problem) = 0;
+                                                    QString const& logLabel = "") = 0;
 
-        virtual bool writeResults(ModularSBASolver* solver) = 0;
+        virtual bool writeResults() = 0;
         /*!
          * \brief requestUncertainty gives the blocks of the covariance matrix the module excpects to see computed
          * \return the list of parameters blocks pairs in the ceres problem the covariance of will be requested.
          *
          * by default this function returns nothing.
          */
-        virtual std::vector<std::pair<const double*, const double*>> requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem);
-        virtual bool writeUncertainty(ModularSBASolver* solver) = 0;
-        virtual void cleanup(ModularSBASolver* solver) = 0;
+        virtual std::vector<std::pair<const double*, const double*>> requestUncertainty();
+        virtual bool writeUncertainty() = 0;
+        virtual void cleanup() = 0;
+
+    private:
+        ModularSBASolver* _solver;
+        ceres::Problem* _problem;
+
+        bool _verbose;
     };
 
     /*!
