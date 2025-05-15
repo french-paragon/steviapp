@@ -99,6 +99,7 @@ public:
      * \return the list of view directions (in sensor frame).
      */
     std::vector<std::array<double, 3>> getSensorViewDirections(bool optimized=true);
+    std::array<double, 3> getSensorViewDirection(float u, bool optimized=true);
 
 Q_SIGNALS:
 

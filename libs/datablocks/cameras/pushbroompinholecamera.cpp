@@ -878,27 +878,41 @@ std::vector<std::array<double, 3>> PushBroomPinholeCamera::getSensorViewDirectio
     std::array<double,6> as = {0,0,0,0,0,0};
     std::array<double,6> bs = {0,0,0,0,0,0};
 
+    optical_center = opticalCenterX().valueOr(nSamples/2.0);
+    f_len_pix = fLen().valueOr(nSamples);
+
+    as[0] = a0().valueOr(0);
+    as[1] = a1().valueOr(0);
+    as[2] = a2().valueOr(0);
+    as[3] = a3().valueOr(0);
+    as[4] = a4().valueOr(0);
+    as[5] = a5().valueOr(0);
+
+    bs[0] = b0().valueOr(0);
+    bs[1] = b1().valueOr(0);
+    bs[2] = b2().valueOr(0);
+    bs[3] = b3().valueOr(0);
+    bs[4] = b4().valueOr(0);
+    bs[5] = b5().valueOr(0);
+
     if (optimized) {
-        optical_center = optimizedOpticalCenterX().value();
-        f_len_pix = optimizedFLen().value();
+        optical_center = optimizedOpticalCenterX().valueOr(optical_center);
+        f_len_pix = optimizedFLen().valueOr(f_len_pix);
 
-        as[0] = optimizedA0().value();
-        as[1] = optimizedA1().value();
-        as[2] = optimizedA2().value();
-        as[3] = optimizedA3().value();
-        as[4] = optimizedA4().value();
-        as[5] = optimizedA5().value();
+        as[0] = optimizedA0().valueOr(as[0]);
+        as[1] = optimizedA1().valueOr(as[1]);
+        as[2] = optimizedA2().valueOr(as[2]);
+        as[3] = optimizedA3().valueOr(as[3]);
+        as[4] = optimizedA4().valueOr(as[4]);
+        as[5] = optimizedA5().valueOr(as[5]);
 
-        bs[0] = optimizedB0().value();
-        bs[1] = optimizedB1().value();
-        bs[2] = optimizedB2().value();
-        bs[3] = optimizedB3().value();
-        bs[4] = optimizedB4().value();
-        bs[5] = optimizedB5().value();
+        bs[0] = optimizedB0().valueOr(bs[0]);
+        bs[1] = optimizedB1().valueOr(bs[1]);
+        bs[2] = optimizedB2().valueOr(bs[2]);
+        bs[3] = optimizedB3().valueOr(bs[3]);
+        bs[4] = optimizedB4().valueOr(bs[4]);
+        bs[5] = optimizedB5().valueOr(bs[5]);
 
-    } else {
-        optical_center = opticalCenterX().value();
-        f_len_pix = fLen().value();
     }
 
     std::vector<std::array<double, 3>> viewDirectionsSensor(nSamples);
@@ -917,6 +931,65 @@ std::vector<std::array<double, 3>> PushBroomPinholeCamera::getSensorViewDirectio
     }
 
     return viewDirectionsSensor;
+
+}
+
+std::array<double, 3> PushBroomPinholeCamera::getSensorViewDirection(float u, bool optimized) {
+
+    int nSamples = std::ceil(imWidth());
+
+    double optical_center;
+    double f_len_pix;
+
+    std::array<double,6> as = {0,0,0,0,0,0};
+    std::array<double,6> bs = {0,0,0,0,0,0};
+
+    optical_center = opticalCenterX().valueOr(nSamples/2.0);
+    f_len_pix = fLen().valueOr(nSamples);
+
+    as[0] = a0().valueOr(0);
+    as[1] = a1().valueOr(0);
+    as[2] = a2().valueOr(0);
+    as[3] = a3().valueOr(0);
+    as[4] = a4().valueOr(0);
+    as[5] = a5().valueOr(0);
+
+    bs[0] = b0().valueOr(0);
+    bs[1] = b1().valueOr(0);
+    bs[2] = b2().valueOr(0);
+    bs[3] = b3().valueOr(0);
+    bs[4] = b4().valueOr(0);
+    bs[5] = b5().valueOr(0);
+
+    if (optimized) {
+        optical_center = optimizedOpticalCenterX().valueOr(optical_center);
+        f_len_pix = optimizedFLen().valueOr(f_len_pix);
+
+        as[0] = optimizedA0().valueOr(as[0]);
+        as[1] = optimizedA1().valueOr(as[1]);
+        as[2] = optimizedA2().valueOr(as[2]);
+        as[3] = optimizedA3().valueOr(as[3]);
+        as[4] = optimizedA4().valueOr(as[4]);
+        as[5] = optimizedA5().valueOr(as[5]);
+
+        bs[0] = optimizedB0().valueOr(bs[0]);
+        bs[1] = optimizedB1().valueOr(bs[1]);
+        bs[2] = optimizedB2().valueOr(bs[2]);
+        bs[3] = optimizedB3().valueOr(bs[3]);
+        bs[4] = optimizedB4().valueOr(bs[4]);
+        bs[5] = optimizedB5().valueOr(bs[5]);
+
+    }
+
+    PinholePushbroomUVProjector projector(nSamples);
+
+    std::array<double*,4> params = {&f_len_pix, &optical_center, as.data(), bs.data()};
+
+    std::array<double,2> uv = {u,0};
+
+    Eigen::Vector3d dir = projector.dirFromUV(uv.data(), params.data());
+
+    return std::array<double,3>{dir.x(), dir.y(), dir.z()};
 
 }
 
