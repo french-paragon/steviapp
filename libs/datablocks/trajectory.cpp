@@ -83,6 +83,9 @@ Trajectory::Trajectory(Project* parent) :
     _gpsDefinition.cov_speed_zx_col = -1;
 
     extendDataModel();
+
+    //ensure the optimized trajectory table is created in the correct thread
+    _optimizedTrajectoryData = new DataTable(this);
 }
 
 StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::loadAngularSpeedRawData() const {
