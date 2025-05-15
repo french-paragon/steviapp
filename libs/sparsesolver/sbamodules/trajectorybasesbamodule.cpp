@@ -265,8 +265,21 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
         StatusOptionalReturn<Trajectory::TimeCartesianSequence> optGyro = traj->loadAngularSpeedSequence();
         StatusOptionalReturn<Trajectory::TimeCartesianSequence> optImu = traj->loadAccelerationSequence();
 
-        double minTime = optGps.value().sequenceStartTime();
-        double maxTime = optGps.value().sequenceEndTime();
+        double minTime;
+        double maxTime;
+
+        if (optGps.isValid()) {
+            minTime = optGps.value().sequenceStartTime();
+            maxTime = optGps.value().sequenceEndTime();
+
+            if (optPose.isValid()) {
+                minTime = std::max(minTime, optPose.value().sequenceStartTime());
+                maxTime = std::min(maxTime, optPose.value().sequenceEndTime());
+            }
+        } else {
+            minTime = optPose.value().sequenceStartTime();
+            maxTime = optPose.value().sequenceEndTime();
+        }
 
         if (optGyro.isValid()) {
 
