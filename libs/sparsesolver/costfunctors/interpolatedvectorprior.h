@@ -66,7 +66,7 @@ public:
 
 #ifndef NDEBUG
         for (int i = 0; i < dim; i++) {
-            if (!ceres::IsFinite(residual[i])) {
+            if (!ceres::isfinite(residual[i])) {
                 std::cout << "Error in InterpolatedVectorPrior<" << dim << "> cost computation" << std::endl;
             }
         }

@@ -74,7 +74,7 @@ public:
 
 #ifndef NDEBUG
         for (int i = 0; i < 6; i++) {
-            if (!ceres::IsFinite(residual[i])) {
+            if (!ceres::isfinite(residual[i])) {
                 std::cout << "Error in LeverArmCostFunctor cost computation" << std::endl;
             }
         }
@@ -158,7 +158,7 @@ public:
 
 #ifndef NDEBUG
         for (int i = 0; i < 6; i++) {
-            if (!ceres::IsFinite(residual[i])) {
+            if (!ceres::isfinite(residual[i])) {
                 std::cout << "Error in ParametrizedLeverArmCostFunctor cost computation" << std::endl;
             }
         }
@@ -245,7 +245,7 @@ public:
 
 #ifndef NDEBUG
         for (int i = 0; i < 6; i++) {
-            if (!ceres::IsFinite(residual[i])) {
+            if (!ceres::isfinite(residual[i])) {
                 std::cout << "Error in InterpolatedLeverArmCostFunctor cost computation" << std::endl;
             }
         }
@@ -347,7 +347,7 @@ public:
 
 #ifndef NDEBUG
         for (int i = 0; i < 6; i++) {
-            if (!ceres::IsFinite(residual[i])) {
+            if (!ceres::isfinite(residual[i])) {
                 std::cout << "Error in ParametrizedInterpolatedLeverArmCostFunctor cost computation" << std::endl;
             }
         }

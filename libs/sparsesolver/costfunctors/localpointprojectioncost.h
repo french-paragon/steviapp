@@ -63,7 +63,7 @@ public:
 
         #ifndef NDEBUG
         for (int i = 0; i < projSpaceDim; i++) {
-            if (!ceres::IsFinite(residual[i])) {
+            if (!ceres::isfinite(residual[i])) {
                 std::cout << "Error in LocalPoint2TargetProjectionCost cost computation" << std::endl;
             }
         }

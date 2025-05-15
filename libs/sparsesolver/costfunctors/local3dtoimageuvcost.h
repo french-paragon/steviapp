@@ -98,7 +98,7 @@ public:
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
 
 #ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
+        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1])) {
             std::cout << "Error in Local3DtoImageUVCost cost computation" << std::endl;
         }
 #endif

@@ -7,4 +7,8 @@ ModularUVProjection::ModularUVProjection()
 
 }
 
+ModularUVProjection::~ModularUVProjection() {
+
+}
+
 } // namespace StereoVisionApp

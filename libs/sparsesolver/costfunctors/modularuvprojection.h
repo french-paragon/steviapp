@@ -34,6 +34,7 @@ public:
     static constexpr int MaxJetDim = 10;
 
     ModularUVProjection();
+    virtual ~ModularUVProjection();
 
     virtual Eigen::Matrix<float,3,1> dirFromUV(float const* uv, float const* const* parameters) const = 0;
     virtual Eigen::Matrix<double,3,1> dirFromUV(double const* uv, double const* const* parameters) const = 0;
@@ -226,7 +227,7 @@ public:
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
 
 #ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
+        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1])) {
             std::cout << "Error in UV2XYZCost cost computation" << std::endl;
         }
 #endif
@@ -326,7 +327,7 @@ public:
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
 
 #ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
+        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1])) {
             std::cout << "Error in UV2ParametrizedXYZCost cost computation" << std::endl;
         }
 #endif
@@ -432,7 +433,7 @@ public:
         residual[1] = _info(1,0)*error[0] + _info(1,1)*error[1];
 
 #ifndef NDEBUG
-        if (!ceres::IsFinite(residual[0]) or !ceres::IsFinite(residual[1])) {
+        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1])) {
             std::cout << "Error in UV2ProjectedXYCost cost computation" << std::endl;
         }
 #endif
