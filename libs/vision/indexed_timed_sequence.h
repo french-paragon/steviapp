@@ -219,10 +219,95 @@ public:
         return TimeInterpolableVals{1, _sequence->back().val, 0, T()};
     }
 
+    /*!
+     * \brief getValuesInBetweenTimes compute a set of differential objects that can be sumed to integrate the time sequence
+     * \param t0 the integral lower bound time
+     * \param tf the integral upper bound time
+     * \return a vector of Differential, in time order, the first one being the closest to t0.
+     */
     std::vector<Differential> getValuesInBetweenTimes(TimeT t0, TimeT tf) const {
+
+        //in certain cases, we want to integrate backwards,
+        //it is usedfull if this function can setup the data just as
+        if (t0 > tf) {
+
+            if (tf >= _finalTime) {
+                return std::vector<Differential>{Differential{tf - t0, _sequence->back().val}};
+            }
+
+            if (t0 <= _initialTime) {
+                return std::vector<Differential>{Differential{tf - t0, _sequence->front().val}};
+            }
+
+            double deltaT = indexTimePerStep();
+            double localTf = tf - _initialTime;
+
+            int initialIndexIdx = static_cast<int>(std::floor(localTf/deltaT));
+
+            if (initialIndexIdx < 0) {
+                initialIndexIdx = 0;
+            }
+
+            int initialSearchIdx = (*_indicesFromTimeIntervals)[initialIndexIdx];
+
+            initialSearchIdx = std::max(0, initialSearchIdx-1);
+
+            int finalIndex = initialSearchIdx;
+
+            while (finalIndex < _sequence->size() and (*_sequence)[finalIndex].time < tf) {
+                finalIndex++;
+            }
+
+            int initialIndex = finalIndex;
+
+            while (initialIndex < _sequence->size() and (*_sequence)[initialIndex].time < t0) {
+                initialIndex++;
+            }
+
+            //now all the elements we need to return as differentials are within initialIndex and finalIndex
+            if (finalIndex == initialIndex) {
+                return std::vector<Differential>{Differential{tf - t0, (*_sequence)[initialIndex].val}};
+            }
+
+            int nElements = std::abs(finalIndex - initialIndex) + 1;
+            double t = t0;
+
+            int currentIndex = initialIndex;
+
+            std::vector<Differential> ret(nElements);
+
+            for (int i = 0; i < nElements; i++) {
+
+                if (currentIndex-1 < 0) {
+                    ret[i] = Differential{tf - t, (*_sequence)[currentIndex].val};
+                    break;
+                }
+
+                if ((*_sequence)[currentIndex-1].time < tf) {
+                    ret[i] = Differential{tf - t, (*_sequence)[currentIndex].val};
+                    break;
+                }
+
+                TimeT dt = tf - t;
+                if (currentIndex > finalIndex) {
+                    dt = (*_sequence)[currentIndex-1].time - t;
+                }
+
+                ret[i] = Differential{dt, (*_sequence)[currentIndex].val};
+
+                t = (*_sequence)[currentIndex-1].time;
+                currentIndex--;
+            }
+
+            return ret;
+        }
 
         if (t0 >= _finalTime) {
             return std::vector<Differential>{Differential{tf - t0, _sequence->back().val}};
+        }
+
+        if (tf <= _initialTime) {
+            return std::vector<Differential>{Differential{tf - t0, _sequence->front().val}};
         }
 
         double deltaT = indexTimePerStep();

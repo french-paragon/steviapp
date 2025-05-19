@@ -7,6 +7,7 @@ class TestIndexedTimeSequence: public QObject
     Q_OBJECT
 private Q_SLOTS:
     void testGetValueAtTime();
+    void testGetValuesInBetweenTimes();
 };
 
 void TestIndexedTimeSequence::testGetValueAtTime() {
@@ -60,6 +61,112 @@ void TestIndexedTimeSequence::testGetValueAtTime() {
         QCOMPARE(val0, 0);
         QCOMPARE(valN, nElements-1);
     }
+
+}
+
+
+void TestIndexedTimeSequence::testGetValuesInBetweenTimes() {
+
+    using TimedElement = StereoVisionApp::IndexedTimeSequence<double>::TimedElement;
+
+    constexpr int nElements = 10;
+
+    std::vector<TimedElement> data(nElements);
+
+    for (int i = 0; i < nElements; i++) {
+        data[i].time = i;
+        data[i].val = i;
+    }
+
+    StereoVisionApp::IndexedTimeSequence<double> sequence(data);
+
+    double t0;
+    double tf;
+    double dt;
+
+    //test get elements before the start of the sequence.
+    t0 = -2.5;
+    tf = 1.5;
+
+    auto elements = sequence.getValuesInBetweenTimes(t0,tf);
+
+    dt = 0;
+    for (size_t i = 0; i < elements.size(); i++) {
+        dt += elements[i].dt;
+        QVERIFY(dt >= 0);
+    }
+
+    QCOMPARE(dt, tf-t0);
+
+    //test get elements at the center of the sequence.
+    t0 = 2.5;
+    tf = 6.5;
+
+    elements = sequence.getValuesInBetweenTimes(t0,tf);
+
+    dt = 0;
+    for (size_t i = 0; i < elements.size(); i++) {
+        dt += elements[i].dt;
+        QVERIFY(dt >= 0);
+    }
+
+    QCOMPARE(dt, tf-t0);
+
+    //test get elements after the end of the sequence.
+    t0 = 7.5;
+    tf = 11.5;
+
+    elements = sequence.getValuesInBetweenTimes(t0,tf);
+
+    dt = 0;
+    for (size_t i = 0; i < elements.size(); i++) {
+        dt += elements[i].dt;
+        QVERIFY(dt >= 0);
+    }
+
+    QCOMPARE(dt, tf-t0);
+
+    //test get elements in reverse direction before the start of the sequence
+    t0 = 2.5;
+    tf = -1.5;
+
+    elements = sequence.getValuesInBetweenTimes(t0,tf);
+
+    dt = 0;
+    for (size_t i = 0; i < elements.size(); i++) {
+        dt += elements[i].dt;
+        QVERIFY(dt <= 0);
+    }
+
+    QCOMPARE(dt, tf-t0);
+
+    //test get elements in reverse direction at the center of the sequence.
+    t0 = 4.5;
+    tf = 1.5;
+
+    elements = sequence.getValuesInBetweenTimes(t0,tf);
+
+    dt = 0;
+    for (size_t i = 0; i < elements.size(); i++) {
+        dt += elements[i].dt;
+        QVERIFY(dt <= 0);
+    }
+
+    QCOMPARE(dt, tf-t0);
+
+    //test get elements in reverse direction after the end of the sequence.
+    t0 = 12.5;
+    tf = 8.5;
+
+    elements = sequence.getValuesInBetweenTimes(t0,tf);
+
+    dt = 0;
+    for (size_t i = 0; i < elements.size(); i++) {
+        dt += elements[i].dt;
+        QVERIFY(dt <= 0);
+    }
+
+    QCOMPARE(dt, tf-t0);
 
 }
 

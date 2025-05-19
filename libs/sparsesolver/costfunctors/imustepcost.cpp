@@ -17,8 +17,7 @@ AccelerometerStepCostBase::AccelerometerStepCostBase(Eigen::Vector3d const& spee
                           double delta_t2) :
     _speedDelta(speedDelta),
     _delta_t1(delta_t1),
-    _delta_t2(delta_t2),
-    _delta_tv((delta_t2 + delta_t1)/2)
+    _delta_t2(delta_t2)
 {
 
 }

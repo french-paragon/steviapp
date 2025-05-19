@@ -404,28 +404,41 @@ class AccelerometerStepCost;
 
 /*!
  * \brief The AccelerometerStepCostBase class represent a measurement by an accelerometer between three poses.
+ * It uses the average speed delta between the average speed in the two intervals.
  *
- * The benefits of doing so is that is that we do not need the speed as a learnable parameter, only the pose.
+ * The benefits of doing so is that is that we do not need the speed as a learnable parameter, only the poses.
+ * Also, it does not have numerical accuracy issue when computing the speed from the poses, only when
+ * integrating the speed from the acceleration, which is less of an issue as the acceleration is sampled
+ * with much higher frequency.
  *
- * The speed delta is assumed to be int_n^{n+1} int_n^{t} w(t') dt' f(t) dt
- * Such that v_{n+1} = v{n} - g dt + R_n int_n^{n+1} int_n^{t} w(t') dt' f(t) dt
+ * The average speed in the interval t_i to t_j can be computed from \Zeta_i^j = int_{t_i}^{t_j} int_{t_0}^{t} int_n^{t'} w(t'') dt'' f(t) dt' dt
+ * Such that \mean{v}_i^j = v_i + (tj - ti)g + R_t^w \Zeta_i^j / (t_j - t_i).
  *
- * where v_{n+1} and v{n} a speed expressed in world (local) frame,
- * R_n is the attitude (R from body to world) at time n,
- * g is the gravity,
- * f(t) is the measured specific force and
- * int_n^{t} w(t') dt' is the estimated relative orientation integrated from the gyro measurements.
+ * More crucially we also have \mean{v}_i^j = (p_j - p_i)/(t_j - t_i) (p being the platform position), and
+ * \mean{v}_i^j = \mean{v}_j^i. This mean, from three poses p_0, p_1 and p_2 we can express a constraint:
  *
- * In the case a bias is present, the model becomes int_n^{n+1} int_n^{t} w(t') dt' (f(t) + b) dt.
- * By linearity, the correction can be isolated and simplified as int_n^{n+1} int_n^{t} w(t') dt' dt b.
- * int_n^{n+1} int_n^{t} w(t') dt' dt is refered to as the _biasAvgOrientAndScale.
+ * (p_2 - p_1)/(t_2 - t_1) - (p_1 - p_0)/(t_1 - t_0) = R_{t1}^w (\Zeta_1^2 / (t_2 - t_1) - \Zeta_1^0 / (t_1 - t_0)) + (t2 - 2*t1 + t_0)g
+ *
+ * the three poses under consideration are at t0, t1, t2. We use t1 as reference time, integrating from there twice cancel out the unknown initial speed.
+ *
+ * from which one get the cost:
+ *
+ * C(p_1, p_0, p2, R_{t1}^w) = (p_2 - p_1)/(t_2 - t_1) - (p_1 - p_0)/(t_1 - t_0) - R_{t1}^w (\Zeta_1^2 / (t_2 - t_1) - \Zeta_1^0 / (t_1 - t_0)) - (t2 - t_0)g
+ *
+ * where v_{t} a speed expressed in world (local) frame at time t,
+ * R_{t}^w is the attitude (R from body to world) at time t,
+ * g is the gravity in world frame,
+ * f(t) is the measured specific force at time t, equals R_w^t * (a(t) - g), with g the gravity acceleration and a(t) the acceleration in global frame.
+ * int_{ti}^{tj} w(t') dt' is the estimated relative orientation between the pose at time ti and time tj, integrated from the gyro measurements.
+ *
+ * In the case a bias is present, the model becomes \Zeta_i^j = int_{t_i}^{t_j} int_{t_0}^{t} int_n^{t'} (s_g*w(t'') + b_g) dt'' (s_a*f(t) + b_a) dt' dt
+ * We will assume the bias and scale parameters are small, and linearize. We get:
+ * C(p_0, p_{-1}, p{1}, R_{t0}^w, s_g, b_g, s_a, b_a) = C(p_0, p_{-1}, p{1}, R_{t0}^w) + R_{t0}^w (J_{sg} s_g + J_{bg} b_g + J_{sa} s_a + J_{ba} b_a).
+ * With J_{pi} the jacobian for parameter p_i. This is possible because the contributions of s_g, b_g, s_a, b_a to \Zeta_i^j do not depends on the value of the other parameters.
+ * As such, it is possible to linearize \Zeta_i^j w.r.t s_g, b_g, s_a, b_a
  *
  * Poses are assumed to be the Body2World (or Body2Local if a local frame is used).
  *
- * the three poses under consideration are at t0, t1, t2.
- * The speeds will be computed at time (t0 + t1)/2 = n and (t1 + t2)/2 = n+1
- * The integration has to be done between these times.
- * The getIntegratedIMUDiff function is here to help.
  *
  * In addition the cost is configure with delta_t1 = t1 - t0 and delta_t2 = t2 - t1
  *
@@ -448,15 +461,16 @@ public:
     };
 
     template<typename Tgyro, typename Tacc, typename TimeT>
-    static inline IntegratedAccSegment preIntegrateAccSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-                                                        IndexedTimeSequence<Tacc, TimeT> const& AccData,
-                                                        TimeT t0,
-                                                        TimeT t1,
-                                                        TimeT t2) {
+    static inline IntegratedAccSegment preIntegrateAccSegmentSingleHalf(
+        IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+        IndexedTimeSequence<Tacc, TimeT> const& AccData,
+        TimeT t0,
+        TimeT t1) {
 
+        using DifferentialAcc = typename IndexedTimeSequence<Tacc, TimeT>::Differential;
+        using DifferentialGyro = typename IndexedTimeSequence<Tgyro, TimeT>::Differential;
 
-        double delta_t1 = t1 - t0;
-        double delta_t2 = t2 - t1;
+        double delta_t = t1 - t0;
 
         IntegratedAccSegment ret;
         ret.speedDelta = Eigen::Vector3d::Zero();
@@ -464,87 +478,159 @@ public:
         ret.accGainJacobian = Eigen::Matrix3d::Zero();
         ret.gyroBiasJacobian = Eigen::Matrix3d::Zero();
         ret.gyroGainJacobian = Eigen::Matrix3d::Zero();
-        ret.dt1 = delta_t1;
-        ret.dt2 = delta_t2;
+        ret.dt1 = delta_t;
+        ret.dt2 = 0;
 
-        double ti = (t1 + t0)/2;
-        double tf = (t2 + t1)/2;
+        std::vector<DifferentialAcc> imuAccData = AccData.getValuesInBetweenTimes(t0, t1);
+        std::vector<DifferentialGyro> imuGyroData = GyroData.getValuesInBetweenTimes(t0, t1);
 
-        auto imuAccData = AccData.getValuesInBetweenTimes(ti, tf);
-        auto imuGyroData = GyroData.getValuesInBetweenTimes(ti, tf);
+        double biasJacobiansScale = 1;
 
+        if (t1 < t0) { //change the dts to be positive and put the -1 factor on the values.
+            //this enable the rest of the function to work transparently.
+
+            for (DifferentialAcc & differential : imuAccData) {
+                differential.dt *= -1;
+                differential.val *= -1;
+            }
+
+            for (DifferentialGyro & differential : imuGyroData) {
+                differential.dt *= -1;
+                differential.val *= -1;
+            }
+
+            biasJacobiansScale = -1; //scale are scaled by -1 above, but we need to do the same to the bias.
+        }
+
+        Eigen::Vector3d current = Eigen::Vector3d::Zero();
         Eigen::Matrix3d Rcurrent2initial = Eigen::Matrix3d::Identity();
 
         Eigen::Matrix3d gyroSO3BiasJacobian = Eigen::Matrix3d::Zero();
         Eigen::Matrix3d gyroSO3GainJacobian = Eigen::Matrix3d::Zero();
 
-        double t_acc = 0;
-        double t_gyro = 0;
+        Eigen::Matrix3d gyroBiasJacobian = Eigen::Matrix3d::Zero();
+        Eigen::Matrix3d gyroGainJacobian = Eigen::Matrix3d::Zero();
 
-        int idx_acc = 0;
+        Eigen::Matrix3d accBiasJacobian = Eigen::Matrix3d::Zero();
+        Eigen::Matrix3d accGainJacobian = Eigen::Matrix3d::Zero();
 
-        for (int j = 0; j < imuGyroData.size(); j++) {
+        size_t idxAcc = 0;
+        size_t idxGyro = 0;
+        double ddt_acc = 0;
+        double ddt_gyro = 0;
 
-            double dt = imuGyroData[j].dt;
+        //integration loop
 
-            while (t_acc < t_gyro + dt/2) {
-                double dt_acc = imuAccData[idx_acc].dt;
+        while(idxAcc < imuAccData.size() and idxGyro < imuGyroData.size()) {
 
-                Eigen::Vector3d acceleration_local(imuAccData[idx_acc].val[0], imuAccData[idx_acc].val[1], imuAccData[idx_acc].val[2]);
+            //compute the time increment
+            double dt_acc = imuAccData[idxAcc].dt - ddt_acc;
+            double dt_gyro = imuGyroData[idxGyro].dt - ddt_gyro;
 
-                ret.speedDelta += Rcurrent2initial*acceleration_local*dt_acc;
-                ret.accBiasJacobian += Rcurrent2initial*acceleration_local.asDiagonal()*dt_acc;
+            double dt = std::min(dt_acc, dt_gyro);
 
-                Eigen::Matrix3d rodriguezJac = Eigen::Matrix3d::Zero();
+            //increments
+            Eigen::Vector3d dr = imuGyroData[idxGyro].val;
+            dr *= dt;
 
-                rodriguezJac.block<3,1>(0,0) =
-                        StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+            Eigen::Vector3d acceleration_local = imuAccData[idxAcc].val;
+            Eigen::Vector3d df = imuAccData[idxAcc].val;
+            df *= dt;
+
+            Eigen::Matrix3d diagF = Eigen::Matrix3d::Zero();
+            for (int i = 0; i < 3; i++) {
+                diagF(i,i) = df[i];
+            }
+
+            //compute the current rotation from the refence and associated jacobians
+            Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
+
+            Eigen::Matrix3d rodriguezJac = Eigen::Matrix3d::Zero();
+
+            rodriguezJac.block<3,1>(0,0) =
+                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
                                                                     acceleration_local,
                                                                     StereoVision::Geometry::Axis::X);
-                rodriguezJac.block<3,1>(0,1) =
-                        StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+            rodriguezJac.block<3,1>(0,1) =
+                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
                                                                     acceleration_local,
                                                                     StereoVision::Geometry::Axis::Y);
-                rodriguezJac.block<3,1>(0,2) =
-                        StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+            rodriguezJac.block<3,1>(0,2) =
+                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
                                                                     acceleration_local,
                                                                     StereoVision::Geometry::Axis::Z);
 
-                ret.gyroBiasJacobian += rodriguezJac*gyroSO3BiasJacobian*dt_acc;
-                ret.gyroGainJacobian += rodriguezJac*gyroSO3GainJacobian*dt_acc;
-
-                t_acc += dt_acc;
-                idx_acc++;
-            }
-
-            Eigen::Vector3d dr(imuGyroData[j].val[0], imuGyroData[j].val[1], imuGyroData[j].val[2]);
-            dr *= dt;
-
-            Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
+            gyroBiasJacobian += rodriguezJac*gyroSO3BiasJacobian*dt;
+            gyroGainJacobian += rodriguezJac*gyroSO3GainJacobian*dt;
 
             Eigen::Matrix3d JacobianSO3 = StereoVision::Geometry::diffRodriguezLieAlgebra(dr);
 
             Eigen::Matrix3d tmp = Rcurrent2initial.transpose()*JacobianSO3;
 
-            Eigen::Matrix3d diag = Eigen::Matrix3d::Zero();
-            diag(0,0) = dr[0];
-            diag(1,1) = dr[1];
-            diag(2,2) = dr[2];
+            Eigen::Matrix3d diagR = Eigen::Matrix3d::Zero();
+            diagR(0,0) = dr[0];
+            diagR(1,1) = dr[1];
+            diagR(2,2) = dr[2];
 
             gyroSO3BiasJacobian += tmp*dt;
 
-            gyroSO3GainJacobian += tmp*diag;
+            gyroSO3GainJacobian += tmp*diagR;
 
             Rcurrent2initial = dR*Rcurrent2initial;
-            ret.accBiasJacobian += Rcurrent2initial*dt;
 
-            //re-constaint as R mat for numerical stability
-            Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(Rcurrent2initial);
-            Rcurrent2initial = StereoVision::Geometry::rodriguezFormula(logR);
+            //increment the accelerometers jacobians
+            accBiasJacobian += Rcurrent2initial*dt;
+            accGainJacobian += Rcurrent2initial*diagF;
 
-            t_gyro += dt;
+            //increment current inner integrant value
+            current += Rcurrent2initial*df;
 
+            //outer integration loop
+            ret.speedDelta += current*dt;
+
+            ret.accBiasJacobian += biasJacobiansScale*accBiasJacobian*dt;
+            ret.accGainJacobian += accGainJacobian*dt;
+            ret.gyroBiasJacobian += biasJacobiansScale*gyroBiasJacobian*dt;
+            ret.gyroGainJacobian += gyroGainJacobian*dt;
+
+            //update variables
+            ddt_acc += dt;
+            ddt_gyro += dt;
+
+            if (ddt_acc >= imuAccData[idxAcc].dt) {
+                idxAcc++;
+                ddt_acc = 0;
+            }
+
+            if (ddt_gyro >= imuGyroData[idxGyro].dt) {
+                idxGyro++;
+                ddt_gyro = 0;
+            }
         }
+
+        return ret;
+
+    }
+
+    template<typename Tgyro, typename Tacc, typename TimeT>
+    static inline IntegratedAccSegment preIntegrateAccSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                        IndexedTimeSequence<Tacc, TimeT> const& AccData,
+                                                        TimeT t0,
+                                                        TimeT t1,
+                                                        TimeT t2) {
+
+        //integrate with t1 as reference.
+        IntegratedAccSegment segment1 = preIntegrateAccSegmentSingleHalf(GyroData,AccData,t1,t0);
+        IntegratedAccSegment segment2 = preIntegrateAccSegmentSingleHalf(GyroData,AccData,t1,t2);
+
+        IntegratedAccSegment ret;
+        ret.speedDelta = segment2.speedDelta/segment2.dt1 - segment1.speedDelta/segment1.dt1;
+        ret.accBiasJacobian = segment2.accBiasJacobian/segment2.dt1 - segment1.accBiasJacobian/segment1.dt1;
+        ret.accGainJacobian = segment2.accGainJacobian/segment2.dt1 - segment1.accGainJacobian/segment1.dt1;
+        ret.gyroBiasJacobian = segment2.gyroBiasJacobian/segment2.dt1 - segment1.gyroBiasJacobian/segment1.dt1;
+        ret.gyroGainJacobian = segment2.gyroGainJacobian/segment2.dt1 - segment1.gyroGainJacobian/segment1.dt1;
+        ret.dt1 = t1-t0;
+        ret.dt2 = t2-t1;
 
         return ret;
 
@@ -564,8 +650,7 @@ public:
 
 
     template <bool WGBias, bool WGScale, bool WABias, bool WAScale, typename T>
-    bool computeResidualsGeneric(const T* const r0,
-                                 const T* const t0,
+    bool computeResidualsGeneric(const T* const t0,
                                  const T* const r1,
                                  const T* const t1,
                                  const T* const t2,
@@ -584,7 +669,6 @@ public:
         using M3T = Eigen::Matrix<T,3,3>;
         using V3T = Eigen::Matrix<T,3,1>;
 
-        V3T vr0(r0[0], r0[1], r0[2]);
         V3T vr1(r1[0], r1[1], r1[2]);
 
         V3T vt0(t0[0], t0[1], t0[2]);
@@ -596,11 +680,7 @@ public:
         V3T vv0 = (vt1 - vt0)/T(_delta_t1); //avg speed in first interval
         V3T vv1 = (vt2 - vt1)/T(_delta_t2); //avg speed in second interval
 
-        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0);
-        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1);
-        M3T deltaR = Rr1*Rr0.transpose();
-        V3T vrv0 = StereoVision::Geometry::inverseRodriguezFormula<T>(deltaR)*T(0.5);
-        M3T Rrv0 = StereoVision::Geometry::rodriguezFormula<T>(vrv0)*Rr0;
+        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //attitude at reference point
 
         //platform2world orientation at (t0 + t1)/2
 
@@ -629,11 +709,11 @@ public:
             vSpeedDelta += accGainJacobian.cast<T>()*AccGain;
         }
 
-        V3T gCorr = vg*T(_delta_tv);
-        V3T alignedSpeedDelta = Rrv0*vSpeedDelta;
+        V3T gCorr = vg*T(_delta_t2 + _delta_t1);
+        V3T alignedSpeedDelta = Rr1*vSpeedDelta;
         V3T corr = gCorr + alignedSpeedDelta;
-        V3T pred = vv0 + corr;
-        V3T err = vv1 - pred;
+        V3T deltaV = vv1 - vv0;
+        V3T err = deltaV - corr;
 
         residual[0] = err[0];
         residual[1] = err[1];
@@ -651,10 +731,9 @@ public:
 
 protected:
 
-    Eigen::Vector3d _speedDelta; // int_n^{n+1} int_n^{t} w(t') dt' f(t) dt
+    Eigen::Vector3d _speedDelta;
     double _delta_t1;
     double _delta_t2;
-    double _delta_tv;
 
 };
 
@@ -672,15 +751,14 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<false, false, false, false, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  nullptr, nullptr, nullptr, nullptr,
                  Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity());
     }
@@ -704,8 +782,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -713,7 +790,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<false, false, false, true, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  nullptr, nullptr, ascale, nullptr,
                  Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), _aGainJacobian);
     }
@@ -739,8 +816,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -748,7 +824,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<false, false, true, false, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  nullptr, nullptr, nullptr, abias,
                  Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), _aBiasJacobian, Eigen::Matrix3d::Identity());
     }
@@ -776,8 +852,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -786,7 +861,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<false, false, true, true, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  nullptr, nullptr, ascale, abias,
                  Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), _aBiasJacobian, _aGainJacobian);
     }
@@ -813,8 +888,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -822,7 +896,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<false, true, false, false, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  gscale, nullptr, nullptr, nullptr,
                  Eigen::Matrix3d::Identity(), _gGainJacobian, Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity());
     }
@@ -850,8 +924,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -860,7 +933,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<false, true, true, false, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  gscale, nullptr, nullptr, abias,
                  Eigen::Matrix3d::Identity(), _gGainJacobian, _aBiasJacobian, Eigen::Matrix3d::Identity());
     }
@@ -889,8 +962,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -899,7 +971,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<false, true, false, true, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  gscale, nullptr, ascale, nullptr,
                  Eigen::Matrix3d::Identity(), _gGainJacobian, Eigen::Matrix3d::Identity(), _aGainJacobian);
     }
@@ -932,8 +1004,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -943,7 +1014,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<false, true, true, true, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  gscale, nullptr, ascale, abias,
                  Eigen::Matrix3d::Identity(), _gGainJacobian, _aBiasJacobian, _aGainJacobian);
     }
@@ -972,8 +1043,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -981,7 +1051,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<true, false, false, false, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  nullptr, gbias, nullptr, nullptr,
                  _gBiasJacobian, Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity());
     }
@@ -1009,8 +1079,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -1019,7 +1088,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<true, false, true, false, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  nullptr, gbias, nullptr, abias,
                  _gBiasJacobian, Eigen::Matrix3d::Identity(), _aBiasJacobian, Eigen::Matrix3d::Identity());
     }
@@ -1048,8 +1117,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -1058,7 +1126,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<true, true, true, true, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  nullptr, gbias, ascale, nullptr,
                  _gBiasJacobian, Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity(), _aGainJacobian);
     }
@@ -1091,8 +1159,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -1102,7 +1169,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<true, false, true, true, T>
-                (r0, t0, r1, t1, t2, g, residual, nullptr, gbias, ascale, abias,
+                (t0, r1, t1, t2, g, residual, nullptr, gbias, ascale, abias,
                  _gBiasJacobian, Eigen::Matrix3d::Identity(), _aBiasJacobian, _aGainJacobian);
     }
 
@@ -1132,8 +1199,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -1142,7 +1208,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<true, true, false, false, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  gscale, gbias, nullptr, nullptr,
                  _gBiasJacobian, _gGainJacobian, Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity());
     }
@@ -1175,8 +1241,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -1186,7 +1251,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<true, true, true, false, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  gscale, gbias, nullptr, abias,
                  _gBiasJacobian, _gGainJacobian, _aBiasJacobian, Eigen::Matrix3d::Identity());
     }
@@ -1220,8 +1285,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -1231,7 +1295,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<true, true, false, true, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  gscale, gbias, ascale, nullptr,
                  _gBiasJacobian, _gGainJacobian, Eigen::Matrix3d::Identity(), _aGainJacobian);
     }
@@ -1268,8 +1332,7 @@ public:
     }
 
     template <typename T>
-    bool operator()(const T* const r0,
-                    const T* const t0,
+    bool operator()(const T* const t0,
                     const T* const r1,
                     const T* const t1,
                     const T* const t2,
@@ -1280,7 +1343,7 @@ public:
                     const T* const g,
                     T* residual) const {
         return AccelerometerStepCostBase::computeResidualsGeneric<true, true, true, true, T>
-                (r0, t0, r1, t1, t2, g, residual,
+                (t0, r1, t1, t2, g, residual,
                  gscale, gbias, ascale, abias,
                  _gBiasJacobian, _gGainJacobian, _aBiasJacobian, _aGainJacobian);
     }

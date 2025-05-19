@@ -148,7 +148,7 @@ protected:
 
         using Traits = AccelerometerStepCostTraits<flags>;
 
-        int n = 6; //no bias or scale factors
+        int n = 5; //no bias or scale factors
 
         if (Traits::WGBias) {
             n += 1;
@@ -195,14 +195,12 @@ protected:
         constexpr int nParams = nAccCostParams<flags>();
 
         std::array<double*,nParams> params =
-            {trajNode->nodes[i-2].rAxis.data(),
-             trajNode->nodes[i-2].t.data(),
+            {trajNode->nodes[i-2].t.data(),
              trajNode->nodes[i-1].rAxis.data(),
              trajNode->nodes[i-1].t.data(),
              trajNode->nodes[i].t.data()};
 
         int paramId = 0;
-        params[paramId] = trajNode->nodes[i-2].rAxis.data(); paramId++;
         params[paramId] = trajNode->nodes[i-2].t.data(); paramId++;
         params[paramId] = trajNode->nodes[i-1].rAxis.data(); paramId++;
         params[paramId] = trajNode->nodes[i-1].t.data(); paramId++;
@@ -261,16 +259,16 @@ protected:
 
     template <template<class, int...> class CostT, class AccCost, int flags>
     using AccTemplateParametrizedCost =
-        std::conditional_t<nAccCostParams<flags>() == 6,
-            CostT<AccCost, 3,3,3,3,3,3,3>,
-            std::conditional_t<nAccCostParams<flags>() == 7,
-                CostT<AccCost, 3,3,3,3,3,3,3,3>,
-                std::conditional_t<nAccCostParams<flags>() == 8,
-                    CostT<AccCost, 3,3,3,3,3,3,3,3,3>,
-                    std::conditional_t<nAccCostParams<flags>() == 9,
-                        CostT<AccCost, 3,3,3,3,3,3,3,3,3,3>,
-                        std::conditional_t<nAccCostParams<flags>() == 10,
-                            CostT<AccCost, 3,3,3,3,3,3,3,3,3,3,3>,
+        std::conditional_t<nAccCostParams<flags>() == 5,
+            CostT<AccCost, 3,3,3,3,3,3>,
+            std::conditional_t<nAccCostParams<flags>() == 6,
+                CostT<AccCost, 3,3,3,3,3,3,3>,
+                std::conditional_t<nAccCostParams<flags>() == 7,
+                    CostT<AccCost, 3,3,3,3,3,3,3,3>,
+                    std::conditional_t<nAccCostParams<flags>() == 8,
+                        CostT<AccCost, 3,3,3,3,3,3,3,3,3>,
+                        std::conditional_t<nAccCostParams<flags>() == 9,
+                            CostT<AccCost, 3,3,3,3,3,3,3,3,3,3>,
                             void
                         >
                     >
@@ -280,16 +278,16 @@ protected:
 
     template <template<int...> class CostT, int flags>
     using AccParametrizedCost =
-        std::conditional_t<nAccCostParams<flags>() == 6,
-            CostT<3,3,3,3,3,3,3>,
-            std::conditional_t<nAccCostParams<flags>() == 7,
-                CostT<3,3,3,3,3,3,3,3>,
-                std::conditional_t<nAccCostParams<flags>() == 8,
-                    CostT<3,3,3,3,3,3,3,3,3>,
-                    std::conditional_t<nAccCostParams<flags>() == 9,
-                        CostT<3,3,3,3,3,3,3,3,3,3>,
-                        std::conditional_t<nAccCostParams<flags>() == 10,
-                            CostT<3,3,3,3,3,3,3,3,3,3,3>,
+        std::conditional_t<nAccCostParams<flags>() == 5,
+            CostT<3,3,3,3,3,3>,
+            std::conditional_t<nAccCostParams<flags>() == 6,
+                CostT<3,3,3,3,3,3,3>,
+                std::conditional_t<nAccCostParams<flags>() == 7,
+                    CostT<3,3,3,3,3,3,3,3>,
+                    std::conditional_t<nAccCostParams<flags>() == 8,
+                        CostT<3,3,3,3,3,3,3,3,3>,
+                        std::conditional_t<nAccCostParams<flags>() == 9,
+                            CostT<3,3,3,3,3,3,3,3,3,3>,
                             void
                         >
                     >

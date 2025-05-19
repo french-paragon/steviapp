@@ -172,8 +172,8 @@ void runAccelerometerExperiment(Eigen::Vector3d acc0,
             step_noisy[i] += pureNoise;
             step_noisy_no_bias[i] += pureNoise;
 
-            step_gyro_noisy[i] *= acc_gains[i];
-            step_gyro_noisy[i] += acc_bias[i];
+            step_gyro_noisy[i] *= gyro_gains[i];
+            step_gyro_noisy[i] += gyro_bias[i];
 
             pureNoise = gyroVariability[i]*distribution(randomEngine);
             step_gyro_noisy[i] += pureNoise;
@@ -212,18 +212,18 @@ void runAccelerometerExperiment(Eigen::Vector3d acc0,
     double t1 = t2/2;
 
     StereoVisionApp::AccelerometerStepCostBase::IntegratedAccSegment integrated =
-            StereoVisionApp::AccelerometerStepCostBase::preIntegrateAccSegment(timeline,
-                                                                               timeline_gyro,
+            StereoVisionApp::AccelerometerStepCostBase::preIntegrateAccSegment(timeline_gyro,
+                                                                               timeline,
                                                                                t0, t1, t2);
 
     StereoVisionApp::AccelerometerStepCostBase::IntegratedAccSegment integratedNoisy =
-            StereoVisionApp::AccelerometerStepCostBase::preIntegrateAccSegment(timelineNoisy,
-                                                                               timeline_gyroNoisy,
+            StereoVisionApp::AccelerometerStepCostBase::preIntegrateAccSegment(timeline_gyroNoisy,
+                                                                               timelineNoisy,
                                                                                t0, t1, t2);
 
     StereoVisionApp::AccelerometerStepCostBase::IntegratedAccSegment integratedNoisyNoBias =
-            StereoVisionApp::AccelerometerStepCostBase::preIntegrateAccSegment(timelineNoisyNoBias,
-                                                                               timeline_gyroNoisyNoBias,
+            StereoVisionApp::AccelerometerStepCostBase::preIntegrateAccSegment(timeline_gyroNoisyNoBias,
+                                                                               timelineNoisyNoBias,
                                                                                t0, t1, t2);
 
     Eigen::Vector3d delta = integratedNoisy.accGainJacobian * (acc_inv_gains-Eigen::Vector3d::Ones())
