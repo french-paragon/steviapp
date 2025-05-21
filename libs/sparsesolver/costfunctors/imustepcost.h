@@ -412,18 +412,18 @@ class AccelerometerStepCost;
  * with much higher frequency.
  *
  * The average speed in the interval t_i to t_j can be computed from \Zeta_i^j = int_{t_i}^{t_j} int_{t_0}^{t} int_n^{t'} w(t'') dt'' f(t) dt' dt
- * Such that \mean{v}_i^j = v_i + (tj - ti)g + R_t^w \Zeta_i^j / (t_j - t_i).
+ * Such that \mean{v}_i^j = v_i + (tj - ti)/2 g + R_t^w \Zeta_i^j / (t_j - t_i).
  *
  * More crucially we also have \mean{v}_i^j = (p_j - p_i)/(t_j - t_i) (p being the platform position), and
  * \mean{v}_i^j = \mean{v}_j^i. This mean, from three poses p_0, p_1 and p_2 we can express a constraint:
  *
- * (p_2 - p_1)/(t_2 - t_1) - (p_1 - p_0)/(t_1 - t_0) = R_{t1}^w (\Zeta_1^2 / (t_2 - t_1) - \Zeta_1^0 / (t_1 - t_0)) + (t2 - 2*t1 + t_0)g
+ * (p_2 - p_1)/(t_2 - t_1) - (p_1 - p_0)/(t_1 - t_0) = R_{t1}^w (\Zeta_1^2 / (t_2 - t_1) - \Zeta_1^0 / (t_1 - t_0)) + (t2 - t_0)/2 g
  *
  * the three poses under consideration are at t0, t1, t2. We use t1 as reference time, integrating from there twice cancel out the unknown initial speed.
  *
  * from which one get the cost:
  *
- * C(p_1, p_0, p2, R_{t1}^w) = (p_2 - p_1)/(t_2 - t_1) - (p_1 - p_0)/(t_1 - t_0) - R_{t1}^w (\Zeta_1^2 / (t_2 - t_1) - \Zeta_1^0 / (t_1 - t_0)) - (t2 - t_0)g
+ * C(p_1, p_0, p2, R_{t1}^w) = (p_2 - p_1)/(t_2 - t_1) - (p_1 - p_0)/(t_1 - t_0) - R_{t1}^w (\Zeta_1^2 / (t_2 - t_1) - \Zeta_1^0 / (t_1 - t_0)) - (t2 - t_0)/2 g
  *
  * where v_{t} a speed expressed in world (local) frame at time t,
  * R_{t}^w is the attitude (R from body to world) at time t,
@@ -500,6 +500,8 @@ public:
             }
 
             biasJacobiansScale = -1; //scale are scaled by -1 above, but we need to do the same to the bias.
+
+            ret.dt1 = -delta_t; //time should still be counted positive for averaging purposes, even if we start integrating from the end of the time interval.
         }
 
         Eigen::Vector3d current = Eigen::Vector3d::Zero();
@@ -583,10 +585,11 @@ public:
             accGainJacobian += Rcurrent2initial*diagF;
 
             //increment current inner integrant value
+            Eigen::Vector3d currentOld = current;
             current += Rcurrent2initial*df;
 
             //outer integration loop
-            ret.speedDelta += current*dt;
+            ret.speedDelta += (currentOld + current)/2 * dt; //use trapezoidal rule for the outer integration loop
 
             ret.accBiasJacobian += biasJacobiansScale*accBiasJacobian*dt;
             ret.accGainJacobian += accGainJacobian*dt;
@@ -709,7 +712,7 @@ public:
             vSpeedDelta += accGainJacobian.cast<T>()*AccGain;
         }
 
-        V3T gCorr = vg*T(_delta_t2 + _delta_t1);
+        V3T gCorr = vg*T(_delta_t2 + _delta_t1)/T(2);
         V3T alignedSpeedDelta = Rr1*vSpeedDelta;
         V3T corr = gCorr + alignedSpeedDelta;
         V3T deltaV = vv1 - vv0;

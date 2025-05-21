@@ -223,7 +223,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             problem.AddParameterBlock(_accelerometersScales[accId].data(), _accelerometersScales[accId].size());
         }
 
-        int gyroId = traj->accelerometerId();
+        int gyroId = traj->gyroId();
 
         if (!_gyroParametersIndex.contains(gyroId)) {
             continue;
@@ -314,7 +314,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
         }
 
         int nSteps = std::ceil(duration/integrationTime)+1;
-        double stepTime = duration/nSteps;
+        double stepTime = duration/(nSteps-1);
 
         int nTrajLoggers = std::min(500,nSteps);
         int trajLoggersSteps = nSteps/nTrajLoggers;
@@ -466,10 +466,10 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
                         if ((i+1)%trajLoggersSteps == 0) {
 
-                            QString posLoggerName = QString("Trajectory \"%1\" Position index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                            QString posLoggerName = QString("Trajectory \"%1\" Position index %2 (t = %3)").arg(traj->objectName()).arg(i, nAlignChar).arg(trajNode->nodes[i].time);
                             solver->addLogger(posLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].t.data()));
 
-                            QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                            QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2 (t = %3)").arg(traj->objectName()).arg(i, nAlignChar).arg(trajNode->nodes[i].time);
                             solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
 
                             QString loggerName = QString("GPS trajectory \"%1\" time %2").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
@@ -500,13 +500,13 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
                     if ((i+1)%trajLoggersSteps == 0) {
 
-                        QString posLoggerName = QString("Trajectory \"%1\" Position index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                        QString posLoggerName = QString("Trajectory \"%1\" Position index %2 (t = %3)").arg(traj->objectName()).arg(i, nAlignChar).arg(trajNode->nodes[i].time);
                         solver->addLogger(posLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].t.data()));
 
-                        QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2").arg(traj->objectName()).arg(i, nAlignChar);
+                        QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2 (t = %3)").arg(traj->objectName()).arg(i, nAlignChar).arg(trajNode->nodes[i].time);
                         solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
 
-                        QString loggerName = QString("GPS trajectory \"%1\" time %2 (interpolated)").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
+                        QString loggerName = QString("GPS trajectory \"%1\" time %2 (interpolated) (t = %3)").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
                         solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(interpolatedError, params, true));
                     }
 
