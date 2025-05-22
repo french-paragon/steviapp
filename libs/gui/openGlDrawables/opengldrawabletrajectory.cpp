@@ -2,6 +2,8 @@
 
 #include "datablocks/trajectory.h"
 
+#include "sparsealignementviewer.h"
+
 #include <QOpenGLContext>
 #include <QOpenGLFunctions>
 #include <QOpenGLExtraFunctions>
@@ -237,11 +239,21 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
 
     int i = 0;
     int j = 0;
-    for (int idx = 0; idx < size; idx++) {
+
+    float minX = std::numeric_limits<float>::infinity();
+    float maxX = -std::numeric_limits<float>::infinity();
+
+    float minY = std::numeric_limits<float>::infinity();
+    float maxY = -std::numeric_limits<float>::infinity();
+
+    float minZ = std::numeric_limits<float>::infinity();
+    float maxZ = -std::numeric_limits<float>::infinity();
+
+    for (size_t idx = 0; idx < size; idx++) {
 
         double percent = double(idx)/std::max<int>(1,size - 1);
-        double prog = trajectory.size()*percent;
-        int trajIdx = std::round(prog);
+        double prog = (trajectory.size()-1)*percent;
+        size_t trajIdx = std::round(prog);
 
         if (trajIdx < 0) {
             trajIdx = 0;
@@ -252,6 +264,13 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
         }
 
         StereoVision::Geometry::AffineTransform<float> const& pose = trajectory[trajIdx];
+
+        minX = std::min(minX, pose.t[0]);
+        maxX = std::max(maxX, pose.t[0]);
+        minY = std::min(minY, pose.t[1]);
+        maxY = std::max(maxY, pose.t[1]);
+        minZ = std::min(minZ, pose.t[2]);
+        maxZ = std::max(maxZ, pose.t[2]);
 
         _traj_pos[i++] = pose.t[0];
         _traj_pos[i++] = pose.t[1];
@@ -276,6 +295,23 @@ void OpenGlDrawableTrajectory::setTrajectory(std::vector<StereoVision::Geometry:
                     0,      0,      0,      1);
 
         _traj_orient_steps.push_back(matr);
+    }
+
+    float rangeX = maxX - minX;
+    float rangeY = maxY - minY;
+    float rangeZ = maxZ - minZ;
+
+    float maxRange = std::max(std::max(std::max(rangeX, rangeY), rangeZ),1.f);
+    if (!std::isfinite(maxRange or maxRange < 1)) {
+        maxRange = 1;
+    }
+
+    StereoVisionApp::SparseAlignementViewer* parentWidget =
+        qobject_cast<StereoVisionApp::SparseAlignementViewer*>(parent());
+
+    if (parentWidget != nullptr) {
+        parentWidget->setSceneScale(20/maxRange);
+        parentWidget->setCamScale(maxRange/200);
     }
 
     _has_data = true;
@@ -316,11 +352,21 @@ void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> 
 
     int i = 0;
     int j = 0;
-    for (int idx = 0; idx < size; idx++) {
+
+    float minX = std::numeric_limits<float>::infinity();
+    float maxX = -std::numeric_limits<float>::infinity();
+
+    float minY = std::numeric_limits<float>::infinity();
+    float maxY = -std::numeric_limits<float>::infinity();
+
+    float minZ = std::numeric_limits<float>::infinity();
+    float maxZ = -std::numeric_limits<float>::infinity();
+
+    for (size_t idx = 0; idx < size; idx++) {
 
         double percent = (size - 1)/double(idx);
         double prog = trajectory.size()*percent;
-        int trajIdx = std::round(prog);
+        size_t trajIdx = std::round(prog);
 
         if (trajIdx < 0) {
             trajIdx = 0;
@@ -332,12 +378,36 @@ void OpenGlDrawableTrajectory::setTrajectory(const std::vector<Eigen::Vector3f> 
 
         Eigen::Vector3f const& pose = trajectory[trajIdx];
 
+        minX = std::min(minX, pose[0]);
+        maxX = std::max(maxX, pose[0]);
+        minY = std::min(minY, pose[1]);
+        maxY = std::max(maxY, pose[1]);
+        minZ = std::min(minZ, pose[2]);
+        maxZ = std::max(maxZ, pose[2]);
+
         _traj_pos[i++] = pose[0];
         _traj_pos[i++] = pose[1];
         _traj_pos[i++] = pose[2];
 
         _traj_idxs[j] = j;
         j++;
+    }
+
+    float rangeX = maxX - minX;
+    float rangeY = maxY - minY;
+    float rangeZ = maxZ - minZ;
+
+    float maxRange = std::max(std::max(std::max(rangeX, rangeY), rangeZ),1.f);
+    if (!std::isfinite(maxRange or maxRange < 1)) {
+        maxRange = 1;
+    }
+
+    StereoVisionApp::SparseAlignementViewer* parentWidget =
+        qobject_cast<StereoVisionApp::SparseAlignementViewer*>(parent());
+
+    if (parentWidget != nullptr) {
+        parentWidget->setSceneScale(20/maxRange);
+        parentWidget->setCamScale(maxRange/200);
     }
 
     _has_data = true;
