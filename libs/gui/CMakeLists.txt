@@ -136,6 +136,8 @@ if (ADD_DEVEL_TOOLS)
         cornermatchingtesteditor.h)
 endif()
 
+find_package(OpenGL REQUIRED)
+
 add_library(
     ${GUI_LIB}
     ${LIB_SRC}
@@ -147,8 +149,8 @@ add_library(
 )
 
 
-target_link_libraries(${GUI_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${QCUSTOMPLOT_LIB} StereoVision::qImageWidget)
+target_link_libraries(${GUI_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(${GUI_LIB} PRIVATE ${DATA_LIB} ${OPENGL_gl_LIBRARY} ${PROCESSING_LIB} ${SOLVING_LIB} ${QCUSTOMPLOT_LIB} StereoVision::qImageWidget)
 
 install_stereovisionapp_sdklib(${GUI_LIB})
 
