@@ -102,6 +102,22 @@ public:
 
 protected:
 
+
+    StatusOptionalReturn<void> addGpsObs(
+        ModularSBASolver::TrajectoryNode* trajNode,
+        Trajectory* traj,
+        Trajectory::TimeCartesianSequence const& gpsSeq,
+        int i,
+        double t1,
+        double t2,
+        double gpsObs_t,
+        double gpsAccuracy,
+        int currentGPSNode,
+        StereoVision::Geometry::AffineTransform<double> const& world2local,
+        ceres::Problem & problem,
+        ModularSBASolver* solver,
+        bool addLogger);
+
     StatusOptionalReturn<void> addGyroObs(
         ModularSBASolver::TrajectoryNode* trajNode,
         Trajectory* traj,

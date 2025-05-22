@@ -368,10 +368,6 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 problem.SetParameterBlockConstant(trajNode->nodes[i].rAxis.data());
             }
 
-            if (i == 0) { //need at least two nodes for first order cost functions
-                continue;
-            }
-
             double orientationAccuracy = _defaultOrientAccuracy;
 
             //orientation priors
@@ -411,6 +407,10 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 gpsAccuracy = _defaultGpsAccuracy;
             }
 
+            if (i == 0) { //need at least two nodes for first order cost functions
+                continue;
+            }
+
             //gps observations
             if (i > 0 and gpsAccuracy > 1e-5) {
 
@@ -426,90 +426,23 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
                 double gpsObs_t = optGps.value()[currentGPSNode].time;
 
-                if (gpsObs_t > t2) { // no GPS observation between  trajectory nodes
-                    continue;
-                }
+                if (gpsObs_t <= t2) { // GPS observation between  trajectory nodes
+                    bool addLogger = ((i+1)%trajLoggersSteps == 0);
 
-                double w1 = (t2 - gpsObs_t)/(t2-t1);
-                double w2 = (gpsObs_t-t1)/(t2-t1);
-
-                Eigen::Matrix3d infos = Eigen::Matrix3d::Zero();
-                Eigen::Vector3d vec;
-
-                //position in local optimization frame
-                vec = world2local*optGps.value()[currentGPSNode].val;
-
-                for (int i = 0; i < 3; i++) {
-                    infos(i,i) = 1/gpsAccuracy;
-                }
-
-                //add gps based trajectory priors
-                if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
-
-                    FixedSizeNormalPrior<3,3>* gpsPrior = new FixedSizeNormalPrior<3,3>(infos, vec);
-                    FixedSizeNormalPrior<3,3>* gpsPriorError = new FixedSizeNormalPrior<3,3>(Eigen::Matrix3d::Identity(), vec);
-
-                    if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
-
-                        ModularSBASolver::AutoErrorBlockLogger<1,3>::ParamsType params;
-
-                        if (std::abs(w1-1) < 1e-3) {
-                            params = {trajNode->nodes[i-1].t.data()};
-                        } else if (std::abs(w2-1) < 1e-3) {
-                            params = {trajNode->nodes[i].t.data()};
-                        }
-
-                        problem.AddResidualBlock(gpsPrior, nullptr,
-                                                 params.data(),
-                                                 params.size());
-
-
-                        if ((i+1)%trajLoggersSteps == 0) {
-
-                            QString posLoggerName = QString("Trajectory \"%1\" Position index %2 (t = %3)").arg(traj->objectName()).arg(i, nAlignChar).arg(trajNode->nodes[i].time);
-                            solver->addLogger(posLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].t.data()));
-
-                            QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2 (t = %3)").arg(traj->objectName()).arg(i, nAlignChar).arg(trajNode->nodes[i].time);
-                            solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
-
-                            QString loggerName = QString("GPS trajectory \"%1\" time %2").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
-                            solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(gpsPriorError, params, true));
-                        }
-
-
-                    } else {
-                        delete gpsPrior; //useless as branch is unreachable, but remove static analysis error
-                    }
-
-                } else {
-
-                    InterpolatedVectorPrior<3>* interpolatedPriorCost = new InterpolatedVectorPrior<3>(vec, w1, w2, infos);
-                    InterpolatedVectorPrior<3>* interpolatedPriorError = new InterpolatedVectorPrior<3>(vec, w1, w2, Eigen::Matrix3d::Identity());
-
-                    ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>*  interpolatedPrior =
-                            new ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>(interpolatedPriorCost);
-                    ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>*  interpolatedError =
-                            new ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>(interpolatedPriorError);
-
-
-                    ModularSBASolver::AutoErrorBlockLogger<2,3>::ParamsType params = {trajNode->nodes[i-1].t.data(), trajNode->nodes[i].t.data()};
-
-                    problem.AddResidualBlock(interpolatedPrior, nullptr,
-                                             params.data(),
-                                             params.size());
-
-                    if ((i+1)%trajLoggersSteps == 0) {
-
-                        QString posLoggerName = QString("Trajectory \"%1\" Position index %2 (t = %3)").arg(traj->objectName()).arg(i, nAlignChar).arg(trajNode->nodes[i].time);
-                        solver->addLogger(posLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].t.data()));
-
-                        QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2 (t = %3)").arg(traj->objectName()).arg(i, nAlignChar).arg(trajNode->nodes[i].time);
-                        solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
-
-                        QString loggerName = QString("GPS trajectory \"%1\" time %2 (interpolated) (t = %3)").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
-                        solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(interpolatedError, params, true));
-                    }
-
+                    addGpsObs(
+                        trajNode,
+                        traj,
+                        optGps.value(),
+                        i,
+                        t1,
+                        t2,
+                        gpsObs_t,
+                        gpsAccuracy,
+                        currentGPSNode,
+                        world2local,
+                        problem,
+                        solver,
+                        addLogger);
                 }
 
             }
@@ -725,6 +658,105 @@ void TrajectoryBaseSBAModule::cleanup(ModularSBASolver* solver) {
     return;
 }
 
+StatusOptionalReturn<void> TrajectoryBaseSBAModule::addGpsObs(
+    ModularSBASolver::TrajectoryNode* trajNode,
+    Trajectory* traj,
+    Trajectory::TimeCartesianSequence const& gpsSeq,
+    int i,
+    double t1,
+    double t2,
+    double gpsObs_t,
+    double gpsAccuracy,
+    int currentGPSNode,
+    StereoVision::Geometry::AffineTransform<double> const& world2local,
+    ceres::Problem & problem,
+    ModularSBASolver* solver,
+    bool addLogger) {
+
+    double w1 = (t2 - gpsObs_t)/(t2-t1);
+    double w2 = (gpsObs_t-t1)/(t2-t1);
+
+    Eigen::Matrix3d infos = Eigen::Matrix3d::Zero();
+    Eigen::Vector3d vec;
+
+    //position in local optimization frame
+    vec = world2local*gpsSeq[currentGPSNode].val;
+
+    for (int i = 0; i < 3; i++) {
+        infos(i,i) = 1/gpsAccuracy;
+    }
+
+    //add gps based trajectory priors
+    if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
+
+        FixedSizeNormalPrior<3,3>* gpsPrior = new FixedSizeNormalPrior<3,3>(infos, vec);
+        FixedSizeNormalPrior<3,3>* gpsPriorError = new FixedSizeNormalPrior<3,3>(Eigen::Matrix3d::Identity(), vec);
+
+        if (std::abs(w1-1) < 1e-3 or std::abs(w2-1) < 1e-3) {
+
+            ModularSBASolver::AutoErrorBlockLogger<1,3>::ParamsType params;
+
+            if (std::abs(w1-1) < 1e-3) {
+                params = {trajNode->nodes[i-1].t.data()};
+            } else if (std::abs(w2-1) < 1e-3) {
+                params = {trajNode->nodes[i].t.data()};
+            }
+
+            problem.AddResidualBlock(gpsPrior, nullptr,
+                                     params.data(),
+                                     params.size());
+
+
+            if (addLogger) {
+
+                QString posLoggerName = QString("Trajectory \"%1\" Position index %2 (t = %3)").arg(traj->objectName()).arg(i).arg(trajNode->nodes[i].time);
+                solver->addLogger(posLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].t.data()));
+
+                QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2 (t = %3)").arg(traj->objectName()).arg(i).arg(trajNode->nodes[i].time);
+                solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
+
+                QString loggerName = QString("GPS trajectory \"%1\" time %2").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
+                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(gpsPriorError, params, true));
+            }
+
+
+        } else {
+            delete gpsPrior; //useless as branch is unreachable, but remove static analysis error
+        }
+
+    } else {
+
+        InterpolatedVectorPrior<3>* interpolatedPriorCost = new InterpolatedVectorPrior<3>(vec, w1, w2, infos);
+        InterpolatedVectorPrior<3>* interpolatedPriorError = new InterpolatedVectorPrior<3>(vec, w1, w2, Eigen::Matrix3d::Identity());
+
+        ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>*  interpolatedPrior =
+            new ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>(interpolatedPriorCost);
+        ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>*  interpolatedError =
+            new ceres::AutoDiffCostFunction<InterpolatedVectorPrior<3>, 3,3,3>(interpolatedPriorError);
+
+
+        ModularSBASolver::AutoErrorBlockLogger<2,3>::ParamsType params = {trajNode->nodes[i-1].t.data(), trajNode->nodes[i].t.data()};
+
+        problem.AddResidualBlock(interpolatedPrior, nullptr,
+                                 params.data(),
+                                 params.size());
+
+        if (addLogger) {
+
+            QString posLoggerName = QString("Trajectory \"%1\" Position index %2 (t = %3)").arg(traj->objectName()).arg(i).arg(trajNode->nodes[i].time);
+            solver->addLogger(posLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].t.data()));
+
+            QString rotLoggerName = QString("Trajectory \"%1\" Orientation index %2 (t = %3)").arg(traj->objectName()).arg(i).arg(trajNode->nodes[i].time);
+            solver->addLogger(rotLoggerName, new ModularSBASolver::ParamsValsLogger<3>(trajNode->nodes[i].rAxis.data()));
+
+            QString loggerName = QString("GPS trajectory \"%1\" time %2 (interpolated) (t = %3)").arg(traj->objectName()).arg(gpsObs_t, 0, 'f', 2);
+            solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(interpolatedError, params, true));
+        }
+
+    }
+
+    return StatusOptionalReturn<void>();
+}
 StatusOptionalReturn<void> TrajectoryBaseSBAModule::addGyroObs(
     ModularSBASolver::TrajectoryNode* trajNode,
     Trajectory* traj,
