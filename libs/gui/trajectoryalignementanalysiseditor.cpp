@@ -184,6 +184,11 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
     double startTime = traj.sequenceStartTime();
     double endTime = traj.sequenceEndTime();
 
+    constexpr int minSamples = 100;
+    if (minIntegrationTime > (endTime - startTime)/minSamples) {
+        minIntegrationTime = (endTime - startTime)/minSamples;
+    }
+
     int nExpectedErrors = std::ceil(1.1*(endTime - startTime)/minIntegrationTime);
 
     constexpr int maxSamples = 10000;
