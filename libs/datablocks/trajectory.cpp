@@ -1263,6 +1263,10 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
             continue;
         }
 
+        if (!entry.val.allFinite()) {
+            continue;
+        }
+
         ret.push_back(entry);
 
         lineCount++;
@@ -1451,6 +1455,10 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
         }
 
+        if (!entry.val.allFinite()) {
+            continue;
+        }
+
         ret.push_back(entry);
 
         lineCount++;
@@ -1521,6 +1529,12 @@ StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::l
 
     if (localFrames.size() != posECEF.size()) {
         return RType::error("Mismatch in the number of local frames computed!");
+    }
+
+    for (int i = 0; i < localFrames.size(); i++) {
+        if (!localFrames[i].isFinite()) {
+            return RType::error(qPrintable(QString("Unexpected non-finite local frame at index %1!").arg(i)));
+        }
     }
 
     PoseType plateform2sensor(_plateformDefinition.boresight, _plateformDefinition.leverArm);
@@ -1673,6 +1687,10 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
     if (transform2projFrame.has_value()) {
 
         StereoVision::Geometry::AffineTransform<double> transform = transform2projFrame.value().cast<double>();
+
+        if (!transform.isFinite()) {
+            return RType::error("Non finite transform to local frame!");
+        }
 
         for (int i = 0; i < data.size(); i++) {
 

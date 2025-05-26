@@ -89,24 +89,28 @@ void TrajectorySequenceViewEditor::setTrajectory(Trajectory* trj) {
 
 void TrajectorySequenceViewEditor::reconfigurePlots() {
 
+    QTextStream out(stdout);
+
     StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional = StatusOptionalReturn<Trajectory::TimeTrajectorySequence>::error("");
 
     bool valid_trajectory = true;
 
     if (_trajectory == nullptr) {
+        QMessageBox::warning(this, tr("Could not load data"), tr("Null trajectory provided"));
         valid_trajectory = false;
     } else {
 
         trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
 
         if (!trajOptional.isValid()) {
+            QMessageBox::warning(this, tr("Invalid trajectory data"), trajOptional.errorMessage());
             valid_trajectory = false;
         }
     }
 
     if (!valid_trajectory) {
 
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 3; i++) {
             _positionPlot->graph(i)->setData(QVector<double>(), QVector<double>());
             _orientationPlot->graph(i)->setData(QVector<double>(), QVector<double>());
         }
@@ -119,9 +123,21 @@ void TrajectorySequenceViewEditor::reconfigurePlots() {
 
     Trajectory::TimeTrajectorySequence& traj = trajOptional.value();
 
+    if (traj.nPoints() == 0) {
+        QMessageBox::warning(this, tr("Empty trajectory data"), tr("Check the trajectory configuration"));
+    }
+
+    out << tr("Loaded and display trajectory with %1 nodes").arg(traj.nPoints()) << Qt::endl;
+
     constexpr int maxSamples = 50000;
 
     int nExpectedSamples = std::min(traj.nPoints(), maxSamples);
+
+    int deltai = traj.nPoints()/nExpectedSamples;
+
+    out << "nExpectedSamples = " << nExpectedSamples << " deltai = " << deltai << Qt::endl;
+
+    int maxNSamples = traj.nPoints()/deltai + 1;
 
     QVector<double> times;
 
@@ -133,17 +149,15 @@ void TrajectorySequenceViewEditor::reconfigurePlots() {
     QVector<double> rotY;
     QVector<double> rotZ;
 
-    times.reserve(nExpectedSamples);
+    times.reserve(maxNSamples);
 
-    posX.reserve(nExpectedSamples);
-    posY.reserve(nExpectedSamples);
-    posZ.reserve(nExpectedSamples);
+    posX.reserve(maxNSamples);
+    posY.reserve(maxNSamples);
+    posZ.reserve(maxNSamples);
 
-    rotX.reserve(nExpectedSamples);
-    rotY.reserve(nExpectedSamples);
-    rotZ.reserve(nExpectedSamples);
-
-    int deltai = traj.nPoints()/nExpectedSamples;
+    rotX.reserve(maxNSamples);
+    rotY.reserve(maxNSamples);
+    rotZ.reserve(maxNSamples);
 
     double maxPos = -std::numeric_limits<double>::infinity();
     double minPos = std::numeric_limits<double>::infinity();
@@ -158,6 +172,13 @@ void TrajectorySequenceViewEditor::reconfigurePlots() {
         deltai = 1;//we convert to matrix and back to normalize
 
         times.push_back(pose.time);
+
+        /*if (!pose.val.t.allFinite() or !pose.val.r.allFinite()) {
+            out << "Non finite pose at time = << " << pose.time << " index: " << i
+                << " t = [" << pose.val.t.x() << " " << pose.val.t.y() << " " << pose.val.t.z()
+                << "] r = [" << pose.val.r.x() << " " << pose.val.r.y() << " " << pose.val.r.z()
+                << "]\n";
+        }*/
 
         posX.push_back(pose.val.t.x());
         posY.push_back(pose.val.t.y());
@@ -193,6 +214,10 @@ void TrajectorySequenceViewEditor::reconfigurePlots() {
 
     double minTime = times.first();
     double maxTime = times.last();
+
+    out << "minTime = " << minTime << " maxTime = " << maxTime
+        << " minPos = " << minPos << " maxPos = " << maxPos
+        << " minRot = " << minRot << " maxRot = " << maxRot << Qt::endl;
 
     _positionPlot->graph(0)->setData(times, posX);
     _positionPlot->graph(1)->setData(times, posY);

@@ -126,7 +126,6 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
                                                                                     std::string const& crs,
                                                                                     TopocentricConvention topocentricConventions) {
 
-
     const char* wgs84_latlon = "EPSG:4979"; //lat lon, height above the ellipsoid
     const char* wgs84_ecef = "EPSG:4978";
 
@@ -151,7 +150,15 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
         coordBase.xyz.y = inputCoords(1,i);
         coordBase.xyz.z = inputCoords(2,i);
 
-        PJ_COORD ecefPos = proj_trans(toEcef, PJ_FWD, coordBase);
+        PJ_COORD ecefPos;
+
+        //proj can react strangely in release mode if we have the same input and output CRS
+        if (std::string(wgs84_ecef) != crs) {
+            ecefPos = proj_trans(toEcef, PJ_FWD, coordBase);
+        } else {
+            ecefPos = coordBase;
+        }
+
         PJ_COORD geoPos = proj_trans(ecef2latLon, PJ_FWD, ecefPos);
 
         PJ_COORD posUpN = geoPos;
@@ -205,6 +212,9 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
             R.col(1) = -eastVec;
             R.col(2) = upVec;
             break;
+        default:
+            //without valid topocentric convention, we have to return nullopt
+            return std::nullopt;
         }
 
         transform.R = R.cast<T>();
