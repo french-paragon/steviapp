@@ -126,7 +126,7 @@ bool LandmarksSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem
         constexpr bool notOptimized = false;
 
         //get the initial optimization value in optimization frame (ecef for georeferenced).
-        std::optional<Eigen::Vector3f> coordInitial = lm->getOptimizableCoordinates(optimized);
+        std::optional<Eigen::Vector3d> coordInitial = lm->getOptimizableCoordinates(optimized);
 
         if (!coordInitial.has_value()) {
             coordInitial = lm->getOptimizableCoordinates(notOptimized);
@@ -135,7 +135,7 @@ bool LandmarksSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem
         Eigen::Vector3d vecInitial;
 
         if (coordInitial.has_value()) {
-            vecInitial = coordInitial.value().cast<double>();
+            vecInitial = coordInitial.value();
         }
 
         //move to local optimization frame
@@ -149,11 +149,11 @@ bool LandmarksSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem
         lmNode->pos[1] = vecInitial.y();
         lmNode->pos[2] = vecInitial.z();
 
-        std::optional<Eigen::Vector3f> coordPrior = lm->getOptimizableCoordinates(notOptimized);
+        std::optional<Eigen::Vector3d> coordPrior = lm->getOptimizableCoordinates(notOptimized);
 
         if (coordPrior.has_value()) {
 
-            Eigen::Vector3d vecPrior = coordPrior.value().cast<double>();
+            Eigen::Vector3d vecPrior = coordPrior.value();
 
             Eigen::Vector3d m = solver->getTransform2LocalFrame()*vecPrior;
 
@@ -229,7 +229,7 @@ bool LandmarksSBAModule::writeResults(ModularSBASolver* solver) {
             pos = tmp;
 
             constexpr bool optimized = true;
-            lm->setPositionFromEcef(pos.cast<float>(), optimized);
+            lm->setPositionFromEcef(pos, optimized);
 
         } else {
 

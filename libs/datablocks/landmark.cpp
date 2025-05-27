@@ -152,19 +152,19 @@ Eigen::Array<float,3, Eigen::Dynamic> Landmark::getLocalPointsEcef() const {
     Eigen::Array<float,3, Eigen::Dynamic> ret;
     ret.resize(3,0);
 
-    std::optional<Eigen::Vector3f> optRet = getOptimizableCoordinates();
+    std::optional<Eigen::Vector3d> optRet = getOptimizableCoordinates();
 
     if (!optRet.has_value()) {
         return ret;
     }
 
     ret.resize(3,1);
-    ret.col(0) = optRet.value();
+    ret.col(0) = optRet.value().cast<float>();
 
     return ret;
 }
 
-std::optional<Eigen::Vector3f> Landmark::getOptimizableCoordinates(bool optimized, bool applyProjectLocalTransform) const {
+std::optional<Eigen::Vector3d> Landmark::getOptimizableCoordinates(bool optimized, bool applyProjectLocalTransform) const {
 
     double vx;
     double vy;
@@ -191,7 +191,7 @@ std::optional<Eigen::Vector3f> Landmark::getOptimizableCoordinates(bool optimize
         vz = zCoord().value();
     }
 
-    Eigen::Vector3f ret;
+    Eigen::Vector3d ret;
 
     if (geoReferenceSupportActive()) {
 
@@ -227,7 +227,7 @@ std::optional<Eigen::Vector3f> Landmark::getOptimizableCoordinates(bool optimize
     return ret;
 }
 
-bool Landmark::setPositionFromEcef(Eigen::Vector3f const& point, bool optimized) {
+bool Landmark::setPositionFromEcef(const Eigen::Vector3d &point, bool optimized) {
 
     double vx = point.x();
     double vy = point.y();

@@ -133,11 +133,11 @@ public:
         return _hasLocalCoordinateFrame;
     }
 
-    inline StereoVision::Geometry::AffineTransform<float> ecef2local() const {
+    inline StereoVision::Geometry::AffineTransform<double> ecef2local() const {
         return _ecef2local;
     }
 
-    inline void setLocalCoordinateFrame(StereoVision::Geometry::AffineTransform<float> const& reference2local) {
+    inline void setLocalCoordinateFrame(StereoVision::Geometry::AffineTransform<double> const& reference2local) {
         _hasLocalCoordinateFrame = true;
         _ecef2local = reference2local;
 
@@ -187,7 +187,7 @@ protected:
 
     QString _defaultProjectCRS;
     bool _hasLocalCoordinateFrame; //indicate if the project has a local crs
-    StereoVision::Geometry::AffineTransform<float> _ecef2local; //represent the transformation from world (ECEF) and local coordinate system
+    StereoVision::Geometry::AffineTransform<double> _ecef2local; //represent the transformation from world (ECEF) and local coordinate system
 
 	friend class ProjectFactory;
 

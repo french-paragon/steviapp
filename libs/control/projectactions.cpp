@@ -160,7 +160,7 @@ bool estimateLocalCoordinateSystem(Project* p) {
 
     mean /= count;
 
-    p->setLocalCoordinateFrame(getLocalFrameOnSphere(mean, minDist));
+    p->setLocalCoordinateFrame(getLocalFrameOnSphere(mean, minDist).cast<double>());
 
     return true;
 }

@@ -44,8 +44,8 @@ public:
      *
      *
      */
-    std::optional<Eigen::Vector3f> getOptimizableCoordinates(bool optimized = false, bool applyProjectLocalTransform = false) const;
-    bool setPositionFromEcef(Eigen::Vector3f const& point, bool optimized = false);
+    std::optional<Eigen::Vector3d> getOptimizableCoordinates(bool optimized = false, bool applyProjectLocalTransform = false) const;
+    bool setPositionFromEcef(Eigen::Vector3d const& point, bool optimized = false);
 
 protected:
 

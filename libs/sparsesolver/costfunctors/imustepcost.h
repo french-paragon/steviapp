@@ -314,6 +314,7 @@ GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegmen
         double dt = imuGyroData[j].dt;
 
         Eigen::Vector3d dr(imuGyroData[j].val[0], imuGyroData[j].val[1], imuGyroData[j].val[2]);
+
         dr *= dt;
 
         Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);

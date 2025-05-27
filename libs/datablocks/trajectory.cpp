@@ -1056,7 +1056,7 @@ StatusOptionalReturn<std::vector<Eigen::Vector3f> > Trajectory::loadTrajectoryPa
 
     if (proj != nullptr) {
         if (proj->hasLocalCoordinateFrame()) {
-            transform2projFrame = proj->ecef2local();
+            transform2projFrame = proj->ecef2local().cast<float>();
         }
     }
 
@@ -1138,7 +1138,7 @@ StatusOptionalReturn<std::vector<StereoVision::Geometry::AffineTransform<float> 
 
     if (proj != nullptr) {
         if (proj->hasLocalCoordinateFrame()) {
-            transform2projFrame = proj->ecef2local();
+            transform2projFrame = proj->ecef2local().cast<float>();
         }
     }
 
@@ -1661,7 +1661,7 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
 
     using RType = StatusOptionalReturn<Trajectory::TimeTrajectorySequence>;
 
-    std::optional<StereoVision::Geometry::AffineTransform<float>> transform2projFrame = std::nullopt;
+    std::optional<StereoVision::Geometry::AffineTransform<double>> transform2projFrame = std::nullopt;
 
     Project* proj = getProject();
 

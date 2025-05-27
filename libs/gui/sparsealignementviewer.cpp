@@ -175,13 +175,13 @@ QVector3D ProjectSparseAlignementDataInterface::getPointPos(int idx) const {
         return QVector3D(std::nanf(""), std::nanf(""), std::nanf(""));
     }
 
-    std::optional<Eigen::Vector3f> optLocalPos = lm->getOptimizableCoordinates(true);
+    std::optional<Eigen::Vector3d> optLocalPos = lm->getOptimizableCoordinates(true);
 
     if (!optLocalPos.has_value()) {
         return QVector3D(std::nanf(""), std::nanf(""), std::nanf(""));
     }
 
-    Eigen::Vector3f& localPos = optLocalPos.value();
+    Eigen::Vector3d& localPos = optLocalPos.value();
 
     if (_currentProject->hasLocalCoordinateFrame()) {
         localPos = _currentProject->ecef2local()*localPos;

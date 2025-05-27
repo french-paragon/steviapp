@@ -181,14 +181,14 @@ void LensDistortionViewer::paintGL() {
 	_gridProgram->setUniformValue("frameTransform", _frame_transform);
 
 	if (_useOptimizedValues) {
-		_gridProgram->setUniformValue("f", _cam->optimizedFLen().value());
+        _gridProgram->setUniformValue("f", GLfloat(_cam->optimizedFLen().value()));
 		_gridProgram->setUniformValue("pp", _cam->optimizedOpticalCenterX().value(), _cam->optimizedOpticalCenterY().value());
 		_gridProgram->setUniformValue("k123", _cam->optimizedK1().value(), _cam->optimizedK2().value(), _cam->optimizedK3().value());
 		_gridProgram->setUniformValue("k456", _cam->optimizedK4().value(), _cam->optimizedK5().value(), _cam->optimizedK6().value());
 		_gridProgram->setUniformValue("p12", _cam->optimizedP1().value(), _cam->optimizedP2().value());
 		_gridProgram->setUniformValue("B12", _cam->optimizedB1().value(), _cam->optimizedB2().value());
 	} else {
-		_gridProgram->setUniformValue("f", _cam->fLen().value());
+        _gridProgram->setUniformValue("f", GLfloat(_cam->fLen().value()));
 		_gridProgram->setUniformValue("pp", _cam->opticalCenterX().value(), _cam->opticalCenterY().value());
 		_gridProgram->setUniformValue("k123", _cam->k1().value(), _cam->k2().value(), _cam->k3().value());
 		_gridProgram->setUniformValue("k456", _cam->k4().value(), _cam->k5().value(), _cam->k6().value());

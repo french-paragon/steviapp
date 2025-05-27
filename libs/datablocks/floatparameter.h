@@ -7,7 +7,7 @@
 #include <QJsonValue>
 #include <QJsonArray>
 
-typedef float pFloatType;
+typedef double pFloatType;
 
 namespace StereoVisionApp {
 

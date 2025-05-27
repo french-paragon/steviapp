@@ -148,7 +148,7 @@ bool Project::load(QString const& inFile) {
         if (metadata.contains("local_transform")) {
             QJsonObject local = metadata.value("local_transform").toObject();
 
-            auto ecef2local = json2affineTransform<float>(local);
+            auto ecef2local = json2affineTransform<double>(local);
             if (ecef2local.has_value()) {
                 _ecef2local = ecef2local.value();
                 _hasLocalCoordinateFrame = true;
