@@ -23,6 +23,9 @@ void exportLandmarksToCsv(Project* p, QVector<qint64> const& landmarks, QString 
 
 	QTextStream s(&f);
 
+    s.setRealNumberNotation(QTextStream::FixedNotation);
+    s.setRealNumberPrecision(2);
+
 	s << "Landmark"
 	  << ", x position"
 	  << ", y position"

@@ -16,6 +16,7 @@ public:
 	QString ActionManagerClassName() const override;
 	QString itemClassName() const override;
 
+    QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const override;
 	QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* p) const override;
 	QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const override;
 

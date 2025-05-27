@@ -31,6 +31,39 @@ QString LandmarkBaseActionManager::itemClassName() const {
 	return LandmarkFactory::landmarkClassName();
 }
 
+QList<QAction*> LandmarkBaseActionManager::factorizeClassContextActions(QObject* parent, Project* p) const {
+
+    if (p == nullptr) {
+        return {};
+    }
+
+    QWidget* w = qobject_cast<QWidget*>(parent);
+
+    if (w != nullptr) {
+        w = w->window();
+    }
+
+    MainWindow* mw = qobject_cast<MainWindow*>(w);
+
+    QList<QAction*> lst = DatablockActionManager::factorizeClassContextActions(parent, p); //basic actions like adding an item
+
+    QVector<qint64> lmids = p->getIdsByClass(Landmark::staticMetaObject.className());
+
+    if (lmids.size() > 0) {
+        QAction* exportLandmarksToCSVAction = new QAction("export to csv", parent);
+
+        connect(exportLandmarksToCSVAction, &QAction::triggered, p, [w, p, lmids] () {
+            QString f = QFileDialog::getSaveFileName(w, tr("Export landmarks to csv"), QString(), "csv files (*.csv)");
+            if (!f.isEmpty()) {
+                exportLandmarksToCsv(p, lmids, f);
+            }
+        });
+
+        lst.append(exportLandmarksToCSVAction);
+    }
+
+    return lst;
+}
 QList<QAction*> LandmarkBaseActionManager::factorizeItemContextActions(QObject* parent, DataBlock* p) const {
 
 	Landmark* lm = qobject_cast<Landmark*>(p);
