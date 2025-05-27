@@ -1482,7 +1482,7 @@ StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::l
     }
 
     if (!orientationRawOpt.isValid()) {
-        return RType::error(posECEFOpt.errorMessage());
+        return RType::error(orientationRawOpt.errorMessage());
     }
 
     std::vector<TimeCartesianBlock>& posECEF = posECEFOpt.value();
