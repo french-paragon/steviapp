@@ -50,6 +50,9 @@ StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
                 _requestedPlugins.push_back(QString(argv[i]));
             }
 
+        } else if (!qstrcmp(argv[i], "--silent")) {
+            i++;
+
         } else if (!qstrcmp(argv[i], "--")) {
 
 			for (i=i+1; i < argc; i++) {
