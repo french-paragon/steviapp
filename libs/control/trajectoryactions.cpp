@@ -576,12 +576,16 @@ void exportTrajectory(Trajectory* traj,
 
     if (exportOptimized) {        
         if (currentProject != nullptr) {
-            StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local().cast<double>();
-            local2ecef.R = ecef2local.R.transpose();
-            local2ecef.t = -ecef2local.R.transpose()*ecef2local.t;
+            StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local();
+            local2ecef.R = ecef2local.R.inverse();
+            local2ecef.t = -ecef2local.R.inverse()*ecef2local.t;
+            //at the scale of the earth, we cannort assume that a matrix of float is perfectly orthogonal, calling inverse gives better numerical precision.
+
+            Eigen::Vector3d check = ecef2local*local2ecef.t;
+            double norm = check.norm();
+            assert(norm < 1e-5);
         }
     }
-
 
     if (!exportTraj.isValid()) {
         if (mw != nullptr) {
@@ -702,8 +706,13 @@ void exportTrajectoryGeographic(Trajectory* traj,
     if (exportOptimized) {
         if (currentProject != nullptr) {
             StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local().cast<double>();
-            local2ecef.R = ecef2local.R.transpose();
-            local2ecef.t = -ecef2local.R.transpose()*ecef2local.t;
+            local2ecef.R = ecef2local.R.inverse();
+            local2ecef.t = -ecef2local.R.inverse()*ecef2local.t;
+            //at the scale of the earth, we cannort assume that a matrix of float is perfectly orthogonal, calling inverse gives better numerical precision.
+
+            Eigen::Vector3d check = ecef2local*local2ecef.t;
+            double norm = check.norm();
+            assert(norm < 1e-5);
         }
     }
 
