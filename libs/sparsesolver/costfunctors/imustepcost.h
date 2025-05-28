@@ -530,14 +530,27 @@ public:
             double dt_acc = imuAccData[idxAcc].dt - ddt_acc;
             double dt_gyro = imuGyroData[idxGyro].dt - ddt_gyro;
 
-            double dt = std::min(dt_acc, dt_gyro);
+            double min_time_interval = std::min(imuAccData[idxAcc].dt, imuGyroData[idxGyro].dt);
+            double dt_threshold = min_time_interval/100;
+            double dt = std::min(dt_acc, dt_gyro); //do 100 intermediate steps for more precise integration.
+            dt = std::min(dt, dt_threshold);
 
             //increments
             Eigen::Vector3d dr = imuGyroData[idxGyro].val;
+            if (imuGyroData.size() > idxGyro+1 and dt > 0) {
+                Eigen::Vector3d dr_next = imuGyroData[idxGyro+1].val;
+                dr = dr*dt_gyro + dr_next*ddt_gyro;
+                dr /= imuGyroData[idxGyro].dt;
+            }
             dr *= dt;
 
             Eigen::Vector3d acceleration_local = imuAccData[idxAcc].val;
-            Eigen::Vector3d df = imuAccData[idxAcc].val;
+            if (imuAccData.size() > idxAcc+1 and dt > 0) {
+                Eigen::Vector3d acceleration_local_next = imuAccData[idxAcc+1].val;
+                acceleration_local = acceleration_local*dt_acc + acceleration_local_next*ddt_acc;
+                acceleration_local /= imuAccData[idxAcc].dt;
+            }
+            Eigen::Vector3d df = acceleration_local;
             df *= dt;
 
             Eigen::Matrix3d diagF = Eigen::Matrix3d::Zero();
@@ -579,15 +592,18 @@ public:
 
             gyroSO3GainJacobian += tmp*diagR;
 
+            Eigen::Matrix3d Rcurrent2initialAvgSegment = Rcurrent2initial;
             Rcurrent2initial = dR*Rcurrent2initial;
+            Rcurrent2initialAvgSegment = 1*Rcurrent2initialAvgSegment + 1*Rcurrent2initial;
+            Rcurrent2initialAvgSegment /= 2;
 
             //increment the accelerometers jacobians
-            accBiasJacobian += Rcurrent2initial*dt;
-            accGainJacobian += Rcurrent2initial*diagF;
+            accBiasJacobian += Rcurrent2initialAvgSegment*dt;
+            accGainJacobian += Rcurrent2initialAvgSegment*diagF;
 
             //increment current inner integrant value
             Eigen::Vector3d currentOld = current;
-            current += Rcurrent2initial*df;
+            current += Rcurrent2initialAvgSegment*df;
 
             //outer integration loop
             ret.speedDelta += (currentOld + current)/2 * dt; //use trapezoidal rule for the outer integration loop
