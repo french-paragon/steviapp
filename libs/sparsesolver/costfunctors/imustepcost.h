@@ -699,7 +699,7 @@ public:
         }
 
         if (WGScale) {
-            V3T GyroGain(gGain[0], gGain[1], gGain[2]);
+            V3T GyroGain(gGain[0]-T(1), gGain[1]-T(1), gGain[2]-T(1));
             vSpeedDelta += gyroGainJacobian.cast<T>()*GyroGain;
         }
 
@@ -709,7 +709,7 @@ public:
         }
 
         if (WAScale) {
-            V3T AccGain(aGain[0], aGain[1], aGain[2]);
+            V3T AccGain(aGain[0]-T(1), aGain[1]-T(1), aGain[2]-T(1));
             vSpeedDelta += accGainJacobian.cast<T>()*AccGain;
         }
 
