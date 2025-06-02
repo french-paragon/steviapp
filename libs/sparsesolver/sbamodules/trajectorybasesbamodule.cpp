@@ -185,6 +185,12 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
     Eigen::Vector3d gVec;
     gVec << _gravity[0], _gravity[1], _gravity[2];
 
+    if (currentProject->hasLocalCoordinateFrame()) { //georeferenced optimization disabled.
+        _earth_center_pos = currentProject->ecef2local().t;
+    } else {
+        _earth_center_pos << std::nan(""), std::nan(""), std::nan("");
+    }
+
     FixedSizeNormalPrior<3,3>* g_prior = new FixedSizeNormalPrior<3,3>(gInfos, gVec);
 
     problem.AddResidualBlock(g_prior, nullptr, _gravity.data());

@@ -7,6 +7,7 @@
 #include "../../utils/statusoptionalreturn.h"
 #include "../costfunctors/weightedcostfunction.h"
 #include "../costfunctors/imustepcost.h"
+#include "../costfunctors/gravityDecorators.h"
 
 namespace StereoVisionApp {
 
@@ -161,28 +162,7 @@ protected:
 
     template <int flags>
     static constexpr int nAccCostParams() {
-
-        using Traits = AccelerometerStepCostTraits<flags>;
-
-        int n = 5; //no bias or scale factors
-
-        if (Traits::WGBias) {
-            n += 1;
-        }
-
-        if (Traits::WGScale) {
-            n += 1;
-        }
-
-        if (Traits::WABias) {
-            n += 1;
-        }
-
-        if (Traits::WAScale) {
-            n += 1;
-        }
-
-        return n;
+        return AccelerometerStepCostTraits<flags>::nAccCostParams();
     }
 
     template<bool WBias, bool WScale>
@@ -417,7 +397,10 @@ protected:
         ModularSBASolver* solver,
         bool addLogger) {
 
-        using AccCost = AccelerometerStepCost<flags>;
+        constexpr int refPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        constexpr int gravityParamPos = AccelerometerStepCostTraits<flags>::gravityParamIdx();
+
+        using AccCost = GravityReoriented<AccelerometerStepCost<flags>, refPosParamPos, gravityParamPos>;
         using AutoDiffCostFuncT = AccTemplateParametrizedCost<ceres::AutoDiffCostFunction,AccCost, flags>;
         using WeightedCostFuncT = AccParametrizedCost<StereoVisionApp::WeightedCostFunction, flags>;
 
@@ -425,12 +408,13 @@ protected:
         static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
 
         AccCost* accStepCost =
-            AccelerometerStepCostBase::getIntegratedIMUDiff<flags>
+            AccelerometerStepCostBase::getIntegratedIMUDiffWithAdaptiveGravity<flags>
             (gyroSeq,
              imuSeq,
              trajNode->nodes[i-2].time,
              trajNode->nodes[i-1].time,
-             trajNode->nodes[i].time);
+             trajNode->nodes[i].time,
+             _earth_center_pos);
 
         AutoDiffCostFuncT* accStepCostFunction =
             new AutoDiffCostFuncT(accStepCost);
@@ -447,6 +431,8 @@ protected:
             new WeightedCostFuncT(accStepCostFunction, weigthMat);
 
         auto params = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+        constexpr int localPosParamIdx = 3;
+        constexpr int gravityParamIdx = params.size()-1; //gravity is last parameter
 
         static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
                       "non compatible numbers of parameters in parameters array and cost function");
@@ -460,6 +446,8 @@ protected:
         if (addLogger) {
             QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
             solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>(),3>(accStepCostFunction, params));
+            double residuals[3];
+            bool ok = accStepCostFunction->Evaluate(params.data(), residuals, nullptr);
         }
 
         return StatusOptionalReturn<void>();
@@ -485,6 +473,7 @@ protected:
     double _defaultGyroAccuracy;
 
     std::array<double,3> _gravity;
+    Eigen::Vector3d _earth_center_pos;
 
 };
 
