@@ -582,6 +582,9 @@ public:
     void setEstGyroBias(bool estimate);
     void setEstGyroScale(bool estimate);
 
+    bool useStartEndOrientationPrior() const;
+    void setUseStartEndOrientationPrior(bool use);
+
     floatParameter optGyroBiasX() const;
     floatParameter optGyroBiasY() const;
     floatParameter optGyroBiasZ() const;
@@ -652,6 +655,8 @@ Q_SIGNALS:
 
     void estimateGyroBiasChanged();
     void estimateGyroScaleChanged();
+
+    void useStartEndOrientationPriorChanged();
 
     void accelerometerIdChanged();
     void gyroIdChanged();
@@ -765,6 +770,8 @@ protected:
     } _orientationDefinition;
 
     QString _orientationFile;
+
+    bool _use_start_end_orientation_priors;
 
     struct PositionDefinition {
 

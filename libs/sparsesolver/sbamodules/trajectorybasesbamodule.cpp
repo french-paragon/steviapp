@@ -377,9 +377,9 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             double orientationAccuracy = _defaultOrientAccuracy;
 
             //orientation priors
-            if (_useOrientationPriors) {
+            if (_useOrientationPriors and traj->useStartEndOrientationPrior()) {
 
-                if (i == 0 or i == nSteps-1) {//add the priors only at beginning and end of
+                if (i == 0 or i == nSteps-1) {//add the priors only at beginning and end of sequence
 
                     Eigen::Matrix3d infos = Eigen::Matrix3d::Zero();
                     Eigen::Vector3d vec;
@@ -388,7 +388,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     vec << trajNode->nodes[i].rAxis[0],trajNode->nodes[i].rAxis[1], trajNode->nodes[i].rAxis[2];
 
                     for (int i = 0; i < 3; i++) {
-                        infos(i,i) = 1/orientationAccuracy;
+                        infos(i,i) = 100/orientationAccuracy;
                     }
 
                     ModularSBASolver::AutoErrorBlockLogger<1,3>::ParamsType params = {trajNode->nodes[i].rAxis.data()};

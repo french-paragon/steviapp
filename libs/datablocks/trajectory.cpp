@@ -25,12 +25,13 @@ const char* Trajectory::OptDataRotZHeader = "Trajectory Z orientation";
 
 Trajectory::Trajectory(Project* parent) :
     DataBlock(parent),
-    _opt_preintegration_time(0.5),
-    _optimizedTrajectoryData(nullptr),
+    _use_start_end_orientation_priors(false),
     _gpsAccuracy(0.02),
     _angularAccuracy(0.1),
     _gyroAccuracy(0.1),
-    _accAccuracy(0.5)
+    _accAccuracy(0.5),
+    _opt_preintegration_time(0.5),
+    _optimizedTrajectoryData(nullptr)
 {
     _plateformDefinition.boresight.setConstant(0);
     _plateformDefinition.leverArm.setConstant(0);
@@ -2273,6 +2274,16 @@ void Trajectory::setEstGyroScale(bool estimate) {
     }
 }
 
+bool Trajectory::useStartEndOrientationPrior() const {
+    return _use_start_end_orientation_priors;
+}
+void Trajectory::setUseStartEndOrientationPrior(bool use) {
+    if (_use_start_end_orientation_priors != use) {
+        _use_start_end_orientation_priors = use;
+        Q_EMIT useStartEndOrientationPriorChanged();
+    }
+}
+
 floatParameter Trajectory::optGyroBiasX() const {
     return _angularSpeedParameters._o_biasX;
 }
@@ -2663,6 +2674,8 @@ QJsonObject Trajectory::encodeJson() const {
 
     obj.insert("accelerometerId", _accelerometerId);
     obj.insert("gyroId", _gyroId);
+
+    obj.insert("seOrientationPrior", _use_start_end_orientation_priors);
 
     if (_optimizedTrajectoryData != nullptr) {
         obj.insert("optimizedTrajectory", static_cast<DataBlock*>(_optimizedTrajectoryData)->encodeJson());
@@ -3146,6 +3159,12 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         _gyroId = 1;
     }
 
+    if (data.contains("seOrientationPrior")) {
+        _use_start_end_orientation_priors = data.value("seOrientationPrior").toBool();
+    } else {
+        _use_start_end_orientation_priors = false;
+    }
+
     if (data.contains("gpsAccuracy")) {
         _gpsAccuracy = data.value("gpsAccuracy").toDouble(0.02);
     } else {
@@ -3315,6 +3334,11 @@ void Trajectory::extendDataModel() {
                                                                                                           &Trajectory::estGyroScale,
                                                                                                           &Trajectory::setEstGyroScale,
                                                                                                           &Trajectory::estimateGyroScaleChanged);
+
+    optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Start/end rot prior"),
+                                                                                                           &Trajectory::useStartEndOrientationPrior,
+                                                                                                           &Trajectory::setUseStartEndOrientationPrior,
+                                                                                                           &Trajectory::useStartEndOrientationPriorChanged);
 
 
     ItemDataModel::Category* accelerometerOptIdsCat = _dataModel->addCategory(tr("Accelerometer Optimized Parameters"));
