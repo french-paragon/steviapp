@@ -431,8 +431,6 @@ protected:
             new WeightedCostFuncT(accStepCostFunction, weigthMat);
 
         auto params = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
-        constexpr int localPosParamIdx = 3;
-        constexpr int gravityParamIdx = params.size()-1; //gravity is last parameter
 
         static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
                       "non compatible numbers of parameters in parameters array and cost function");
@@ -446,8 +444,6 @@ protected:
         if (addLogger) {
             QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
             solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>(),3>(accStepCostFunction, params));
-            double residuals[3];
-            bool ok = accStepCostFunction->Evaluate(params.data(), residuals, nullptr);
         }
 
         return StatusOptionalReturn<void>();
