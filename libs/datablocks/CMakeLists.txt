@@ -27,12 +27,14 @@ set(LIB_SRC floatparameter.cpp
             io/collada_export_filter.cpp
             io/collada_export_filter.h
             io/jsonconversionsutils.h
+            observationssummaryinterface.cpp
 )
 
 set(LIB_HEADERS
     floatparameter.h
     dataexception.h
     georeferenceddatablockinterface.h
+    observationssummaryinterface.h
     project.h
     trajectory.h
     rigidbody.h

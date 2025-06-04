@@ -4,6 +4,7 @@
 #include "qcustomplot/qcustomplot.h"
 
 #include "datablocks/trajectory.h"
+#include "datablocks/observationssummaryinterface.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -136,6 +137,8 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
 
     bool valid_trajectory = true;
 
+    QVector<QVector<qint64>> possibleObservers;
+
     if (_trajectory == nullptr) {
         valid_trajectory = false;
     } else {
@@ -199,6 +202,9 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
             } else {
                 compTraj = std::move(CompOptional.value());
             }
+
+            possibleObservers = _trajectory->listReferers();
+
         }
     }
 
@@ -207,12 +213,14 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
         _positionDeltasPlot->graph(0)->setData(QVector<double>(), QVector<double>());
         _positionDeltasPlot->graph(1)->setData(QVector<double>(), QVector<double>());
         _positionDeltasPlot->graph(2)->setData(QVector<double>(), QVector<double>());
+        _positionDeltasPlot->clearItems();
 
         _positionDeltasPlot->replot();
 
         _orientationDeltasPlot->graph(0)->setData(QVector<double>(), QVector<double>());
         _orientationDeltasPlot->graph(1)->setData(QVector<double>(), QVector<double>());
         _orientationDeltasPlot->graph(2)->setData(QVector<double>(), QVector<double>());
+        _orientationDeltasPlot->clearItems();
 
         _orientationDeltasPlot->replot();
 
@@ -294,6 +302,49 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
         if (std::abs(rotZerrors[i]) > maxAbsRotError) {
             maxAbsRotError = std::abs(rotZerrors[i]);
         }
+    }
+
+    QVector<double> observationTimes;
+
+    Project* proj = _trajectory->getProject();
+
+    if (proj != nullptr)  {
+        for (QVector<qint64> const& ref : possibleObservers) {
+            DataBlock* block = proj->getByUrl(ref);
+            ObservationsSummaryInterface* obs_summary = qobject_cast<ObservationsSummaryInterface*>(block);
+
+            if (obs_summary == nullptr) {
+                continue;
+            }
+
+            QVector<ObservationsSummaryInterface::GenericObservation> observations =
+                obs_summary->observationsInfos(_trajectory->internalUrl());
+
+            using TimeObs = ObservationsSummaryInterface::TimedObservation;
+
+            for (auto const& obs : qAsConst(observations)) {
+
+                if (!std::holds_alternative<TimeObs>(obs)) {
+                    continue;
+                }
+
+                observationTimes.push_back(std::get<TimeObs>(obs).time);
+            }
+        }
+    }
+
+    for (double const& time : qAsConst(observationTimes)) {
+
+        QCPItemStraightLine* obsLinePos = new QCPItemStraightLine(_positionDeltasPlot);
+        obsLinePos->setPen(QPen(QColor(175,175,175)));
+        obsLinePos->point1->setCoords(time, 0);
+        obsLinePos->point2->setCoords(time, 1);
+
+        QCPItemStraightLine* obsLineOrient = new QCPItemStraightLine(_orientationDeltasPlot);
+        obsLineOrient->setPen(QPen(QColor(175,175,175)));
+        obsLineOrient->point1->setCoords(time, 0);
+        obsLineOrient->point2->setCoords(time, 1);
+
     }
 
     _positionDeltasPlot->graph(0)->setData(times, posXerrors);

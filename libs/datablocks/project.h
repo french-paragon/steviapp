@@ -261,6 +261,11 @@ public:
 	QVector<qint64> listAllSubDataBlocks() const;
 	QVector<qint64> listTypedSubDataBlocks(QString const& type) const;
 
+    //allows to access the list of referers, usefull in certain cases.
+    inline QVector<QVector<qint64>> const& listReferers() const {
+        return _referers;
+    }
+
 	void stopTrackingChanges(bool);
 
 	ItemDataModel * getDataModel();
