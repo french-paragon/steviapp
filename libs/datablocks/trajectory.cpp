@@ -878,7 +878,13 @@ StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::g
             continue;
         }
 
-        if (guide[guideId].time > trajectory[i+1].time) {
+        double dt = 1e-5;
+        if (guideId > 0) {
+            dt = guide[guideId].time - guide[guideId-1].time;
+            dt /= 2;
+        }
+
+        if (guide[guideId].time > trajectory[i+1].time-dt) {
             continue;
         }
 
