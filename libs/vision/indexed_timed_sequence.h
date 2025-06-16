@@ -391,6 +391,84 @@ public:
         return _sequence->size();
     }
 
+    /*!
+     * \brief nearestNodeIndex get the index of the node nearest to a given time
+     * \param time the time
+     * \return the index as an int.
+     */
+    int nearestNodeIndex(TimeT time) {
+
+        if (time <= _initialTime) {
+            return 0;
+        }
+
+        if (time >= _finalTime) {
+            return _sequence->size()-1;
+        }
+
+        double deltaT = indexTimePerStep();
+        double localTime = time - _initialTime;
+
+        int initialIndexIdx = static_cast<int>(std::floor(localTime/deltaT));
+        initialIndexIdx = std::clamp<int>(initialIndexIdx,0,_indicesFromTimeIntervals->size()-1);
+        int initialSearchIdx = (*_indicesFromTimeIntervals)[initialIndexIdx];
+
+        initialSearchIdx = std::clamp<int>(initialSearchIdx-1, 0, _sequence->size()-1);
+
+        for (int i = initialSearchIdx; i < _sequence->size(); i++) {
+
+            int nextId = std::min<int>(i+1,_sequence->size()-1);
+
+            if ((*_sequence)[i].time <= time and (*_sequence)[nextId].time >= time) {
+                double preDelta = time - (*_sequence)[i].time;
+                double postDelta = (*_sequence)[nextId].time - time;
+
+                if (!std::isfinite(preDelta) and !std::isfinite(postDelta)) {
+                    return i;
+                } else if (!std::isfinite(preDelta)) {
+                    return nextId;
+                } else if (!std::isfinite(postDelta)) {
+                    return i;
+                }
+
+                return (std::abs(preDelta) < std::abs(postDelta)) ? i : nextId;
+            }
+
+        }
+
+        return _sequence->size()-1;
+
+    }
+    /*!
+     * \brief previousNode compute the index of the node coming just before a given time
+     * \param time the time
+     * \return the index, or the last index in the sequence if the time is after the end.
+     */
+    int previousNodeIndex(TimeT time) {
+        int nearest = nearestNodeIndex(time);
+
+        if ((*_sequence)[nearest].time <= time) {
+            return nearest;
+        }
+
+        return std::min<int>(nearest+1,_sequence->size()-1);
+    }
+    /*!
+     * \brief nextNodeIndex compute the index of the node coming just after a given time
+     * \param time the time
+     * \return the index, or 0 if the time is before the beginning of the sequence.
+     */
+    int nextNodeIndex(TimeT time) {
+        int nearest = nearestNodeIndex(time);
+
+        if ((*_sequence)[nearest].time >= time) {
+            return nearest;
+        }
+
+        return std::max<int>(nearest-1,0);
+
+    }
+
     TimedElement& operator[](int idx) {
         return (*_sequence)[idx];
     }
