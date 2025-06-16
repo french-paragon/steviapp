@@ -1797,8 +1797,8 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTr
 
     if (currentProject != nullptr) {
         StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local().cast<double>();
-        local2ecef.R = ecef2local.R.transpose();
-        local2ecef.t = -ecef2local.R.transpose()*ecef2local.t;
+        local2ecef.R = ecef2local.R.inverse();
+        local2ecef.t = -ecef2local.R.inverse()*ecef2local.t;
 
         for (int i = 0; i < ret.value().nPoints(); i++) {
             ret.value()[i].val = StereoVision::Geometry::RigidBodyTransform<double>(local2ecef*ret.value()[i].val.toAffineTransform());

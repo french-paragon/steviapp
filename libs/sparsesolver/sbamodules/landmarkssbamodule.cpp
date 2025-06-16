@@ -199,7 +199,7 @@ bool LandmarksSBAModule::writeResults(ModularSBASolver* solver) {
     QVector<qint64> lmIdxs = currentProject->getIdsByClass(Landmark::staticMetaObject.className());
 
     StereoVision::Geometry::AffineTransform<double> ecef2local = solver->getTransform2LocalFrame();
-    StereoVision::Geometry::AffineTransform<double> local2ecef(ecef2local.R.transpose(), -ecef2local.R.transpose()*ecef2local.t);
+    StereoVision::Geometry::AffineTransform<double> local2ecef(ecef2local.R.inverse(), -ecef2local.R.inverse()*ecef2local.t);
 
     for (qint64 lmId : lmIdxs) {
 
