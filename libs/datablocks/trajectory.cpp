@@ -45,6 +45,9 @@ Trajectory::Trajectory(Project* parent) :
     _accelerometerId = 1;
     _gyroId = 1;
 
+    _separators.clear();
+    _separators.push_back(",");
+
     _accelerometerParameters._estimates_bias = false;
     _accelerometerParameters._estimates_gain = false;
     _angularSpeedParameters._estimates_bias = false;
