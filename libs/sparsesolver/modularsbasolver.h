@@ -273,6 +273,125 @@ public:
     };
 
     /*!
+     * \brief The SolverInfos class is a convinience class cost functions can inherit from to attach some informations to them (usefull for debug).
+     */
+    class SolverInfos {
+    public:
+        inline SolverInfos() :
+            _solver(nullptr),
+            _module(nullptr)
+        {
+
+        }
+
+        inline ModularSBASolver* solver() const {
+            return _solver;
+        }
+
+        inline void setSolver(ModularSBASolver* solver) {
+            _solver = solver;
+        }
+
+        inline SBAModule* module() const {
+            return _module;
+        }
+
+        inline void setModule(SBAModule* module) {
+            _module = module;
+        }
+
+        inline ProjectorModule* projector() const {
+            return _projector;
+        }
+
+        inline void setProjector(ProjectorModule* module) {
+            _projector = module;
+        }
+
+        inline QVector<qint64> datablockRef() const {
+            return _datablockRef;
+        }
+
+        inline void setDatablockRef(QVector<qint64> const& ref) {
+            _datablockRef = ref;
+        }
+
+        inline void setInfos(ModularSBASolver* solver,
+                             SBAModule* module = nullptr,
+                             ProjectorModule* projector = nullptr,
+                             QVector<qint64> const& datablockRef = {}) {
+            setSolver(solver);
+            setModule(module);
+            setProjector(projector);
+            setDatablockRef(datablockRef);
+        }
+
+        inline void setInfos(ModularSBASolver* solver,
+                             ProjectorModule* projector,
+                             QVector<qint64> const& datablockRef = {}) {
+            setSolver(solver);
+            setModule(nullptr);
+            setProjector(projector);
+            setDatablockRef(datablockRef);
+        }
+
+        inline void setInfos(ModularSBASolver* solver,
+                             QVector<qint64> const& datablockRef) {
+            setSolver(solver);
+            setModule(nullptr);
+            setProjector(nullptr);
+            setDatablockRef(datablockRef);
+        }
+
+        inline void setInfos(SBAModule* module,
+                             ProjectorModule* projector = nullptr,
+                             QVector<qint64> const& datablockRef = {}) {
+            setSolver(nullptr);
+            setModule(module);
+            setProjector(projector);
+            setDatablockRef(datablockRef);
+        }
+
+        inline void setInfos(SBAModule* module,
+                             QVector<qint64> const& datablockRef) {
+            setSolver(nullptr);
+            setModule(module);
+            setProjector(nullptr);
+            setDatablockRef(datablockRef);
+        }
+
+        inline void setInfos(ProjectorModule* projector,
+                             QVector<qint64> const& datablockRef = {}) {
+            setSolver(nullptr);
+            setModule(nullptr);
+            setProjector(projector);
+            setDatablockRef(datablockRef);
+        }
+
+        inline void setInfos(QVector<qint64> const& datablockRef) {
+            setSolver(nullptr);
+            setModule(nullptr);
+            setProjector(nullptr);
+            setDatablockRef(datablockRef);
+        }
+
+        inline void setInfosString(QString const& infoString) {
+            _infoString = infoString;
+        }
+
+        inline QString infoString() const {
+            return _infoString;
+        }
+
+    protected:
+        ModularSBASolver* _solver;
+        SBAModule* _module;
+        ProjectorModule* _projector;
+        QVector<qint64> _datablockRef;
+        QString _infoString;
+    };
+
+    /*!
      * \brief The ErrorBlockLogger class represent a logger for an error block
      */
     class ValueBlockLogger {

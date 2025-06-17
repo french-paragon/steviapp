@@ -8,8 +8,6 @@
 #include <StereoVision/geometry/rotations.h>
 #include <StereoVision/geometry/alignement.h>
 
-#include <type_traits>
-
 namespace StereoVisionApp {
 
 /*!
@@ -256,9 +254,9 @@ public:
     static constexpr int uvProjParametersSizes[] = {uvProjParamsSizes...};
 
     UV2ParametrizedXYZCost(UVProjector* projector,
-               Eigen::Vector2d const& uv,
-               Eigen::Matrix2d const& info,
-               bool manageProjector = true) :
+                           Eigen::Vector2d const& uv,
+                           Eigen::Matrix2d const& info,
+                           bool manageProjector = true) :
         _manageProjector(manageProjector),
         _projector(projector),
         _uv(uv),

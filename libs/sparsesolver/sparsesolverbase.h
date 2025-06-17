@@ -36,6 +36,10 @@ public:
 
     inline Project* currentProject() const { return _currentProject; }
 
+    inline bool isWritingResults() {
+        return currentStep() == (splitOptSteps() ? optimizationSteps() : 1) + uncertaintySteps();
+    }
+
 protected:
 
 	bool doNextStep() override;

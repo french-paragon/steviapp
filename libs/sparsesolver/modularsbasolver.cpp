@@ -900,6 +900,7 @@ bool ModularSBASolver::writeResults() {
     if (_verbose) {
         std::cout << "Logging data!" << std::endl;
     }
+
     logDatas("after_opt.log");
     if (_verbose) {
         std::cout << "Logging data done!" << std::endl;

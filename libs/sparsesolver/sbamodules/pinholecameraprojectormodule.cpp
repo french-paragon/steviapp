@@ -43,7 +43,10 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
 
         if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
 
-            LeverArmCost* projCost = new LeverArmCost(new PinholePushbroomUVProjector(_associatedCamera->imWidth()), ptProjPos, ptProjStiffness);
+            LeverArmCost* projCost = new LeverArmCost(
+                new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                ptProjPos,
+                ptProjStiffness);
 
             constexpr int nArgs = 9;
 
@@ -64,7 +67,10 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
             if (isVerbose() and !logLabel.isEmpty()) {
 
                 QString loggerName = logLabel;
-                LeverArmCost* projCostLog = new LeverArmCost(new PinholePushbroomUVProjector(_associatedCamera->imWidth()), ptProjPos, Eigen::Matrix2d::Identity());
+                LeverArmCost* projCostLog = new LeverArmCost(
+                    new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                    ptProjPos,
+                    Eigen::Matrix2d::Identity());
 
                 ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
@@ -79,7 +85,10 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
             return true;
 
         } else {
-            UVCost* projCost = new UVCost(new PinholePushbroomUVProjector(_associatedCamera->imWidth()), ptProjPos, ptProjStiffness);
+            UVCost* projCost = new UVCost(
+                new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                ptProjPos,
+                ptProjStiffness);
 
             constexpr int nArgs = 7;
 
@@ -98,7 +107,10 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
             if (isVerbose() and !logLabel.isEmpty()) {
 
                 QString loggerName = logLabel;
-                UVCost* projCostLog = new UVCost(new PinholePushbroomUVProjector(_associatedCamera->imWidth()), ptProjPos, Eigen::Matrix2d::Identity());
+                UVCost* projCostLog = new UVCost(
+                    new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                    ptProjPos,
+                    Eigen::Matrix2d::Identity());
 
                 ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
@@ -118,7 +130,10 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
         if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
 
             PoseTransformLeverArmCost* projCost =
-                new PoseTransformLeverArmCost(offset, new PinholePushbroomUVProjector(_associatedCamera->imWidth()), ptProjPos, ptProjStiffness);
+                new PoseTransformLeverArmCost(
+                offset,new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                ptProjPos,
+                ptProjStiffness);
 
             constexpr int nArgs = 9;
 
@@ -141,7 +156,11 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
 
                 QString loggerName = logLabel;
                 PoseTransformLeverArmCost* projCostLog =
-                    new PoseTransformLeverArmCost(offset, new PinholePushbroomUVProjector(_associatedCamera->imWidth()), ptProjPos, Eigen::Matrix2d::Identity());
+                    new PoseTransformLeverArmCost(
+                    offset,
+                    new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                    ptProjPos,
+                    Eigen::Matrix2d::Identity());
 
                 ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
@@ -177,7 +196,11 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
             if (isVerbose() and !logLabel.isEmpty()) {
 
                 QString loggerName = logLabel;
-                PoseTransformCost* projCostLog = new PoseTransformCost(offset, new PinholePushbroomUVProjector(_associatedCamera->imWidth()), ptProjPos, Eigen::Matrix2d::Identity());
+                PoseTransformCost* projCostLog = new PoseTransformCost(
+                    offset,
+                    new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                    ptProjPos,
+                    Eigen::Matrix2d::Identity());
 
                 ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(

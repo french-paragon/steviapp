@@ -77,11 +77,11 @@ bool SparseSolverBase::doNextStep() {
 	} else if (currentStep() < (splitOptSteps() ? optimizationSteps() : 1) + uncertaintySteps()) {
 		s = std_step();
 	} else if (currentStep() == (splitOptSteps() ? optimizationSteps() : 1) + uncertaintySteps()) {
-		s = writeResults();
+        s = writeResults();
 
 		if (s and hasUncertaintyStep()) {
 			s = writeUncertainty();
-		}
+        }
 	}
 
 	return s;
