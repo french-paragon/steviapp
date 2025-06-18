@@ -716,7 +716,6 @@ void exportTrajectoryGeographic(Trajectory* traj,
         }
     }
 
-
     if (!exportTraj.isValid()) {
         if (mw != nullptr) {
             QMessageBox::warning(mw, QObject::tr("Error when exporting trajectory"), exportTraj.errorMessage());
@@ -787,7 +786,7 @@ void exportTrajectoryGeographic(Trajectory* traj,
     }
 
     std::vector<StereoVision::Geometry::AffineTransform<double>>&
-            local2ecefTransforms = ltpc2ecefopt.value();
+            localTopographic2ecefTransforms = ltpc2ecefopt.value();
 
     QFile outFile(outFilePath);
 
@@ -833,11 +832,11 @@ void exportTrajectoryGeographic(Trajectory* traj,
 
         platform2ecef = platform2ecef*sensor2body; //if the platform is a sensor, apply the sensor2body transform beforehand
 
-        StereoVision::Geometry::RigidBodyTransform<double> local2ecef =
-                local2ecefTransforms[i];
+        StereoVision::Geometry::RigidBodyTransform<double> localTopographic2ecef =
+                localTopographic2ecefTransforms[i];
 
         StereoVision::Geometry::AffineTransform<double> platform2local =
-                local2ecef.inverse().toAffineTransform()*platform2ecef.toAffineTransform();
+                localTopographic2ecef.inverse().toAffineTransform()*platform2ecef.toAffineTransform();
 
         Eigen::Matrix3d& rMat = platform2local.R;
 
@@ -866,8 +865,6 @@ void exportTrajectoryGeographic(Trajectory* traj,
     }
 
     out.flush();
-
-
 
 }
 

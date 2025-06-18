@@ -9,6 +9,7 @@
 #include <StereoVision/geometry/rotations.h>
 
 #include <proj.h>
+#include <iostream>
 
 namespace StereoVisionApp {
 namespace Geo {
@@ -141,6 +142,14 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
     PJ* latLon2ecef = proj_create_crs_to_crs(ctx, wgs84_latlon, wgs84_ecef, nullptr);
     PJ* ecef2latLon = proj_create_crs_to_crs(ctx, wgs84_ecef, wgs84_latlon, nullptr);
 
+    if (latLon2ecef == nullptr or ecef2latLon == nullptr) {
+        if (latLon2ecef != nullptr) proj_destroy(latLon2ecef);
+        if (ecef2latLon != nullptr) proj_destroy(ecef2latLon);
+        proj_destroy(toEcef);
+        proj_context_destroy(ctx);
+        return std::nullopt;
+    }
+
     std::vector<StereoVision::Geometry::AffineTransform<T>> ret(inputCoords.cols());
 
     for (int i = 0; i < inputCoords.cols(); i++) {
@@ -150,37 +159,39 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
         coordBase.xyz.y = inputCoords(1,i);
         coordBase.xyz.z = inputCoords(2,i);
 
-        PJ_COORD ecefPos;
+        std::array<double, 3> ecefPosArray = {inputCoords(0,i), inputCoords(1,i), inputCoords(2,i)};
+
+        constexpr int stride = sizeof(double);
 
         //proj can react strangely in release mode if we have the same input and output CRS
         if (std::string(wgs84_ecef) != crs) {
-            ecefPos = proj_trans(toEcef, PJ_FWD, coordBase);
-        } else {
-            ecefPos = coordBase;
+            proj_trans_generic(toEcef, PJ_FWD, &(ecefPosArray[0]), stride, 1, &(ecefPosArray[1]), stride, 1, &(ecefPosArray[2]), stride, 1, nullptr, 0, 0);
         }
 
-        PJ_COORD geoPos = proj_trans(ecef2latLon, PJ_FWD, ecefPos);
+        std::array<double, 3> geoPos = ecefPosArray;
+        proj_trans_generic(ecef2latLon, PJ_FWD, &(geoPos[0]), stride, 1, &(geoPos[1]), stride, 1, &(geoPos[2]), stride, 1, nullptr, 0, 0);
 
-        PJ_COORD posUpN = geoPos;
-        posUpN.lpz.lam += 1e-5; //approximately 1m at sea level
-        PJ_COORD posUpNEcef = proj_trans(latLon2ecef, PJ_FWD, posUpN);
+        std::array<double, 3> posUpN = geoPos;
+        posUpN[0] += 1e-5; //approximately 1m at sea level
+        proj_trans_generic(latLon2ecef, PJ_FWD, &(posUpN[0]), stride, 1, &(posUpN[1]), stride, 1, &(posUpN[2]), stride,1, nullptr, 0, 0);
 
-        PJ_COORD posDownS = geoPos;
-        posDownS.lpz.lam -= 1e-5; //approximately 1m at sea level
-        PJ_COORD posDownSEcef = proj_trans(latLon2ecef, PJ_FWD, posDownS);
+        std::array<double, 3> posDownS = geoPos;
+        posDownS[0] -= 1e-5; //approximately 1m at sea level
+        proj_trans_generic(latLon2ecef, PJ_FWD, &(posDownS[0]), stride, 1, &(posDownS[1]), stride, 1, &(posDownS[2]), stride, 1, nullptr, 0, 0);
 
-        PJ_COORD posUp = geoPos;
-        posUp.lpz.z += 1;
-        PJ_COORD posUpEcef = proj_trans(latLon2ecef, PJ_FWD, posUp);
+        std::array<double, 3> posUp = geoPos;
+        posUp[2] += 1;
+        proj_trans_generic(latLon2ecef, PJ_FWD, &(posUp[0]), stride, 1, &(posUp[1]), stride, 1, &(posUp[2]), stride, 1, nullptr, 0, 0);
 
-        Eigen::Vector3d upVec(posUpEcef.xyz.x - ecefPos.xyz.x,
-                              posUpEcef.xyz.y - ecefPos.xyz.y,
-                              posUpEcef.xyz.z - ecefPos.xyz.z);
+        Eigen::Vector3d upVec(posUp[0] - ecefPosArray[0],
+                              posUp[1] - ecefPosArray[1],
+                              posUp[2] - ecefPosArray[2]);
         upVec.normalize();
 
-        Eigen::Vector3d northVec(posUpNEcef.xyz.x - posDownSEcef.xyz.x,
-                                 posUpNEcef.xyz.y - posDownSEcef.xyz.y,
-                                 posUpNEcef.xyz.z - posDownSEcef.xyz.z);
+        Eigen::Vector3d northVec(posUpN[0] - posDownS[0],
+                                 posUpN[1] - posDownS[1],
+                                 posUpN[2] - posDownS[2]);
+
         double res = northVec.dot(upVec);
         northVec -= res*upVec;
 
@@ -190,9 +201,9 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
 
         StereoVision::Geometry::AffineTransform<T> transform;
 
-        transform.t[0] = ecefPos.xyz.x;
-        transform.t[1] = ecefPos.xyz.y;
-        transform.t[2] = ecefPos.xyz.z;
+        transform.t[0] = ecefPosArray[1];
+        transform.t[1] = ecefPosArray[1];
+        transform.t[2] = ecefPosArray[2];
 
         Eigen::Matrix3d R;
 
@@ -221,8 +232,6 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
 
         ret[i] = transform;
     }
-
-    cleanup :
 
     proj_destroy(latLon2ecef);
     proj_destroy(ecef2latLon);
