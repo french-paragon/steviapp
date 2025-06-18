@@ -22,6 +22,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp -march=native -
 
 #options
 option(ADD_DEVEL_TOOLS "enable devellopement tools in the build" OFF)
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 set(STEVIAPP_DEVEL_TOOLS ${ADD_DEVEL_TOOLS})
 
 #some global variables
