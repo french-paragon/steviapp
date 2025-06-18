@@ -14,10 +14,13 @@ namespace StereoVisionApp {
  * The class is meant to quickly access values in a time sequence.
  * It uses implicit sharing to make copying and moving data around more efficently.
  */
-template<typename T, typename TimeT = double>
+template<typename T, typename TIME_T = double>
 class IndexedTimeSequence {
 
 public:
+
+    using ScalarT = T;
+    using TimeT = TIME_T;
 
     struct TimedElement {
         TimeT time;
