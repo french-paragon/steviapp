@@ -201,7 +201,7 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
 
         StereoVision::Geometry::AffineTransform<T> transform;
 
-        transform.t[0] = ecefPosArray[1];
+        transform.t[0] = ecefPosArray[0];
         transform.t[1] = ecefPosArray[1];
         transform.t[2] = ecefPosArray[2];
 
