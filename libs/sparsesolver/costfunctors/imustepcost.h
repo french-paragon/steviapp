@@ -7,6 +7,7 @@
 #include <StereoVision/geometry/rotations.h>
 
 #include "../../vision/indexed_timed_sequence.h"
+#include "../../utils/functional.h"
 #include "./gravityDecorators.h"
 
 #ifndef NDEBUG
@@ -38,10 +39,11 @@ public:
                                                   TimeT t0,
                                                   TimeT t1);
 
-    template<bool WBias, bool WScale, typename Tgyro, typename TimeT>
-    static GyroStepCost<WBias,WScale>* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-                                              TimeT t0,
-                                              TimeT t1);
+    template<bool WBias, bool WScale, template <typename T> typename Decorator = IdentityDecorator, typename Tgyro, typename TimeT, typename ... DecoratorAdditionalArgT>
+    static Decorator<GyroStepCost<WBias,WScale>>* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                                        TimeT t0,
+                                                                        TimeT t1,
+                                                                        DecoratorAdditionalArgT ... additionalArgs);
 
     GyroStepCostBase(Eigen::Matrix3d const& attitudeDelta,
                  double delta_t);
@@ -350,37 +352,35 @@ GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegmen
 
 }
 
-template<bool WBias, bool WScale, typename Tgyro, typename TimeT>
-GyroStepCost<WBias,WScale>* GyroStepCostBase::getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-                                              TimeT t0,
-                                              TimeT t1) {
-
-    GyroStepCostBase* ret;
+template<bool WBias, bool WScale, template <typename T> typename Decorator, typename Tgyro, typename TimeT, typename ... DecoratorAdditionalArgT>
+    Decorator<GyroStepCost<WBias, WScale>> *GyroStepCostBase::getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                                               TimeT t0,
+                                                                               TimeT t1,
+                                                                               DecoratorAdditionalArgT ... additionalDecoratorArgs) {
 
     IntegratedGyroSegment pre_integrated = preIntegrateGyroSegment<WBias, WScale, Tgyro, TimeT>(GyroData, t0, t1);
 
-    if (WBias and WScale) {
-            ret = new StereoVisionApp::GyroStepCost<true, true>(pre_integrated.attitudeDelta,
-                                                                pre_integrated.gainJacobian,
-                                                                pre_integrated.biasJacobian,
-                                                                pre_integrated.dt);
-            return static_cast<GyroStepCost<WBias, WScale>*>(ret);
-        } else if (WBias) {
-            ret = new StereoVisionApp::GyroStepCost<true, false>(pre_integrated.attitudeDelta,
-                                                                 pre_integrated.biasJacobian,
-                                                                 pre_integrated.dt);
-            return static_cast<GyroStepCost<WBias, WScale>*>(ret);
-        } else if (WScale) {
-            ret = new StereoVisionApp::GyroStepCost<false, true>(pre_integrated.attitudeDelta,
-                                                                 pre_integrated.gainJacobian,
-                                                                 pre_integrated.dt);
-            return static_cast<GyroStepCost<WBias, WScale>*>(ret);
-        }
-
-    ret = new StereoVisionApp::GyroStepCost<false, false>(pre_integrated.attitudeDelta,
-                                                          pre_integrated.dt);
-
-    return static_cast<GyroStepCost<WBias, WScale>*>(ret);
+    if constexpr (WBias and WScale) {
+        return new Decorator<GyroStepCost<true, true>>(additionalDecoratorArgs ...,
+                                                       pre_integrated.attitudeDelta,
+                                                       pre_integrated.gainJacobian,
+                                                       pre_integrated.biasJacobian,
+                                                       pre_integrated.dt);
+    } else if constexpr (WBias) {
+        return new Decorator<GyroStepCost<true, false>>(additionalDecoratorArgs ...,
+                                                        pre_integrated.attitudeDelta,
+                                                        pre_integrated.biasJacobian,
+                                                        pre_integrated.dt);
+    } else if constexpr (WScale) {
+        return new Decorator<GyroStepCost<false, true>>(additionalDecoratorArgs ...,
+                                                        pre_integrated.attitudeDelta,
+                                                        pre_integrated.gainJacobian,
+                                                        pre_integrated.dt);
+    } else {
+        return new Decorator<GyroStepCost<false, false>>(additionalDecoratorArgs ...,
+                                                         pre_integrated.attitudeDelta,
+                                                         pre_integrated.dt);
+    }
 
 
 }
@@ -688,23 +688,13 @@ public:
 
     }
 
-    template<int accCostFlags, typename Tgyro, typename Tacc, typename TimeT>
-    static AccelerometerStepCost<accCostFlags>* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-                                                        IndexedTimeSequence<Tacc, TimeT> const& AccData,
-                                                        TimeT t0,
-                                                        TimeT t1,
-                                                        TimeT t2);
-
-    template<int accCostFlags, typename Tgyro, typename Tacc, typename TimeT>
-    static GravityReoriented<AccelerometerStepCost<accCostFlags>,
-                             AccelerometerStepCostTraits<accCostFlags>::refPosParamIdx(),
-                             AccelerometerStepCostTraits<accCostFlags>::gravityParamIdx()>* getIntegratedIMUDiffWithAdaptiveGravity
-        (IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-         IndexedTimeSequence<Tacc, TimeT> const& AccData,
-         TimeT t0,
-         TimeT t1,
-         TimeT t2,
-         Eigen::Vector3d const& earthCenterPos);
+    template<int accCostFlags, template <typename T> typename Decorator = IdentityDecorator, typename Tgyro, typename Tacc, typename TimeT, typename ... DecoratorAdditionalArgsT>
+    static Decorator<AccelerometerStepCost<accCostFlags>>* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                                                IndexedTimeSequence<Tacc, TimeT> const& AccData,
+                                                                                TimeT t0,
+                                                                                TimeT t1,
+                                                                                TimeT t2,
+                                                                                DecoratorAdditionalArgsT ... decoratorAdditionalArgs);
 
     AccelerometerStepCostBase(Eigen::Vector3d const& speedDelta,
                               double delta_t1,
@@ -1419,195 +1409,15 @@ protected:
     Eigen::Matrix3d _aGainJacobian;
 };
 
-template<int accCostFlags, typename Tgyro, typename Tacc, typename TimeT>
-AccelerometerStepCost<accCostFlags>* AccelerometerStepCostBase::getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-                                                    IndexedTimeSequence<Tacc, TimeT> const& AccData,
-                                                    TimeT t0,
-                                                    TimeT t1,
-                                                    TimeT t2) {
+template<int accCostFlags, template <typename T> typename Decorator, typename Tgyro, typename Tacc, typename TimeT, typename ... DecoratorAdditionalArgsT>
+Decorator<AccelerometerStepCost<accCostFlags>>* AccelerometerStepCostBase::getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
+                                                                                                IndexedTimeSequence<Tacc, TimeT> const& AccData,
+                                                                                                TimeT t0,
+                                                                                                TimeT t1,
+                                                                                                TimeT t2,
+                                                                                                DecoratorAdditionalArgsT ... decoratorAdditionalArgs) {
 
     using Traits = AccelerometerStepCostTraits<accCostFlags>;
-
-    IntegratedAccSegment integrated = preIntegrateAccSegment(GyroData, AccData, t0, t1, t2);
-
-    AccelerometerStepCostBase* ret;
-
-    if (Traits::WGBias) {
-        if (Traits::WGScale) {
-
-            if (Traits::WABias) {
-                if (Traits::WAScale) {
-                ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                        AccelerometerStepCostFlags::GyroScale|
-                        AccelerometerStepCostFlags::AccBias|
-                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
-                                                              integrated.gyroBiasJacobian,
-                                                              integrated.gyroGainJacobian,
-                                                              integrated.accBiasJacobian,
-                                                              integrated.accGainJacobian,
-                                                              integrated.dt1,
-                                                              integrated.dt2);
-                } else {
-                    ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                            AccelerometerStepCostFlags::GyroScale|
-                            AccelerometerStepCostFlags::AccBias>(integrated.speedDelta,
-                                                                 integrated.gyroBiasJacobian,
-                                                                 integrated.gyroGainJacobian,
-                                                                 integrated.accBiasJacobian,
-                                                                 integrated.dt1,
-                                                                 integrated.dt2);
-                }
-            } else {
-                if (Traits::WAScale) {
-                ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                        AccelerometerStepCostFlags::GyroScale|
-                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
-                                                              integrated.gyroBiasJacobian,
-                                                              integrated.gyroGainJacobian,
-                                                              integrated.accGainJacobian,
-                                                              integrated.dt1,
-                                                              integrated.dt2);
-                } else {
-                    ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                            AccelerometerStepCostFlags::GyroScale>(integrated.speedDelta,
-                                                                   integrated.gyroBiasJacobian,
-                                                                   integrated.gyroGainJacobian,
-                                                                   integrated.dt1,
-                                                                   integrated.dt2);
-                }
-            }
-
-        } else {
-
-            if (Traits::WABias) {
-                if (Traits::WAScale) {
-                ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                        AccelerometerStepCostFlags::AccBias|
-                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
-                                                              integrated.gyroBiasJacobian,
-                                                              integrated.accBiasJacobian,
-                                                              integrated.accGainJacobian,
-                                                              integrated.dt1,
-                                                              integrated.dt2);
-                } else {
-                    ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                            AccelerometerStepCostFlags::AccBias>(integrated.speedDelta,
-                                                                 integrated.gyroBiasJacobian,
-                                                                 integrated.accBiasJacobian,
-                                                                 integrated.dt1,
-                                                                 integrated.dt2);
-                }
-            } else {
-                if (Traits::WAScale) {
-                ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
-                                                              integrated.gyroBiasJacobian,
-                                                              integrated.accGainJacobian,
-                                                              integrated.dt1,
-                                                              integrated.dt2);
-                } else {
-                    ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias>
-                            (integrated.speedDelta,
-                             integrated.gyroBiasJacobian,
-                             integrated.dt1,
-                             integrated.dt2);
-                }
-            }
-
-        }
-    } else {
-        if (Traits::WGScale) {
-
-            if (Traits::WABias) {
-                if (Traits::WAScale) {
-                ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
-                        AccelerometerStepCostFlags::AccBias|
-                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
-                                                              integrated.gyroGainJacobian,
-                                                              integrated.accBiasJacobian,
-                                                              integrated.accGainJacobian,
-                                                              integrated.dt1,
-                                                              integrated.dt2);
-                } else {
-                    ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
-                            AccelerometerStepCostFlags::AccBias>(integrated.speedDelta,
-                                                                 integrated.gyroGainJacobian,
-                                                                 integrated.accBiasJacobian,
-                                                                 integrated.dt1,
-                                                                 integrated.dt2);
-                }
-            } else {
-                if (Traits::WAScale) {
-                ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
-                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
-                                                              integrated.gyroGainJacobian,
-                                                              integrated.accGainJacobian,
-                                                              integrated.dt1,
-                                                              integrated.dt2);
-                } else {
-                    ret = new AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale>
-                            (integrated.speedDelta,
-                             integrated.gyroGainJacobian,
-                             integrated.dt1,
-                             integrated.dt2);
-                }
-            }
-
-        } else {
-
-            if (Traits::WABias) {
-                if (Traits::WAScale) {
-                ret = new AccelerometerStepCost<AccelerometerStepCostFlags::AccBias|
-                        AccelerometerStepCostFlags::AccScale>(integrated.speedDelta,
-                                                              integrated.accBiasJacobian,
-                                                              integrated.accGainJacobian,
-                                                              integrated.dt1,
-                                                              integrated.dt2);
-                } else {
-                    ret = new AccelerometerStepCost<AccelerometerStepCostFlags::AccBias>
-                            (integrated.speedDelta,
-                             integrated.accBiasJacobian,
-                             integrated.dt1,
-                             integrated.dt2);
-                }
-            } else {
-                if (Traits::WAScale) {
-                ret = new AccelerometerStepCost<AccelerometerStepCostFlags::AccScale>
-                        (integrated.speedDelta,
-                         integrated.accGainJacobian,
-                         integrated.dt1,
-                         integrated.dt2);
-                } else {
-                    ret = new AccelerometerStepCost<AccelerometerStepCostFlags::NoBias>
-                            (integrated.speedDelta,
-                             integrated.dt1,
-                             integrated.dt2);
-                }
-            }
-        }
-    }
-
-    return static_cast<AccelerometerStepCost<accCostFlags>*>(ret);
-
-}
-
-
-
-template<int accCostFlags, typename Tgyro, typename Tacc, typename TimeT>
-GravityReoriented<AccelerometerStepCost<accCostFlags>,
-                  AccelerometerStepCostTraits<accCostFlags>::refPosParamIdx(),
-                  AccelerometerStepCostTraits<accCostFlags>::gravityParamIdx()>* AccelerometerStepCostBase::getIntegratedIMUDiffWithAdaptiveGravity
-    (IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-     IndexedTimeSequence<Tacc, TimeT> const& AccData,
-     TimeT t0,
-     TimeT t1,
-     TimeT t2,
-     Eigen::Vector3d const& earthCenterPos) {
-
-    using Traits = AccelerometerStepCostTraits<accCostFlags>;
-
-    constexpr int refPosIdx = Traits::refPosParamIdx();
-    constexpr int gravityIdx = Traits::gravityParamIdx();
 
     IntegratedAccSegment integrated = preIntegrateAccSegment(GyroData, AccData, t0, t1, t2);
 
@@ -1616,11 +1426,11 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
 
             if constexpr (Traits::WABias) {
                 if constexpr (Traits::WAScale) {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                                                    AccelerometerStepCostFlags::GyroScale|
-                                                    AccelerometerStepCostFlags::AccBias|
-                                                    AccelerometerStepCostFlags::AccScale>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                                                               AccelerometerStepCostFlags::GyroScale|
+                                                               AccelerometerStepCostFlags::AccBias|
+                                                               AccelerometerStepCostFlags::AccScale>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroBiasJacobian,
                         integrated.gyroGainJacobian,
@@ -1629,10 +1439,10 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
                         integrated.dt1,
                         integrated.dt2);
                 } else {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                                                    AccelerometerStepCostFlags::GyroScale|
-                                                    AccelerometerStepCostFlags::AccBias>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                                                               AccelerometerStepCostFlags::GyroScale|
+                                                               AccelerometerStepCostFlags::AccBias>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroBiasJacobian,
                         integrated.gyroGainJacobian,
@@ -1642,10 +1452,10 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
                 }
             } else {
                 if constexpr (Traits::WAScale) {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                                                    AccelerometerStepCostFlags::GyroScale|
-                                                    AccelerometerStepCostFlags::AccScale>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                                                               AccelerometerStepCostFlags::GyroScale|
+                                                               AccelerometerStepCostFlags::AccScale>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroBiasJacobian,
                         integrated.gyroGainJacobian,
@@ -1653,9 +1463,9 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
                         integrated.dt1,
                         integrated.dt2);
                 } else {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                                                                       AccelerometerStepCostFlags::GyroScale>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                                                               AccelerometerStepCostFlags::GyroScale>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroBiasJacobian,
                         integrated.gyroGainJacobian,
@@ -1668,10 +1478,10 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
 
             if constexpr (Traits::WABias) {
                 if constexpr (Traits::WAScale) {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                                                                       AccelerometerStepCostFlags::AccBias|
-                                                                       AccelerometerStepCostFlags::AccScale>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                                                               AccelerometerStepCostFlags::AccBias|
+                                                               AccelerometerStepCostFlags::AccScale>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroBiasJacobian,
                         integrated.accBiasJacobian,
@@ -1679,9 +1489,9 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
                         integrated.dt1,
                         integrated.dt2);
                 } else {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                                                                       AccelerometerStepCostFlags::AccBias>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                                                               AccelerometerStepCostFlags::AccBias>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroBiasJacobian,
                         integrated.accBiasJacobian,
@@ -1690,18 +1500,18 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
                 }
             } else {
                 if constexpr (Traits::WAScale) {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
-                                                                       AccelerometerStepCostFlags::AccScale>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias|
+                                                               AccelerometerStepCostFlags::AccScale>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroBiasJacobian,
                         integrated.accGainJacobian,
                         integrated.dt1,
                         integrated.dt2);
                 } else {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias>, refPosIdx, gravityIdx>
-                        (
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroBias>>
+                            (
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroBiasJacobian,
                         integrated.dt1,
@@ -1715,10 +1525,10 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
 
             if constexpr (Traits::WABias) {
                 if constexpr (Traits::WAScale) {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
-                                                                       AccelerometerStepCostFlags::AccBias|
-                                                                       AccelerometerStepCostFlags::AccScale>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+                                                               AccelerometerStepCostFlags::AccBias|
+                                                               AccelerometerStepCostFlags::AccScale>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroGainJacobian,
                         integrated.accBiasJacobian,
@@ -1726,9 +1536,9 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
                         integrated.dt1,
                         integrated.dt2);
                 } else {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
-                                                                       AccelerometerStepCostFlags::AccBias>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+                                                               AccelerometerStepCostFlags::AccBias>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroGainJacobian,
                         integrated.accBiasJacobian,
@@ -1737,18 +1547,18 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
                 }
             } else {
                 if constexpr (Traits::WAScale) {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
-                                                                       AccelerometerStepCostFlags::AccScale>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale|
+                                                               AccelerometerStepCostFlags::AccScale>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroGainJacobian,
                         integrated.accGainJacobian,
                         integrated.dt1,
                         integrated.dt2);
                 } else {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale>, refPosIdx, gravityIdx>
-                        (
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::GyroScale>>
+                            (
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.gyroGainJacobian,
                         integrated.dt1,
@@ -1760,18 +1570,18 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
 
             if constexpr (Traits::WABias) {
                 if constexpr (Traits::WAScale) {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::AccBias|
-                                                                       AccelerometerStepCostFlags::AccScale>, refPosIdx, gravityIdx>(
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::AccBias|
+                                                               AccelerometerStepCostFlags::AccScale>>(
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.accBiasJacobian,
                         integrated.accGainJacobian,
                         integrated.dt1,
                         integrated.dt2);
                 } else {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::AccBias>, refPosIdx, gravityIdx>
-                        (
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::AccBias>>
+                            (
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.accBiasJacobian,
                         integrated.dt1,
@@ -1779,17 +1589,17 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
                 }
             } else {
                 if constexpr (Traits::WAScale) {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::AccScale>, refPosIdx, gravityIdx>
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::AccScale>>
                         (
-                        earthCenterPos,
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.accGainJacobian,
                         integrated.dt1,
                         integrated.dt2);
                 } else {
-                    return new GravityReoriented<AccelerometerStepCost<AccelerometerStepCostFlags::NoBias>, refPosIdx, gravityIdx>
-                        (
-                        earthCenterPos,
+                    return new Decorator<AccelerometerStepCost<AccelerometerStepCostFlags::NoBias>>
+                            (
+                        decoratorAdditionalArgs ... ,
                         integrated.speedDelta,
                         integrated.dt1,
                         integrated.dt2);
@@ -1797,8 +1607,6 @@ GravityReoriented<AccelerometerStepCost<accCostFlags>,
             }
         }
     }
-
-    return nullptr;
 
 }
 

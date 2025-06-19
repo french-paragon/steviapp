@@ -18,6 +18,13 @@ public:
         return ret;
     }
 
+    StatusOptionalReturn() :
+        _val(std::nullopt),
+        _error_msg("")
+    {
+
+    }
+
     StatusOptionalReturn(R_T const& val) :
         _val(val)
     {
@@ -43,10 +50,6 @@ public:
     }
 
 protected:
-
-    StatusOptionalReturn() {
-        _val = std::nullopt;
-    }
 
     std::optional<R_T> _val;
 

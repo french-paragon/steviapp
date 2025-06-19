@@ -285,6 +285,26 @@ void TestFunctionalUtils::testPoseDecorators() {
         inverseDelta = (pose2*pose) * outPose.inverse();
         verifyPoseIsZero(inverseDelta);
 
+        using WithMoreOrientation = StereoVisionApp::AddOrientation<IdentityPose,1>;
+
+        WithMoreOrientation with_orientation_functor;
+
+        constexpr bool typeCheckWithMoreOrientation =
+            std::is_same_v<decltype (with_orientation_functor(r_in.data(), r_in2.data(), t_in.data(), out.data())),
+                           decltype (indentity_functor(r_in.data(), t_in.data(), out.data()))>;
+
+        static_assert (typeCheckInvert, "Type of with more orientation decorated function is not consistent with initial function");
+
+        ok = with_orientation_functor(r_in.data(), r_in2.data(), t_in.data(), out.data());
+
+        QVERIFY2(ok, "Decorated with more orientation function unexpectly returned false");
+
+        reconfigureOutPose();
+
+        StereoVision::Geometry::RigidBodyTransform<double> withMoreOrientationDelta =
+            pose*outPose.inverse();
+
+        verifyPoseIsZero(withMoreOrientationDelta);
 
     }
 

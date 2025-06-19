@@ -1,6 +1,7 @@
 #include "trajectoryactionmanager.h"
 
 #include "datablocks/trajectory.h"
+#include "datablocks/mounting.h"
 
 #include "gui/dialogs/trajectoryeditpositionoptionsdialog.h"
 #include "gui/dialogs/trajectoryeditgpsoptionsdialog.h"
@@ -25,6 +26,7 @@
 #include <QFormLayout>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QMenu>
 
 namespace StereoVisionApp {
 
@@ -87,7 +89,7 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
     });
     actions.append(setAccelerometerData);
 
-    QAction* accMountingAction = new QAction(tr("Set accelerometer mounting"), parent);
+    QAction* accMountingAction = new QAction(tr("Set accelerometer transform"), parent);
     connect(accMountingAction, &QAction::triggered, traj, [traj] () {
         setAccelerometerMounting(traj);
     });
@@ -103,11 +105,18 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
     });
     actions.append(setGyroData);
 
-    QAction* gyroMountingAction = new QAction(tr("Set gyro mounting"), parent);
+    QAction* gyroMountingAction = new QAction(tr("Set gyro transform"), parent);
     connect(gyroMountingAction, &QAction::triggered, traj, [traj] () {
         setGyroMounting(traj);
     });
     actions.append(gyroMountingAction);
+
+
+    QAction* assignGpsMounting = createAssignToMountingAction(parent, traj->getProject(), {traj}, AssignMountMode::GPS);
+    QAction* assignInsMounting = createAssignToMountingAction(parent, traj->getProject(), {traj}, AssignMountMode::INS);
+
+    actions.append(assignGpsMounting);
+    actions.append(assignInsMounting);
 
     QAction* viewTrajectoryAction = new QAction(tr("view trajectory"), parent);
     connect(viewTrajectoryAction, &QAction::triggered, traj, [traj] () {
@@ -234,6 +243,64 @@ QString TrajectoryActionManager::ActionManagerClassName() const {
 }
 QString TrajectoryActionManager::itemClassName() const {
     return Trajectory::staticMetaObject.className();
+}
+
+QAction* TrajectoryActionManager::createAssignToMountingAction(QObject* parent,
+                                      StereoVisionApp::Project* p,
+                                      QVector<Trajectory*> const& trajs,
+                                      AssignMountMode mode) const {
+
+    QString actionText = (mode == GPS) ? tr("Assign gps mounting") : tr("Assign ins mounting");
+    QAction* assignToMounting = new QAction(actionText, parent);
+    QMenu* mountingMenu = new QMenu();
+    connect(assignToMounting, &QObject::destroyed, mountingMenu, &QObject::deleteLater);
+
+    QVector<qint64> mountingIds = p->getIdsByClass(StereoVisionApp::Mounting::staticMetaObject.className());
+
+    for(qint64 mountingId : mountingIds) {
+
+        StereoVisionApp::Mounting* m = qobject_cast<StereoVisionApp::Mounting*>(p->getById(mountingId));
+
+        if (m != nullptr) {
+            QAction* toMounting = new QAction(m->objectName(), assignToMounting);
+            if (mode == GPS) {
+                connect(toMounting, &QAction::triggered, [mountingId, trajs] () {
+                    for (Trajectory* traj : trajs) {
+                        traj->assignGpsMounting(mountingId);
+                    }
+                });
+            } else {
+                connect(toMounting, &QAction::triggered, [mountingId, trajs] () {
+                    for (Trajectory* traj : trajs) {
+                        traj->assignInsMounting(mountingId);
+                    }
+                });
+            }
+            mountingMenu->addAction(toMounting);
+        }
+    }
+
+    QAction* clearMounting = new QAction(tr("Clear"), assignToMounting);
+
+    if (mode == GPS) {
+        connect(clearMounting, &QAction::triggered, [trajs] () {
+            for (Trajectory* traj : trajs) {
+                traj->assignGpsMounting(-1);
+            }
+        });
+    } else {
+        connect(clearMounting, &QAction::triggered, [trajs] () {
+            for (Trajectory* traj : trajs) {
+                traj->assignInsMounting(-1);
+            }
+        });
+    }
+
+    mountingMenu->addAction(clearMounting);
+
+    assignToMounting->setMenu(mountingMenu);
+
+    return assignToMounting;
 }
 
 } // namespace StereoVisionApp

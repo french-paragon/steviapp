@@ -8,6 +8,7 @@
 #include "../costfunctors/weightedcostfunction.h"
 #include "../costfunctors/imustepcost.h"
 #include "../costfunctors/gravityDecorators.h"
+#include "../costfunctors/posedecoratorfunctors.h"
 
 namespace StereoVisionApp {
 
@@ -253,6 +254,8 @@ protected:
 
     }
 
+    static constexpr int insLeverArmPoseDefinition = Body2World | Sensor2Body;
+
     template <template<class, int...> class CostT, class AccCost, int flags>
     using AccTemplateParametrizedCost =
         std::conditional_t<nAccCostParams<flags>() == 5,
@@ -265,6 +268,25 @@ protected:
                         CostT<AccCost, 3,3,3,3,3,3,3,3,3>,
                         std::conditional_t<nAccCostParams<flags>() == 9,
                             CostT<AccCost, 3,3,3,3,3,3,3,3,3,3>,
+                            void
+                        >
+                    >
+                >
+            >
+        >;
+
+    template <template<class, int...> class CostT, class AccCost, int flags>
+    using LeverArmAccTemplateParametrizedCost =
+        std::conditional_t<nAccCostParams<flags>() == 5,
+            CostT<AccCost, 3,3,3,3,3,3,3,3,3,3>,
+            std::conditional_t<nAccCostParams<flags>() == 6,
+                CostT<AccCost, 3,3,3,3,3,3,3,3,3,3,3>,
+                std::conditional_t<nAccCostParams<flags>() == 7,
+                    CostT<AccCost, 3,3,3,3,3,3,3,3,3,3,3,3>,
+                    std::conditional_t<nAccCostParams<flags>() == 8,
+                        CostT<AccCost, 3,3,3,3,3,3,3,3,3,3,3,3,3>,
+                        std::conditional_t<nAccCostParams<flags>() == 9,
+                            CostT<AccCost, 3,3,3,3,3,3,3,3,3,3,3,3,3,3>,
                             void
                         >
                     >
@@ -291,6 +313,61 @@ protected:
             >
         >;
 
+
+
+    template <template<int...> class CostT, int flags>
+    using LeverArmAccParametrizedCost =
+        std::conditional_t<nAccCostParams<flags>() == 5,
+            CostT<3,3,3,3,3,3,3,3,3,3>,
+            std::conditional_t<nAccCostParams<flags>() == 6,
+                CostT<3,3,3,3,3,3,3,3,3,3,3>,
+                std::conditional_t<nAccCostParams<flags>() == 7,
+                    CostT<3,3,3,3,3,3,3,3,3,3,3,3>,
+                    std::conditional_t<nAccCostParams<flags>() == 8,
+                        CostT<3,3,3,3,3,3,3,3,3,3,3,3,3>,
+                        std::conditional_t<nAccCostParams<flags>() == 9,
+                            CostT<3,3,3,3,3,3,3,3,3,3,3,3,3,3>,
+                            void
+                        >
+                    >
+                >
+            >
+        >;
+
+    template <int flags>
+    struct AccelerometerStepCostGravity
+    {
+
+        static constexpr int refPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        static constexpr int gravityParamPos = AccelerometerStepCostTraits<flags>::gravityParamIdx();
+
+        template <typename T>
+        using Decorator = GravityReoriented<T, refPosParamPos, gravityParamPos>;
+    };
+
+    template <int flags>
+    struct AccelerometerStepCostLeverArmGravity
+    {
+
+        static constexpr int refPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        static constexpr int gravityParamPos = AccelerometerStepCostTraits<flags>::gravityParamIdx();
+
+        template <typename T>
+        using Decorator = ApplyLeverArm< //apply the lever arm to the t2 pose
+            ApplyLeverArm< //apply the lever arm to the t1 pose
+                ApplyLeverArm< //apply the lever arm to the t0 pose
+                    AddPose< //add a pose for the lever arm
+                        AddOrientation< //add orientation for the t0 pose
+                            AddOrientation< //add orientation for the t2 pose
+                                GravityReoriented<T, refPosParamPos, gravityParamPos>, 3
+                            >, 0
+                        >
+                    ,0>
+                ,0,2, insLeverArmPoseDefinition>
+            ,0,4, insLeverArmPoseDefinition>
+        ,0,6, insLeverArmPoseDefinition>;
+    };
+
     template <template<class, int...> class CostT, class GyroCost, bool WBias, bool WScale>
     using GyroTemplateParametrizedCost =
         std::conditional_t<nGyroCostParams<WBias, WScale>() == 2,
@@ -303,6 +380,19 @@ protected:
                 >
             >
         >;
+
+    template <template<class, int...> class CostT, class GyroCost, bool WBias, bool WScale>
+    using BoresightGyroTemplateParametrizedCost =
+        std::conditional_t<nGyroCostParams<WBias, WScale>() == 2,
+                           CostT<GyroCost, 3,3,3,3>,
+                           std::conditional_t<nGyroCostParams<WBias, WScale>() == 3,
+                                              CostT<GyroCost, 3,3,3,3,3>,
+                                              std::conditional_t<nGyroCostParams<WBias, WScale>() == 4,
+                                                                 CostT<GyroCost, 3,3,3,3,3,3>,
+                                                                 void
+                                                                 >
+                                              >
+                           >;
 
 
     template <template<int...> class CostT, bool WBias, bool WScale>
@@ -318,6 +408,27 @@ protected:
             >
         >;
 
+
+    template <template<int...> class CostT, bool WBias, bool WScale>
+    using BoresightGyroParametrizedCost =
+        std::conditional_t<nGyroCostParams<WBias, WScale>() == 2,
+                           CostT<3,3,3,3>,
+                           std::conditional_t<nGyroCostParams<WBias, WScale>() == 3,
+                                              CostT<3,3,3,3,3>,
+                                              std::conditional_t<nGyroCostParams<WBias, WScale>() == 4,
+                                                                 CostT<3,3,3,3,3,3>,
+                                                                 void
+                                                                 >
+                                              >
+                           >;
+
+    template <typename T>
+    using BoresightGyroCostDecorator = ComposeBoresightRotation<
+        ComposeBoresightRotation<
+            AddOrientation<T,0>
+            ,0,1, insLeverArmPoseDefinition>
+        ,0,2, insLeverArmPoseDefinition>;
+
     template<bool WBias, bool WScale>
     StatusOptionalReturn<void> addTempltGyroObs(
         ModularSBASolver::TrajectoryNode* trajNode,
@@ -331,22 +442,6 @@ protected:
         ModularSBASolver* solver,
         bool addLogger) {
 
-        using CostF = GyroStepCost<WBias, WScale>;
-        using AutoDiffCostFuncT = GyroTemplateParametrizedCost<ceres::AutoDiffCostFunction,CostF, WBias, WScale>;
-        using WeightedCostFuncT = GyroParametrizedCost<StereoVisionApp::WeightedCostFunction, WBias, WScale>;
-
-        static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
-        static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
-
-        CostF* gyroStepCost =
-            GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale>(
-                gyroSeq,
-                trajNode->nodes[i-1].time,
-                trajNode->nodes[i].time);
-
-        AutoDiffCostFuncT* gyroStepCostFunction =
-            new AutoDiffCostFuncT(gyroStepCost);
-
         double dt = trajNode->nodes[i].time - trajNode->nodes[i-1].time;
         Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
@@ -356,27 +451,98 @@ protected:
         weigthMat(1,1) = 1/poseUncertainty;
         weigthMat(2,2) = 1/poseUncertainty;
 
-        WeightedCostFuncT* weigthedGyroStepCost =
-            new WeightedCostFuncT(gyroStepCostFunction, weigthMat);
+        int insMountingId = traj->insMountingId();
+
+        ModularSBASolver::PoseNode* insMountingNode = solver->getNodeForMounting(insMountingId, false);
+
+        if (insMountingNode != nullptr) {
+
+            using CostF = BoresightGyroCostDecorator<GyroStepCost<WBias, WScale>>;
+            using AutoDiffCostFuncT = BoresightGyroTemplateParametrizedCost<ceres::AutoDiffCostFunction,CostF, WBias, WScale>;
+            using WeightedCostFuncT = BoresightGyroParametrizedCost<StereoVisionApp::WeightedCostFunction, WBias, WScale>;
+
+            static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
+            static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
+
+            CostF* gyroStepCost =
+                GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale, BoresightGyroCostDecorator>(
+                    gyroSeq,
+                    trajNode->nodes[i-1].time,
+                    trajNode->nodes[i].time);
+
+            AutoDiffCostFuncT* gyroStepCostFunction =
+                new AutoDiffCostFuncT(gyroStepCost);
+
+            WeightedCostFuncT* weigthedGyroStepCost =
+                new WeightedCostFuncT(gyroStepCostFunction, weigthMat);
 
 
-        auto params = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
+            auto paramsInitial = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
+            std::array<double*,paramsInitial.size()+1> params;
 
-        static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
-                      "non compatible numbers of parameters in parameters array and cost function");
+            params[0] = insMountingNode->rAxis.data();
 
-        static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
-                          WeightedCostFuncT::nParamsBlocks,
-                      "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+            for (int i = 0; i < paramsInitial.size(); i++) {
+                params[i+1] = paramsInitial[i];
+            }
+
+            static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
+                          "non compatible numbers of parameters in parameters array and cost function");
+
+            static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
+                              WeightedCostFuncT::nParamsBlocks,
+                          "non compatible numbers of parameters in autodiff cost and weigthed cost function");
 
 
-        problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
-                                 params.data(),
-                                 params.size());
+            problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
+                                     params.data(),
+                                     params.size());
 
-        if (addLogger) {
-            QString loggerName = QString("Gyro trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
-            solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nGyroCostParams<WBias, WScale>(),3>(gyroStepCostFunction, params));
+            if (addLogger) {
+                QString loggerName = QString("Gyro trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nGyroCostParams<WBias, WScale>()+1,3>(gyroStepCostFunction, params));
+            }
+
+        } else {
+
+            using CostF = GyroStepCost<WBias, WScale>;
+            using AutoDiffCostFuncT = GyroTemplateParametrizedCost<ceres::AutoDiffCostFunction,CostF, WBias, WScale>;
+            using WeightedCostFuncT = GyroParametrizedCost<StereoVisionApp::WeightedCostFunction, WBias, WScale>;
+
+            static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
+            static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
+
+            CostF* gyroStepCost =
+                GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale>(
+                    gyroSeq,
+                    trajNode->nodes[i-1].time,
+                    trajNode->nodes[i].time);
+
+            AutoDiffCostFuncT* gyroStepCostFunction =
+                new AutoDiffCostFuncT(gyroStepCost);
+
+            WeightedCostFuncT* weigthedGyroStepCost =
+                new WeightedCostFuncT(gyroStepCostFunction, weigthMat);
+
+
+            auto params = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
+
+            static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
+                          "non compatible numbers of parameters in parameters array and cost function");
+
+            static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
+                              WeightedCostFuncT::nParamsBlocks,
+                          "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+
+
+            problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
+                                     params.data(),
+                                     params.size());
+
+            if (addLogger) {
+                QString loggerName = QString("Gyro trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nGyroCostParams<WBias, WScale>(),3>(gyroStepCostFunction, params));
+            }
         }
 
         return StatusOptionalReturn<void>();
@@ -397,28 +563,8 @@ protected:
         ModularSBASolver* solver,
         bool addLogger) {
 
-        constexpr int refPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
-        constexpr int gravityParamPos = AccelerometerStepCostTraits<flags>::gravityParamIdx();
-
-        using AccCost = GravityReoriented<AccelerometerStepCost<flags>, refPosParamPos, gravityParamPos>;
-        using AutoDiffCostFuncT = AccTemplateParametrizedCost<ceres::AutoDiffCostFunction,AccCost, flags>;
-        using WeightedCostFuncT = AccParametrizedCost<StereoVisionApp::WeightedCostFunction, flags>;
-
-        static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
-        static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
-
-        AccCost* accStepCost =
-            AccelerometerStepCostBase::getIntegratedIMUDiffWithAdaptiveGravity<flags>
-            (gyroSeq,
-             imuSeq,
-             trajNode->nodes[i-2].time,
-             trajNode->nodes[i-1].time,
-             trajNode->nodes[i].time,
-             _earth_center_pos);
-
-        AutoDiffCostFuncT* accStepCostFunction =
-            new AutoDiffCostFuncT(accStepCost);
         double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
+
         Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
         double speedUncertainty = accAccuracy*dt;
@@ -427,23 +573,102 @@ protected:
         weigthMat(1,1) = 1/speedUncertainty;
         weigthMat(2,2) = 1/speedUncertainty;
 
-        WeightedCostFuncT* weigthedAccStepCost =
-            new WeightedCostFuncT(accStepCostFunction, weigthMat);
+        int insMountingId = traj->insMountingId();
 
-        auto params = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+        ModularSBASolver::PoseNode* insMountingNode = solver->getNodeForMounting(insMountingId, false);
 
-        static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
-                      "non compatible numbers of parameters in parameters array and cost function");
+        if (insMountingNode != nullptr) {
+            using AccCost = typename AccelerometerStepCostLeverArmGravity<flags>::template Decorator<AccelerometerStepCost<flags>>;
+            using AutoDiffCostFuncT = LeverArmAccTemplateParametrizedCost<ceres::AutoDiffCostFunction,AccCost, flags>;
+            using WeightedCostFuncT = LeverArmAccParametrizedCost<StereoVisionApp::WeightedCostFunction, flags>;
 
-        static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
-                          WeightedCostFuncT::nParamsBlocks,
-                      "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+            static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
+            static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
 
-        problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+            AccCost* accStepCost =
+                AccelerometerStepCostBase::getIntegratedIMUDiff<flags, AccelerometerStepCostLeverArmGravity<flags>::template Decorator>
+                (gyroSeq,
+                 imuSeq,
+                 trajNode->nodes[i-2].time,
+                 trajNode->nodes[i-1].time,
+                 trajNode->nodes[i].time,
+                 _earth_center_pos);
 
-        if (addLogger) {
-            QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
-            solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>(),3>(accStepCostFunction, params));
+            AutoDiffCostFuncT* accStepCostFunction =
+                new AutoDiffCostFuncT(accStepCost);
+
+            WeightedCostFuncT* weigthedAccStepCost =
+                new WeightedCostFuncT(accStepCostFunction, weigthMat);
+
+            auto paramsInitial = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+
+            std::array<double*, paramsInitial.size()+4> params;
+
+            params[0] = insMountingNode->rAxis.data();
+            params[1] = insMountingNode->t.data();
+            params[2] = trajNode->nodes[i-2].rAxis.data();
+            params[6] = trajNode->nodes[i].rAxis.data();
+
+            for (int i = 0; i < paramsInitial.size(); i++) {
+                int delta = 3;
+                if (i >= 3) {
+                    delta = 4;
+                }
+                params[i+delta] = paramsInitial[i];
+            }
+
+            static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
+                          "non compatible numbers of parameters in parameters array and cost function");
+
+            static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
+                              WeightedCostFuncT::nParamsBlocks,
+                          "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+
+            problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+            if (addLogger) {
+                QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>()+4,3>(accStepCostFunction, params));
+            }
+        } else {
+
+            using AccCost = typename AccelerometerStepCostGravity<flags>::template Decorator<AccelerometerStepCost<flags>>;
+            using AutoDiffCostFuncT = AccTemplateParametrizedCost<ceres::AutoDiffCostFunction,AccCost, flags>;
+            using WeightedCostFuncT = AccParametrizedCost<StereoVisionApp::WeightedCostFunction, flags>;
+
+            static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
+            static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
+
+            AccCost* accStepCost =
+                AccelerometerStepCostBase::getIntegratedIMUDiff<flags, AccelerometerStepCostGravity<flags>::template Decorator>
+                (gyroSeq,
+                 imuSeq,
+                 trajNode->nodes[i-2].time,
+                 trajNode->nodes[i-1].time,
+                 trajNode->nodes[i].time,
+                 _earth_center_pos);
+
+            AutoDiffCostFuncT* accStepCostFunction =
+                new AutoDiffCostFuncT(accStepCost);
+
+            WeightedCostFuncT* weigthedAccStepCost =
+                new WeightedCostFuncT(accStepCostFunction, weigthMat);
+
+            auto params = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+
+            static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
+                          "non compatible numbers of parameters in parameters array and cost function");
+
+            static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
+                              WeightedCostFuncT::nParamsBlocks,
+                          "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+
+            problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+            if (addLogger) {
+                QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>(),3>(accStepCostFunction, params));
+            }
         }
 
         return StatusOptionalReturn<void>();

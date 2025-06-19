@@ -179,7 +179,7 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
     Trajectory::TimeCartesianSequence& accelerometer = accelerometerOpt.value();
 
 
-    double minIntegrationTime = 2; //min integration time of half a second
+    double minIntegrationTime = 0.1; //min integration time of half a second
 
     double startTime = traj.sequenceStartTime();
     double endTime = traj.sequenceEndTime();
@@ -312,12 +312,16 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
             Eigen::Vector3d speed1 = body2_to_body1.t / (body2_to_local.time - body1_to_local.time);
             Eigen::Vector3d speed2 = (body3_to_body1.t - body2_to_body1.t) / (body3_to_local.time - body2_to_local.time);
 
+            Eigen::Vector3d gravity(0,0,9.81);
+            gravity = StereoVision::Geometry::angleAxisRotate<double>(-body1_to_local.val.r, gravity);
+
             double timespeed1 = (body2_to_local.time + body1_to_local.time)/2;
             double timespeed2 = (body3_to_local.time + body2_to_local.time)/2;
 
             //align with the initial point (body1 to body2 halfway)
             speed1 = StereoVision::Geometry::angleAxisRotate<double>(-body2_to_body1.r*0.5, speed1);
             speed2 = StereoVision::Geometry::angleAxisRotate<double>(-body2_to_body1.r*0.5, speed2);
+            gravity = StereoVision::Geometry::angleAxisRotate<double>(-body2_to_body1.r*0.5, gravity);
 
             Eigen::Vector3d speedDeltaTrj = (speed2 - speed1);
 
@@ -325,6 +329,8 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
 
             speedDeltaObs /= (timespeed2 - timespeed1);
             speedDeltaTrj /= (timespeed2 - timespeed1);
+
+            speedDeltaObs -= gravity;
 
             timesAccelerometer.push_back(timespeed1);
 

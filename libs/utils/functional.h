@@ -2,6 +2,7 @@
 #define FUNCTIONAL_H
 
 #include <tuple>
+#include <cmath>
 
 namespace StereoVisionApp {
 
@@ -112,6 +113,9 @@ protected:
     };
 
 };
+
+template <typename T>
+using IdentityDecorator = T;
 
 }
 

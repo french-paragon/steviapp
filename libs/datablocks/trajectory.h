@@ -18,6 +18,7 @@
 namespace StereoVisionApp {
 
 class DataTable;
+class Mounting;
 
 /*!
  * \brief The Trajectory class encode informations about a trajecory stored in a csv file
@@ -624,6 +625,16 @@ public:
     int gyroId() const;
     void setGyroId(int newGyroId);
 
+    qint64 gpsMountingId() const;
+    StereoVisionApp::Mounting* getGpsMounting() const;
+    QString getGpsMountingName() const;
+    void assignGpsMounting(qint64 mountingId);
+
+    qint64 insMountingId() const;
+    StereoVisionApp::Mounting* getInsMounting() const;
+    QString getInsMountingName() const;
+    void assignInsMounting(qint64 mountingId);
+
 Q_SIGNALS:
     void trajectoryDataChanged();
     void optimizedTrajectoryDataChanged();
@@ -662,6 +673,9 @@ Q_SIGNALS:
     void gyroIdChanged();
 
     void preIntegrationTimeChanged();
+
+    void gpsMountingChanged();
+    void insMountingChanged();
 
 protected:
 
@@ -892,6 +906,9 @@ protected:
 
     int _accelerometerId;
     int _gyroId;
+
+    qint64 _gpsMounting; //reference to the mounting used by the GPS
+    qint64 _insMounting; // reference to the mounting used by the INS
 
     double _gpsAccuracy;
     double _angularAccuracy;

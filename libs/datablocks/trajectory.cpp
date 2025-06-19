@@ -11,6 +11,7 @@
 
 #include "datablocks/datatable.h"
 #include "datablocks/itemdatamodel.h"
+#include "datablocks/mounting.h"
 #include "datablocks/io/jsonconversionsutils.h"
 
 namespace StereoVisionApp {
@@ -44,6 +45,9 @@ Trajectory::Trajectory(Project* parent) :
 
     _accelerometerId = 1;
     _gyroId = 1;
+
+    _gpsMounting = -1;
+    _insMounting = -1;
 
     _separators.clear();
     _separators.push_back(",");
@@ -586,7 +590,7 @@ StatusOptionalReturn<Trajectory::RawGpsData> Trajectory::loadRawGPSData() const 
 
     using RType = StatusOptionalReturn<Trajectory::RawGpsData>;
 
-    QFile trajFile(_positionFile);
+    QFile trajFile(_gpsFile);
 
     if (!trajFile.open(QIODevice::ReadOnly)) {
         return RType::error("Could not open position file!");
@@ -2684,6 +2688,14 @@ QJsonObject Trajectory::encodeJson() const {
     obj.insert("accelerometerId", _accelerometerId);
     obj.insert("gyroId", _gyroId);
 
+    if (_gpsMounting >= 0) {
+        obj.insert("gpsMountingId", _gpsMounting);
+    }
+
+    if (_insMounting >= 0) {
+        obj.insert("insMountingId", _insMounting);
+    }
+
     obj.insert("seOrientationPrior", _use_start_end_orientation_priors);
 
     if (_optimizedTrajectoryData != nullptr) {
@@ -3168,6 +3180,18 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         _gyroId = 1;
     }
 
+    if(data.contains("gpsMountingId")) {
+        _gpsMounting = data.value("gpsMountingId").toInt(-1);
+    } else {
+        _gpsMounting = -1;
+    }
+
+    if(data.contains("insMountingId")) {
+        _insMounting = data.value("insMountingId").toInt(-1);
+    } else {
+        _insMounting = -1;
+    }
+
     if (data.contains("seOrientationPrior")) {
         _use_start_end_orientation_priors = data.value("seOrientationPrior").toBool();
     } else {
@@ -3289,6 +3313,26 @@ void Trajectory::extendDataModel() {
                 &Trajectory::gyroId,
                 &Trajectory::setGyroId,
                 &Trajectory::gyroIdChanged);
+
+    sensorsIdsCat->addCatProperty<QString,
+                         Trajectory,
+                         false,
+                         StereoVisionApp::ItemDataModel::ItemPropertyDescription::NoValueSignal> (
+        tr("GPS Mounting"),
+        &Trajectory::getGpsMountingName,
+        nullptr,
+        &Trajectory::gpsMountingChanged
+        );
+
+    sensorsIdsCat->addCatProperty<QString,
+                         Trajectory,
+                         false,
+                         StereoVisionApp::ItemDataModel::ItemPropertyDescription::NoValueSignal> (
+        tr("INS Mounting"),
+        &Trajectory::getInsMountingName,
+        nullptr,
+        &Trajectory::insMountingChanged
+        );
 
 
 
@@ -3475,6 +3519,60 @@ void Trajectory::setGyroId(int newGyroId)
         return;
     _gyroId = newGyroId;
     Q_EMIT gyroIdChanged();
+}
+
+qint64 Trajectory::gpsMountingId() const {
+    return _gpsMounting;
+}
+StereoVisionApp::Mounting* Trajectory::getGpsMounting() const {
+    return getProject()->getDataBlock<StereoVisionApp::Mounting>(_gpsMounting);
+}
+QString Trajectory::getGpsMountingName() const {
+    StereoVisionApp::Mounting* mounting = getGpsMounting();
+
+    if (mounting == nullptr) {
+        return tr("No mounting");
+    }
+
+    return mounting->objectName();
+}
+void Trajectory::assignGpsMounting(qint64 mountingId) {
+    if (mountingId == _gpsMounting) {
+        return;
+    }
+
+    if (_gpsMounting >= 0) removeRefered({_gpsMounting});
+    _gpsMounting = mountingId;
+    if (_gpsMounting >= 0) addRefered({_gpsMounting});
+    emit gpsMountingChanged();
+    return;
+}
+
+qint64 Trajectory::insMountingId() const {
+    return _insMounting;
+}
+StereoVisionApp::Mounting* Trajectory::getInsMounting() const {
+    return getProject()->getDataBlock<StereoVisionApp::Mounting>(_insMounting);
+}
+QString Trajectory::getInsMountingName() const {
+    StereoVisionApp::Mounting* mounting = getInsMounting();
+
+    if (mounting == nullptr) {
+        return tr("No mounting");
+    }
+
+    return mounting->objectName();
+}
+void Trajectory::assignInsMounting(qint64 mountingId) {
+    if (mountingId == _insMounting) {
+        return;
+    }
+
+    if (_insMounting >= 0) removeRefered({_insMounting});
+    _insMounting = mountingId;
+    if (_insMounting >= 0) addRefered({_insMounting});
+    emit insMountingChanged();
+    return;
 }
 
 int Trajectory::accelerometerId() const

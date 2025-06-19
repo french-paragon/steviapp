@@ -3,7 +3,11 @@
 
 #include "./actionmanager.h"
 
+class QAction;
+
 namespace StereoVisionApp {
+
+class Trajectory;
 
 class TrajectoryActionManager : public DatablockActionManager
 {
@@ -19,6 +23,15 @@ public:
     QString itemClassName() const override;
 
 protected:
+
+    enum AssignMountMode {
+        GPS,
+        INS
+    };
+    QAction* createAssignToMountingAction(QObject* parent,
+                                 StereoVisionApp::Project* p,
+                                 QVector<Trajectory*> const& trajs,
+                                 AssignMountMode mode) const;
 
 };
 

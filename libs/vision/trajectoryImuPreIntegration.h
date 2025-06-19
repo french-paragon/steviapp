@@ -29,7 +29,7 @@ inline Eigen::Matrix<posT,3,3> PreIntegrateGyro(
     for (auto& differential : angularIntegrationVariables) {
         Eigen::Vector3d dr = differential.val*differential.dt;
         Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
-        GyroR2to1 = dR*GyroR2to1;
+        GyroR2to1 = GyroR2to1*dR;
     }
 
     return GyroR2to1;
@@ -88,7 +88,7 @@ inline Eigen::Matrix<posT,3,1> PreIntegrateAccelerometer(
 
         Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
 
-        Rcurrent2initial = dR*Rcurrent2initial;
+        Rcurrent2initial = Rcurrent2initial*dR;
 
         //re-constaint as R mat for numerical stability
         Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(Rcurrent2initial);
