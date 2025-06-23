@@ -94,11 +94,11 @@ void TestFunctionalUtils::testPoseDecorators() {
 
         StereoVision::Geometry::RigidBodyTransform<double> outPose;
 
-        std::array<double,6> r_in;
-        std::array<double,6> t_in;
+        std::array<double,3> r_in;
+        std::array<double,3> t_in;
 
-        std::array<double,6> r_in2;
-        std::array<double,6> t_in2;
+        std::array<double,3> r_in2;
+        std::array<double,3> t_in2;
 
         for (int i = 0; i < 3; i++) {
             r_in[i] = pose.r[i];
@@ -293,7 +293,7 @@ void TestFunctionalUtils::testPoseDecorators() {
             std::is_same_v<decltype (with_orientation_functor(r_in.data(), r_in2.data(), t_in.data(), out.data())),
                            decltype (indentity_functor(r_in.data(), t_in.data(), out.data()))>;
 
-        static_assert (typeCheckInvert, "Type of with more orientation decorated function is not consistent with initial function");
+        static_assert (typeCheckWithMoreOrientation, "Type of with more orientation decorated function is not consistent with initial function");
 
         ok = with_orientation_functor(r_in.data(), r_in2.data(), t_in.data(), out.data());
 
@@ -305,6 +305,56 @@ void TestFunctionalUtils::testPoseDecorators() {
             pose*outPose.inverse();
 
         verifyPoseIsZero(withMoreOrientationDelta);
+
+
+        using WithMorePose = StereoVisionApp::AddPose<IdentityPose,0>;
+
+        WithMorePose with_more_pose_functor;
+
+        constexpr bool typeCheckWithMorePose =
+            std::is_same_v<decltype (with_more_pose_functor(r_in.data(), t_in.data(), r_in2.data(), t_in2.data(), out.data())),
+                           decltype (indentity_functor(r_in.data(), t_in.data(), out.data()))>;
+
+        static_assert (typeCheckWithMorePose,
+                      "Type of with lever arm and more orientation decorated function is not consistent with initial function");
+
+        ok = with_more_pose_functor(r_in.data(), t_in.data(), r_in2.data(), t_in2.data(),out.data());
+
+        QVERIFY2(ok, "Decorated with more orientation function unexpectly returned false");
+
+        reconfigureOutPose();
+
+        StereoVision::Geometry::RigidBodyTransform<double> withMorePoseDelta =
+            pose2*outPose.inverse();
+
+        verifyPoseIsZero(withMorePoseDelta);
+
+        constexpr int poseConfig = StereoVisionApp::Sensor2Body | StereoVisionApp::Body2World;
+        using WithMounting = StereoVisionApp::ApplyLeverArm<WithMorePose, 0, 2, poseConfig>;
+
+        WithMounting with_mounting;
+
+        constexpr bool typeCheckWithMounting =
+            std::is_same_v<decltype (with_mounting(r_in.data(), t_in.data(), r_in2.data(), t_in2.data(), out.data())),
+                           decltype (indentity_functor(r_in.data(), t_in.data(), out.data()))>;
+
+        static_assert (typeCheckWithMounting,
+                      "Type of with lever arm and more orientation decorated function is not consistent with initial function");
+
+        ok = with_mounting(r_in.data(), t_in.data(), r_in2.data(), t_in2.data(),out.data());
+
+        QVERIFY2(ok, "Decorated with more orientation function unexpectly returned false");
+
+        reconfigureOutPose();
+
+        StereoVision::Geometry::RigidBodyTransform<double> p2p = pose2*pose;
+        StereoVision::Geometry::RigidBodyTransform<double> pp2 = pose*pose2;
+
+        StereoVision::Geometry::RigidBodyTransform<double> withMountingDelta =
+            (pose2*pose)*outPose.inverse();
+
+        verifyPoseIsZero(withMountingDelta);
+
 
     }
 
