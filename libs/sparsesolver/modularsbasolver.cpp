@@ -819,6 +819,7 @@ bool ModularSBASolver::opt_step() {
 
     ceres::Solver::Options options;
     options.linear_solver_type = (_sparse) ? ceres::SPARSE_SCHUR : ceres::DENSE_QR;
+    std::cout << "Using linear solver type: " << ((options.linear_solver_type == ceres::DENSE_QR) ? "dense QR" : "sparse schur") << std::endl;
     options.minimizer_progress_to_stdout = _verbose;
 
     ModularSBASolverIterationCallback* iterationCallBack = new ModularSBASolverIterationCallback(this);
@@ -836,6 +837,7 @@ bool ModularSBASolver::opt_step() {
     delete iterationCallBack;
 
     if (_verbose) {
+        std::cout << summary.FullReport() << "\n";
         std::cout << "Optimization complete!" << std::endl;
     }
 
@@ -1038,6 +1040,8 @@ ModularSBASolver::SBAModule::~SBAModule() {
 }
 
 std::vector<std::pair<const double*, const double*>> ModularSBASolver::SBAModule::requestUncertainty(ModularSBASolver* solver, ceres::Problem & problem) {
+    Q_UNUSED(solver)
+    Q_UNUSED(problem)
     return std::vector<std::pair<const double*, const double*>>();
 }
 

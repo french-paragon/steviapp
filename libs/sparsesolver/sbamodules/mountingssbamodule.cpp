@@ -106,6 +106,12 @@ bool MountingsSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem
 
         }
 
+        QString boresightLogName = QString("Mounting %1 boresight").arg(mounting->objectName());
+        solver->addLogger(boresightLogName, new ModularSBASolver::ParamsValsLogger<3>(mountingPoseNode->rAxis.data()));
+
+        QString leverArmLogName = QString("Mounting %1 lever arm").arg(mounting->objectName());
+        solver->addLogger(leverArmLogName, new ModularSBASolver::ParamsValsLogger<3>(mountingPoseNode->t.data()));
+
     }
 
     return true;
