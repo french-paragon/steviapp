@@ -16,6 +16,8 @@
 
 #include "../vision/indexed_timed_sequence.h"
 
+#include "../utils/inplace_vector.h"
+
 class QTextStream;
 
 namespace StereoVisionApp {
@@ -730,17 +732,19 @@ protected:
     QMap<qint64, int> _cameraProjectorsAssociations;
     QMap<qint64, int> _frameProjectorsAssociations;
 
+    static constexpr bool parametersStorageDebug = true;
+
     //using std vectors for the data, as these are guaranteed to be contiguous in memory.
-    std::vector<PositionNode> _pointsParameters;
+    InPlaceVector<PositionNode, parametersStorageDebug> _pointsParameters;
     QMap<qint64, int> _pointsParametersIndex;
 
-    std::vector<PoseNode> _poseParameters;
+    InPlaceVector<PoseNode, parametersStorageDebug> _poseParameters;
     QMap<qint64, int> _poseParametersIndex;
 
-    std::vector<TrajectoryNode> _trajectoryParameters;
+    InPlaceVector<TrajectoryNode, parametersStorageDebug> _trajectoryParameters;
     QMap<qint64, int> _trajectoryParametersIndex;
 
-    std::vector<LeverArmNode> _leverArmParameters;
+    InPlaceVector<LeverArmNode, parametersStorageDebug> _leverArmParameters;
     QMap<QPair<qint64,qint64>, int> _leverArmParametersIndex;
 
     friend class ModularSBASolverIterationCallback;

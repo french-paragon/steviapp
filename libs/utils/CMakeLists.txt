@@ -6,6 +6,7 @@ set(LIB_SRC
 set(LIB_HEADERS
     statusoptionalreturn.h
     functional.h
+    inplace_vector.h
 )
 
 add_library(

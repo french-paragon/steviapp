@@ -210,7 +210,7 @@ ModularSBASolver::PositionNode* ModularSBASolver::getNodeForLandmark(qint64 lmId
     }
 
     int idx = _pointsParameters.size();
-    _pointsParameters.emplace_back();
+    _pointsParameters.push_back(ModularSBASolver::PositionNode());
     _pointsParametersIndex[lmId] = idx;
 
     ModularSBASolver::PositionNode* lmNode = &_pointsParameters[idx];
@@ -247,7 +247,7 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForFrame(qint64 imId, bool 
     }
 
     int idx = _poseParameters.size();
-    _poseParameters.emplace_back();
+    _poseParameters.push_back(ModularSBASolver::PoseNode());
     _poseParametersIndex[imId] = idx;
     ModularSBASolver::PoseNode* imNode = &_poseParameters[idx];
     imNode->datablockId = imId;
@@ -307,7 +307,7 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForLocalCoordinates(qint64 
     }
 
     int idx = _poseParameters.size();
-    _poseParameters.emplace_back();
+    _poseParameters.push_back(PoseNode());
     _poseParametersIndex[lcsId] = idx;
 
     PoseNode& node = _poseParameters[idx];
@@ -378,7 +378,7 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForMounting(qint64 mounting
     }
 
     int idx = _poseParameters.size();
-    _poseParameters.emplace_back();
+    _poseParameters.push_back(PoseNode());
     _poseParametersIndex[mountingId] = idx;
 
     PoseNode& node = _poseParameters[idx];
@@ -442,7 +442,7 @@ ModularSBASolver::TrajectoryNode* ModularSBASolver::getNodeForTrajectory(qint64 
     }
 
     int idx = _trajectoryParameters.size();
-    _trajectoryParameters.emplace_back();
+    _trajectoryParameters.push_back(TrajectoryNode());
     _trajectoryParametersIndex[trajId] = idx;
     _trajectoryParameters[idx].trajId = trajId;
     return &_trajectoryParameters[idx];
@@ -464,7 +464,7 @@ ModularSBASolver::LeverArmNode* ModularSBASolver::getNodeForLeverArm(QPair<qint6
     }
 
     int idx = _leverArmParameters.size();
-    _leverArmParameters.emplace_back();
+    _leverArmParameters.push_back(LeverArmNode());
 
     _leverArmParametersIndex[camtrajId] = idx;
 
@@ -640,13 +640,16 @@ bool ModularSBASolver::init() {
 
     //reserve enough memory so the objects are not moved.
     //TODO: create a vector class which garantee that the allocated chunk is not moved unless the vector is reset.
-    _pointsParameters.reserve(_currentProject->countTypeInstances(Landmark::staticMetaObject.className()));
+    int nLandmarks = _currentProject->countTypeInstances(Landmark::staticMetaObject.className());
+    _pointsParameters.reserve(nLandmarks+1); //keep some reserve
     int nPoses = _currentProject->countTypeInstances(Image::staticMetaObject.className());
     nPoses += _currentProject->countTypeInstances(LocalCoordinateSystem::staticMetaObject.className());
     nPoses += _currentProject->countTypeInstances(Mounting::staticMetaObject.className());
-    _poseParameters.reserve(nPoses);
-    _trajectoryParameters.reserve(_currentProject->countTypeInstances(Trajectory::staticMetaObject.className()));
-    _leverArmParameters.reserve(_trajectoryParameters.size()*_currentProject->countTypeInstances(Camera::staticMetaObject.className()));
+    _poseParameters.reserve(nPoses+1);
+    int nTrajectories = _currentProject->countTypeInstances(Trajectory::staticMetaObject.className());
+    _trajectoryParameters.reserve(nTrajectories+1);
+    int nCams = _currentProject->countTypeInstances(Camera::staticMetaObject.className());
+    _leverArmParameters.reserve(nTrajectories*nCams);
 
     //reset the problem and observability graph
     _observabilityGraph.clear();
@@ -732,7 +735,9 @@ bool ModularSBASolver::initManagedParameters() {
         return false;
     }
 
-    for (PositionNode& node : _pointsParameters) {
+    for (int i = 0; i < _pointsParameters.size(); i++) {
+
+        PositionNode& node = _pointsParameters[i];
 
         DataBlock* block = _currentProject->getById(node.datablockId);
 
@@ -747,7 +752,9 @@ bool ModularSBASolver::initManagedParameters() {
         }
     }
 
-    for (PoseNode& node : _poseParameters) {
+    for (int i = 0; i < _poseParameters.size(); i++) {
+
+        PoseNode& node = _poseParameters[i];
 
         DataBlock* block = _currentProject->getById(node.datablockId);
 
@@ -759,12 +766,15 @@ bool ModularSBASolver::initManagedParameters() {
         _problem->AddParameterBlock(node.t.data(), node.t.size());
 
         if (block->isFixed()) {
+            std::cout << "Set parameters fix for block: " << block->objectName().toStdString() << std::endl;
             _problem->SetParameterBlockConstant(node.rAxis.data());
             _problem->SetParameterBlockConstant(node.t.data());
         }
     }
 
-    for (LeverArmNode& node : _leverArmParameters) {
+    for (int i = 0; i < _leverArmParameters.size(); i++) {
+
+        LeverArmNode& node = _leverArmParameters[i];
 
         DataBlock* block = _currentProject->getById(node.PlatformId);
 

@@ -8,7 +8,6 @@
 
 #include "../../vision/indexed_timed_sequence.h"
 #include "../../utils/functional.h"
-#include "./gravityDecorators.h"
 
 #ifndef NDEBUG
 #include <iostream>
@@ -717,7 +716,6 @@ public:
                                  Eigen::Matrix3d const& gyroGainJacobian = Eigen::Matrix3d::Identity(),
                                  Eigen::Matrix3d const& accBiasJacobian = Eigen::Matrix3d::Identity(),
                                  Eigen::Matrix3d const& accGainJacobian = Eigen::Matrix3d::Identity()) const {
-
 
         using M3T = Eigen::Matrix<T,3,3>;
         using V3T = Eigen::Matrix<T,3,1>;
