@@ -47,6 +47,68 @@ public:
     GyroStepCostBase(Eigen::Matrix3d const& attitudeDelta,
                  double delta_t);
 
+    template <bool WBias, bool WScale, typename T>
+    bool computeGyroCostGeneric(const T* const r0,
+                                const T* const r1,
+                                const T* const gyroScale,
+                                const T* const gyroBias,
+                                T* residual,
+                                Eigen::Matrix<double,3,3> const& scaleJacobian = Eigen::Matrix<double,3,3>::Identity(),
+                                Eigen::Matrix<double,3,3> const& biasJacobian = Eigen::Matrix<double,3,3>::Identity()) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+        using V3T = Eigen::Matrix<T,3,1>;
+
+        V3T vr0(r0[0], r0[1], r0[2]);
+        V3T vr1(r1[0], r1[1], r1[2]);
+
+        V3T g(gyroScale[0] - T(1), gyroScale[1] - T(1), gyroScale[2] - T(1));
+        V3T b(gyroBias[0], gyroBias[1], gyroBias[2]);
+
+        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
+        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
+
+        M3T closure;
+
+        if constexpr (WScale and WBias) {
+            M3T Jg = scaleJacobian.cast<T>();
+            M3T Jb = biasJacobian.cast<T>();
+
+            M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g + Jb*b);
+
+            closure = Rr1.transpose() * Rr0 * Rbg*_attitudeDelta;
+        } else if constexpr (WScale) {
+            M3T Jg = scaleJacobian.cast<T>();
+
+            M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g);
+
+            closure = Rr1.transpose() * Rr0 * Rbg*_attitudeDelta;
+        } else if constexpr (WBias) {
+            M3T Jb = biasJacobian.cast<T>();
+
+            M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jb*b);
+
+            closure = Rr1.transpose() * Rr0 * Rbg*_attitudeDelta;
+        } else {
+            closure = Rr1.transpose() * Rr0 * _attitudeDelta;
+        }
+
+        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
+
+        residual[0] = res[0];
+        residual[1] = res[1];
+        residual[2] = res[2];
+
+#ifndef NDEBUG
+        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1]) or !ceres::isfinite(residual[2])) {
+            std::cout << "Error in GyroStepCost cost computation" << std::endl;
+        }
+#endif
+
+        return true;
+
+    }
+
 protected:
 
     Eigen::Matrix3d _attitudeDelta; // R from final pose to initial pose
@@ -69,29 +131,7 @@ public:
                     const T* const r1,
                     T* residual) const {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-        using V3T = Eigen::Matrix<T,3,1>;
-
-        V3T vr0(r0[0], r0[1], r0[2]);
-        V3T vr1(r1[0], r1[1], r1[2]);
-
-        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
-        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
-
-        M3T closure = Rr1.transpose() * Rr0 * _attitudeDelta;
-        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
-
-        residual[0] = res[0];
-        residual[1] = res[1];
-        residual[2] = res[2];
-
-#ifndef NDEBUG
-        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1]) or !ceres::isfinite(residual[2])) {
-            std::cout << "Error in GyroStepCost cost computation" << std::endl;
-        }
-#endif
-
-        return true;
+        return computeGyroCostGeneric<false, false, T>(r0, r1, nullptr, nullptr, residual);
 
     }
 };
@@ -115,34 +155,7 @@ public:
                     const T* const gyroScale,
                     T* residual) const {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-        using V3T = Eigen::Matrix<T,3,1>;
-
-        V3T vr0(r0[0], r0[1], r0[2]);
-        V3T vr1(r1[0], r1[1], r1[2]);
-
-        V3T g(gyroScale[0] - T(1), gyroScale[1] - T(1), gyroScale[2] - T(1));
-
-        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
-        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
-
-        M3T Jg = _scaleJacobian.cast<T>();
-        M3T Rg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g);
-
-        M3T closure = Rr1.transpose() * Rr0 * _attitudeDelta*Rg;
-        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
-
-        residual[0] = res[0];
-        residual[1] = res[1];
-        residual[2] = res[2];
-
-#ifndef NDEBUG
-        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1]) or !ceres::isfinite(residual[2])) {
-            std::cout << "Error in GyroStepCost cost computation" << std::endl;
-        }
-#endif
-
-        return true;
+        return computeGyroCostGeneric<false, true, T>(r0, r1, gyroScale, nullptr, residual, _scaleJacobian);
 
     }
 
@@ -170,34 +183,7 @@ public:
                     const T* const gyroBias,
                     T* residual) const {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-        using V3T = Eigen::Matrix<T,3,1>;
-
-        V3T vr0(r0[0], r0[1], r0[2]);
-        V3T vr1(r1[0], r1[1], r1[2]);
-
-        V3T b(gyroBias[0], gyroBias[1], gyroBias[2]);
-
-        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
-        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
-
-        M3T Jb = _biasJacobian.cast<T>();
-        M3T Rb = StereoVision::Geometry::rodriguezFormula<T>(Jb*b);
-
-        M3T closure = Rr1.transpose() * Rr0 * _attitudeDelta*Rb;
-        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
-
-        residual[0] = res[0];
-        residual[1] = res[1];
-        residual[2] = res[2];
-
-#ifndef NDEBUG
-        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1]) or !ceres::isfinite(residual[2])) {
-            std::cout << "Error in GyroStepCost cost computation" << std::endl;
-        }
-#endif
-
-        return true;
+        return computeGyroCostGeneric<true, false, T>(r0, r1, nullptr, gyroBias, residual, Eigen::Matrix3d::Identity(), _biasJacobian);
 
     }
 
@@ -228,37 +214,7 @@ public:
                     const T* const gyroBias,
                     T* residual) const {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-        using V3T = Eigen::Matrix<T,3,1>;
-
-        V3T vr0(r0[0], r0[1], r0[2]);
-        V3T vr1(r1[0], r1[1], r1[2]);
-
-        V3T g(gyroScale[0] - T(1), gyroScale[1] - T(1), gyroScale[2] - T(1));
-        V3T b(gyroBias[0], gyroBias[1], gyroBias[2]);
-
-        M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
-        M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
-
-        M3T Jg = _scaleJacobian.cast<T>();
-        M3T Jb = _biasJacobian.cast<T>();
-
-        M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g + Jb*b);
-
-        M3T closure = Rr1.transpose() * Rr0 * _attitudeDelta*Rbg;
-        V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
-
-        residual[0] = res[0];
-        residual[1] = res[1];
-        residual[2] = res[2];
-
-#ifndef NDEBUG
-        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1]) or !ceres::isfinite(residual[2])) {
-            std::cout << "Error in GyroStepCost cost computation" << std::endl;
-        }
-#endif
-
-        return true;
+        return computeGyroCostGeneric<true, true, T>(r0, r1, gyroScale, gyroBias, residual, _scaleJacobian, _biasJacobian);
 
     }
 
@@ -321,6 +277,12 @@ GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegmen
 
         Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
 
+        Eigen::Matrix3d newRcurrent2initial = ret.attitudeDelta*dR;
+
+        //re-constaint as R mat for numerical stability
+        Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(newRcurrent2initial);
+        ret.attitudeDelta = StereoVision::Geometry::rodriguezFormula(logR);
+
         Eigen::Matrix3d JacobianSO3 = StereoVision::Geometry::diffRodriguezLieAlgebra(dr);
 
         Eigen::Matrix3d tmp = ret.attitudeDelta.transpose()*JacobianSO3;
@@ -337,12 +299,6 @@ GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegmen
         if (WScale) {
             ret.gainJacobian += tmp*diag;
         }
-
-        Eigen::Matrix3d newRcurrent2initial = dR*ret.attitudeDelta;
-
-        //re-constaint as R mat for numerical stability
-        Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(newRcurrent2initial);
-        ret.attitudeDelta = StereoVision::Geometry::rodriguezFormula(logR);
     }
 
     return ret;
