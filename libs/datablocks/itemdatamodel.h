@@ -59,7 +59,39 @@ public:
 
 		virtual bool hasSecondValue() const;
 		virtual QVariant secondValue() const;
-		virtual bool setSecondValue(QVariant const& d);
+        virtual bool setSecondValue(QVariant const& d);
+
+        inline int numericPrecision() const {
+            return _num_precision;
+        }
+
+        inline void setNumericPrecision(int precision) {
+            _num_precision = precision;
+        }
+
+        inline QString numericSuffix() const {
+            return _suffix;
+        }
+
+        inline void setNumericSuffix(QString suffix) {
+            _suffix = suffix;
+        }
+
+        inline double numericMinimum() const {
+            return _num_min;
+        }
+
+        inline void setNumericMinimum(double min) {
+            _num_min = min;
+        }
+
+        inline double numericMaximum() const {
+            return _num_max;
+        }
+
+        inline void setNumericMaxmimum(double max) {
+            _num_max = max;
+        }
 
 		DataBlock* block() const;
 
@@ -81,6 +113,11 @@ public:
 
 		QString _targetClass;
 		QStringList _options;
+
+        int _num_precision; //precision for floating point numbers
+        double _num_min;
+        double _num_max;
+        QString _suffix; //suffix for numbers
 
 		QMetaObject::Connection vChangedConnection;
 	};

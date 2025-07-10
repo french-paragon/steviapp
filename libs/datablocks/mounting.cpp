@@ -15,36 +15,45 @@ void Mounting::extendDataModel() {
     ItemDataModel::Category* g = _dataModel->addCategory(tr("Geometric properties"));
 
     //Position
-    g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X pos"),
+    auto* xPosProp = g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X pos"),
                                                                                                                  &RigidBody::xCoord,
                                                                                                                  &RigidBody::setXCoord,
                                                                                                                  &RigidBody::xCoordChanged);
 
-    g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y pos"),
+    xPosProp->setNumericPrecision(4);
+
+    auto* yPosProp = g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y pos"),
                                                                                                                  &RigidBody::yCoord,
                                                                                                                  &RigidBody::setYCoord,
                                                                                                                  &RigidBody::yCoordChanged);
 
-    g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z pos"),
+    yPosProp->setNumericPrecision(4);
+
+    auto* zPosProp = g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z pos"),
                                                                                                                  &RigidBody::zCoord,
                                                                                                                  &RigidBody::setZCoord,
                                                                                                                  &RigidBody::zCoordChanged);
 
+    zPosProp->setNumericPrecision(4);
+
     //Rotation
-    g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X Raxis"),
+    auto* xRaxisProp = g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("X Raxis"),
                                                                                                                  &RigidBody::xRot,
                                                                                                                  &RigidBody::setXRot,
                                                                                                                  &RigidBody::xRotChanged);
+    xRaxisProp->setNumericPrecision(6);
 
-    g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y Raxis"),
+    auto* yRaxisProp = g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Y Raxis"),
                                                                                                                  &RigidBody::yRot,
                                                                                                                  &RigidBody::setYRot,
                                                                                                                  &RigidBody::yRotChanged);
+    yRaxisProp->setNumericPrecision(6);
 
-    g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z Raxis"),
+    auto* zRaxisProp = g->addCatProperty<floatParameter, RigidBody, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Z Raxis"),
                                                                                                                  &RigidBody::zRot,
                                                                                                                  &RigidBody::setZRot,
                                                                                                                  &RigidBody::zRotChanged);
+    zRaxisProp->setNumericPrecision(6);
 
 
 

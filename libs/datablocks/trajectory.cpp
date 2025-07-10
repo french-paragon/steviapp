@@ -3348,25 +3348,32 @@ void Trajectory::extendDataModel() {
                                                                                                           &DataBlock::setFixed,
                                                                                                           &DataBlock::isFixedChanged);
 
-    optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("pre-integration time"),
+    auto* preIntegrationTimeProp = optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("pre-integration time"),
                                                                                                           &Trajectory::getPreIntegrationTime,
                                                                                                           &Trajectory::setPreIntegrationTime,
                                                                                                           &Trajectory::preIntegrationTimeChanged);
+    preIntegrationTimeProp->setNumericPrecision(4);
 
-    optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("gps accuracy"),
+    auto* gpsAccProp = optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("gps accuracy"),
                                                                                                           &Trajectory::getGpsAccuracy,
                                                                                                           &Trajectory::setGpsAccuracy,
                                                                                                           &Trajectory::gpsAccuracyChanged);
 
-    optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("gyro accuracy"),
+    gpsAccProp->setNumericPrecision(4);
+
+    auto* gyroAccProp = optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("gyro accuracy"),
                                                                                                           &Trajectory::getGyroAccuracy,
                                                                                                           &Trajectory::setGyroAccuracy,
                                                                                                           &Trajectory::gyroAccuracyChanged);
 
-    optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("accelerometer accuracy"),
+    gyroAccProp->setNumericPrecision(4);
+
+    auto* accAccProp = optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("accelerometer accuracy"),
                                                                                                           &Trajectory::getAccAccuracy,
                                                                                                           &Trajectory::setAccAccuracy,
                                                                                                           &Trajectory::accAccuracyChanged);
+
+    accAccProp->setNumericPrecision(4);
 
     optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate acc bias"),
                                                                                                           &Trajectory::estAccelerometerBias,

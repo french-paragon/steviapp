@@ -65,8 +65,9 @@ set(LIB_SRC imagewidget.cpp
             dialogs/trajectoryeditaccelerometeroptionsdialog.cpp
             dialogs/trajectoryeditgyrooptionsdialog.cpp
             dialogs/trajectoryeditgpsoptionsdialog.cpp
-            inputsWidgets/rigidbodytransforminputwidget.h
             inputsWidgets/rigidbodytransforminputwidget.cpp
+            inputsWidgets/floatingpointblockeditspinbox.cpp
+            itemDelegates/autoformatstyleditemdelegate.cpp
 )
 
 set(LIB_HEADERS
@@ -129,6 +130,15 @@ set(LIB_HEADERS_DIALOG
     dialogs/trajectoryeditgpsoptionsdialog.h
 )
 
+set(LIB_HEADERS_INPUT_WIDGET
+    inputsWidgets/rigidbodytransforminputwidget.h
+    inputsWidgets/floatingpointblockeditspinbox.h
+)
+
+set(LIB_HEADERS_DELEGATES
+    itemDelegates/autoformatstyleditemdelegate.h
+)
+
 if (ADD_DEVEL_TOOLS)
     list (APPEND LIB_SRC cornerdetectortesteditor.cpp
         cornermatchingtesteditor.cpp)
@@ -146,6 +156,8 @@ add_library(
     ${LIB_HEADERS_IMGDISPOVERLAYS}
     ${LIB_HEADERS_OPENGLDRAWABLES}
     ${LIB_HEADERS_DIALOG}
+    ${LIB_HEADERS_INPUT_WIDGET}
+    ${LIB_HEADERS_DELEGATES}
 )
 
 
@@ -174,4 +186,12 @@ install(FILES ${LIB_HEADERS_OPENGLDRAWABLES}
 
 install(FILES ${LIB_HEADERS_DIALOG}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/dialogs
+  )
+
+install(FILES ${LIB_HEADERS_INPUT_WIDGET}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/inputsWidgets
+  )
+
+install(FILES ${LIB_HEADERS_DELEGATES}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/itemDelegates
   )

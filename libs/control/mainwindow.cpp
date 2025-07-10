@@ -9,6 +9,7 @@
 #include "gui/imagewidget.h"
 #include "gui/editor.h"
 #include "gui/sparsealignementeditor.h"
+#include "gui/itemDelegates/autoformatstyleditemdelegate.h"
 
 #include "datablocks/project.h"
 #include "datablocks/itemdatamodel.h"
@@ -20,6 +21,8 @@
 #include <QStandardPaths>
 
 namespace StereoVisionApp {
+
+
 
 
 MainWindow* MainWindow::getActiveMainWindow() {
@@ -47,6 +50,9 @@ MainWindow::MainWindow(QWidget *parent)
 	ui->projectView->setHeaderHidden(true);
 	ui->projectView->setContextMenuPolicy(Qt::CustomContextMenu);
 	ui->dataBlockView->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    AutoFormatStyledItemDelegate* datablockPreviewItemDelegate = new AutoFormatStyledItemDelegate(this);
+    ui->dataBlockView->setItemDelegate(datablockPreviewItemDelegate);
 
 	ui->editorPanel->setTabsClosable(true);
 	connect(ui->editorPanel, &QTabWidget::tabCloseRequested, this, &MainWindow::closeEditor);

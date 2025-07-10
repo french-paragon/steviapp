@@ -2,6 +2,8 @@
 
 #include "./project.h"
 
+#include "utils/editablefloatingpointblock.h"
+
 #include <QFont>
 
 namespace StereoVisionApp {
@@ -11,7 +13,11 @@ ItemDataModel::ItemPropertyDescription::ItemPropertyDescription(Category *cat, Q
 	_cat(cat),
 	_collectionManager(nullptr),
 	_block(nullptr),
-	_name(descrName)
+    _name(descrName),
+    _num_precision(2),
+    _num_min(-999999999999.99),
+    _num_max(999999999999.99),
+    _suffix("")
 {
 
 }
@@ -21,7 +27,11 @@ ItemDataModel::ItemPropertyDescription::ItemPropertyDescription(SubItemCollectio
 	_cat(nullptr),
 	_collectionManager(subItemsManager),
 	_block(block),
-	_name(descrName)
+    _name(descrName),
+    _num_precision(2),
+    _num_min(-999999999999.99),
+    _num_max(999999999999.99),
+    _suffix("")
 {
 
 }
@@ -553,10 +563,36 @@ QVariant ItemDataModel::data(const QModelIndex &index, int role) const {
 				if (index.column() == 0) {
 					return descr->name();
 				} else if (index.column() == 1) {
-					return descr->data(role);
+
+                    QVariant data = descr->data(role);
+                    if (data.type() == QVariant::Double and role == Qt::EditRole) {
+                        EditableFloatingPointBlock block;
+                        block.value = data.toDouble();
+                        block.precision = descr->numericPrecision();
+                        block.suffix = descr->numericSuffix();
+                        block.min = descr->numericMinimum();
+                        block.max = descr->numericMaximum();
+
+                        return QVariant::fromValue(block);
+                    }
+
+                    return data;
 				} else {
 					if (descr->hasSecondValue()) {
-						return descr->secondValue();
+
+                        QVariant data = descr->secondValue();
+                        if (data.type() == QVariant::Double and role == Qt::EditRole) {
+                            EditableFloatingPointBlock block;
+                            block.value = data.toDouble();
+                            block.precision = descr->numericPrecision();
+                            block.suffix = descr->numericSuffix();
+                            block.min = descr->numericMinimum();
+                            block.max = descr->numericMaximum();
+
+                            return QVariant::fromValue(block);
+                        }
+
+                        return data;
 					} else {
 						return QVariant();
 					}
@@ -599,8 +635,21 @@ bool ItemDataModel::setData(const QModelIndex &index, const QVariant &value, int
 			return false;
 		} else {
 			if (index.column() == 1) {
+
+                if (value.userType() == qMetaTypeId<EditableFloatingPointBlock>()) {
+                    EditableFloatingPointBlock block = qvariant_cast<EditableFloatingPointBlock>(value);
+                    return descr->setData(block.value);
+                }
+
 				return descr->setData(value);
+
 			} else if (index.column() == 2 and descr->hasSecondValue()) {
+
+                if (value.userType() == qMetaTypeId<EditableFloatingPointBlock>()) {
+                    EditableFloatingPointBlock block = qvariant_cast<EditableFloatingPointBlock>(value);
+                    return descr->setSecondValue(block.value);
+                }
+
 				return descr->setSecondValue(value);
 			} else {
 				return false;

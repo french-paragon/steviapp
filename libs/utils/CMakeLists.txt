@@ -1,12 +1,14 @@
 define_stereovisionapp_lib(UTILS Utils)
 
 set(LIB_SRC
+    editablefloatingpointblock.cpp
 )
 
 set(LIB_HEADERS
     statusoptionalreturn.h
     functional.h
     inplace_vector.h
+    editablefloatingpointblock.h
 )
 
 add_library(
@@ -16,6 +18,8 @@ add_library(
 )
 
 install_stereovisionapp_sdklib(${UTILS_LIB})
+
+target_link_libraries(${UTILS_LIB} Qt${QT_VERSION_MAJOR}::Core)
 
 get_filename_component(LibDirName ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 
