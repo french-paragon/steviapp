@@ -200,6 +200,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
     }
 
     problem.AddParameterBlock(_gravity.data(), _gravity.size());
+    problem.SetParameterBlockConstant(_gravity.data());
 
    Eigen::Matrix3d gInfos = Eigen::Matrix3d::Zero();
     for (int i = 0; i < 3; i++) {
@@ -563,6 +564,10 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 }
 
 bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
+
+    QTextStream out(stdout);
+
+    out << "Optimized gravity: " << _gravity[0] << " " << _gravity[1] << " " << _gravity[2] << Qt::endl;
 
     StereoVisionApp::Project* currentProject = solver->currentProject();
 
