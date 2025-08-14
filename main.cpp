@@ -96,6 +96,10 @@ void runScript(QString const& scriptPath, QStringList argv = {}) {
 int main(int argc, char *argv[])
 {
 
+#ifndef NDEBUG //debug mode enabled
+    std::cout << "Steviapp - debug mode" << std::endl;
+#endif
+
     //configure libraries
     google::InitGoogleLogging(argv[0]);
 
