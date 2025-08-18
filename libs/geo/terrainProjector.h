@@ -581,6 +581,10 @@ protected:
 
         Eigen::Vector4d results = triangleAdjustement.colPivHouseholderQr().solve(o);
 
+        if (results[3] > 0) { //projection is behind the camera
+            return std::nullopt;
+        }
+
         Eigen::Vector3d coeffs = results.block<3,1>(0,0);
 
         assert(std::fabs(coeffs[0] + coeffs[1] + coeffs[2] - 1) < 1e-6);
@@ -590,10 +594,6 @@ protected:
             Eigen::Vector3d projectedPoint = triangleAdjustement.block<3,3>(0,0)*coeffs;
 
             float dist = (origin - projectedPoint).norm();
-
-            if (results[3] > 0) {
-                dist *= -1;
-            }
 
             Eigen::Vector3d geoProj(projectedPoint[0] + _ecefOffset[0],
                     projectedPoint[1] + _ecefOffset[1],
