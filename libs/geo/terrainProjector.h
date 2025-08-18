@@ -266,15 +266,6 @@ public:
                            &projectedCoord[2], sizeof(double), 1,
                            nullptr,0,0); //project from ecef coordinates
 
-        Eigen::Vector3d reprojected = projectedCoord;
-        reprojected[2] = _minTerrainHeight;
-
-        proj_trans_generic(_reprojector, PJ_FWD,
-                           &reprojected[0], sizeof(double), 1,
-                           &reprojected[1], sizeof(double), 1,
-                           &reprojected[2], sizeof(double), 1,
-                           nullptr,0,0); //project to ecef coordinates
-
         projectedCoord[2] = 1;
 
         Eigen::Vector2d imgOrigin = _invGeoTransform*projectedCoord;
@@ -287,10 +278,6 @@ public:
         ProjectionResults ret;
         ret.originMapPos[0] = imgOrigin[0];
         ret.originMapPos[1] = imgOrigin[1];
-
-        std::array<double,3> downDirection = {reprojected[0] - ecefOrigin[0],
-                                              reprojected[1] - ecefOrigin[1],
-                                              reprojected[2] - ecefOrigin[2]};
 
         std::array<double,3> currentProjectionDirection = {directions[0][0],directions[0][1], directions[0][2]};
 
@@ -372,6 +359,10 @@ protected:
         }
 
         IntersectionInfos& intersectionInfos = proj.value();
+
+        if (intersectionInfos.dist < 0) {
+            return std::nullopt;
+        }
 
         int imgI = std::round(intersectionInfos.dtmPixCoord[0]);
         int imgJ = std::round(intersectionInfos.dtmPixCoord[1]);
@@ -599,6 +590,10 @@ protected:
             Eigen::Vector3d projectedPoint = triangleAdjustement.block<3,3>(0,0)*coeffs;
 
             float dist = (origin - projectedPoint).norm();
+
+            if (results[3] > 0) {
+                dist *= -1;
+            }
 
             Eigen::Vector3d geoProj(projectedPoint[0] + _ecefOffset[0],
                     projectedPoint[1] + _ecefOffset[1],
