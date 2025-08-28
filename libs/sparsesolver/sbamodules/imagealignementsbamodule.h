@@ -48,6 +48,8 @@ public:
     PinholdeCamProjModule(Camera* associatedCamera);
     ~PinholdeCamProjModule();
 
+    virtual QString moduleName() const override;
+
     virtual bool addProjectionCostFunction(double* pointData,
                                            double* poseOrientation,
                                            double* posePosition,

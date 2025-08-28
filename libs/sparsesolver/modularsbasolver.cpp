@@ -60,6 +60,9 @@ ModularSBASolver::ModularSBASolver(Project *p, bool computeUncertainty, bool spa
     _problem(nullptr),
     _covariance(nullptr)
 {
+
+    setObjectName("ModularSBASolver");
+
     _problem = new ceres::Problem();
 }
 
@@ -635,6 +638,7 @@ bool ModularSBASolver::init() {
     QTextStream out(stdout);
 
     if (_currentProject == nullptr) {
+        sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Missing project!"));
         return false;
     }
 
@@ -667,6 +671,7 @@ bool ModularSBASolver::init() {
         ok = module->addGraphReductorVariables(_currentProject, &_observabilityGraph);
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Could not init graph reduction variables for module %1!").arg(module->moduleName()));
             return false;
         }
     }
@@ -678,6 +683,7 @@ bool ModularSBASolver::init() {
         ok = module->addGraphReductorObservations(_currentProject, &_observabilityGraph);
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Could not init graph reduction observations for module %1!").arg(module->moduleName()));
             return false;
         }
     }
@@ -691,6 +697,7 @@ bool ModularSBASolver::init() {
         ok = module->setupParameters(this);
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Could not init optimization parameters for module %1!").arg(module->moduleName()));
             return false;
         }
     }
@@ -698,6 +705,7 @@ bool ModularSBASolver::init() {
     ok = initManagedParameters();
 
     if (!ok) {
+        sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Cannot init optimizer managed parameters!"));
         return false;
     }
 
@@ -707,6 +715,7 @@ bool ModularSBASolver::init() {
         ok = module->init();
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Failed to init projector module %1!").arg(module->moduleName()));
             return false;
         }
     }
@@ -718,6 +727,7 @@ bool ModularSBASolver::init() {
         ok = module->init(this, *_problem);
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Failed to init sba module %1!").arg(module->moduleName()));
             return false;
         }
     }
@@ -890,6 +900,7 @@ bool ModularSBASolver::std_step() {
     }
 
     if (!ok) {
+        sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Failed to compute covariance matrix!"));
         return false;
     }
 
@@ -899,6 +910,7 @@ bool ModularSBASolver::std_step() {
 bool ModularSBASolver::writeResults() {
 
     if (_currentProject == nullptr) {
+        sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Missing project!"));
         return false;
     }
 
@@ -925,6 +937,7 @@ bool ModularSBASolver::writeResults() {
         ok = module->writeResults(this);
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Failed to write results of module %1!").arg(module->moduleName()));
             return false;
         }
     }
@@ -937,6 +950,7 @@ bool ModularSBASolver::writeResults() {
         ok = projector->writeResults();
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Failed to write results of projector module %1!").arg(projector->moduleName()));
             return false;
         }
     }
@@ -947,6 +961,7 @@ bool ModularSBASolver::writeResults() {
 bool ModularSBASolver::writeUncertainty() {
 
     if (_currentProject == nullptr) {
+        sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Missing project!"));
         return false;
     }
 
@@ -960,6 +975,7 @@ bool ModularSBASolver::writeUncertainty() {
         ok = module->writeUncertainty(this);
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Failed to write uncertainty of module %1!").arg(module->moduleName()));
             return false;
         }
     }
@@ -968,6 +984,7 @@ bool ModularSBASolver::writeUncertainty() {
         ok = projector->writeUncertainty();
 
         if (!ok) {
+            sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Failed to write uncertainty of projector module %1!").arg(projector->moduleName()));
             return false;
         }
     }

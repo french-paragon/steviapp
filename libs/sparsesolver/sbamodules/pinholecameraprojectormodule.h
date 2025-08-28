@@ -55,6 +55,8 @@ public:
     PinholePushBroomCamProjectorModule(PushBroomPinholeCamera* associatedCamera);
     ~PinholePushBroomCamProjectorModule();
 
+    virtual QString moduleName() const override;
+
     virtual bool addProjectionCostFunction(double* pointData,
                                            double* poseOrientation,
                                            double* posePosition,

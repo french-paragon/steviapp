@@ -24,7 +24,7 @@ public:
 
 	virtual bool hasUncertaintyStep() const = 0;
 
-    QString currentStepName() override;
+    QString currentStepName() const override;
 
     inline FixedParameters getFixedParametersFlag() const {
         return _fixedParameters;

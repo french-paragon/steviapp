@@ -25,6 +25,10 @@ PinholePushBroomCamProjectorModule::~PinholePushBroomCamProjectorModule() {
 
 }
 
+QString PinholePushBroomCamProjectorModule::moduleName() const {
+    return "PinholePushBroomCamProjectorModule";
+}
+
 bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* pointData,
                                                                    double* poseOrientation,
                                                                    double* posePosition,

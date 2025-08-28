@@ -70,6 +70,7 @@
 #include "sparsesolver/sbamodules/correspondencessetsbamodule.h"
 
 #include <QDebug>
+#include <QMessageBox>
 
 #include <glog/logging.h>
 
@@ -93,6 +94,34 @@ void runScript(QString const& scriptPath, QStringList argv = {}) {
 	py::eval_file(scriptPath.toStdString(), scope);
 }
 
+QtMessageHandler originalMessageHandler = nullptr;
+
+void messagesHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    QString message = qFormatLogMessage(type, context, msg);
+
+    StereoVisionApp::MainWindow* mw = StereoVisionApp::MainWindow::getActiveMainWindow();
+
+    if (mw != nullptr) { //we have a gui
+        //invoke the method in the main windows' thread.
+        QMetaObject::invokeMethod(mw, [mw, type, msg] () {
+            if (type == QtInfoMsg) { //do not set the mw as parent, as it might live in a different thread.
+                QMessageBox::information(mw, StereoVisionApp::MainWindow::tr("Information"), msg);
+            } else if (type == QtWarningMsg) {
+                QMessageBox::warning(mw, StereoVisionApp::MainWindow::tr("Warning!"), msg);
+            } else if (type == QtCriticalMsg) {
+                QMessageBox::critical(mw, StereoVisionApp::MainWindow::tr("Critical"), msg);
+            } else if (type == QtFatalMsg) {
+                QMessageBox::critical(mw, StereoVisionApp::MainWindow::tr("Fatal"), msg);
+            }
+        });
+    }
+
+    if (originalMessageHandler) {
+        (*originalMessageHandler)(type, context, msg);
+    }
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -103,7 +132,10 @@ int main(int argc, char *argv[])
     //configure libraries
     google::InitGoogleLogging(argv[0]);
 
-	StereoVisionApp::StereoVisionApplication a(argc, argv);
+    //logging and message handling
+    originalMessageHandler = qInstallMessageHandler(messagesHandler);
+
+    StereoVisionApp::StereoVisionApplication a(argc, argv);
 
 	QObject::connect(&a, &StereoVisionApp::StereoVisionApplication::scriptFileExecututionRequested, &runScript);
 

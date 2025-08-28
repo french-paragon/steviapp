@@ -102,6 +102,8 @@ public:
         ProjectorModule();
         virtual ~ProjectorModule();
 
+        virtual QString moduleName() const = 0;
+
         /*!
          * \brief setup setup the solver and problem for this projector. This is called automatically by the modular sba solver.
          * \param solver the solver

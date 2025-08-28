@@ -17,7 +17,7 @@ public:
 	CheckboardDetector(QObject *parent = nullptr);
 
 	int numberOfSteps() override;
-	QString currentStepName() override;
+    QString currentStepName() const override;
 
 	void setProject(Project* p);
 	void addImagesToProcess(QVector<qint64> const& imgsIdxs);

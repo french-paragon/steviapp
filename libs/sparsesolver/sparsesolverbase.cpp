@@ -43,7 +43,7 @@ void SparseSolverBase::setUncertaintySteps(int n_step_std)
 	_n_step_std = n_step_std;
 }
 
-QString SparseSolverBase::currentStepName() {
+QString SparseSolverBase::currentStepName() const {
 
 	if (currentStep() < optimizationSteps()) {
 		return tr("Optimize solution");

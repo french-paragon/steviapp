@@ -55,11 +55,11 @@ public:
 
 	void openSparseViewer();
 
-	Project* activeProject() const;
+    Project* activeProject() const;
 
 private:
 
-	void displayInfoMessage(QString msg);
+    void displayInfoMessage(QString msg);
 
 	void resetProject();
 

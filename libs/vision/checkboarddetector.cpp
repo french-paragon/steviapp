@@ -20,6 +20,8 @@ CheckboardDetector::CheckboardDetector(QObject *parent) :
 	_project(nullptr)
 {
 
+    setObjectName("CheckboardDetector");
+
 }
 
 int CheckboardDetector::CheckboardDetector::numberOfSteps() {
@@ -30,7 +32,7 @@ int CheckboardDetector::CheckboardDetector::numberOfSteps() {
 
 	return _imagesToProcess.size();
 }
-QString CheckboardDetector::CheckboardDetector::currentStepName() {
+QString CheckboardDetector::CheckboardDetector::currentStepName() const {
 	return tr("Processing images");
 }
 
@@ -48,10 +50,12 @@ void CheckboardDetector::addImagesToProcess(QVector<qint64> const& imgsIdxs) {
 bool CheckboardDetector::doNextStep() {
 
 	if (_project == nullptr) {
+        sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Missing project!"));
 		return false;
 	}
 
 	if (_imagesToProcess.size() <= 0) {
+        sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("No images to process!"));
 		return false;
 	}
 
@@ -142,6 +146,7 @@ bool CheckboardDetector::init() {
 	_number_of_steps = _imagesToProcess.size();
 
 	if (_project == nullptr) {
+        sendErrorMessageToQtHandlers(SteppedProcess::Critical, tr("Missing project!"));
 		return false;
 	}
 

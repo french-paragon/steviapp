@@ -516,7 +516,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
 	solver->moveToThread(t);
 	QObject::connect(solver, &QObject::destroyed, t, &QThread::quit);
-	QObject::connect(t, &QThread::finished, t, &QObject::deleteLater);
+    QObject::connect(t, &QThread::finished, t, &QObject::deleteLater);
 
 	if (w != nullptr) {
 

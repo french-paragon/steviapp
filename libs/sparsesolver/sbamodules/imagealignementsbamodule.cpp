@@ -413,6 +413,10 @@ PinholdeCamProjModule::~PinholdeCamProjModule() {
 
 }
 
+QString PinholdeCamProjModule::moduleName() const {
+    return "PinholeCamProjModule";
+}
+
 bool PinholdeCamProjModule::addProjectionCostFunction(double* pointData,
                                                       double* poseOrientation,
                                                       double* posePosition,

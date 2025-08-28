@@ -2,7 +2,10 @@
 
 #include <QMutexLocker>
 
+#include <QDebug>
+
 namespace StereoVisionApp {
+
 
 SteppedProcess::SteppedProcess(QObject *parent) :
 	QObject(parent),
@@ -125,6 +128,15 @@ void SteppedProcess::jumpStep() {
 
     if (extended) {
         Q_EMIT newStepStarted();
+    }
+}
+
+void SteppedProcess::sendErrorMessageToQtHandlers(int code, QString message) const {
+    QString errorHeader = tr("Error in process [%1], step %2 [%3]: ").arg(objectName()).arg(_current_step).arg(currentStepName());
+    if (code == SteppedProcess::Critical) {
+        qCritical() << errorHeader << message;
+    } else {
+        qWarning() << errorHeader << message;
     }
 }
 
