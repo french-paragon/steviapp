@@ -29,6 +29,8 @@ set(STEVIAPP_DEVEL_TOOLS ${ADD_DEVEL_TOOLS})
 
 include(GNUInstallDirs)
 
+include(FetchContent)
+
 set(CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
 set(CMAKE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME})
@@ -80,6 +82,16 @@ endif()
 #            ${CMAKE_CURRENT_SOURCE_DIR}/path/to/libssl.so)
 #    endif()
 #endif()
+
+#MultidimArrays
+
+FetchContent_Declare(
+  MultidimArrays
+  GIT_REPOSITORY https://github.com/french-paragon/MultidimArrays.git
+  GIT_TAG 0f62f460a2670afdd1f0a4ede327332e361e565e
+  FIND_PACKAGE_ARGS
+)
+FetchContent_MakeAvailable(MultidimArrays)
 
 find_package(QT NAMES Qt5 COMPONENTS Widgets Core Test PrintSupport REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Core Test PrintSupport REQUIRED)
