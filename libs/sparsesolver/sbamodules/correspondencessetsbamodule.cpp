@@ -8,6 +8,8 @@
 #include "costfunctors/localpointalignementcost.h"
 #include "costfunctors/local3dcoalignementcost.h"
 #include "costfunctors/localpointprojectioncost.h"
+#include "costfunctors/modularuvprojection.h"
+#include "costfunctors/posedecoratorfunctors.h"
 
 #include "costfunctors/fixedsizenormalprior.h"
 
@@ -99,6 +101,64 @@ bool CorrespondencesSetSBAModule::addGraphReductorObservations(Project *currentP
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::PRIORID>().value();
                 graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 3);
+            }
+
+            //image correspondences
+
+            if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::UV>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::UV>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 2);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::XYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::XYZ>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 2);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::XYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::XYZ>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 2);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::GEOXYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::GEOXYZ>().value();
+                graphReductor->insertSelfObservation(typedPair.c1.blockId, 2);
+            }
+
+            //timed image correspondences
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::UV>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::UV>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 2);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::UVT>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::UVT>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 2);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::XYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::XYZ>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 2);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::XYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::XYZ>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 2);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::GEOXYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::GEOXYZ>().value();
+                graphReductor->insertSelfObservation(typedPair.c1.blockId, 2);
             }
         }
 
@@ -622,6 +682,387 @@ bool CorrespondencesSetSBAModule::addXYZ2PriorMatch(Correspondences::Typed<Corre
     return true;
 }
 
+bool CorrespondencesSetSBAModule::addUV2UVMatch(const Correspondences::Typed<Correspondences::UV> &uv1,
+                                                const Correspondences::Typed<Correspondences::UV> &uv2,
+                                                StereoVisionApp::ModularSBASolver* solver,
+                                                ceres::Problem & problem) {
+
+    ModularSBASolver::PoseNode* p1 = solver->getPoseNode(uv1.blockId);
+    ModularSBASolver::PoseNode* p2 = solver->getPoseNode(uv2.blockId);
+
+    if (p1 == nullptr or p2 == nullptr) {
+        return false;
+    }
+
+    if (p1 == p2) { //we cannot project an image onto itself (maybe we should, e.g. projectors seeing the same stuff twice)
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule* m1 = solver->getProjectorForFrame(uv1.blockId);
+    ModularSBASolver::ProjectorModule* m2 = solver->getProjectorForFrame(uv2.blockId);
+
+    if (m1 == nullptr or m2 == nullptr) {
+        return false;
+    }
+
+    Eigen::Vector2d pos1;
+    pos1 << uv1.u, uv1.v;
+
+    Eigen::Vector2d pos2;
+    pos1 << uv2.u, uv2.v;
+
+    Eigen::Matrix2d stiffness1 = Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d stiffness2 = Eigen::Matrix2d::Identity();
+
+    ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(m1, p1->rAxis.data(), p1->t.data(), pos1, stiffness1,
+                                                                      m2, p2->rAxis.data(), p2->t.data(), pos2, stiffness2);
+
+    return true;
+
+}
+
+
+
+bool CorrespondencesSetSBAModule::addUV2XYZMatch(Correspondences::Typed<Correspondences::UV> const& uv,
+                           Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                           StereoVisionApp::ModularSBASolver* solver,
+                           ceres::Problem & problem) {
+
+    ModularSBASolver::PoseNode* pIm = solver->getPoseNode(uv.blockId);
+
+    if (pIm == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule* mIm = solver->getProjectorForFrame(uv.blockId);
+
+    if (mIm == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule::ProjectionInfos infosIm = mIm->getProjectionInfos();
+
+    if (infosIm.modularProjector == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::PoseNode* poseNode = solver->getPoseNode(xyz.blockId);
+
+    if (poseNode == nullptr) { //the xyz data is not for a specific data point, but the world
+        return false;
+    }
+
+    Eigen::Vector2d uvPos;
+    uvPos << uv.u, uv.v;
+
+    Eigen::Vector3d ptPos;
+    ptPos << xyz.x, xyz.y, xyz.z;
+
+    Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
+    if (uv.sigmaU.has_value()) {
+        stiffness(0,0) = 1/ uv.sigmaU.value();
+    }
+    if (uv.sigmaV.has_value()) {
+        stiffness(1,1) = 1/ uv.sigmaV.value();
+    }
+
+    using Functor = UV2ParametrizedXYZCostDynamic<ModularUVProjection>;
+    constexpr DecoratorPoseConfiguration poseOrder = DecoratorPoseConfiguration::Body2World;
+    using DecoratedFunctor = InvertPoseDynamic<LocalFrame2MappedPointDynamic<Functor, poseOrder, Functor::lmPosParamId>>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
+    constexpr int stride = 4;
+    using CostFunction = ceres::DynamicAutoDiffCostFunction<DecoratedFunctor, stride>;
+
+
+    DecoratedFunctor* functor = new DecoratedFunctor(ptPos, infosIm.modularProjector, uvPos, stiffness, infosIm.paramsSizeInfos.size());
+    CostFunction* costFunction = new CostFunction(functor);
+
+    int nParams = 4 + infosIm.paramsSizeInfos.size();
+    std::vector<double*> params(nParams);
+
+    params[0] = pIm->rAxis.data();
+    costFunction->AddParameterBlock(3);
+    params[1] = pIm->t.data();
+    costFunction->AddParameterBlock(3);
+    params[2] = poseNode->rAxis.data();
+    costFunction->AddParameterBlock(3);
+    params[3] = poseNode->t.data();
+    costFunction->AddParameterBlock(3);
+
+    for (int i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+        params[4+i] = infosIm.projectionParams[i];
+        costFunction->AddParameterBlock(infosIm.paramsSizeInfos[i]);
+    }
+
+    costFunction->SetNumResiduals(Functor::nResiduals);
+
+    mIm->problem().AddResidualBlock(costFunction, nullptr,
+                                        params.data(), nParams);
+
+    return true;
+
+}
+
+bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Correspondences::UV> const& uv,
+                                                    Correspondences::Typed<Correspondences::GEOXYZ> const& geoMatch,
+                                                    StereoVisionApp::ModularSBASolver* solver,
+                                                    ceres::Problem & problem) {
+
+    ModularSBASolver::PoseNode* pIm = solver->getPoseNode(uv.blockId);
+
+    if (pIm == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule* mIm = solver->getProjectorForFrame(uv.blockId);
+
+    if (mIm == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule::ProjectionInfos infosIm = mIm->getProjectionInfos();
+
+    if (infosIm.modularProjector == nullptr) {
+        return false;
+    }
+
+    double* targetPosBuffer = nullptr;
+
+    std::optional<Eigen::Vector3d> lmPos =
+        Correspondences::getGeoXYZConstraintInfos(geoMatch, solver->getTransform2LocalFrame());
+
+    if (!lmPos.has_value()) { //the xyz data is not for a specific data point, but the world
+        return false;
+    }
+
+    Eigen::Vector2d uvPos;
+    uvPos << uv.u, uv.v;
+
+    Eigen::Vector3d ptPos = lmPos.value();
+
+    Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
+    if (uv.sigmaU.has_value()) {
+        stiffness(0,0) = 1/ uv.sigmaU.value();
+    }
+    if (uv.sigmaV.has_value()) {
+        stiffness(1,1) = 1/ uv.sigmaV.value();
+    }
+
+    using Functor = UV2XYZCostDynamic<ModularUVProjection>;
+    using DecoratedFunctor = InvertPoseDynamic<Functor>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
+    constexpr int stride = 4;
+    using CostFunction = ceres::DynamicAutoDiffCostFunction<DecoratedFunctor, stride>;
+
+
+    DecoratedFunctor* functor = new DecoratedFunctor(infosIm.modularProjector, ptPos, uvPos, stiffness, infosIm.paramsSizeInfos.size());
+    CostFunction* costFunction = new CostFunction(functor);
+
+    int nParams = 4 + infosIm.paramsSizeInfos.size();
+    std::vector<double*> params(nParams);
+
+    params[0] = pIm->rAxis.data();
+    costFunction->AddParameterBlock(3);
+    params[1] = pIm->t.data();
+    costFunction->AddParameterBlock(3);
+
+    for (int i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+        params[4+i] = infosIm.projectionParams[i];
+        costFunction->AddParameterBlock(infosIm.paramsSizeInfos[i]);
+    }
+
+    costFunction->SetNumResiduals(Functor::nResiduals);
+
+    mIm->problem().AddResidualBlock(costFunction, nullptr,
+                                    params.data(), nParams);
+
+    return true;
+}
+
+bool CorrespondencesSetSBAModule::addUV2XYZTMatch(Correspondences::Typed<Correspondences::UV> const& uv,
+                                                  Correspondences::Typed<Correspondences::XYZT> const& xyzt,
+                                                  StereoVisionApp::ModularSBASolver* solver,
+                                                  ceres::Problem & problem) {
+
+    ModularSBASolver::PoseNode* pIm = solver->getPoseNode(uv.blockId);
+
+    if (pIm == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule* mIm = solver->getProjectorForFrame(uv.blockId);
+
+    if (mIm == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule::ProjectionInfos infosIm = mIm->getProjectionInfos();
+
+    if (infosIm.modularProjector == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ItemTrajectoryInfos itemTrajectoryInfos =
+        solver->getItemTrajectoryInfos(xyzt.blockId);
+
+    if (itemTrajectoryInfos.datablockId != xyzt.blockId) {
+        return false;
+    }
+
+    bool createIfMissing = false;
+    ModularSBASolver::TrajectoryNode* trajNode = solver->getNodeForTrajectory(itemTrajectoryInfos.TrajId, createIfMissing);
+
+    if (trajNode == nullptr) { //the xyz data is not for a specific data point, but the world
+        return false;
+    }
+
+    if (xyzt.t < trajNode->nodes[0].time or xyzt.t > trajNode->nodes.back().time) {
+        return false; //outside of time range
+    }
+
+    size_t trajNodeId = trajNode->getNodeForTime(xyzt.t);
+    size_t nextNodeId = trajNodeId+1;
+
+    if (trajNodeId < 0 or nextNodeId >= trajNode->nodes.size()) {
+        return false;
+    }
+
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& previousPose = trajNode->nodes[trajNodeId];
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& nextPose = trajNode->nodes[nextNodeId];
+
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& closest =
+        (xyzt.t - previousPose.time < nextPose.time - xyzt.t) ? previousPose : nextPose;
+
+    StereoVision::Geometry::RigidBodyTransform<double> measure2node =
+        StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+    if (trajNode->initialTrajectory.nPoints() > 0) {
+
+        auto nodeInitialPose = trajNode->initialTrajectory.getValueAtTime(closest.time);
+        auto measureInitialPose = trajNode->initialTrajectory.getValueAtTime(xyzt.t);
+
+        StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
+            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
+             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+
+        StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
+            (measureInitialPose.weigthLower, measureInitialPose.valLower,
+             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+
+        StereoVision::Geometry::RigidBodyTransform<double> measure2node =
+            node2worldInitial.inverse()*measure2worldInitial;
+
+    }
+
+    Eigen::Vector2d uvPos;
+    uvPos << uv.u, uv.v;
+
+    Eigen::Vector3d ptPos;
+    ptPos << xyzt.x, xyzt.y, xyzt.z;
+
+    Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
+    if (uv.sigmaU.has_value()) {
+        stiffness(0,0) = 1/ uv.sigmaU.value();
+    }
+    if (uv.sigmaV.has_value()) {
+        stiffness(1,1) = 1/ uv.sigmaV.value();
+    }
+
+    double* leverArmR = nullptr;
+    double* leverArmT = nullptr;
+
+    ModularSBASolver::PoseNode* laNode = solver->getPoseNode(itemTrajectoryInfos.ExternalLeverArmId);
+
+    if (laNode != nullptr) {
+        leverArmR = laNode->rAxis.data();
+        leverArmT = laNode->t.data();
+    }
+
+    using Functor = UV2ParametrizedXYZCostDynamic<ModularUVProjection>;
+    constexpr DecoratorPoseConfiguration poseOrder = DecoratorPoseConfiguration::Body2World;
+    using DecoratedFunctor = InvertPoseDynamic<LocalFrame2MappedPointDynamic<Functor, poseOrder, Functor::lmPosParamId>>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
+    constexpr int stride = 4;
+
+    constexpr int LeverArmConfiguration = Body2World|Body2Sensor;
+    constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
+    constexpr int poseParamIdx = 2;
+
+    using CostBuildHelper = ModifiedPoseCostFunctionBuilderHelper<DecoratedFunctor, poseTransformDirection, LeverArmConfiguration, poseParamIdx, 2>;
+
+    int nParams = 4 + infosIm.paramsSizeInfos.size();
+    std::vector<double*> params(nParams);
+    std::vector<int> paramsSizes(nParams);
+
+    params[0] = pIm->rAxis.data();
+    paramsSizes[0] = 3;
+    params[1] = pIm->t.data();
+    paramsSizes[1] = 3;
+    params[2] = closest.rAxis.data();
+    paramsSizes[2] = 3;
+    params[3] = closest.t.data();
+    paramsSizes[3] = 3;
+
+    for (int i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+        params[4+i] = infosIm.projectionParams[i];
+        paramsSizes[4+i] = infosIm.paramsSizeInfos[i];
+    }
+
+    auto costFunctionData = CostBuildHelper::buildPoseShiftedDynamicCostFunction<stride>(params.data(),
+                                                                                         paramsSizes,
+                                                                                         measure2node,
+                                                                                         leverArmR,
+                                                                                         leverArmT,
+                                                                                         ptPos,
+                                                                                         infosIm.modularProjector,
+                                                                                         uvPos,
+                                                                                         stiffness,
+                                                                                         infosIm.paramsSizeInfos.size());
+
+
+
+    mIm->problem().AddResidualBlock(costFunctionData.costFunction,
+                                    nullptr,
+                                    costFunctionData.params.data(),
+                                    costFunctionData.params.size());
+
+    return true;
+}
+
+bool CorrespondencesSetSBAModule::addUVT2UVMatch(Correspondences::Typed<Correspondences::UVT> const& uv1,
+                                                 Correspondences::Typed<Correspondences::UV> const& uv2,
+                                                 StereoVisionApp::ModularSBASolver* solver,
+                                                 ceres::Problem & problem) {
+    return false;
+}
+
+bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Correspondences::UVT> const& uv1,
+                                                  Correspondences::Typed<Correspondences::UVT> const& uv2,
+                                                  StereoVisionApp::ModularSBASolver* solver,
+                                                  ceres::Problem & problem) {
+    return false;
+}
+
+bool CorrespondencesSetSBAModule::addUVT2XYZMatch(Correspondences::Typed<Correspondences::UVT> const& uv,
+                                                  Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                                                  StereoVisionApp::ModularSBASolver* solver,
+                                                  ceres::Problem & problem) {
+    return false;
+}
+
+bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Correspondences::UVT> const& uv,
+                                                     Correspondences::Typed<Correspondences::GEOXYZ> const& xyz,
+                                                     StereoVisionApp::ModularSBASolver* solver,
+                                                     ceres::Problem & problem) {
+    return false;
+}
+
+bool CorrespondencesSetSBAModule::addUVT2XYZTMatch(Correspondences::Typed<Correspondences::UVT> const& uv,
+                                                   Correspondences::Typed<Correspondences::XYZT> const& xyz,
+                                                   StereoVisionApp::ModularSBASolver* solver,
+                                                   ceres::Problem & problem) {
+    return false;
+}
+
 bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem) {
 
     StereoVisionApp::Project* currentProject = solver->currentProject();
@@ -708,6 +1149,62 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::PRIORID>().value();
                 ok = addXYZ2PriorMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            //image correspondences
+            if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::UV>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::UV>().value();
+                ok = addUV2UVMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::XYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::XYZ>().value();
+                ok = addUV2XYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::GEOXYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::GEOXYZ>().value();
+                ok = addUV2GeoXYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::XYZT>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::XYZT>().value();
+                ok = addUV2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            //timed image correspondences
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::UV>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::UV>().value();
+                ok = addUVT2UVMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::UVT>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::UVT>().value();
+                ok = addUVT2UVTMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::XYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::XYZ>().value();
+                ok = addUVT2XYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::GEOXYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::GEOXYZ>().value();
+                ok = addUVT2GeoXYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::XYZT>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::XYZT>().value();
+                ok = addUVT2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem);
             }
 
             if (!ok) {

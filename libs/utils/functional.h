@@ -117,6 +117,33 @@ protected:
 template <typename T>
 using IdentityDecorator = T;
 
+/*!
+ * \brief The BaseDynamicDecorator class is used as a base to decorate functors for DynamicAutoDiffCostFunction
+ */
+class BaseDynamicDecorator {
+
+public:
+
+    inline BaseDynamicDecorator() :
+        _nParams(0)
+    {
+
+    }
+
+    inline int nParams() const {
+        return _nParams;
+    }
+
+    inline void setNParams(int nParams) {
+        _nParams = nParams;
+    }
+
+private:
+
+    int _nParams;
+
+};
+
 }
 
 #endif // FUNCTIONAL_H

@@ -3,10 +3,80 @@
 
 #include "../modularsbasolver.h"
 
+#include <StereoVision/geometry/core.h>
+#include <StereoVision/geometry/rotations.h>
+#include <StereoVision/geometry/alignement.h>
+
 namespace StereoVisionApp {
 
 class Project;
 class PushBroomPinholeCamera;
+
+/*!
+ * \brief The PinholeUVProjector class is a functor representing a basic lens distortion model based on the brown model
+ */
+class PinholeUVProjector
+{
+public:
+    PinholeUVProjector(double sensorHeight, double sensorWidth) :
+        _sensorHeight(sensorHeight),
+        _sensorWidth(sensorWidth)
+    {
+
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,3,1> dirFromUV(T const* uv,
+                                     T const* const* params) {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+
+        using V2T = Eigen::Vector<T,2>;
+        using V3T = Eigen::Vector<T,3>;
+
+        const T* f = params[0];
+        const T* pp = params[1];
+        const T* ks = params[2];
+        const T* ts = params[3];
+        const T* Bs = params[4];
+
+        T cam_f = *f;
+
+        V2T cam_pp;
+        cam_pp << pp[0], pp[1];
+
+        V2T B_dist;
+        B_dist << ts[0], ts[1];
+
+        V2T uvPos;
+        uvPos << uv[0], uv[1];
+
+        V2T normalized = StereoVision::Geometry::inverseSkewDistortion<T>(uvPos, B_dist, cam_f, cam_pp);
+
+        V3T k_dist;
+        k_dist << ks[0], ks[1], ks[2];
+
+        V2T t_dist;
+        t_dist << ts[0], ts[1];
+
+        V2T dRadial = StereoVision::Geometry::radialDistortion<T>(normalized, k_dist);
+        V2T dTangential = StereoVision::Geometry::tangentialDistortion<T>(normalized, t_dist);
+
+        V2T corrected = normalized + dRadial + dTangential;
+
+        V3T ret;
+        ret << corrected[0], corrected[1], 1;
+
+        ret *= *f;
+
+        return ret;
+    }
+
+protected:
+
+    double _sensorHeight;
+    double _sensorWidth;
+};
 
 class PinholePushbroomUVProjector
 {
@@ -18,7 +88,7 @@ public:
     }
 
     template<typename T>
-    Eigen::Matrix<T,3,1> dirFromUV(T* uv,
+    Eigen::Matrix<T,3,1> dirFromUV(T const* uv,
                                    T const* const* params) {
 
         const T* f = params[0];
@@ -47,6 +117,45 @@ protected:
     double _sensorWidth;
 };
 
+class PinholdeCamProjModule : public ModularSBASolver::ProjectorModule
+{
+
+public:
+
+    PinholdeCamProjModule(Camera* associatedCamera);
+    ~PinholdeCamProjModule();
+
+    virtual QString moduleName() const override;
+
+    virtual bool addProjectionCostFunction(double* pointData,
+                                           double* poseOrientation,
+                                           double* posePosition,
+                                           Eigen::Vector2d const& ptProjPos,
+                                           Eigen::Matrix2d const& ptProjStiffness,
+                                           StereoVision::Geometry::RigidBodyTransform<double> const& offset = StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(),Eigen::Vector3d::Zero()),
+                                           double* leverArmOrientation = nullptr,
+                                           double* leverArmPosition = nullptr,
+                                           QString const& logLabel = "") override;
+
+    virtual ProjectionInfos getProjectionInfos() override;
+
+    virtual bool init() override;
+    virtual bool writeResults() override;
+    virtual bool writeUncertainty() override;
+    virtual void cleanup() override;
+
+protected:
+
+    Camera* _associatedCamera;
+
+    double _fLen; //f
+    std::array<double, 2> _principalPoint; //pp
+    std::array<double, 3> _radialDistortion; //k1, k2, k3
+    std::array<double, 2> _tangentialDistortion; //t1, t2
+    std::array<double, 2> _skewDistortion; //B1, B2
+
+};
+
 class PinholePushBroomCamProjectorModule : public ModularSBASolver::ProjectorModule
 {
 
@@ -67,15 +176,7 @@ public:
                                            double* leverArmPosition = nullptr,
                                            QString const& logLabel = "") override;
 
-    virtual bool addCrossProjectionCostFunction(double* pose1Orientation,
-                                                double* pose1Position,
-                                                Eigen::Vector2d const& ptProj1Pos,
-                                                Eigen::Matrix2d const& ptProj1Stiffness,
-                                                double* pose2Orientation,
-                                                double* pose2Position,
-                                                Eigen::Vector2d const& ptProj2Pos,
-                                                Eigen::Matrix2d const& ptProj2Stiffness,
-                                                QString const& logLabel = "") override;
+    virtual ProjectionInfos getProjectionInfos() override;
 
     virtual bool init() override;
     virtual bool writeResults() override;

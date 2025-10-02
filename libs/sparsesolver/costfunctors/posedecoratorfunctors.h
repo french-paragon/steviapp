@@ -2,6 +2,8 @@
 #define POSEDECORATORFUNCTORS_H
 
 #include <ceres/jet.h>
+#include <ceres/autodiff_cost_function.h>
+#include <ceres/dynamic_autodiff_cost_function.h>
 #include <Eigen/Core>
 
 #include <StereoVision/geometry/core.h>
@@ -10,7 +12,13 @@
 
 #include <type_traits>
 
+#include <vector>
+
 #include "../../utils/functional.h"
+
+namespace ceres {
+    class CostFunction;
+}
 
 namespace StereoVisionApp {
 
@@ -39,7 +47,7 @@ enum PoseTransformDirection {
 };
 
 /*!
- * \brief The AddParam class is a decorator which ass a unused param to a functor which can be used by other decorators further down the line.
+ * \brief The AddParam class is a decorator which add a unused param to a functor which can be used by other decorators further down the line.
  */
 template<typename FunctorT, int poseParamPos = 0>
 class AddParam : private FunctorT {
@@ -497,6 +505,128 @@ public:
 template<typename FunctorT, int poseConfig = Sensor2Body | Body2World, int poseParamGroupPos = 0>
 using LeverArm = ApplyLeverArm<AddPose<FunctorT, poseParamGroupPos+2>, poseParamGroupPos+2, poseParamGroupPos, poseConfig>;
 
+template<typename DynamicFunctorT, int poseConfig = Sensor2Body | Body2World, int poseParamGroupPos = 0>
+class LeverArmDynamic : private DynamicFunctorT, public virtual BaseDynamicDecorator {
+
+public:
+    template <typename ... P>
+    LeverArmDynamic(P... args) :
+        DynamicFunctorT(args...)
+    {
+
+    }
+
+    template <typename T, typename ... P>
+    bool operator()(T const* const* parameters, T* residuals) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+
+        using V2T = Eigen::Vector<T,2>;
+        using V3T = Eigen::Vector<T,3>;
+
+        const T* const r = parameters[poseParamGroupPos];
+        const T* const t = parameters[poseParamGroupPos+1];
+
+        const T* const boresight = parameters[poseParamGroupPos+2];
+        const T* const leverArm = parameters[poseParamGroupPos+3];
+
+        T processed_r[3];
+        T processed_t[3];
+
+        if ((poseConfig & PoseInfoBit) == Body2World) {
+
+            StereoVision::Geometry::RigidBodyTransform<T> body2world;
+
+            body2world.r << r[0], r[1], r[2];
+            body2world.t << t[0], t[1], t[2];
+
+            StereoVision::Geometry::RigidBodyTransform<T> sensor2world;
+
+            if ((poseConfig & BoresightInfoBit) == Sensor2Body) {
+
+                StereoVision::Geometry::RigidBodyTransform<T> sensor2body;
+                sensor2body.r << boresight[0], boresight[1], boresight[2];
+                sensor2body.t << leverArm[0], leverArm[1], leverArm[2];
+
+                sensor2world = body2world*sensor2body;
+
+            } else if ((poseConfig & BoresightInfoBit) == Body2Sensor) {
+
+                StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
+                body2sensor.r << boresight[0], boresight[1], boresight[2];
+                body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
+
+                sensor2world = body2world*body2sensor.inverse();
+            }
+
+            for (int i = 0; i < 3; i++) {
+                processed_r[i] = sensor2world.r[i];
+                processed_t[i] = sensor2world.t[i];
+            }
+
+        } else if ((poseConfig & PoseInfoBit) == World2Body) {
+
+            StereoVision::Geometry::RigidBodyTransform<T> world2body;
+
+            world2body.r << r[0], r[1], r[2];
+            world2body.t << t[0], t[1], t[2];
+
+            StereoVision::Geometry::RigidBodyTransform<T> world2sensor;
+
+            if ((poseConfig & BoresightInfoBit) == Sensor2Body) {
+
+                StereoVision::Geometry::RigidBodyTransform<T> sensor2body;
+                sensor2body.r << boresight[0], boresight[1], boresight[2];
+                sensor2body.t << leverArm[0], leverArm[1], leverArm[2];
+
+                world2sensor = sensor2body.inverse()*world2body;
+
+            } else if ((poseConfig & BoresightInfoBit) == Body2Sensor) {
+
+                StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
+                body2sensor.r << boresight[0], boresight[1], boresight[2];
+                body2sensor.t << leverArm[0], leverArm[1], leverArm[2];
+
+                world2sensor = body2sensor*world2body;
+            }
+
+            for (int i = 0; i < 3; i++) {
+                processed_r[i] = world2sensor.r[i];
+                processed_t[i] = world2sensor.t[i];
+            }
+
+        }
+
+        std::vector<T const*> params(nParams()-2);
+
+        for (int i = 0; i < nParams(); i++) {
+
+            if (i == poseParamGroupPos) {
+
+                params[i] = processed_r.data();
+                continue;
+
+            } else if (i == poseParamGroupPos+1) {
+
+                params[i] = processed_t.data();
+                continue;
+            } else if (i == poseParamGroupPos+2 or i == poseParamGroupPos+3) {
+                continue;
+            }
+
+            int pos = i;
+
+            if (i > poseParamGroupPos) {
+                pos -= 2;
+            }
+
+            params[pos] = parameters[i];
+        }
+
+        return DynamicFunctorT::operator()(params.data(), residuals);
+    }
+};
+
 template<typename FunctorT, PoseTransformDirection poseTransformDirection = PoseTransformDirection::FinalToTarget, int poseParamGroupPos = 0>
 class PoseTransform : private FunctorT {
 
@@ -574,6 +704,218 @@ protected:
 
     StereoVision::Geometry::RigidBodyTransform<double> _transform;
 
+};
+
+template<typename DynamicFunctorT, PoseTransformDirection poseTransformDirection = PoseTransformDirection::FinalToTarget, int poseParamGroupPos = 0>
+class PoseTransformDynamic : private DynamicFunctorT, public virtual BaseDynamicDecorator {
+
+public:
+    template <typename ... P>
+    PoseTransformDynamic(StereoVision::Geometry::RigidBodyTransform<double> const& transform, P... args) :
+        DynamicFunctorT(args...),
+        _transform(transform)
+    {
+
+    }
+
+    template <typename T, typename ... P>
+    bool operator()(T const* const* parameters, T* residuals) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+
+        using V2T = Eigen::Vector<T,2>;
+        using V3T = Eigen::Vector<T,3>;
+
+        const T* const r = parameters[poseParamGroupPos];
+        const T* const t = parameters[poseParamGroupPos+1];
+
+        StereoVision::Geometry::RigidBodyTransform<T> pose;
+
+        pose.r << r[0], r[1], r[2];
+        pose.t << t[0], t[1], t[2];
+
+        StereoVision::Geometry::RigidBodyTransform<T> transformed;
+
+        if (poseTransformDirection == PoseTransformDirection::FinalToTarget) {
+            transformed = _transform.cast<T>() * pose;
+        }
+
+        if (poseTransformDirection == PoseTransformDirection::SourceToInitial) {
+            transformed = pose * _transform.cast<T>();
+        }
+
+        std::vector<T const*> params(nParams());
+
+        for (int i = 0; i < nParams(); i++) {
+
+            if (i == poseParamGroupPos) {
+
+                params[i] = transformed.r.data();
+                continue;
+
+            } else if (i == poseParamGroupPos+1) {
+
+                params[i] = transformed.t.data();
+                continue;
+            }
+
+            params[i] = parameters[i];
+        }
+
+        return DynamicFunctorT::operator()(params.data(), residuals);
+    }
+
+protected:
+
+    StereoVision::Geometry::RigidBodyTransform<double> _transform;
+};
+
+/*!
+ * \brief The LocalFrame2MappedPoint class is a decorator using the pose of a local system to map a point to mapping frame
+ *
+ * It can occur that we know the position of a point relative to a local coordinate system,
+ * and we want to project that point to a UV coordinate. This decorator replace an optimizable 3D point parameter by a pose,
+ * use the pose to compute the position of a point in mapping frame and pass down this pose to the underlying functor.
+ */
+template<typename FunctorT, DecoratorPoseConfiguration poseOrder = DecoratorPoseConfiguration::Body2World, int pointParamPos = 0>
+class LocalFrame2MappedPoint : private FunctorT {
+
+public:
+    template <typename ... P>
+    LocalFrame2MappedPoint(Eigen::Vector3d const& localPointPos, P... args) :
+        FunctorT(args...),
+        _localPoint(localPointPos)
+    {
+
+    }
+
+    template <typename ... P>
+    bool operator()(P ... params) const {
+
+        std::tuple<P...> args(params...);
+
+        using T = std::remove_const_t<
+            std::remove_pointer_t<
+                std::remove_reference_t<decltype (std::get<0>(args))>
+                >>;
+
+        using M3T = Eigen::Matrix<T,3,3>;
+
+        using V2T = Eigen::Vector<T,2>;
+        using V3T = Eigen::Vector<T,3>;
+
+        const T* const r = std::get<pointParamPos>(args);
+        const T* const t = std::get<pointParamPos+1>(args);
+
+        T processed_t[3];
+
+        //remove the old arguments and insert new arguments such that processed_r is
+        // at pos poseParamGroupPos and processed_t at pos poseParamGroupPos+1.
+        auto processedArgs =
+            CallFromTuple::insertArgInTuple<pointParamPos, const T*>(
+                CallFromTuple::removeArgFromTuple<pointParamPos>(
+                    CallFromTuple::removeArgFromTuple<pointParamPos>(
+                            args)
+                    ), processed_t
+                );
+
+        StereoVision::Geometry::RigidBodyTransform<T> pose;
+
+        pose.r << r[0], r[1], r[2];
+        pose.t << t[0], t[1], t[2];
+
+        if ((poseOrder | PoseInfoBit) == World2Body) {
+            pose = pose.inverse(); //ensure we have the pose as body2world
+        }
+
+        V3T transformed = pose*_localPoint.cast<T>();
+
+        for (int i = 0; i < 3; i++) {
+            processed_t[i] = transformed[i];
+        }
+
+        auto variadic_lambda = [this] (auto... params) {
+            return FunctorT::operator()(params...);
+        };
+
+        return CallFromTuple::call(variadic_lambda, processedArgs);
+
+    }
+
+protected:
+
+    Eigen::Vector3d _localPoint;
+};
+
+template<typename DynamicFunctorT, DecoratorPoseConfiguration poseOrder = DecoratorPoseConfiguration::Body2World, int pointParamPos = 0>
+class LocalFrame2MappedPointDynamic : private DynamicFunctorT, public virtual BaseDynamicDecorator {
+
+public:
+    template <typename ... P>
+    LocalFrame2MappedPointDynamic(Eigen::Vector3d const& localPointPos, P... args) :
+        DynamicFunctorT(args...),
+        _localPoint(localPointPos)
+    {
+
+    }
+
+    template <typename T>
+    bool operator()(T const* const* parameters, T* residuals) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+
+        using V2T = Eigen::Vector<T,2>;
+        using V3T = Eigen::Vector<T,3>;
+
+        const T* const r = parameters[pointParamPos];
+        const T* const t = parameters[pointParamPos+1];
+
+        T processed_t[3];
+
+        StereoVision::Geometry::RigidBodyTransform<T> pose;
+
+        pose.r << r[0], r[1], r[2];
+        pose.t << t[0], t[1], t[2];
+
+        if ((poseOrder | PoseInfoBit) == World2Body) {
+            pose = pose.inverse(); //ensure we have the pose as body2world
+        }
+
+        V3T transformed = pose*_localPoint.cast<T>();
+
+        for (int i = 0; i < 3; i++) {
+            processed_t[i] = transformed[i];
+        }
+
+        std::vector<T const*> params(nParams()-1);
+
+        for (int i = 0; i < nParams(); i++) {
+
+            if (i == pointParamPos) {
+
+                params[i] = processed_t;
+                continue;
+
+            } else if (i == pointParamPos+1) {
+                continue;
+            }
+
+            int pos = i;
+
+            if (i > pointParamPos) {
+                pos -= 1;
+            }
+
+            params[pos] = parameters[i];
+        }
+
+        return DynamicFunctorT::operator()(params.data(), residuals);
+
+    }
+
+protected:
+
+    Eigen::Vector3d _localPoint;
 };
 
 /*!
@@ -678,6 +1020,86 @@ protected:
 
 };
 
+template<typename DynamicFunctorT, int poseParamGroupPos = 0>
+class InterpolatedPoseDynamic : private DynamicFunctorT, public virtual BaseDynamicDecorator
+{
+public:
+
+    template <typename ... P>
+    InterpolatedPoseDynamic(double w1, double w2, P... args) :
+        DynamicFunctorT(args...),
+        _w1(w1),
+        _w2(w2)
+    {
+
+    }
+
+    template <typename T, typename ... P>
+    bool operator()(T const* const* parameters, T* residuals) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+
+        using V2T = Eigen::Vector<T,2>;
+        using V3T = Eigen::Vector<T,3>;
+
+        const T* const r1 = parameters[poseParamGroupPos];
+        const T* const t1 = parameters[poseParamGroupPos+1];
+
+        const T* const r2 = parameters[poseParamGroupPos+2];
+        const T* const t2 = parameters[poseParamGroupPos+3];
+
+        V3T rot1;
+        rot1 << r1[0], r1[1], r1[2];
+        V3T tran1;
+        tran1 << t1[0], t1[1], t1[2];
+        StereoVision::Geometry::RigidBodyTransform<T> transform1(rot1,tran1);
+
+        V3T rot2;
+        rot2 << r2[0], r2[1], r2[2];
+        V3T tran2;
+        tran2 << t2[0], t2[1], t2[2];
+        StereoVision::Geometry::RigidBodyTransform<T> transform2(rot2,tran2);
+
+        StereoVision::Geometry::RigidBodyTransform<T> interpolated =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(T(_w1), transform1, T(_w2), transform2);
+
+
+        std::vector<T const*> params(nParams()-2);
+
+        for (int i = 0; i < nParams(); i++) {
+
+            if (i == poseParamGroupPos) {
+
+                params[i] = interpolated.r.data();
+                continue;
+
+            } else if (i == poseParamGroupPos+1) {
+
+                params[i] = interpolated.t.data();
+                continue;
+            } else if (i == poseParamGroupPos+2 or i == poseParamGroupPos+3) {
+                continue;
+            }
+
+            int pos = i;
+
+            if (i > poseParamGroupPos) {
+                pos -= 2;
+            }
+
+            params[pos] = parameters[i];
+        }
+
+        return DynamicFunctorT::operator()(params.data(), residuals);
+    }
+
+protected:
+
+    double _w1;
+    double _w2;
+};
+
+
 /*!
  * \brief The InvertPose class represent a decorator for the functor type FunctorT, inverting the input pose.
  *
@@ -755,6 +1177,355 @@ public:
         };
 
         return CallFromTuple::call(variadic_lambda, processedArgs);
+
+    }
+
+};
+
+/*!
+ * \brief The InvertPoseDynamic class act like the InvertPose decorator, but for a Functor designed for DynamicAutoDiffCostFunction
+ */
+template<typename DynamicFunctorT, int poseParamGroupIdx = 0>
+class InvertPoseDynamic : private DynamicFunctorT, public virtual BaseDynamicDecorator
+{
+public:
+
+    template <typename ... P>
+    InvertPoseDynamic(P... args) :
+        DynamicFunctorT(args...)
+    {
+
+    }
+
+    template <typename T, typename ... P>
+    bool operator()(T const* const* parameters, T* residuals) const {
+
+        using M3T = Eigen::Matrix<T,3,3>;
+
+        using V2T = Eigen::Vector<T,2>;
+        using V3T = Eigen::Vector<T,3>;
+
+        const T* const r = parameters[poseParamGroupIdx];
+        const T* const t = parameters[poseParamGroupIdx+1];
+
+        V3T rot;
+        rot << r[0], r[1], r[2];
+        V3T tran;
+        tran << t[0], t[1], t[2];
+        StereoVision::Geometry::RigidBodyTransform<T> pose(rot,tran);
+
+        StereoVision::Geometry::RigidBodyTransform<T> inverted = pose.inverse();
+
+        std::vector<T const*> params(nParams());
+
+        for (int i = 0; i < nParams(); i++) {
+
+            if (i == poseParamGroupIdx) {
+
+                params[i] = inverted.r.data();
+                continue;
+
+            } else if (i == poseParamGroupIdx+1) {
+
+                params[i] = inverted.t.data();
+                continue;
+            }
+
+            params[i] = parameters[i];
+        }
+
+        return DynamicFunctorT::operator()(params.data(), residuals);
+    }
+};
+
+template<typename FT, PoseTransformDirection poseTransformDirection, int leverArmConfig, int pParamId, int nRes, int... argsSizes>
+class ModifiedPoseCostFunctionBuilderHelper {
+
+public:
+
+    using FunctorT = FT;
+    static constexpr int nArgs = sizeof...(argsSizes);
+    static constexpr int poseParamId = pParamId;
+    static constexpr int poseRotParamId = pParamId;
+    static constexpr int posePosParamId = pParamId+1;
+    static constexpr int leverArmRotParamId = pParamId+2;
+    static constexpr int leverArmPosParamId = pParamId+3;
+
+    using LeverArmCost = LeverArm<FunctorT,leverArmConfig,0>;
+    using PoseTransformCost = PoseTransform<FunctorT,poseTransformDirection,0>;
+    using PoseTransformLeverArmCost = PoseTransform<LeverArmCost,poseTransformDirection,0>;
+
+    using LeverArmCostDynamic = LeverArmDynamic<FunctorT,leverArmConfig,0>;
+    using PoseTransformCostDynamic = PoseTransformDynamic<FunctorT,poseTransformDirection,0>;
+    using PoseTransformLeverArmCostDynamic = PoseTransformDynamic<LeverArmCostDynamic,poseTransformDirection,0>;
+
+protected:
+
+    template<int n>
+    struct counter {
+
+    };
+
+    template<typename counterT, size_t nR, typename CFType, typename SequenceT, int... argsS>
+    struct leverArmAutoDiffCostHelper {
+        using CostFuncT = void;
+    };
+
+    template<size_t posId, size_t nR, typename CFType, int... argsP, int arg0, int... argsS>
+    struct leverArmAutoDiffCostHelper<counter<posId>, nR, CFType, std::integer_sequence<int, argsP...>, arg0, argsS...> {
+        using CostFuncT = std::conditional_t<posId == 0,
+                                             ceres::AutoDiffCostFunction<CFType, nR, argsP..., 3, 3, arg0, argsS...>,
+                                             typename leverArmAutoDiffCostHelper<std::conditional_t<posId >= 2, counter<std::max<int>(posId-1,1)>, void>, nR, CFType, std::integer_sequence<int, argsP..., arg0>, argsS...>::CostFuncT>;
+    };
+
+    template<size_t nR, typename CFType, int... argsP>
+    struct leverArmAutoDiffCostHelper<counter<0>, nR, CFType, std::integer_sequence<int, argsP...>> {
+        using CostFuncT = ceres::AutoDiffCostFunction<CFType, nR, argsP..., 3, 3>;
+    };
+
+public:
+
+    struct CostFunctionData {
+        ceres::CostFunction* costFunction;
+        std::vector<double*> params;
+    };
+
+    template<typename ... T>
+    static CostFunctionData buildPoseShiftedCostFunction(double ** parameters,
+                                              const StereoVision::Geometry::RigidBodyTransform<double> &offset,
+                                              double *leverArmOrientation,
+                                              double *leverArmPosition,
+                                              T... constructorArgs) {
+
+
+
+        if (offset.r.norm() < 1e-6 and offset.t.norm() < 1e-6) {
+
+            if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
+
+                LeverArmCost* costFunctor = new LeverArmCost(constructorArgs...);
+
+                constexpr int modifiedNArgs = nArgs+2;
+
+                std::vector<double*> params(modifiedNArgs);
+
+                int modifiedArgsId = 0;
+
+                for (int i = 0; i < nArgs; i++) {
+                    params[modifiedArgsId] = parameters[i];
+
+                    if (i == poseParamId+1) {
+                        modifiedArgsId++;
+                        params[modifiedArgsId] = leverArmOrientation;
+                        modifiedArgsId++;
+                        params[modifiedArgsId] = leverArmPosition;
+                    }
+
+                    modifiedArgsId++;
+                }
+
+                using lACersCF = typename leverArmAutoDiffCostHelper<counter<poseParamId>, nRes, LeverArmCost, std::integer_sequence<int>, argsSizes...>::CostFuncT;
+                ceres::CostFunction* costFunc = new lACersCF(costFunctor);
+
+                return {costFunc, params};
+
+            } else {
+                FunctorT* costFunctor = new FunctorT(constructorArgs...);
+
+                std::vector<double*> params(nArgs);
+
+                for (int i = 0; i < nArgs; i++) {
+                    params[i] = parameters[i];
+                }
+
+                ceres::CostFunction* costFunc = new ceres::AutoDiffCostFunction<FunctorT, nRes, argsSizes...>(costFunctor);
+
+                return {costFunc, params};
+            }
+
+        } else {
+
+            if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
+
+                PoseTransformLeverArmCost* costFunctor =
+                    new PoseTransformLeverArmCost(
+                        offset, constructorArgs...);
+
+                constexpr int modifiedNArgs = nArgs+2;
+
+                std::vector<double*> params(modifiedNArgs);
+
+                int modifiedArgsId = 0;
+
+                for (int i = 0; i < nArgs; i++) {
+                    params[modifiedArgsId] = parameters[i];
+
+                    if (i == poseParamId+1) {
+                        modifiedArgsId++;
+                        params[modifiedArgsId] = leverArmOrientation;
+                        modifiedArgsId++;
+                        params[modifiedArgsId] = leverArmPosition;
+                    }
+
+                    modifiedArgsId++;
+                }
+
+                using lACersCF = typename leverArmAutoDiffCostHelper<counter<poseParamId>, nRes, PoseTransformLeverArmCost, std::integer_sequence<int>, argsSizes...>::CostFuncT;
+                ceres::CostFunction* costFunc = new lACersCF(costFunctor);
+
+                return {costFunc, params};
+
+            } else {
+
+                PoseTransformCost* costFunctor = new PoseTransformCost(offset, constructorArgs...);
+
+                std::vector<double*> params(nArgs);
+
+                for (int i = 0; i < nArgs; i++) {
+                    params[i] = parameters[i];
+                }
+
+                ceres::CostFunction* costFunc = new ceres::AutoDiffCostFunction<PoseTransformCost, nRes, argsSizes...>(costFunctor);
+
+                return {costFunc, params};
+
+            }
+        }
+
+        return {nullptr, std::vector<double*>()};
+
+    }
+
+    template<int stride = 4, typename ... T>
+    static CostFunctionData buildPoseShiftedDynamicCostFunction(double ** parameters,
+                                                                std::vector<int> const& parametersSizeInfos,
+                                                                const StereoVision::Geometry::RigidBodyTransform<double> &offset,
+                                                                double *leverArmOrientation,
+                                                                double *leverArmPosition,
+                                                                T... constructorArgs) {
+
+
+
+        if (offset.r.norm() < 1e-6 and offset.t.norm() < 1e-6) {
+
+            if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
+
+                LeverArmCostDynamic* costFunctor = new LeverArmCostDynamic(constructorArgs...);
+
+                int nArgs = parametersSizeInfos.size();
+
+                int modifiedNArgs = nArgs+2;
+
+                ceres::DynamicAutoDiffCostFunction<LeverArmCostDynamic, stride>* costFunc =
+                    new ceres::DynamicAutoDiffCostFunction<LeverArmCostDynamic, stride>(costFunctor);
+
+                std::vector<double*> params(modifiedNArgs);
+
+                int modifiedArgsId = 0;
+
+                for (int i = 0; i < nArgs; i++) {
+                    params[modifiedArgsId] = parameters[i];
+                    costFunc->AddParameterBlock(parametersSizeInfos[i]);
+
+                    if (i == poseParamId+1) {
+                        modifiedArgsId++;
+                        params[modifiedArgsId] = leverArmOrientation;
+                        costFunc->AddParameterBlock(3);
+                        modifiedArgsId++;
+                        params[modifiedArgsId] = leverArmPosition;
+                        costFunc->AddParameterBlock(3);
+                    }
+
+                    modifiedArgsId++;
+                }
+
+                costFunc->SetNumResiduals(nRes);
+
+                return {costFunc, params};
+
+            } else {
+                FunctorT* costFunctor = new FunctorT(constructorArgs...);
+
+                ceres::DynamicAutoDiffCostFunction<FunctorT, stride>* costFunc =
+                    new ceres::DynamicAutoDiffCostFunction<FunctorT, stride>(costFunctor);
+
+                int nArgs = parametersSizeInfos.size();
+
+                std::vector<double*> params(nArgs);
+
+                for (int i = 0; i < nArgs; i++) {
+                    params[i] = parameters[i];
+                    costFunc->AddParameterBlock(parametersSizeInfos[i]);
+                }
+
+                costFunc->SetNumResiduals(nRes);
+
+                return {costFunc, params};
+            }
+
+        } else {
+
+            if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
+
+                PoseTransformLeverArmCostDynamic* costFunctor =
+                    new PoseTransformLeverArmCost(
+                        offset, constructorArgs...);
+
+                int nArgs = parametersSizeInfos.size();
+
+                int modifiedNArgs = nArgs+2;
+
+                ceres::DynamicAutoDiffCostFunction<PoseTransformLeverArmCostDynamic, stride>* costFunc =
+                    new ceres::DynamicAutoDiffCostFunction<PoseTransformLeverArmCostDynamic, stride>(costFunctor);
+
+                std::vector<double*> params(modifiedNArgs);
+
+                int modifiedArgsId = 0;
+
+                for (int i = 0; i < nArgs; i++) {
+                    params[modifiedArgsId] = parameters[i];
+                    costFunc->AddParameterBlock(parametersSizeInfos[i]);
+
+                    if (i == poseParamId+1) {
+                        modifiedArgsId++;
+                        params[modifiedArgsId] = leverArmOrientation;
+                        costFunc->AddParameterBlock(3);
+                        modifiedArgsId++;
+                        params[modifiedArgsId] = leverArmPosition;
+                        costFunc->AddParameterBlock(3);
+                    }
+
+                    modifiedArgsId++;
+                }
+
+                costFunc->SetNumResiduals(nRes);
+
+                return {costFunc, params};
+
+            } else {
+
+                PoseTransformCostDynamic* costFunctor = new PoseTransformCostDynamic(offset, constructorArgs...);
+
+                ceres::DynamicAutoDiffCostFunction<PoseTransformCost, stride>* costFunc =
+                    new ceres::DynamicAutoDiffCostFunction<PoseTransformCost, stride>(costFunctor);
+
+                int nArgs = parametersSizeInfos.size();
+
+                std::vector<double*> params(nArgs);
+
+                for (int i = 0; i < nArgs; i++) {
+                    params[i] = parameters[i];
+                    costFunc->AddParameterBlock(parametersSizeInfos[i]);
+                }
+
+                costFunc->SetNumResiduals(nRes);
+
+                return {costFunc, params};
+
+            }
+        }
+
+        return {nullptr, std::vector<double*>()};
 
     }
 

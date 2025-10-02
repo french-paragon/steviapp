@@ -25,6 +25,8 @@ namespace StereoVisionApp {
 class Camera;
 class GenericSBAGraphReductor;
 
+class ModularUVProjection;
+
 /*!
  * \brief The ModularSBASolver class is a modular solver for bundle adjustement problems.
  *
@@ -235,28 +237,44 @@ public:
                                              logLabel);
         }
 
+        struct ProjectionInfos {
+            ModularUVProjection* modularProjector;
+            std::vector<int> paramsSizeInfos;
+            std::vector<double*> projectionParams;
+        };
+
         /*!
-         * \brief addCrossProjectionCostFunction add a cross projection between two poses (i.e. two frames seeing the same point, but the point is not explicitly instanced)
-         * \param pose1Orientation the pointer to the optimizable pose 1 orientation (rotation axis).
-         * \param pose1Position the pointer to the optimizable pose 1 position.
-         * \param ptProj1Pos the projected position of the point in frame 1.
-         * \param ptProj1Stiffness the uncertainty in the projected position of the point in frame 1, given as the stiffness matrix.
-         * \param pose2Orientation the pointer to the optimizable pose 2 orientation (rotation axis).
-         * \param pose2Position the pointer to the optimizable pose 2 position.
-         * \param ptProj2Pos the projected position of the point in frame 2.
-         * \param ptProj2Stiffness the uncertainty in the projected position of the point in frame 2, given as the stiffness matrix.
-         * \param problem the problem to add the projection cost to.
-         * \return true on success
+         * \brief getProjectionInfos give info to build generic projection cost functions
+         * \return a structure with a module projector and informations on the params specific to that projection module
          */
-        virtual bool addCrossProjectionCostFunction(double* pose1Orientation,
-                                                    double* pose1Position,
-                                                    Eigen::Vector2d const& ptProj1Pos,
-                                                    Eigen::Matrix2d const& ptProj1Stiffness,
-                                                    double* pose2Orientation,
-                                                    double* pose2Position,
-                                                    Eigen::Vector2d const& ptProj2Pos,
-                                                    Eigen::Matrix2d const& ptProj2Stiffness,
-                                                    QString const& logLabel = "") = 0;
+        virtual ProjectionInfos getProjectionInfos() = 0;
+
+        /*!
+         * \brief addCrossProjectionCostFunction build a cross projection cost function from two projection modules
+         * \param module1 the first module to use
+         * \param pose1Orientation the orientation parameter for the first frame
+         * \param pose1Position the position for the first frame
+         * \param ptProj1Pos the uv coordinate of the first point
+         * \param ptProj1Stiffness the stiffness matrix for the first point
+         * \param module2 the second module to use
+         * \param pose2Orientation the orientation parameter for the second frame
+         * \param pose2Position the position for the second frame
+         * \param ptProj2Pos the uv coordinate of the second point
+         * \param ptProj2Stiffness the stiffness matrix for the second point
+         * \param logLabel the label in the log file
+         * \return true on success, false otherwise
+         */
+        static bool addCrossProjectionCostFunction(ProjectorModule* module1,
+                                                   double* pose1Orientation,
+                                                   double* pose1Position,
+                                                   Eigen::Vector2d const& ptProj1Pos,
+                                                   Eigen::Matrix2d const& ptProj1Stiffness,
+                                                   ProjectorModule* module2,
+                                                   double* pose2Orientation,
+                                                   double* pose2Position,
+                                                   Eigen::Vector2d const& ptProj2Pos,
+                                                   Eigen::Matrix2d const& ptProj2Stiffness,
+                                                   QString const& logLabel = "");
 
         virtual bool writeResults() = 0;
         /*!
@@ -403,7 +421,7 @@ public:
         ValueBlockLogger();
         virtual ~ValueBlockLogger();
 
-        virtual QVector<double> getErrors() const = 0;
+        virtual QVector<double> getValues() const = 0;
         QTextStream& log(QTextStream& stream) const;
 
     };
@@ -416,7 +434,7 @@ public:
             _vals = vals;
         }
 
-        virtual QVector<double> getErrors() const {
+        virtual QVector<double> getValues() const {
 
             return QVector<double>(_vals, _vals+nVals);
         }
@@ -445,7 +463,7 @@ public:
             }
         }
 
-        virtual QVector<double> getErrors() const {
+        virtual QVector<double> getValues() const {
 
             ErrsType errors;
 
@@ -453,6 +471,27 @@ public:
 
             return QVector<double>(errors.begin(), errors.end());
         }
+
+    protected:
+
+        ceres::CostFunction* _func;
+        bool _manageFunc;
+        ParamsType _parameters;
+
+    };
+
+    class AutoDynamicErrorBlockLogger : public ValueBlockLogger {
+
+    public:
+        using FuncType = ceres::CostFunction*;
+        using ParamsType = std::vector<double*>;
+        using ErrsType = std::vector<double>;
+
+        AutoDynamicErrorBlockLogger(ceres::CostFunction* func, ParamsType const& params, bool manageFunc = false);
+
+        virtual ~AutoDynamicErrorBlockLogger();
+
+        virtual QVector<double> getValues() const;
 
     protected:
 
@@ -493,6 +532,30 @@ public:
         qint64 PlatformId;
         std::array<double, 3> rAxis; //we go with the rotation axis representation. It is compressed, can be converted and allow to set priors more easily
         std::array<double, 3> t;
+    };
+
+    /*!
+     * \brief The ItemTrajectoryInfos class gives infos about how an item is attached to a trajectory
+     */
+    struct ItemTrajectoryInfos {
+        /*!
+         * \brief datablockId the id of the datablock attached to a trajectory
+         */
+        qint64 datablockId;
+        /*!
+         * \brief TrajId is the id of the trajectory the item is attached to.
+         */
+        qint64 TrajId;
+        /*!
+         * \brief ExternalLeverArmId is the id of the datablock corresponding to the PoseNode of the lever arm
+         *
+         * If unset, it is assumed the item follow the trajectory exactly.
+         */
+        qint64 ExternalLeverArmId;
+
+        inline bool isNull() const {
+            return datablockId < 0 or TrajId < 0;
+        }
     };
 
     /*!
@@ -646,11 +709,17 @@ public:
 
     /*!
      * \brief getNodeForLeverArm access the node for a lever arm
-     * \param camtrajId the pair of ids of the cam (first) and the trajectory (second).
+     * \param camtrajId the pair of ids of the item (first) and the trajectory (second).
      * \param createIfMissing create the node if it does not exist yet
      * \return the node for the lever arm
+     *
+     * Note that LeverArmNodes are used to generate specific lever arm on the fly, when using the lever arm datablock,
+     * standard pose nodes should be used.
      */
-    LeverArmNode* getNodeForLeverArm(QPair<qint64,qint64> camtrajId, bool createIfMissing);
+    LeverArmNode* getNodeForLeverArm(QPair<qint64,qint64> itemtrajId, bool createIfMissing);
+
+    ItemTrajectoryInfos getItemTrajectoryInfos(qint64 itemId) const;
+    void registerItemTrajectoryInfos(ItemTrajectoryInfos const& itemTrajInfos);
 
     /*!
      * \brief getTransform2LocalFrame get the transform from the world frame (ecef, or local if local frame is used for the project).
@@ -733,6 +802,7 @@ protected:
 
     QMap<qint64, int> _cameraProjectorsAssociations;
     QMap<qint64, int> _frameProjectorsAssociations;
+    QMap<qint64, ItemTrajectoryInfos> _itemsTrajectoryInfos;
 
     static constexpr bool parametersStorageDebug = true;
 

@@ -55,6 +55,8 @@ Generic GenericFromString(QString const& str) {
         return Internal::dataToBlock<Types::Line3D>(data);
     case Plane3D:
         return Internal::dataToBlock<Types::Plane3D>(data);
+    case UVT:
+        return Internal::dataToBlock<Types::UVT>(data);
     case XYT:
         return Internal::dataToBlock<Types::XYT>(data);
     case XYZT:
@@ -167,6 +169,11 @@ std::optional<Eigen::Vector3d> getGeoXYZConstraintInfos(Typed<Types::GEOXYZ> con
                                          StereoVision::Geometry::AffineTransform<double> const& ecef2local) {
 
     Eigen::Vector3d ret;
+
+    if (point.crsInfos.toLower() == "local") { //point in local coordinates
+        ret << point.x, point.y, point.z;
+        return ret;
+    }
 
     PJ_CONTEXT* ctx = proj_context_create();
 

@@ -15,8 +15,12 @@
 
 #include <ceres/cost_function.h>
 #include <ceres/autodiff_cost_function.h>
+#include <ceres/dynamic_autodiff_cost_function.h>
 #include <ceres/normal_prior.h>
 #include <ceres/iteration_callback.h>
+
+#include "costfunctors/modularuvprojection.h"
+#include "costfunctors/posedecoratorfunctors.h"
 
 #include <QDir>
 #include <QFile>
@@ -485,6 +489,13 @@ ModularSBASolver::LeverArmNode* ModularSBASolver::getNodeForLeverArm(QPair<qint6
 
     return &_leverArmParameters[idx];
 
+}
+
+ModularSBASolver::ItemTrajectoryInfos ModularSBASolver::getItemTrajectoryInfos(qint64 itemId) const {
+    return _itemsTrajectoryInfos.value(itemId, ItemTrajectoryInfos{-1,-1,-1});
+}
+void ModularSBASolver::registerItemTrajectoryInfos(ItemTrajectoryInfos const& itemTrajInfos) {
+    _itemsTrajectoryInfos[itemTrajInfos.datablockId] = itemTrajInfos;
 }
 
 StereoVision::Geometry::AffineTransform<double> ModularSBASolver::getTransform2LocalFrame() const {
@@ -1073,6 +1084,101 @@ ModularSBASolver::ProjectorModule::~ProjectorModule() {
 
 }
 
+bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(ProjectorModule* module1,
+                                           double* pose1Orientation,
+                                           double* pose1Position,
+                                           Eigen::Vector2d const& ptProj1Pos,
+                                           Eigen::Matrix2d const& ptProj1Stiffness,
+                                           ProjectorModule* module2,
+                                           double* pose2Orientation,
+                                           double* pose2Position,
+                                           Eigen::Vector2d const& ptProj2Pos,
+                                           Eigen::Matrix2d const& ptProj2Stiffness,
+                                           QString const& logLabel) {
+
+    if (module1->_problem != module2->_problem or module1->_problem == nullptr) {
+        return false;
+    }
+
+    if (module1->_solver != module2->_solver or module1->_solver == nullptr) {
+        return false;
+    }
+
+    ProjectionInfos infos1 = module1->getProjectionInfos();
+    ProjectionInfos infos2 = module2->getProjectionInfos();
+
+    if (infos1.modularProjector == nullptr) {
+        if (infos2.modularProjector != nullptr) {
+            delete infos2.modularProjector;
+        }
+        return false;
+    }
+
+    if (infos2.modularProjector == nullptr) {
+        if (infos1.modularProjector != nullptr) {
+            delete infos1.modularProjector;
+        }
+        return false;
+    }
+
+    using Functor = UV2UVCost<ModularUVProjection, ModularUVProjection>;
+    using DecoratedFunctor = InvertPoseDynamic<InvertPoseDynamic<Functor, 0>, 2>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
+    constexpr int stride = 4;
+    using CostFunction = ceres::DynamicAutoDiffCostFunction<DecoratedFunctor, stride>;
+
+    DecoratedFunctor* functor = new DecoratedFunctor(infos1.modularProjector,ptProj1Pos,ptProj1Stiffness,infos1.paramsSizeInfos.size(),
+                                   infos2.modularProjector,ptProj2Pos,ptProj2Stiffness,infos2.paramsSizeInfos.size());
+    CostFunction* costFunction = new CostFunction(functor);
+
+    int nParams = 4 + infos1.paramsSizeInfos.size() + infos2.paramsSizeInfos.size();
+    std::vector<double*> params(nParams);
+
+    params[0] = pose1Orientation;
+    costFunction->AddParameterBlock(3);
+    params[1] = pose1Position;
+    costFunction->AddParameterBlock(3);
+    params[2] = pose2Orientation;
+    costFunction->AddParameterBlock(3);
+    params[3] = pose2Position;
+    costFunction->AddParameterBlock(3);
+
+    for (int i = 0; i < infos1.paramsSizeInfos.size(); i++) {
+        params[4+i] = infos1.projectionParams[i];
+        costFunction->AddParameterBlock(infos1.paramsSizeInfos[i]);
+    }
+
+    for (int i = 0; i < infos2.paramsSizeInfos.size(); i++) {
+        params[4+infos2.paramsSizeInfos.size()+i] = infos2.projectionParams[i];
+        costFunction->AddParameterBlock(infos2.paramsSizeInfos[i]);
+    }
+
+    costFunction->SetNumResiduals(Functor::nResiduals);
+
+    module1->problem().AddResidualBlock(costFunction, nullptr,
+                               params.data(), nParams);
+
+    if ((module1->isVerbose() or module2->isVerbose()) and !logLabel.isEmpty()) {
+
+        QString loggerName = logLabel;
+
+
+        DecoratedFunctor* logFunctor = new DecoratedFunctor(infos1.modularProjector,ptProj1Pos,Eigen::Matrix2d::Identity(),infos1.paramsSizeInfos.size(),
+                                       infos2.modularProjector,ptProj2Pos,Eigen::Matrix2d::Identity(),infos2.paramsSizeInfos.size());
+
+        ModularSBASolver::AutoDynamicErrorBlockLogger* projErrorLogger =
+            new ModularSBASolver::AutoDynamicErrorBlockLogger(
+            new CostFunction(logFunctor),
+                params,
+                true);
+
+        module1->solver().addLogger(loggerName, projErrorLogger);
+
+    }
+
+    return true;
+
+}
+
 std::vector<std::pair<const double*, const double*>> ModularSBASolver::ProjectorModule::requestUncertainty() {
     return std::vector<std::pair<const double*, const double*>>();
 }
@@ -1083,13 +1189,36 @@ ModularSBASolver::ValueBlockLogger::~ValueBlockLogger() {
 
 }
 QTextStream& ModularSBASolver::ValueBlockLogger::log(QTextStream& stream) const {
-    QVector<double> errors = getErrors();
+    QVector<double> values = getValues();
 
-    for (double& err : errors) {
-        stream << ' ' << err;
+    for (double& val : values) {
+        stream << ' ' << val;
     }
 
     return stream;
+}
+
+ModularSBASolver::AutoDynamicErrorBlockLogger::AutoDynamicErrorBlockLogger(ceres::CostFunction* func,
+                                                                           ParamsType const& params,
+                                                                           bool manageFunc) {
+    _func = func;
+    _manageFunc = manageFunc;
+    _parameters = params;
+}
+
+ModularSBASolver::AutoDynamicErrorBlockLogger::~AutoDynamicErrorBlockLogger() {
+    if (_manageFunc) {
+        delete _func;
+    }
+}
+
+QVector<double> ModularSBASolver::AutoDynamicErrorBlockLogger::getValues() const {
+
+    ErrsType errors(_func->num_residuals());
+
+    _func->Evaluate(_parameters.data(), errors.data(), nullptr);
+
+    return QVector<double>(errors.begin(), errors.end());
 }
 
 

@@ -7,13 +7,419 @@
 
 #include "costfunctors/fixedsizenormalprior.h"
 
+#include "datablocks/image.h"
+#include "datablocks/camera.h"
 
 namespace StereoVisionApp {
 
-using UVCost = InvertPose<UV2ParametrizedXYZCost<PinholePushbroomUVProjector,1,1,6,6>,0>;
+using UVCostPB = InvertPose<UV2ParametrizedXYZCost<PinholePushbroomUVProjector,1,1,6,6>,0>;
+
+using UVCost = InvertPose<UV2ParametrizedXYZCost<PinholeUVProjector,1,2,3,2,2>,0>;
 using LeverArmCost = LeverArm<UVCost,Body2World|Body2Sensor,0>;
 using PoseTransformCost = PoseTransform<UVCost,PoseTransformDirection::SourceToInitial,0>;
 using PoseTransformLeverArmCost = PoseTransform<LeverArmCost,PoseTransformDirection::SourceToInitial,0>;
+
+PinholdeCamProjModule::PinholdeCamProjModule(Camera* associatedCamera) :
+    _associatedCamera(associatedCamera)
+{
+
+}
+
+PinholdeCamProjModule::~PinholdeCamProjModule() {
+
+}
+
+QString PinholdeCamProjModule::moduleName() const {
+    return "PinholeCamProjModule";
+}
+
+bool PinholdeCamProjModule::addProjectionCostFunction(double* pointData,
+                                                      double* poseOrientation,
+                                                      double* posePosition,
+                                                      Eigen::Vector2d const& ptProjPos,
+                                                      Eigen::Matrix2d const& ptProjStiffness,
+                                                      const StereoVision::Geometry::RigidBodyTransform<double> &offset,
+                                                      double *leverArmOrientation,
+                                                      double *leverArmPosition,
+                                                      const QString &logLabel) {
+
+
+    if (!isSetup()) {
+        return false;
+    }
+
+    if (offset.r.norm() < 1e-6 and offset.t.norm() < 1e-6) {
+
+        if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
+
+            LeverArmCost* projCost = new LeverArmCost(
+                new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
+                ptProjPos,
+                ptProjStiffness);
+
+            constexpr int nArgs = 10;
+
+            std::array<double*, nArgs> params = {poseOrientation,
+                                                  posePosition,
+                                                  leverArmOrientation,
+                                                  leverArmPosition,
+                                                  pointData,
+                                                  &_fLen,
+                                                  _principalPoint.data(),
+                                                  _radialDistortion.data(),
+                                                  _tangentialDistortion.data(),
+                                                  _skewDistortion.data()};
+
+            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<LeverArmCost, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+                                       params.data(), nArgs);
+
+            if (isVerbose() and !logLabel.isEmpty()) {
+
+                QString loggerName = logLabel;
+                LeverArmCost* projCostLog = new LeverArmCost(
+                    new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
+                    ptProjPos,
+                    Eigen::Matrix2d::Identity());
+
+                ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
+                    new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
+                        new ceres::AutoDiffCostFunction<LeverArmCost, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+                        params,
+                        true);
+
+                solver().addLogger(loggerName, projErrorLogger);
+
+            }
+
+            return true;
+
+        } else {
+            UVCost* projCost = new UVCost(
+                new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
+                ptProjPos,
+                ptProjStiffness);
+
+            constexpr int nArgs = 8;
+
+            std::array<double*, nArgs> params = {poseOrientation,
+                                                  posePosition,
+                                                  pointData,
+                                                  &_fLen,
+                                                  _principalPoint.data(),
+                                                  _radialDistortion.data(),
+                                                  _tangentialDistortion.data(),
+                                                  _skewDistortion.data()};
+
+            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<UVCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+                                       params.data(), nArgs);
+
+            if (isVerbose() and !logLabel.isEmpty()) {
+
+                QString loggerName = logLabel;
+                UVCost* projCostLog = new UVCost(
+                    new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
+                    ptProjPos,
+                    Eigen::Matrix2d::Identity());
+
+                ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
+                    new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
+                        new ceres::AutoDiffCostFunction<UVCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+                        params,
+                        true);
+
+                solver().addLogger(loggerName, projErrorLogger);
+
+            }
+
+            return true;
+        }
+
+    } else {
+
+        if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
+
+            PoseTransformLeverArmCost* projCost =
+                new PoseTransformLeverArmCost(
+                    offset,new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
+                    ptProjPos,
+                    ptProjStiffness);
+
+            constexpr int nArgs = 10;
+
+            std::array<double*, nArgs> params = {poseOrientation,
+                                                  posePosition,
+                                                  leverArmOrientation,
+                                                  leverArmPosition,
+                                                  pointData,
+                                                  &_fLen,
+                                                  _principalPoint.data(),
+                                                  _radialDistortion.data(),
+                                                  _tangentialDistortion.data(),
+                                                  _skewDistortion.data()};
+
+            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<PoseTransformLeverArmCost, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+                                       params.data(), nArgs);
+
+
+            if (isVerbose() and !logLabel.isEmpty()) {
+
+                QString loggerName = logLabel;
+                PoseTransformLeverArmCost* projCostLog =
+                    new PoseTransformLeverArmCost(
+                        offset,
+                        new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
+                        ptProjPos,
+                        Eigen::Matrix2d::Identity());
+
+                ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
+                    new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
+                        new ceres::AutoDiffCostFunction<PoseTransformLeverArmCost, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+                        params,
+                        true);
+
+                solver().addLogger(loggerName, projErrorLogger);
+
+            }
+
+
+            return true;
+
+        } else {
+
+            PoseTransformCost* projCost = new PoseTransformCost(offset,
+                                                                new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
+                                                                ptProjPos,
+                                                                ptProjStiffness);
+
+            constexpr int nArgs = 8;
+
+            std::array<double*, nArgs> params = {poseOrientation,
+                                                  posePosition,
+                                                  pointData,
+                                                  &_fLen,
+                                                  _principalPoint.data(),
+                                                  _radialDistortion.data(),
+                                                  _tangentialDistortion.data(),
+                                                  _skewDistortion.data()};
+
+            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<PoseTransformCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+                                       params.data(), nArgs);
+
+            if (isVerbose() and !logLabel.isEmpty()) {
+
+                QString loggerName = logLabel;
+                PoseTransformCost* projCostLog = new PoseTransformCost(
+                    offset,
+                    new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
+                    ptProjPos,
+                    Eigen::Matrix2d::Identity());
+
+                ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
+                    new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
+                        new ceres::AutoDiffCostFunction<PoseTransformCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+                        params,
+                        true);
+
+                solver().addLogger(loggerName, projErrorLogger);
+
+            }
+
+            return true;
+
+        }
+    }
+
+    return false;
+}
+
+ModularSBASolver::ProjectorModule::ProjectionInfos PinholdeCamProjModule::getProjectionInfos() {
+
+
+    if (!isSetup()) {
+        return ModularSBASolver::ProjectorModule::ProjectionInfos{nullptr,
+                                                                  std::vector<int>(),
+                                                                  std::vector<double*>()};
+    }
+
+    return ModularSBASolver::ProjectorModule::ProjectionInfos{nullptr,
+                                                              std::vector<int>(),
+                                                              std::vector<double*>()};
+}
+
+bool PinholdeCamProjModule::init() {
+
+    if (!isSetup()) {
+        return false;
+    }
+
+    Camera*& c = _associatedCamera;
+
+    Eigen::Vector2d extend;
+    extend.x() = c->imSize().width();
+    extend.y() = c->imSize().height();
+
+    if (c->optimizedOpticalCenterX().isSet() and
+        c->optimizedOpticalCenterY().isSet()) {
+
+        _principalPoint[0] = c->optimizedOpticalCenterX().value();
+        _principalPoint[1] = c->optimizedOpticalCenterY().value();
+
+    } else {
+
+        _principalPoint[0] = c->opticalCenterX().value();
+        _principalPoint[1] = c->opticalCenterY().value();
+    }
+
+    problem().AddParameterBlock(_principalPoint.data(), _principalPoint.size());
+
+    if (c->optimizedFLen().isSet()) {
+        _fLen = c->optimizedFLen().value();
+    } else {
+        _fLen = c->fLen().value();
+    }
+
+    problem().AddParameterBlock(&_fLen, 1);
+
+    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+        problem().SetParameterBlockConstant(&_fLen);
+        problem().SetParameterBlockConstant(_principalPoint.data());
+    }
+
+
+    if (c->optimizedK1().isSet() and
+        c->optimizedK2().isSet() and
+        c->optimizedK3().isSet()) {
+
+        _radialDistortion[0] = c->optimizedK1().value();
+        _radialDistortion[1] = c->optimizedK2().value();
+        _radialDistortion[2] = c->optimizedK3().value();
+
+    } else {
+
+        _radialDistortion[0] = c->k1().value();
+        _radialDistortion[1] = c->k2().value();
+        _radialDistortion[2] = c->k3().value();
+    }
+
+    problem().AddParameterBlock(_radialDistortion.data(), _radialDistortion.size());
+
+    if (!c->useRadialDistortionModel()) {
+        _radialDistortion[0] = 0;
+        _radialDistortion[1] = 0;
+        _radialDistortion[2] = 0;
+
+        problem().SetParameterBlockConstant(_radialDistortion.data());
+    }
+
+    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+        problem().SetParameterBlockConstant(_radialDistortion.data());
+    }
+
+    if (c->optimizedP1().isSet() and
+        c->optimizedP2().isSet()) {
+
+        _tangentialDistortion[0] = c->optimizedP1().value();
+        _tangentialDistortion[1] = c->optimizedP2().value();
+
+    } else {
+
+        _tangentialDistortion[0] = c->p1().value();
+        _tangentialDistortion[1] = c->p2().value();
+    }
+
+    problem().AddParameterBlock(_tangentialDistortion.data(), _tangentialDistortion.size());
+
+    if (!c->useTangentialDistortionModel()) {
+        _tangentialDistortion[0] = 0;
+        _tangentialDistortion[1] = 0;
+
+        problem().SetParameterBlockConstant(_tangentialDistortion.data());
+    }
+
+    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+        problem().SetParameterBlockConstant(_tangentialDistortion.data());
+    }
+
+    if (c->optimizedB1().isSet() and
+        c->optimizedB2().isSet()) {
+
+        _skewDistortion[0] = c->optimizedB1().value();
+        _skewDistortion[1] = c->optimizedB2().value();
+
+    } else {
+
+        _skewDistortion[0] = c->B1().value();
+        _skewDistortion[1] = c->B2().value();
+    }
+
+    problem().AddParameterBlock(_skewDistortion.data(), _skewDistortion.size());
+
+    if (!c->useSkewDistortionModel()) {
+        _skewDistortion[0] = 0;
+        _skewDistortion[1] = 0;
+
+        problem().SetParameterBlockConstant(_skewDistortion.data());
+    }
+
+    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+
+        problem().SetParameterBlockConstant(_skewDistortion.data());
+    }
+
+    return true;
+
+}
+
+bool PinholdeCamProjModule::writeResults() {
+
+    if (!isSetup()) {
+        return false;
+    }
+
+    Camera* cam = _associatedCamera;
+
+    if (cam->isFixed()) {
+        return true;
+    }
+
+    cam->clearOptimized();
+
+    cam->setOptimizedFLen(static_cast<float>(_fLen));
+    cam->setOptimizedOpticalCenterX(static_cast<float>(_principalPoint[0]));
+    cam->setOptimizedOpticalCenterY(static_cast<float>(_principalPoint[1]));
+
+    if (cam->useRadialDistortionModel()) {
+
+        cam->setOptimizedK1(static_cast<float>(_radialDistortion[0]));
+        cam->setOptimizedK2(static_cast<float>(_radialDistortion[1]));
+        cam->setOptimizedK3(static_cast<float>(_radialDistortion[2]));
+    }
+
+    if (cam->useTangentialDistortionModel()) {
+
+        cam->setOptimizedP1(static_cast<float>(_tangentialDistortion[0]));
+        cam->setOptimizedP2(static_cast<float>(_tangentialDistortion[1]));
+    }
+
+    if (cam->useSkewDistortionModel()) {
+
+        cam->setOptimizedB1(static_cast<float>(_skewDistortion[0]));
+        cam->setOptimizedB2(static_cast<float>(_skewDistortion[1]));
+    }
+
+    return true;
+
+}
+
+bool PinholdeCamProjModule::writeUncertainty() {
+
+    //TODO: get a way to write uncertainty.
+    return true;
+}
+
+void PinholdeCamProjModule::cleanup() {
+    return;
+}
 
 
 PinholePushBroomCamProjectorModule::PinholePushBroomCamProjectorModule(PushBroomPinholeCamera* associatedCamera) :
@@ -43,61 +449,19 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
         return false;
     }
 
-    if (offset.r.norm() < 1e-6 and offset.t.norm() < 1e-6) {
+    constexpr int LeverArmConfiguration = Body2World|Body2Sensor;
+    constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
+    constexpr int poseParamIdx = 0;
+    /*using LeverArmCostPB = LeverArm<UVCostPB,Body2World|Body2Sensor,0>;
+    using PoseTransformCostPB = PoseTransform<UVCostPB,PoseTransformDirection::SourceToInitial,0>;
+    using PoseTransformLeverArmCostPB = PoseTransform<LeverArmCostPB,PoseTransformDirection::SourceToInitial,0>;*/
 
-        if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
+    using PoseCostFunctionBuilder =
+        ModifiedPoseCostFunctionBuilderHelper<UVCostPB, poseTransformDirection, LeverArmConfiguration, poseParamIdx, 2, 3, 3, 3, 1, 1, 6, 6>;
 
-            LeverArmCost* projCost = new LeverArmCost(
-                new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
-                ptProjPos,
-                ptProjStiffness);
+    constexpr int baseNArgs = 7;
 
-            constexpr int nArgs = 9;
-
-            std::array<double*, nArgs> params = {
-                poseOrientation,
-                posePosition,
-                leverArmOrientation,
-                leverArmPosition,
-                pointData,
-                &_fLen,
-                &_principalPoint,
-                _horizontalDistortion.data(),
-                _verticalDistortion.data()};
-
-            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<LeverArmCost, 2, 3, 3, 3, 3, 3, 1, 1, 6, 6>(projCost), nullptr,
-                                     params.data(), nArgs);
-
-            if (isVerbose() and !logLabel.isEmpty()) {
-
-                QString loggerName = logLabel;
-                LeverArmCost* projCostLog = new LeverArmCost(
-                    new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
-                    ptProjPos,
-                    Eigen::Matrix2d::Identity());
-
-                ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
-                    new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
-                        new ceres::AutoDiffCostFunction<LeverArmCost, 2, 3, 3, 3, 3, 3, 1, 1, 6, 6>(projCostLog),
-                        params,
-                        true);
-
-                solver().addLogger(loggerName, projErrorLogger);
-
-            }
-
-            return true;
-
-        } else {
-            UVCost* projCost = new UVCost(
-                new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
-                ptProjPos,
-                ptProjStiffness);
-
-            constexpr int nArgs = 7;
-
-            std::array<double*, nArgs> params = {
-                                                  poseOrientation,
+    std::array<double*, baseNArgs> baseParams = { poseOrientation,
                                                   posePosition,
                                                   pointData,
                                                   &_fLen,
@@ -105,142 +469,97 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
                                                   _horizontalDistortion.data(),
                                                   _verticalDistortion.data()};
 
-            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<UVCost, 2, 3, 3, 3, 1, 1, 6, 6>(projCost), nullptr,
-                                      params.data(), nArgs);
+    auto costFuncInfos = PoseCostFunctionBuilder::buildPoseShiftedCostFunction(baseParams.data(),
+                                                                               offset,
+                                                                               leverArmOrientation,
+                                                                               leverArmPosition,
+                                                                               new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                                                                               ptProjPos,
+                                                                               ptProjStiffness);
 
-            if (isVerbose() and !logLabel.isEmpty()) {
+    problem().AddResidualBlock(costFuncInfos.costFunction, nullptr,
+                               costFuncInfos.params.data(),
+                               costFuncInfos.params.size());
 
-                QString loggerName = logLabel;
-                UVCost* projCostLog = new UVCost(
-                    new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
-                    ptProjPos,
-                    Eigen::Matrix2d::Identity());
-
-                ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
-                    new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
-                        new ceres::AutoDiffCostFunction<UVCost, 2, 3, 3, 3, 1, 1, 6, 6>(projCostLog),
-                        params,
-                        true);
-
-                solver().addLogger(loggerName, projErrorLogger);
-
-            }
-
-            return true;
-        }
-
-    } else {
-
-        if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
-
-            PoseTransformLeverArmCost* projCost =
-                new PoseTransformLeverArmCost(
-                offset,new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
-                ptProjPos,
-                ptProjStiffness);
-
-            constexpr int nArgs = 9;
-
-            std::array<double*, nArgs> params = {
-                                                  poseOrientation,
-                                                  posePosition,
-                                                  leverArmOrientation,
-                                                  leverArmPosition,
-                                                  pointData,
-                                                  &_fLen,
-                                                  &_principalPoint,
-                                                  _horizontalDistortion.data(),
-                                                  _verticalDistortion.data()};
-
-            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<PoseTransformLeverArmCost, 2, 3, 3, 3, 3, 3, 1, 1, 6, 6>(projCost), nullptr,
-                                     params.data(), nArgs);
-
-
-            if (isVerbose() and !logLabel.isEmpty()) {
-
-                QString loggerName = logLabel;
-                PoseTransformLeverArmCost* projCostLog =
-                    new PoseTransformLeverArmCost(
-                    offset,
-                    new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
-                    ptProjPos,
-                    Eigen::Matrix2d::Identity());
-
-                ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
-                    new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
-                        new ceres::AutoDiffCostFunction<PoseTransformLeverArmCost, 2, 3, 3, 3, 3, 3, 1, 1, 6, 6>(projCostLog),
-                        params,
-                        true);
-
-                solver().addLogger(loggerName, projErrorLogger);
-
-            }
-
-
-            return true;
-
-        } else {
-
-            PoseTransformCost* projCost = new PoseTransformCost(offset, new PinholePushbroomUVProjector(_associatedCamera->imWidth()), ptProjPos, ptProjStiffness);
-
-            constexpr int nArgs = 7;
-
-            std::array<double*, nArgs> params = {
-                                                  poseOrientation,
-                                                  posePosition,
-                                                  pointData,
-                                                  &_fLen,
-                                                  &_principalPoint,
-                                                  _horizontalDistortion.data(),
-                                                  _verticalDistortion.data()};
-
-            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<PoseTransformCost, 2, 3, 3, 3, 1, 1, 6, 6>(projCost), nullptr,
-                                     params.data(), nArgs);
-
-            if (isVerbose() and !logLabel.isEmpty()) {
-
-                QString loggerName = logLabel;
-                PoseTransformCost* projCostLog = new PoseTransformCost(
-                    offset,
-                    new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
-                    ptProjPos,
-                    Eigen::Matrix2d::Identity());
-
-                ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
-                    new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
-                        new ceres::AutoDiffCostFunction<PoseTransformCost, 2, 3, 3, 3, 1, 1, 6, 6>(projCostLog),
-                        params,
-                        true);
-
-                solver().addLogger(loggerName, projErrorLogger);
-
-            }
-
-            return true;
-
-        }
-    }
-
-    return false;
-
-}
-
-bool PinholePushBroomCamProjectorModule::addCrossProjectionCostFunction(double* pose1Orientation,
-                                                                        double* pose1Position,
-                                                                        Eigen::Vector2d const& ptProj1Pos,
-                                                                        Eigen::Matrix2d const& ptProj1Stiffness,
-                                                                        double* pose2Orientation,
-                                                                        double* pose2Position,
-                                                                        Eigen::Vector2d const& ptProj2Pos,
-                                                                        Eigen::Matrix2d const& ptProj2Stiffness,
-                                                                        const QString &logLabel) {
-
-    if (!isSetup()) {
+    if (costFuncInfos.costFunction != nullptr) {
         return false;
     }
 
-    //TODO: implement
-    return false;
+    if (isVerbose() and !logLabel.isEmpty()) {
+
+        QString loggerName = logLabel;
+
+        auto logCostFuncInfos = PoseCostFunctionBuilder::buildPoseShiftedCostFunction(baseParams.data(),
+                                                                                      offset,
+                                                                                      leverArmOrientation,
+                                                                                      leverArmPosition,
+                                                                                      new PinholePushbroomUVProjector(_associatedCamera->imWidth()),
+                                                                                      ptProjPos,
+                                                                                      Eigen::Matrix2d::Identity());
+
+        if (logCostFuncInfos.costFunction != nullptr) {
+
+            if (costFuncInfos.params.size() == baseNArgs) {
+
+                ModularSBASolver::AutoErrorBlockLogger<baseNArgs,2>::ParamsType paramsArray;
+
+                for (int i = 0; i < baseNArgs; i++) {
+                    paramsArray[i] = costFuncInfos.params[i];
+                }
+
+                ModularSBASolver::AutoErrorBlockLogger<baseNArgs,2>* projErrorLogger =
+                    new ModularSBASolver::AutoErrorBlockLogger<baseNArgs,2>(
+                    logCostFuncInfos.costFunction,
+                    paramsArray,
+                    true);
+
+                solver().addLogger(loggerName, projErrorLogger);
+
+            } else if (costFuncInfos.params.size() == baseNArgs+2) {
+
+                ModularSBASolver::AutoErrorBlockLogger<baseNArgs+2,2>::ParamsType paramsArray;
+
+                for (int i = 0; i < baseNArgs+2; i++) {
+                    paramsArray[i] = costFuncInfos.params[i];
+                }
+
+                ModularSBASolver::AutoErrorBlockLogger<baseNArgs+2,2>* projErrorLogger =
+                    new ModularSBASolver::AutoErrorBlockLogger<baseNArgs+2,2>(
+                    logCostFuncInfos.costFunction,
+                    paramsArray,
+                    true);
+                solver().addLogger(loggerName, projErrorLogger);
+            }
+        }
+
+    }
+
+    return true;
+
+}
+
+ModularSBASolver::ProjectorModule::ProjectionInfos PinholePushBroomCamProjectorModule::getProjectionInfos() {
+
+
+    if (!isSetup()) {
+        return ModularSBASolver::ProjectorModule::ProjectionInfos{nullptr,
+                                                                  std::vector<int>(),
+                                                                  std::vector<double*>()};
+    }
+
+
+    std::vector<double*> params = {&_fLen,
+                                    &_principalPoint,
+                                    _horizontalDistortion.data(),
+                                    _verticalDistortion.data()};
+
+    std::vector<int> paramsSizes = {1, 1, int(_horizontalDistortion.size()), int(_verticalDistortion.size())};
+
+    ModularUVProjection* projector = new AnyUVProjection<PinholePushbroomUVProjector, 4>(
+        new PinholePushbroomUVProjector(_associatedCamera->imWidth()));
+
+    return {projector, paramsSizes, params};
+
 
 }
 

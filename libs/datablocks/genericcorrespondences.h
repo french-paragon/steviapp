@@ -26,11 +26,12 @@ enum Types {
     Line2D = 6, //lie anywhere on a 2D line
     Line3D = 7, //lie anywhere on a 3D line
     Plane3D = 8, //lie anywhere on a 3D plane
-    XYT = 9, //lie at a XY coordinate in a 2D space at a specified time
-    XYZT = 10, //lie at a XYZ coordinate in a 3D space at a specified time
-    PRIOR = 11, //to nothing, can be usefull to use a correspondance as a singleton for a prior
-    PRIORID = 12, //to just an id, can be usefull to use a correspondance as a singleton for a prior
-    INVALID = 13 //to nothing, just an invalid correspondance
+    UVT = 9, //lie at a UV coordinate in a 2D grid at a specified time
+    XYT = 10, //lie at a XY coordinate in a 2D space at a specified time
+    XYZT = 11, //lie at a XYZ coordinate in a 3D space at a specified time
+    PRIOR = 12, //to nothing, can be usefull to use a correspondance as a singleton for a prior
+    PRIORID = 13, //to just an id, can be usefull to use a correspondance as a singleton for a prior
+    INVALID = 14 //to nothing, just an invalid correspondance
 };
 
 inline Types correspTypeFromString(QString const& str) {
@@ -63,6 +64,10 @@ inline Types correspTypeFromString(QString const& str) {
 
     if (lower == "plane3d") {
         return Types::Plane3D;
+    }
+
+    if (lower == "uvt") {
+        return Types::UVT;
     }
 
     if (lower == "xyt") {
@@ -108,6 +113,8 @@ inline QString correspTypeToString(Types correspT) {
         return "Line3D";
     case Plane3D:
         return "Plane3D";
+    case UVT:
+        return "UVT";
     case XYT:
         return "XYT";
     case XYZT:
@@ -128,6 +135,7 @@ inline constexpr bool correspTypeHasBlockId(Types correspT) {
     case Types::XY:
     case Types::XYZ:
     case Types::T:
+    case Types::UVT:
     case Types::XYT:
     case Types::XYZT:
     case Types::Line2D:
@@ -265,6 +273,48 @@ struct Typed<Types::UV> {
     };
 };
 
+template<>
+struct Typed<Types::UVT> {
+
+    static constexpr Types CorrespType = Types::UVT;
+
+    qint64 blockId;
+    float u;
+    float v;
+    float t;
+    std::optional<float> sigmaU;
+    std::optional<float> sigmaV;
+
+    static std::optional<Typed> fromString(QString const& str) {
+
+        using floatListReader = Internal::floatListReader<true, false, 3, 2>;
+
+        std::optional<floatListReader> data = floatListReader::fromString(str);
+
+        if (!data.has_value()) {
+            return std::nullopt;
+        }
+
+        Typed ret;
+
+        ret.blockId = data.value().blockId;
+        ret.u = data.value().floatsVals[0];
+        ret.v = data.value().floatsVals[1];
+        ret.t = data.value().floatsVals[2];
+        ret.sigmaU = data.value().optFloatsVals[0];
+        ret.sigmaV = data.value().optFloatsVals[1];
+
+        return ret;
+    }
+
+    QString toStr() const {
+        QString out = QString(" %1 %2 %3 %4").arg(blockId).arg(u, 0,'f',2).arg(v, 0,'f',2).arg(t, 0,'f',2);
+        if (sigmaU.has_value() and sigmaV.has_value()) {
+            out += QString(" %1 %2").arg(sigmaU.value(), 0,'f',2).arg(sigmaV.value(), 0,'f',2);
+        }
+        return correspTypeToString(CorrespType) + out;
+    };
+};
 
 template<>
 struct Typed<Types::XY> {
@@ -769,6 +819,7 @@ Typed<Types::GEOXY>,
 Typed<Types::XYZ>,
 Typed<Types::GEOXYZ>,
 Typed<Types::T>,
+Typed<Types::UVT>,
 Typed<Types::XYT>,
 Typed<Types::XYZT>,
 Typed<Types::Line2D>,
@@ -803,6 +854,11 @@ inline qint64 getDatablockId<Types::XY>(Typed<Types::XY> const& corresp) {
 
 template<>
 inline qint64 getDatablockId<Types::XYZ>(Typed<Types::XYZ> const& corresp) {
+    return corresp.blockId;
+}
+
+template<>
+inline qint64 getDatablockId<Types::UVT>(Typed<Types::UVT> const& corresp) {
     return corresp.blockId;
 }
 
