@@ -136,14 +136,14 @@ add_executable(steviapp
 
 target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets pybind11::embed glog::glog)
 
-target_link_libraries(steviapp PRIVATE StereoVision::stevi ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
+target_link_libraries(steviapp PRIVATE StereoVision::stevi MultidimArrays::MultidimArrays ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
 
 pybind11_add_module(pysteviapp SHARED python_api.cpp)
 
 set_target_properties(pysteviapp PROPERTIES DEBUG_POSTFIX "")
 
 target_link_libraries(pysteviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets)
-target_link_libraries(pysteviapp PRIVATE StereoVision::stevi ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
+target_link_libraries(pysteviapp PRIVATE StereoVision::stevi MultidimArrays::MultidimArrays ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
 
 
 if (BUILD_TESTS)
