@@ -65,7 +65,7 @@ public:
         V2T corrected = normalized + dRadial + dTangential;
 
         V3T ret;
-        ret << corrected[0], corrected[1], 1;
+        ret << corrected[0], corrected[1], T(1);
 
         ret *= *f;
 
@@ -107,7 +107,7 @@ public:
 
 
         Eigen::Matrix<T,3,1> ret;
-        ret << uv[1] + dv, uv[0] - pp[0] + du, f[0];
+        ret << uv[0] - pp[0] + du, uv[1] + dv, f[0];
 
         return ret;
     }
@@ -117,13 +117,13 @@ protected:
     double _sensorWidth;
 };
 
-class PinholdeCamProjModule : public ModularSBASolver::ProjectorModule
+class PinholeCamProjModule : public ModularSBASolver::ProjectorModule
 {
 
 public:
 
-    PinholdeCamProjModule(Camera* associatedCamera);
-    ~PinholdeCamProjModule();
+    PinholeCamProjModule(Camera* associatedCamera);
+    ~PinholeCamProjModule();
 
     virtual QString moduleName() const override;
 

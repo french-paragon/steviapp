@@ -9,13 +9,13 @@ namespace StereoVisionApp {
 template<bool cond>
 struct ConditionalRef {
     template<typename Ttrue, typename Tfalse>
-    static Ttrue& val(Ttrue & t, Tfalse & f) { return t; }
+    static Ttrue& val(Ttrue & t, Tfalse & f) { (void) f; return t; }
 };
 
 template<>
 struct ConditionalRef<false> {
     template<typename Ttrue, typename Tfalse>
-    static Tfalse& val(Ttrue & t, Tfalse & f) { return f; }
+    static Tfalse& val(Ttrue & t, Tfalse & f) { (void) t; return f; }
 };
 
 /*!
@@ -89,6 +89,7 @@ protected:
     struct DirectCaller {
         template <typename FunctorT, typename TupleT, typename ... ArgsT>
         static inline auto callImpl (FunctorT const& functor, TupleT& unusedTuple, ArgsT& ... args) {
+            (void) unusedTuple;
             return functor(args...);
         }
     };
@@ -138,9 +139,15 @@ public:
         _nParams = nParams;
     }
 
+protected:
+
+    inline void setNParams(int nParams) const { //allow to set the number of parameters in functors in const methods
+        _nParams = nParams;
+    }
+
 private:
 
-    int _nParams;
+    mutable int _nParams;
 
 };
 

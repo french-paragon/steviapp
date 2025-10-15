@@ -127,7 +127,7 @@ bool ImageAlignementSBAModule::setupParameters(ModularSBASolver* solver) {
                 projectionModule = _cameraProjectors[cam->internalId()];
                 solver->assignProjectorToFrame(projectionModule, imId);
             } else {
-                PinholdeCamProjModule* pcpm = new PinholdeCamProjModule(cam);
+                PinholeCamProjModule* pcpm = new PinholeCamProjModule(cam);
                 projectionModule = pcpm;
 
                 _cameraProjectors[cam->internalId()] = projectionModule;

@@ -256,15 +256,39 @@ public:
          * \param pose1Position the position for the first frame
          * \param ptProj1Pos the uv coordinate of the first point
          * \param ptProj1Stiffness the stiffness matrix for the first point
+         * \param offset1 the offset of the first projector with respect to the pose1 parameter
+         * \param leverArmOrientation1 the orientation for the lever arm for the first projector (boresight)
+         * \param leverArmPosition1 the offset for the lever arm for the first projector
          * \param module2 the second module to use
          * \param pose2Orientation the orientation parameter for the second frame
          * \param pose2Position the position for the second frame
          * \param ptProj2Pos the uv coordinate of the second point
          * \param ptProj2Stiffness the stiffness matrix for the second point
+         * \param offset2 the offset of the second projector with respect to the pose2 parameter
+         * \param leverArmOrientation2 the orientation for the lever arm for the second projector (boresight)
+         * \param leverArmPosition2 the offset for the lever arm for the second projector
          * \param logLabel the label in the log file
          * \return true on success, false otherwise
          */
         static bool addCrossProjectionCostFunction(ProjectorModule* module1,
+                                                   double* pose1Orientation,
+                                                   double* pose1Position,
+                                                   Eigen::Vector2d const& ptProj1Pos,
+                                                   Eigen::Matrix2d const& ptProj1Stiffness,
+                                                   StereoVision::Geometry::RigidBodyTransform<double> const& offset1,
+                                                   double* leverArmOrientation1,
+                                                   double* leverArmPosition1,
+                                                   ProjectorModule* module2,
+                                                   double* pose2Orientation,
+                                                   double* pose2Position,
+                                                   Eigen::Vector2d const& ptProj2Pos,
+                                                   Eigen::Matrix2d const& ptProj2Stiffness,
+                                                   StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
+                                                   double* leverArmOrientation2,
+                                                   double* leverArmPosition2,
+                                                   QString const& logLabel = "");
+
+        static inline bool addCrossProjectionCostFunction(ProjectorModule* module1,
                                                    double* pose1Orientation,
                                                    double* pose1Position,
                                                    Eigen::Vector2d const& ptProj1Pos,
@@ -274,7 +298,14 @@ public:
                                                    double* pose2Position,
                                                    Eigen::Vector2d const& ptProj2Pos,
                                                    Eigen::Matrix2d const& ptProj2Stiffness,
-                                                   QString const& logLabel = "");
+                                                   QString const& logLabel = "") {
+
+            const StereoVision::Geometry::RigidBodyTransform<double> identity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+            return addCrossProjectionCostFunction(module1, pose1Orientation, pose1Position, ptProj1Pos, ptProj1Stiffness, identity, nullptr, nullptr,
+                                                  module2, pose2Orientation, pose2Position, ptProj2Pos, ptProj2Stiffness, identity, nullptr, nullptr, logLabel);
+
+        }
 
         virtual bool writeResults() = 0;
         /*!

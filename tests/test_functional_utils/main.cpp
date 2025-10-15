@@ -21,6 +21,8 @@ private Q_SLOTS:
 
     void testPoseDecorators();
 
+    void testPoseBuilderHelpers();
+
 };
 
 void TestFunctionalUtils::initTestCase() {
@@ -28,6 +30,24 @@ void TestFunctionalUtils::initTestCase() {
     srand(time(nullptr));
 
 }
+
+template<int nArgs, int copyArgId, int argSize>
+struct DynamicIdentityArgFunctor {
+    DynamicIdentityArgFunctor() {
+
+    }
+
+    template <typename T, typename ... P>
+    bool operator()(T const* const* parameters, T* residuals) const {
+
+        for (int i = 0; i < argSize; i++) {
+            residuals[i] = parameters[copyArgId][i];
+        }
+
+        return true;
+    }
+
+};
 
 void TestFunctionalUtils::testTupleCaller() {
 
@@ -355,6 +375,376 @@ void TestFunctionalUtils::testPoseDecorators() {
 
         verifyPoseIsZero(withMountingDelta);
 
+
+    }
+
+}
+
+
+
+void TestFunctionalUtils::testPoseBuilderHelpers() {
+
+    using SinglePoseRotCopyFunc = DynamicIdentityArgFunctor<2, 0, 3>;
+    using SinglePosePosCopyFunc = DynamicIdentityArgFunctor<2, 1, 3>;
+
+    constexpr int nRuns = 5;
+
+    for (int i = 0; i < nRuns; i++) {
+
+        StereoVision::Geometry::RigidBodyTransform<double> identity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+        StereoVision::Geometry::RigidBodyTransform<double> pose(Eigen::Vector3d::Random(), Eigen::Vector3d::Random());
+        StereoVision::Geometry::RigidBodyTransform<double> pose2(Eigen::Vector3d::Random(), Eigen::Vector3d::Random());
+        StereoVision::Geometry::RigidBodyTransform<double> pose3(Eigen::Vector3d::Random(), Eigen::Vector3d::Random());
+
+        StereoVision::Geometry::RigidBodyTransform<double> outPose;
+        StereoVision::Geometry::RigidBodyTransform<double> expectedOutPose;
+
+        std::array<double,3> r_in;
+        std::array<double,3> t_in;
+
+        std::array<double,3> r_in2;
+        std::array<double,3> t_in2;
+
+        for (int i = 0; i < 3; i++) {
+            r_in[i] = pose.r[i];
+            t_in[i] = pose.t[i];
+
+            r_in2[i] = pose2.r[i];
+            t_in2[i] = pose2.t[i];
+        }
+
+        std::array<double,3> r_out;
+        std::array<double,3> t_out;
+
+        std::vector<double*> parameters = {r_in.data(), t_in.data(), r_in2.data(), t_in2.data()};
+        std::vector<int> baseParametersSizeInfos = {3,3};
+        std::vector<int> joinParametersSizeInfos = {3,3,3,3};
+
+        constexpr StereoVisionApp::PoseTransformDirection poseTransformDirection =
+            StereoVisionApp::PoseTransformDirection::SourceToInitial;
+
+        constexpr int LeverArmConfiguration = StereoVisionApp::Body2World|StereoVisionApp::Sensor2Body;
+
+        constexpr int poseParamIdx = 0;
+        constexpr int nResiduals = 3;
+
+        constexpr int stride = 4;
+
+        using SingleRotBuildHelper = StereoVisionApp::ModifiedPoseCostFunctionBuilderHelper
+            <SinglePoseRotCopyFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdx, nResiduals>;
+
+        using SinglePosBuildHelper = StereoVisionApp::ModifiedPoseCostFunctionBuilderHelper
+            <SinglePosePosCopyFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdx, nResiduals>;
+
+        //with nothing
+
+        auto singleRotFunctionData = SingleRotBuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+            (
+            parameters.data(),
+            baseParametersSizeInfos,
+            identity,
+            nullptr,
+            nullptr);
+
+        auto singlePosFunctionData = SinglePosBuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+            (
+                parameters.data(),
+                baseParametersSizeInfos,
+                identity,
+                nullptr,
+                nullptr);
+
+        QVERIFY(singleRotFunctionData.costFunction != nullptr);
+        QVERIFY(singlePosFunctionData.costFunction != nullptr);
+
+        QCOMPARE(singleRotFunctionData.params.size(), baseParametersSizeInfos.size());
+
+        QCOMPARE(singlePosFunctionData.params.size(), baseParametersSizeInfos.size());
+
+        QCOMPARE(singleRotFunctionData.costFunction->parameter_block_sizes().size(), singleRotFunctionData.params.size());
+        QCOMPARE(singlePosFunctionData.costFunction->parameter_block_sizes().size(), singlePosFunctionData.params.size());
+
+        bool rotOk = singleRotFunctionData.costFunction->Evaluate(singleRotFunctionData.params.data(), r_out.data(), nullptr);
+        bool posOk = singlePosFunctionData.costFunction->Evaluate(singlePosFunctionData.params.data(), t_out.data(), nullptr);
+
+        QVERIFY(rotOk);
+        QVERIFY(posOk);
+
+        for (int i = 0; i < 3; i++) {
+            QCOMPARE(r_out[i], r_in[i]);
+            QCOMPARE(t_out[i], t_in[i]);
+        }
+
+        delete singleRotFunctionData.costFunction;
+        delete singlePosFunctionData.costFunction;
+
+        //with a rigid transform
+
+        singleRotFunctionData = SingleRotBuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+            (
+                parameters.data(),
+                baseParametersSizeInfos,
+                pose2,
+                nullptr,
+                nullptr);
+
+        singlePosFunctionData = SinglePosBuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+            (
+                parameters.data(),
+                baseParametersSizeInfos,
+                pose2,
+                nullptr,
+                nullptr);
+
+        QVERIFY(singleRotFunctionData.costFunction != nullptr);
+        QVERIFY(singlePosFunctionData.costFunction != nullptr);
+
+        QCOMPARE(singleRotFunctionData.params.size(), baseParametersSizeInfos.size());
+        QCOMPARE(singlePosFunctionData.params.size(), baseParametersSizeInfos.size());
+
+        QCOMPARE(singleRotFunctionData.costFunction->parameter_block_sizes().size(), singleRotFunctionData.params.size());
+        QCOMPARE(singlePosFunctionData.costFunction->parameter_block_sizes().size(), singlePosFunctionData.params.size());
+
+        rotOk = singleRotFunctionData.costFunction->Evaluate(singleRotFunctionData.params.data(), r_out.data(), nullptr);
+        posOk = singlePosFunctionData.costFunction->Evaluate(singlePosFunctionData.params.data(), t_out.data(), nullptr);
+
+        QVERIFY(rotOk);
+        QVERIFY(posOk);
+
+        expectedOutPose = pose*pose2;
+
+        for (int i = 0; i < 3; i++) {
+            QCOMPARE(r_out[i], expectedOutPose.r[i]);
+            QCOMPARE(t_out[i], expectedOutPose.t[i]);
+        }
+
+        delete singleRotFunctionData.costFunction;
+        delete singlePosFunctionData.costFunction;
+
+        //with lever arm
+
+        singleRotFunctionData = SingleRotBuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+            (
+                parameters.data(),
+                baseParametersSizeInfos,
+                identity,
+                r_in2.data(),
+                t_in2.data());
+
+        singlePosFunctionData = SinglePosBuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+            (
+                parameters.data(),
+                baseParametersSizeInfos,
+                identity,
+                r_in2.data(),
+                t_in2.data());
+
+        QVERIFY(singleRotFunctionData.costFunction != nullptr);
+        QVERIFY(singlePosFunctionData.costFunction != nullptr);
+
+        QCOMPARE(singleRotFunctionData.params.size(), joinParametersSizeInfos.size());
+        QCOMPARE(singlePosFunctionData.params.size(), joinParametersSizeInfos.size());
+
+        QCOMPARE(singleRotFunctionData.costFunction->parameter_block_sizes().size(), singleRotFunctionData.params.size());
+        QCOMPARE(singlePosFunctionData.costFunction->parameter_block_sizes().size(), singlePosFunctionData.params.size());
+
+        rotOk = singleRotFunctionData.costFunction->Evaluate(singleRotFunctionData.params.data(), r_out.data(), nullptr);
+        posOk = singlePosFunctionData.costFunction->Evaluate(singlePosFunctionData.params.data(), t_out.data(), nullptr);
+
+        QVERIFY(rotOk);
+        QVERIFY(posOk);
+
+        expectedOutPose = pose*pose2;
+
+        for (int i = 0; i < 3; i++) {
+            QCOMPARE(r_out[i], expectedOutPose.r[i]);
+            QCOMPARE(t_out[i], expectedOutPose.t[i]);
+        }
+
+    }
+
+    using MultiPoseRot1CopyFunc = DynamicIdentityArgFunctor<4, 0, 3>;
+    using MultiPosePos1CopyFunc = DynamicIdentityArgFunctor<4, 1, 3>;
+
+    using MultiPoseRot2CopyFunc = DynamicIdentityArgFunctor<4, 2, 3>;
+    using MultiPosePos2CopyFunc = DynamicIdentityArgFunctor<4, 3, 3>;
+
+    for (int i = 0; i < nRuns; i++) {
+
+        StereoVision::Geometry::RigidBodyTransform<double> identity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+        StereoVision::Geometry::RigidBodyTransform<double> pose1(Eigen::Vector3d::Random(), Eigen::Vector3d::Random());
+        StereoVision::Geometry::RigidBodyTransform<double> pose2(Eigen::Vector3d::Random(), Eigen::Vector3d::Random());
+        StereoVision::Geometry::RigidBodyTransform<double> pose3(Eigen::Vector3d::Random(), Eigen::Vector3d::Random());
+        StereoVision::Geometry::RigidBodyTransform<double> pose4(Eigen::Vector3d::Random(), Eigen::Vector3d::Random());
+
+        StereoVision::Geometry::RigidBodyTransform<double> outPose;
+        StereoVision::Geometry::RigidBodyTransform<double> expectedOutPose;
+
+        std::array<double,3> r_in1;
+        std::array<double,3> t_in1;
+
+        std::array<double,3> r_in2;
+        std::array<double,3> t_in2;
+
+        std::array<double,3> r_in3;
+        std::array<double,3> t_in3;
+
+        std::array<double,3> r_in4;
+        std::array<double,3> t_in4;
+
+        for (int i = 0; i < 3; i++) {
+            r_in1[i] = pose1.r[i];
+            t_in1[i] = pose1.t[i];
+
+            r_in2[i] = pose2.r[i];
+            t_in2[i] = pose2.t[i];
+
+            r_in3[i] = pose3.r[i];
+            t_in3[i] = pose3.t[i];
+
+            r_in4[i] = pose4.r[i];
+            t_in4[i] = pose4.t[i];
+        }
+
+        std::array<double,3> r_out1;
+        std::array<double,3> t_out1;
+
+        std::array<double,3> r_out2;
+        std::array<double,3> t_out2;
+
+        std::vector<double*> parameters = {r_in1.data(), t_in1.data(), r_in2.data(), t_in2.data()};
+        std::vector<int> baseParametersSizeInfos = {3,3,3,3};
+        std::vector<int> joinParametersSizeInfos = {3,3,3,3,3,3,3,3};
+
+        constexpr StereoVisionApp::PoseTransformDirection poseTransformDirection =
+            StereoVisionApp::PoseTransformDirection::SourceToInitial;
+
+        constexpr int LeverArmConfiguration = StereoVisionApp::Body2World|StereoVisionApp::Sensor2Body;
+
+        using poseParamIdxs = std::index_sequence<0,2>;
+        constexpr int nResiduals = 3;
+
+        constexpr int stride = 4;
+
+        using MultiRot1BuildHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
+            <MultiPoseRot1CopyFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals>;
+
+        using MultiPos1BuildHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
+            <MultiPosePos1CopyFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals>;
+
+        using MultiRot2BuildHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
+            <MultiPoseRot2CopyFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals>;
+
+        using MultiPos2BuildHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
+            <MultiPosePos2CopyFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals>;
+
+        struct PoseInfosData {
+            const StereoVision::Geometry::RigidBodyTransform<double> offset; //fixed offset applied on top of the parametrized pose.
+            double *leverArmOrientation; //parameter for the lever arm orientation
+            double *leverArmPosition; //parameter for the lever arm orientation
+        };
+
+        auto evaluateMulti = [&] (PoseInfosData const& pose1Infos,
+                                 PoseInfosData const& pose2Infos,
+                                 StereoVision::Geometry::RigidBodyTransform<double> const& expectedOut1,
+                                 StereoVision::Geometry::RigidBodyTransform<double> const& expectedOut2) {
+
+            auto multiRot1FunctionData = MultiRot1BuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+                (
+                    parameters.data(),
+                    baseParametersSizeInfos,
+                    MultiRot1BuildHelper::PoseDataContainer{
+                                                            MultiRot1BuildHelper::PoseModificationData{pose1Infos.offset, pose1Infos.leverArmOrientation, pose1Infos.leverArmPosition},
+                                                            MultiRot1BuildHelper::PoseModificationData{pose2Infos.offset, pose2Infos.leverArmOrientation, pose2Infos.leverArmPosition}}
+                    );
+
+            auto multiPos1FunctionData = MultiPos1BuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+                (
+                    parameters.data(),
+                    baseParametersSizeInfos,
+                    MultiPos1BuildHelper::PoseDataContainer{
+                                                            MultiPos1BuildHelper::PoseModificationData{pose1Infos.offset, pose1Infos.leverArmOrientation, pose1Infos.leverArmPosition},
+                                                            MultiPos1BuildHelper::PoseModificationData{pose2Infos.offset, pose2Infos.leverArmOrientation, pose2Infos.leverArmPosition}});
+
+            auto multiRot2FunctionData = MultiRot2BuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+                (
+                    parameters.data(),
+                    baseParametersSizeInfos,
+                    MultiRot2BuildHelper::PoseDataContainer{
+                                                            MultiRot2BuildHelper::PoseModificationData{pose1Infos.offset, pose1Infos.leverArmOrientation, pose1Infos.leverArmPosition},
+                                                            MultiRot2BuildHelper::PoseModificationData{pose2Infos.offset, pose2Infos.leverArmOrientation, pose2Infos.leverArmPosition}}
+                    );
+
+            auto multiPos2FunctionData = MultiPos2BuildHelper::buildPoseShiftedDynamicCostFunction<stride>
+                (
+                    parameters.data(),
+                    baseParametersSizeInfos,
+                    MultiPos2BuildHelper::PoseDataContainer{
+                                                            MultiPos2BuildHelper::PoseModificationData{pose1Infos.offset, pose1Infos.leverArmOrientation, pose1Infos.leverArmPosition},
+                                                            MultiPos2BuildHelper::PoseModificationData{pose2Infos.offset, pose2Infos.leverArmOrientation, pose2Infos.leverArmPosition}});
+
+            QVERIFY(multiRot1FunctionData.costFunction != nullptr);
+            QVERIFY(multiPos1FunctionData.costFunction != nullptr);
+            QVERIFY(multiRot2FunctionData.costFunction != nullptr);
+            QVERIFY(multiPos2FunctionData.costFunction != nullptr);
+
+            int expectedSize = baseParametersSizeInfos.size();
+
+            if (pose1Infos.leverArmOrientation != nullptr and pose1Infos.leverArmPosition != nullptr) {
+                expectedSize += 2;
+            }
+
+            if (pose2Infos.leverArmOrientation != nullptr and pose2Infos.leverArmPosition != nullptr) {
+                expectedSize += 2;
+            }
+
+            QCOMPARE(multiRot1FunctionData.params.size(), expectedSize);
+            QCOMPARE(multiPos1FunctionData.params.size(), expectedSize);
+            QCOMPARE(multiRot2FunctionData.params.size(), expectedSize);
+            QCOMPARE(multiPos2FunctionData.params.size(), expectedSize);
+
+            QCOMPARE(multiRot1FunctionData.costFunction->parameter_block_sizes().size(), multiRot1FunctionData.params.size());
+            QCOMPARE(multiPos1FunctionData.costFunction->parameter_block_sizes().size(), multiPos1FunctionData.params.size());
+            QCOMPARE(multiRot2FunctionData.costFunction->parameter_block_sizes().size(), multiRot1FunctionData.params.size());
+            QCOMPARE(multiPos2FunctionData.costFunction->parameter_block_sizes().size(), multiPos1FunctionData.params.size());
+
+            bool rot1Ok = multiRot1FunctionData.costFunction->Evaluate(multiRot1FunctionData.params.data(), r_out1.data(), nullptr);
+            bool pos1Ok = multiPos1FunctionData.costFunction->Evaluate(multiPos1FunctionData.params.data(), t_out1.data(), nullptr);
+            bool rot2Ok = multiRot2FunctionData.costFunction->Evaluate(multiRot2FunctionData.params.data(), r_out2.data(), nullptr);
+            bool pos2Ok = multiPos2FunctionData.costFunction->Evaluate(multiPos2FunctionData.params.data(), t_out2.data(), nullptr);
+
+            QVERIFY(rot1Ok);
+            QVERIFY(pos1Ok);
+            QVERIFY(rot2Ok);
+            QVERIFY(pos2Ok);
+
+            for (int i = 0; i < 3; i++) {
+                QCOMPARE(r_out1[i], expectedOut1.r[i]);
+                QCOMPARE(t_out1[i], expectedOut1.t[i]);
+                QCOMPARE(r_out2[i], expectedOut2.r[i]);
+                QCOMPARE(t_out2[i], expectedOut2.t[i]);
+            }
+
+            delete multiRot1FunctionData.costFunction;
+            delete multiPos1FunctionData.costFunction;
+            delete multiRot2FunctionData.costFunction;
+            delete multiPos2FunctionData.costFunction;
+
+        };
+
+        //with nothing
+        evaluateMulti({identity, nullptr, nullptr}, {identity, nullptr, nullptr}, pose1, pose2);
+
+        //with fixed transform
+        evaluateMulti({pose3, nullptr, nullptr}, {pose4, nullptr, nullptr}, pose1*pose3, pose2*pose4);
+
+        //with lever arm transform
+        evaluateMulti({identity, r_in3.data(), t_in3.data()}, {identity, r_in4.data(), t_in4.data()}, pose1*pose3, pose2*pose4);
+
+        //with combined transform
+        evaluateMulti({pose4, r_in3.data(), t_in3.data()}, {pose3, r_in4.data(), t_in4.data()}, pose1*pose3*pose4, pose2*pose4*pose3);
 
     }
 

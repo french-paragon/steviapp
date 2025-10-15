@@ -19,21 +19,21 @@ using LeverArmCost = LeverArm<UVCost,Body2World|Body2Sensor,0>;
 using PoseTransformCost = PoseTransform<UVCost,PoseTransformDirection::SourceToInitial,0>;
 using PoseTransformLeverArmCost = PoseTransform<LeverArmCost,PoseTransformDirection::SourceToInitial,0>;
 
-PinholdeCamProjModule::PinholdeCamProjModule(Camera* associatedCamera) :
+PinholeCamProjModule::PinholeCamProjModule(Camera* associatedCamera) :
     _associatedCamera(associatedCamera)
 {
 
 }
 
-PinholdeCamProjModule::~PinholdeCamProjModule() {
+PinholeCamProjModule::~PinholeCamProjModule() {
 
 }
 
-QString PinholdeCamProjModule::moduleName() const {
+QString PinholeCamProjModule::moduleName() const {
     return "PinholeCamProjModule";
 }
 
-bool PinholdeCamProjModule::addProjectionCostFunction(double* pointData,
+bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
                                                       double* poseOrientation,
                                                       double* posePosition,
                                                       Eigen::Vector2d const& ptProjPos,
@@ -232,7 +232,7 @@ bool PinholdeCamProjModule::addProjectionCostFunction(double* pointData,
     return false;
 }
 
-ModularSBASolver::ProjectorModule::ProjectionInfos PinholdeCamProjModule::getProjectionInfos() {
+ModularSBASolver::ProjectorModule::ProjectionInfos PinholeCamProjModule::getProjectionInfos() {
 
 
     if (!isSetup()) {
@@ -241,12 +241,26 @@ ModularSBASolver::ProjectorModule::ProjectionInfos PinholdeCamProjModule::getPro
                                                                   std::vector<double*>()};
     }
 
-    return ModularSBASolver::ProjectorModule::ProjectionInfos{nullptr,
-                                                              std::vector<int>(),
-                                                              std::vector<double*>()};
+
+    std::vector<double*> params = {&_fLen,
+                                    _principalPoint.data(),
+                                    _radialDistortion.data(),
+                                    _tangentialDistortion.data(),
+                                    _skewDistortion.data()};
+
+    std::vector<int> paramsSizes = {1,
+                                    (int) _principalPoint.size(),
+                                    (int) _radialDistortion.size(),
+                                    (int) _tangentialDistortion.size(),
+                                    (int) _skewDistortion.size()};
+
+    ModularUVProjection* projector = new AnyUVProjection<PinholeUVProjector, 5>(
+        new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()));
+
+    return {projector, paramsSizes, params};
 }
 
-bool PinholdeCamProjModule::init() {
+bool PinholeCamProjModule::init() {
 
     if (!isSetup()) {
         return false;
@@ -370,7 +384,7 @@ bool PinholdeCamProjModule::init() {
 
 }
 
-bool PinholdeCamProjModule::writeResults() {
+bool PinholeCamProjModule::writeResults() {
 
     if (!isSetup()) {
         return false;
@@ -411,13 +425,13 @@ bool PinholdeCamProjModule::writeResults() {
 
 }
 
-bool PinholdeCamProjModule::writeUncertainty() {
+bool PinholeCamProjModule::writeUncertainty() {
 
     //TODO: get a way to write uncertainty.
     return true;
 }
 
-void PinholdeCamProjModule::cleanup() {
+void PinholeCamProjModule::cleanup() {
     return;
 }
 
@@ -477,13 +491,13 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
                                                                                ptProjPos,
                                                                                ptProjStiffness);
 
+    if (costFuncInfos.costFunction == nullptr) {
+        return false;
+    }
+
     problem().AddResidualBlock(costFuncInfos.costFunction, nullptr,
                                costFuncInfos.params.data(),
                                costFuncInfos.params.size());
-
-    if (costFuncInfos.costFunction != nullptr) {
-        return false;
-    }
 
     if (isVerbose() and !logLabel.isEmpty()) {
 
@@ -499,12 +513,12 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
 
         if (logCostFuncInfos.costFunction != nullptr) {
 
-            if (costFuncInfos.params.size() == baseNArgs) {
+            if (logCostFuncInfos.params.size() == baseNArgs) {
 
                 ModularSBASolver::AutoErrorBlockLogger<baseNArgs,2>::ParamsType paramsArray;
 
                 for (int i = 0; i < baseNArgs; i++) {
-                    paramsArray[i] = costFuncInfos.params[i];
+                    paramsArray[i] = logCostFuncInfos.params[i];
                 }
 
                 ModularSBASolver::AutoErrorBlockLogger<baseNArgs,2>* projErrorLogger =
@@ -515,12 +529,12 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
 
                 solver().addLogger(loggerName, projErrorLogger);
 
-            } else if (costFuncInfos.params.size() == baseNArgs+2) {
+            } else if (logCostFuncInfos.params.size() == baseNArgs+2) {
 
                 ModularSBASolver::AutoErrorBlockLogger<baseNArgs+2,2>::ParamsType paramsArray;
 
                 for (int i = 0; i < baseNArgs+2; i++) {
-                    paramsArray[i] = costFuncInfos.params[i];
+                    paramsArray[i] = logCostFuncInfos.params[i];
                 }
 
                 ModularSBASolver::AutoErrorBlockLogger<baseNArgs+2,2>* projErrorLogger =

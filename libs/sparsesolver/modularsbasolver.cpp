@@ -1084,17 +1084,284 @@ ModularSBASolver::ProjectorModule::~ProjectorModule() {
 
 }
 
+
+template<typename CostFunctionT>
+inline std::vector<double*> addParams2CostFunction(
+    CostFunctionT* costFunction,
+    ModularSBASolver::ProjectorModule::ProjectionInfos infos1,
+    ModularSBASolver::ProjectorModule::ProjectionInfos infos2,
+    std::array<double*, 8> const& poseParams,
+    int nResiduals) {
+
+    double* const& pose1Orientation = poseParams[0];
+    double* const& pose1Position = poseParams[1];
+    double* const& leverArmOrientation1 = poseParams[2];
+    double* const& leverArmPosition1 = poseParams[3];
+    double* const& pose2Orientation = poseParams[4];
+    double* const& pose2Position = poseParams[5];
+    double* const& leverArmOrientation2 = poseParams[6];
+    double* const& leverArmPosition2 = poseParams[7];
+
+    int nParams = 4 + infos1.paramsSizeInfos.size() + infos2.paramsSizeInfos.size();
+
+    if (leverArmOrientation1 != nullptr and leverArmPosition1 != nullptr) {
+        nParams += 2;
+    }
+
+    if (leverArmOrientation2 != nullptr and leverArmPosition2 != nullptr) {
+        nParams += 2;
+    }
+
+    std::vector<double*> params(nParams);
+
+    int paramId = 0;
+
+    params[paramId] = pose1Orientation;
+    costFunction->AddParameterBlock(3);
+    paramId++;
+    params[paramId] = pose1Position;
+    costFunction->AddParameterBlock(3);
+    paramId++;
+
+    if (leverArmOrientation1 != nullptr and leverArmPosition1 != nullptr) {
+        params[paramId] = leverArmOrientation1;
+        costFunction->AddParameterBlock(3);
+        paramId++;
+        params[paramId] = leverArmPosition1;
+        costFunction->AddParameterBlock(3);
+        paramId++;
+    }
+
+    params[paramId] = pose2Orientation;
+    costFunction->AddParameterBlock(3);
+    paramId++;
+
+    params[paramId] = pose2Position;
+    costFunction->AddParameterBlock(3);
+    paramId++;
+
+    if (leverArmOrientation2 != nullptr and leverArmPosition2 != nullptr) {
+        params[paramId] = leverArmOrientation2;
+        costFunction->AddParameterBlock(3);
+        paramId++;
+        params[paramId] = leverArmPosition2;
+        costFunction->AddParameterBlock(3);
+        paramId++;
+    }
+
+    for (int i = 0; i < infos1.paramsSizeInfos.size(); i++) {
+        params[paramId] = infos1.projectionParams[i];
+        costFunction->AddParameterBlock(infos1.paramsSizeInfos[i]);
+        paramId++;
+    }
+
+    for (int i = 0; i < infos2.paramsSizeInfos.size(); i++) {
+        params[paramId] = infos2.projectionParams[i];
+        costFunction->AddParameterBlock(infos2.paramsSizeInfos[i]);
+        paramId++;
+    }
+
+    costFunction->SetNumResiduals(nResiduals);
+
+    return params;
+
+}
+
+template<typename FunctorT, bool offset1IsLarge, bool offset2IsLarge, typename ... ArgsT>
+FunctorT* buildFunctor(StereoVision::Geometry::RigidBodyTransform<double> const& offset1,
+                       StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
+                       ArgsT... args) {
+
+    if constexpr (offset1IsLarge) {
+        if constexpr (offset2IsLarge) {
+            return new FunctorT(offset1, offset2, args...);
+        } else {
+            return new FunctorT(offset1, args...);
+        }
+    } else {
+        if constexpr (offset2IsLarge) {
+            return new FunctorT(offset2, args...);
+        } else {
+            return new FunctorT(args...);
+        }
+    }
+
+    return nullptr;
+
+}
+
+template<typename Level2CostFunctor, bool offset1IsLarge, bool offset2IsLarge>
+bool addCrossProjectionCostFunctionHelperLvl2(std::array<double*, 8> const& poseParameters,
+                                              ModularSBASolver::ProjectorModule::ProjectionInfos const& infos1,
+                                              ModularSBASolver::ProjectorModule::ProjectionInfos const& infos2,
+                                              ModularSBASolver::ProjectorModule* module1,
+                                              Eigen::Vector2d const& ptProj1Pos,
+                                              Eigen::Matrix2d const& ptProj1Stiffness,
+                                              StereoVision::Geometry::RigidBodyTransform<double> const& offset1,
+                                              ModularSBASolver::ProjectorModule* module2,
+                                              Eigen::Vector2d const& ptProj2Pos,
+                                              Eigen::Matrix2d const& ptProj2Stiffness,
+                                              StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
+                                              QString const& logLabel) {
+
+    using Functor = UV2UVCost<ModularUVProjection, ModularUVProjection>;
+
+    constexpr int stride = 4;
+    constexpr int nResiduals = Functor::nResiduals;
+
+    using CostFunction = ceres::DynamicAutoDiffCostFunction<Level2CostFunctor, stride>;
+
+    Level2CostFunctor* functor = buildFunctor<Level2CostFunctor, offset1IsLarge, offset2IsLarge>(offset1,
+                                                                                               offset2,
+                                                                                               infos1.modularProjector,ptProj1Pos,ptProj1Stiffness,
+                                                                                               infos1.paramsSizeInfos.size(),
+                                                                                               infos2.modularProjector,
+                                                                                               ptProj2Pos,ptProj2Stiffness,infos2.paramsSizeInfos.size());
+    CostFunction* costFunction = new CostFunction(functor);
+
+    std::vector<double*> params = addParams2CostFunction(costFunction, infos1, infos2, poseParameters, nResiduals);
+    functor->setNParams(params.size());
+
+    module1->problem().AddResidualBlock(costFunction, nullptr,
+                                        params.data(), params.size());
+
+    if ((module1->isVerbose() or module2->isVerbose()) and !logLabel.isEmpty()) {
+
+        QString loggerName = logLabel;
+
+
+        Level2CostFunctor* logFunctor = buildFunctor<Level2CostFunctor, offset1IsLarge, offset2IsLarge>(offset1,
+                                                                                                        offset2,
+                                                                                                        infos1.modularProjector,ptProj1Pos,ptProj1Stiffness,
+                                                                                                        infos1.paramsSizeInfos.size(),
+                                                                                                        infos2.modularProjector,
+                                                                                                        ptProj2Pos,ptProj2Stiffness,infos2.paramsSizeInfos.size());
+
+        CostFunction* logCostFunction = new CostFunction(logFunctor);
+
+        std::vector<double*> params = addParams2CostFunction(logCostFunction, infos1, infos2, poseParameters, nResiduals);
+        logFunctor->setNParams(params.size());
+
+        ModularSBASolver::AutoDynamicErrorBlockLogger* projErrorLogger =
+            new ModularSBASolver::AutoDynamicErrorBlockLogger(
+                new CostFunction(logFunctor),
+                params,
+                true);
+
+        module1->solver().addLogger(loggerName, projErrorLogger);
+
+    }
+
+    return true;
+}
+
+template<typename Level1CostFunctor, bool offset1IsLarge, int pose2Pos>
+bool addCrossProjectionCostFunctionHelper(std::array<double*, 8> const& poseParameters,
+                                          ModularSBASolver::ProjectorModule::ProjectionInfos const& infos1,
+                                          ModularSBASolver::ProjectorModule::ProjectionInfos const& infos2,
+                                          ModularSBASolver::ProjectorModule* module1,
+                                          Eigen::Vector2d const& ptProj1Pos,
+                                          Eigen::Matrix2d const& ptProj1Stiffness,
+                                          StereoVision::Geometry::RigidBodyTransform<double> const& offset1,
+                                          ModularSBASolver::ProjectorModule* module2,
+                                          Eigen::Vector2d const& ptProj2Pos,
+                                          Eigen::Matrix2d const& ptProj2Stiffness,
+                                          StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
+                                          QString const& logLabel) {
+
+    using PoseInvertedFunctor = InvertPoseDynamic<Level1CostFunctor, pose2Pos>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
+
+    double* const& pose1Orientation = poseParameters[0];
+    double* const& pose1Position = poseParameters[1];
+    double* const& leverArmOrientation1 = poseParameters[2];
+    double* const& leverArmPosition1 = poseParameters[3];
+    double* const& pose2Orientation = poseParameters[4];
+    double* const& pose2Position = poseParameters[5];
+    double* const& leverArmOrientation2 = poseParameters[6];
+    double* const& leverArmPosition2 = poseParameters[7];
+
+    if (offset2.r.norm() < 1e-6 and offset2.t.norm() < 1e-6) {
+
+        constexpr bool offset2IsLarge = false;
+
+        if (leverArmOrientation2 != nullptr and leverArmPosition2 != nullptr) {
+
+            using DecoratedFunctor = LeverArmDynamic<PoseInvertedFunctor, Body2World|Body2Sensor, pose2Pos>;
+
+            return addCrossProjectionCostFunctionHelperLvl2<DecoratedFunctor, offset1IsLarge, offset2IsLarge>
+                (
+                poseParameters,
+                infos1, infos2,
+                module1, ptProj1Pos, ptProj1Stiffness, offset1,
+                module2, ptProj2Pos, ptProj2Stiffness, offset2,
+                logLabel);
+
+        } else {
+
+            using DecoratedFunctor = PoseInvertedFunctor;
+
+            return addCrossProjectionCostFunctionHelperLvl2<DecoratedFunctor, offset1IsLarge, offset2IsLarge>
+                (
+                    poseParameters,
+                    infos1, infos2,
+                    module1, ptProj1Pos, ptProj1Stiffness, offset1,
+                    module2, ptProj2Pos, ptProj2Stiffness, offset2,
+                    logLabel);
+
+        }
+
+    } else {
+
+        constexpr bool offset2IsLarge = true;
+
+        if (leverArmOrientation2 != nullptr and leverArmPosition2 != nullptr) {
+
+            using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<PoseInvertedFunctor,PoseTransformDirection::SourceToInitial,pose2Pos>, Body2World|Body2Sensor, pose2Pos>;
+
+            return addCrossProjectionCostFunctionHelperLvl2<DecoratedFunctor, offset1IsLarge, offset2IsLarge>
+                (
+                    poseParameters,
+                    infos1, infos2,
+                    module1, ptProj1Pos, ptProj1Stiffness, offset1,
+                    module2, ptProj2Pos, ptProj2Stiffness, offset2,
+                    logLabel);
+
+        } else {
+
+            using DecoratedFunctor = PoseTransformDynamic<PoseInvertedFunctor,PoseTransformDirection::SourceToInitial,pose2Pos>;
+
+            return addCrossProjectionCostFunctionHelperLvl2<DecoratedFunctor, offset1IsLarge, offset2IsLarge>
+                (
+                    poseParameters,
+                    infos1, infos2,
+                    module1, ptProj1Pos, ptProj1Stiffness, offset1,
+                    module2, ptProj2Pos, ptProj2Stiffness, offset2,
+                    logLabel);
+
+        }
+
+    }
+
+    return false;
+}
+
 bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(ProjectorModule* module1,
-                                           double* pose1Orientation,
-                                           double* pose1Position,
-                                           Eigen::Vector2d const& ptProj1Pos,
-                                           Eigen::Matrix2d const& ptProj1Stiffness,
-                                           ProjectorModule* module2,
-                                           double* pose2Orientation,
-                                           double* pose2Position,
-                                           Eigen::Vector2d const& ptProj2Pos,
-                                           Eigen::Matrix2d const& ptProj2Stiffness,
-                                           QString const& logLabel) {
+                                    double* pose1Orientation,
+                                    double* pose1Position,
+                                    Eigen::Vector2d const& ptProj1Pos,
+                                    Eigen::Matrix2d const& ptProj1Stiffness,
+                                    StereoVision::Geometry::RigidBodyTransform<double> const& offset1,
+                                    double* leverArmOrientation1,
+                                    double* leverArmPosition1,
+                                    ProjectorModule* module2,
+                                    double* pose2Orientation,
+                                    double* pose2Position,
+                                    Eigen::Vector2d const& ptProj2Pos,
+                                    Eigen::Matrix2d const& ptProj2Stiffness,
+                                    StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
+                                    double* leverArmOrientation2,
+                                    double* leverArmPosition2,
+                                    QString const& logLabel) {
 
     if (module1->_problem != module2->_problem or module1->_problem == nullptr) {
         return false;
@@ -1104,8 +1371,14 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
         return false;
     }
 
-    ProjectionInfos infos1 = module1->getProjectionInfos();
-    ProjectionInfos infos2 = module2->getProjectionInfos();
+    constexpr int pose1Pos = 0;
+    constexpr int pose2BasePos = 2;
+    using Functor = UV2UVCost<ModularUVProjection, ModularUVProjection>;
+    using PoseInvertedFunctor = InvertPoseDynamic<Functor, pose1Pos>;
+
+
+    ModularSBASolver::ProjectorModule::ProjectionInfos infos1 = module1->getProjectionInfos();
+    ModularSBASolver::ProjectorModule::ProjectionInfos infos2 = module2->getProjectionInfos();
 
     if (infos1.modularProjector == nullptr) {
         if (infos2.modularProjector != nullptr) {
@@ -1121,61 +1394,78 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
         return false;
     }
 
-    using Functor = UV2UVCost<ModularUVProjection, ModularUVProjection>;
-    using DecoratedFunctor = InvertPoseDynamic<InvertPoseDynamic<Functor, 0>, 2>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
-    constexpr int stride = 4;
-    using CostFunction = ceres::DynamicAutoDiffCostFunction<DecoratedFunctor, stride>;
+    std::array<double*, 8> poseParameters = {pose1Orientation,
+                                              pose1Position,
+                                              leverArmOrientation1,
+                                              leverArmPosition1,
+                                              pose2Orientation,
+                                              pose2Position,
+                                              leverArmOrientation2,
+                                              leverArmPosition2};
 
-    DecoratedFunctor* functor = new DecoratedFunctor(infos1.modularProjector,ptProj1Pos,ptProj1Stiffness,infos1.paramsSizeInfos.size(),
-                                   infos2.modularProjector,ptProj2Pos,ptProj2Stiffness,infos2.paramsSizeInfos.size());
-    CostFunction* costFunction = new CostFunction(functor);
+    if (offset1.r.norm() < 1e-6 and offset1.t.norm() < 1e-6) {
 
-    int nParams = 4 + infos1.paramsSizeInfos.size() + infos2.paramsSizeInfos.size();
-    std::vector<double*> params(nParams);
+        constexpr bool offset1IsLarge = false;
 
-    params[0] = pose1Orientation;
-    costFunction->AddParameterBlock(3);
-    params[1] = pose1Position;
-    costFunction->AddParameterBlock(3);
-    params[2] = pose2Orientation;
-    costFunction->AddParameterBlock(3);
-    params[3] = pose2Position;
-    costFunction->AddParameterBlock(3);
+        if (leverArmOrientation1 != nullptr and leverArmPosition1 != nullptr) {
 
-    for (int i = 0; i < infos1.paramsSizeInfos.size(); i++) {
-        params[4+i] = infos1.projectionParams[i];
-        costFunction->AddParameterBlock(infos1.paramsSizeInfos[i]);
+            using DecoratedFunctor = LeverArmDynamic<PoseInvertedFunctor, Body2World|Body2Sensor, pose1Pos>;
+
+            return addCrossProjectionCostFunctionHelper<DecoratedFunctor, offset1IsLarge, pose2BasePos+2>
+                (
+                poseParameters,
+                infos1, infos2,
+                module1, ptProj1Pos, ptProj1Stiffness, offset1,
+                module2, ptProj2Pos, ptProj2Stiffness, offset2,
+                logLabel);
+
+        } else {
+
+            using DecoratedFunctor = PoseInvertedFunctor;
+
+            return addCrossProjectionCostFunctionHelper<DecoratedFunctor, offset1IsLarge, pose2BasePos>
+                (
+                    poseParameters,
+                    infos1, infos2,
+                    module1, ptProj1Pos, ptProj1Stiffness, offset1,
+                    module2, ptProj2Pos, ptProj2Stiffness, offset2,
+                    logLabel);
+
+        }
+
+    } else {
+
+        constexpr bool offset1IsLarge = true;
+
+        if (leverArmOrientation1 != nullptr and leverArmPosition1 != nullptr) {
+
+            using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<PoseInvertedFunctor,PoseTransformDirection::SourceToInitial,pose1Pos>, Body2World|Body2Sensor, pose1Pos>;
+
+            return addCrossProjectionCostFunctionHelper<DecoratedFunctor, offset1IsLarge, pose2BasePos+2>
+                (
+                    poseParameters,
+                    infos1, infos2,
+                    module1, ptProj1Pos, ptProj1Stiffness, offset1,
+                    module2, ptProj2Pos, ptProj2Stiffness, offset2,
+                    logLabel);
+
+        } else {
+
+            using DecoratedFunctor = PoseTransformDynamic<PoseInvertedFunctor,PoseTransformDirection::SourceToInitial,pose1Pos>;
+
+            return addCrossProjectionCostFunctionHelper<DecoratedFunctor, offset1IsLarge, pose2BasePos>
+                (
+                    poseParameters,
+                    infos1, infos2,
+                    module1, ptProj1Pos, ptProj1Stiffness, offset1,
+                    module2, ptProj2Pos, ptProj2Stiffness, offset2,
+                    logLabel);
+
+        }
+
     }
 
-    for (int i = 0; i < infos2.paramsSizeInfos.size(); i++) {
-        params[4+infos2.paramsSizeInfos.size()+i] = infos2.projectionParams[i];
-        costFunction->AddParameterBlock(infos2.paramsSizeInfos[i]);
-    }
-
-    costFunction->SetNumResiduals(Functor::nResiduals);
-
-    module1->problem().AddResidualBlock(costFunction, nullptr,
-                               params.data(), nParams);
-
-    if ((module1->isVerbose() or module2->isVerbose()) and !logLabel.isEmpty()) {
-
-        QString loggerName = logLabel;
-
-
-        DecoratedFunctor* logFunctor = new DecoratedFunctor(infos1.modularProjector,ptProj1Pos,Eigen::Matrix2d::Identity(),infos1.paramsSizeInfos.size(),
-                                       infos2.modularProjector,ptProj2Pos,Eigen::Matrix2d::Identity(),infos2.paramsSizeInfos.size());
-
-        ModularSBASolver::AutoDynamicErrorBlockLogger* projErrorLogger =
-            new ModularSBASolver::AutoDynamicErrorBlockLogger(
-            new CostFunction(logFunctor),
-                params,
-                true);
-
-        module1->solver().addLogger(loggerName, projErrorLogger);
-
-    }
-
-    return true;
+    return false;
 
 }
 

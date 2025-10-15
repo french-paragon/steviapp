@@ -482,6 +482,21 @@ public:
 };
 
 /*!
+ * \brief The IdentityDynamic class is a template class to ensure a dynamic functor inherit virtually BaseDynamicDecorator.
+ */
+template<typename DynamicFunctorT>
+class IdentityDynamic : public DynamicFunctorT, public virtual BaseDynamicDecorator {
+
+public:
+    template <typename ... P>
+    IdentityDynamic(P... args) :
+        DynamicFunctorT(args...)
+    {
+
+    }
+};
+
+/*!
  * \brief The AddLeverArm class represent a decorator for the functor type FunctorT, adding a lever arm parameter
  *
  * The FunctorT type is assumed to have an operator() const taking as argument
@@ -603,12 +618,12 @@ public:
 
             if (i == poseParamGroupPos) {
 
-                params[i] = processed_r.data();
+                params[i] = processed_r;
                 continue;
 
             } else if (i == poseParamGroupPos+1) {
 
-                params[i] = processed_t.data();
+                params[i] = processed_t;
                 continue;
             } else if (i == poseParamGroupPos+2 or i == poseParamGroupPos+3) {
                 continue;
@@ -623,7 +638,16 @@ public:
             params[pos] = parameters[i];
         }
 
-        return DynamicFunctorT::operator()(params.data(), residuals);
+        //indicate to subsequent functor that the number of parameters has been reduced by two.
+        int oldNParams = nParams();
+        setNParams(oldNParams-2);
+
+        bool ok = DynamicFunctorT::operator()(params.data(), residuals);
+
+        //reset the correct number of parameters
+        setNParams(oldNParams);
+
+        return ok;
     }
 };
 
@@ -1416,6 +1440,8 @@ public:
 
                 int modifiedNArgs = nArgs+2;
 
+                costFunctor->setNParams(modifiedNArgs);
+
                 ceres::DynamicAutoDiffCostFunction<LeverArmCostDynamic, stride>* costFunc =
                     new ceres::DynamicAutoDiffCostFunction<LeverArmCostDynamic, stride>(costFunctor);
 
@@ -1468,12 +1494,14 @@ public:
             if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
 
                 PoseTransformLeverArmCostDynamic* costFunctor =
-                    new PoseTransformLeverArmCost(
+                    new PoseTransformLeverArmCostDynamic(
                         offset, constructorArgs...);
 
                 int nArgs = parametersSizeInfos.size();
 
                 int modifiedNArgs = nArgs+2;
+
+                costFunctor->setNParams(modifiedNArgs);
 
                 ceres::DynamicAutoDiffCostFunction<PoseTransformLeverArmCostDynamic, stride>* costFunc =
                     new ceres::DynamicAutoDiffCostFunction<PoseTransformLeverArmCostDynamic, stride>(costFunctor);
@@ -1504,12 +1532,13 @@ public:
 
             } else {
 
-                PoseTransformCostDynamic* costFunctor = new PoseTransformCostDynamic(offset, constructorArgs...);
-
-                ceres::DynamicAutoDiffCostFunction<PoseTransformCost, stride>* costFunc =
-                    new ceres::DynamicAutoDiffCostFunction<PoseTransformCost, stride>(costFunctor);
-
                 int nArgs = parametersSizeInfos.size();
+
+                PoseTransformCostDynamic* costFunctor = new PoseTransformCostDynamic(offset, constructorArgs...);
+                costFunctor->setNParams(nArgs);
+
+                ceres::DynamicAutoDiffCostFunction<PoseTransformCostDynamic, stride>* costFunc =
+                    new ceres::DynamicAutoDiffCostFunction<PoseTransformCostDynamic, stride>(costFunctor);
 
                 std::vector<double*> params(nArgs);
 
@@ -1529,6 +1558,193 @@ public:
 
     }
 
+};
+
+template<typename FT, PoseTransformDirection poseTransformDirection, int leverArmConfig, typename PoseParamsPos, int nRes, int... argsSizes>
+class ModifiedMultiPoseCostFunctionBuilderHelper {
+public:
+
+    using FunctorT = FT;
+
+    struct CostFunctionData {
+        ceres::CostFunction* costFunction;
+        std::vector<double*> params;
+    };
+
+    struct PoseModificationData {
+        const StereoVision::Geometry::RigidBodyTransform<double> offset; //fixed offset applied on top of the parametrized pose.
+        double *leverArmOrientation; //parameter for the lever arm orientation
+        double *leverArmPosition; //parameter for the lever arm orientation
+    };
+
+protected:
+
+    template<typename CounterT>
+    struct IndicesData {
+        static constexpr std::array<int, 0> indices = {};
+    };
+
+    template<typename T, T ... idxs>
+    struct IndicesData<std::integer_sequence<T, idxs...>> {
+        static constexpr std::array<size_t, sizeof...(idxs)> indices = {static_cast<size_t>(idxs)...};
+    };
+
+    template<typename Container>
+    static constexpr bool checkIndices(Container const& indices) {
+        for (size_t i = 0; i < indices.size()-1; i++) {
+            if (indices[i]+2 > indices[i+1]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    static_assert(IndicesData<PoseParamsPos>::indices.size() > 0, "PoseParamsPos must be an integer sequence indicating the position of the poses parameters in the cost function");
+    static_assert(checkIndices(IndicesData<PoseParamsPos>::indices), "PoseParamsPos must give indices in increasing order, and indices should be at least 2 position appart to accomodate the pose parameters!");
+
+    using PoseDataContainerInternal = std::array<PoseModificationData, IndicesData<PoseParamsPos>::indices.size()>;
+
+    template<typename FunctorT, int currentId = 0>
+    struct DynamicCostFunctionBuilder {
+
+        template<int stride = 4, int PosePosOffset = 0, typename ... T>
+        static CostFunctionData buildCostFunction(double ** parameters,
+                                           std::vector<int> const& parametersSizeInfos,
+                                           PoseDataContainerInternal const& posesData,
+                                           T... constructorArgs) {
+
+            constexpr int currentPosePos = IndicesData<PoseParamsPos>::indices.at(std::min<size_t>(currentId,
+                                                                                                   IndicesData<PoseParamsPos>::indices.size()-1)) + PosePosOffset;
+            using PoseT = decltype(PoseModificationData::offset);
+
+            if constexpr (currentId >= IndicesData<PoseParamsPos>::indices.size()) {
+
+                int FinalNParams = parametersSizeInfos.size();
+
+                for (PoseModificationData const& poseData : posesData) {
+                    if (poseData.leverArmOrientation != nullptr and poseData.leverArmPosition != nullptr) {
+                        FinalNParams += 2;
+                    }
+                }
+
+                using CostFunction = ceres::DynamicAutoDiffCostFunction<IdentityDynamic<FunctorT>, stride>;
+
+                IdentityDynamic<FunctorT>* costFunctor = new IdentityDynamic<FunctorT>(constructorArgs...);
+
+                costFunctor->setNParams(FinalNParams);
+
+                CostFunction* costFunc = new CostFunction(costFunctor);
+
+                CostFunctionData ret;
+
+                ret.costFunction = costFunc;
+
+                ret.params.resize(FinalNParams);
+                int fParamIdx = 0;
+                int poseIdxIdx = 0;
+
+                for (size_t i = 0; i < parametersSizeInfos.size(); i++) {
+                    ret.params[fParamIdx] = parameters[i];
+                    costFunc->AddParameterBlock(parametersSizeInfos[i]);
+                    fParamIdx++;
+
+                    if (i == IndicesData<PoseParamsPos>::indices[poseIdxIdx]) {
+
+                        //add the second parameter of the pose
+                        i++;
+                        ret.params[fParamIdx] = parameters[i];
+                        costFunc->AddParameterBlock(parametersSizeInfos[i]);
+                        fParamIdx++;
+
+                        //add the lever arm parameters, if required
+
+                        PoseModificationData const& poseData = posesData[poseIdxIdx];
+
+                        if (poseData.leverArmOrientation != nullptr and poseData.leverArmPosition != nullptr) {
+
+                            ret.params[fParamIdx] = poseData.leverArmOrientation;
+                            costFunc->AddParameterBlock(3);
+                            fParamIdx++;
+
+                            ret.params[fParamIdx] = poseData.leverArmPosition;
+                            costFunc->AddParameterBlock(3);
+                            fParamIdx++;
+
+                        }
+
+                        //move to the next pose, if required
+                        if (poseIdxIdx < IndicesData<PoseParamsPos>::indices.size()-1) {
+                            poseIdxIdx++;
+                        }
+                    }
+                }
+
+                costFunc->SetNumResiduals(nRes);
+
+                return ret;
+
+            } else {
+
+                if (posesData[currentId].offset.r.norm() < 1e-6 and posesData[currentId].offset.t.norm() < 1e-6) {
+
+                    if (posesData[currentId].leverArmOrientation != nullptr and posesData[currentId].leverArmPosition != nullptr) {
+
+                        using DecoratedFunctor = LeverArmDynamic<FunctorT,
+                                                                 leverArmConfig,
+                                                                 currentPosePos>;
+
+                        return DynamicCostFunctionBuilder<DecoratedFunctor, currentId+1>::template buildCostFunction<stride, PosePosOffset+2,T...>
+                            (parameters, parametersSizeInfos, posesData, constructorArgs...);
+
+                    } else {
+
+                        using DecoratedFunctor = FunctorT;
+
+                        return DynamicCostFunctionBuilder<DecoratedFunctor, currentId+1>::template buildCostFunction<stride, PosePosOffset,T...>
+                            (parameters, parametersSizeInfos, posesData, constructorArgs...);
+
+                    }
+
+                } else {
+
+                    if (posesData[currentId].leverArmOrientation != nullptr and posesData[currentId].leverArmPosition != nullptr) {
+
+                        using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<FunctorT,poseTransformDirection,currentPosePos>, leverArmConfig, currentPosePos>;
+
+                        return DynamicCostFunctionBuilder<DecoratedFunctor, currentId+1>::template buildCostFunction<stride, PosePosOffset+2, PoseT const& , T...>
+                            (parameters, parametersSizeInfos, posesData, posesData[currentId].offset, constructorArgs...);
+
+                    } else {
+
+                        using DecoratedFunctor = PoseTransformDynamic<FunctorT,poseTransformDirection,currentPosePos>;
+
+                        return DynamicCostFunctionBuilder<DecoratedFunctor, currentId+1>::template buildCostFunction<stride, PosePosOffset, PoseT const& , T...>
+                            (parameters, parametersSizeInfos, posesData, posesData[currentId].offset, constructorArgs...);
+
+                    }
+                }
+            }
+
+
+        }
+    };
+
+public:
+
+    static constexpr int NModifiedPoses = IndicesData<PoseParamsPos>::indices.size();
+    using PoseDataContainer = PoseDataContainerInternal;
+
+    template<int stride = 4, typename ... T>
+    static CostFunctionData buildPoseShiftedDynamicCostFunction(double ** parameters,
+                                                                std::vector<int> const& parametersSizeInfos,
+                                                                PoseDataContainerInternal const& posesData,
+                                                                T... constructorArgs) {
+
+        constexpr int strides = 4;
+        return DynamicCostFunctionBuilder<FunctorT>::template buildCostFunction<stride>(parameters, parametersSizeInfos, posesData, constructorArgs...);
+
+    }
 };
 
 } // namespace StereoVisionApp

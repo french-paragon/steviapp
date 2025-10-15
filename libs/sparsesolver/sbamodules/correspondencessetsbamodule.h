@@ -95,28 +95,28 @@ public:
                                 StereoVisionApp::ModularSBASolver* solver,
                                 ceres::Problem & problem);
 
-    static bool addUVT2UVMatch(Correspondences::Typed<Correspondences::UVT> const& uv1,
-                               Correspondences::Typed<Correspondences::UV> const& uv2,
+    static bool addUVT2UVMatch(Correspondences::Typed<Correspondences::UVT> const& uvt,
+                               Correspondences::Typed<Correspondences::UV> const& uv,
                                StereoVisionApp::ModularSBASolver* solver,
                                ceres::Problem & problem);
 
-    static bool addUVT2UVTMatch(Correspondences::Typed<Correspondences::UVT> const& uv1,
-                               Correspondences::Typed<Correspondences::UVT> const& uv2,
+    static bool addUVT2UVTMatch(Correspondences::Typed<Correspondences::UVT> const& uvt1,
+                               Correspondences::Typed<Correspondences::UVT> const& uvt2,
                                StereoVisionApp::ModularSBASolver* solver,
                                ceres::Problem & problem);
 
-    static bool addUVT2XYZMatch(Correspondences::Typed<Correspondences::UVT> const& uv,
+    static bool addUVT2XYZMatch(Correspondences::Typed<Correspondences::UVT> const& uvt,
                                Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                StereoVisionApp::ModularSBASolver* solver,
                                ceres::Problem & problem);
 
-    static bool addUVT2GeoXYZMatch(Correspondences::Typed<Correspondences::UVT> const& uv,
+    static bool addUVT2GeoXYZMatch(Correspondences::Typed<Correspondences::UVT> const& uvt,
                                   Correspondences::Typed<Correspondences::GEOXYZ> const& xyz,
                                   StereoVisionApp::ModularSBASolver* solver,
                                   ceres::Problem & problem);
 
-    static bool addUVT2XYZTMatch(Correspondences::Typed<Correspondences::UVT> const& uv,
-                                Correspondences::Typed<Correspondences::XYZT> const& xyz,
+    static bool addUVT2XYZTMatch(Correspondences::Typed<Correspondences::UVT> const& uvt,
+                                Correspondences::Typed<Correspondences::XYZT> const& xyzt,
                                 StereoVisionApp::ModularSBASolver* solver,
                                 ceres::Problem & problem);
 
