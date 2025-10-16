@@ -173,8 +173,6 @@ public:
         std::array<const T*,nProjParameters+1> additionalParamsArray = {additionalParams...};
         std::tuple<P...> additionalParamsTuple(additionalParams...);
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
@@ -267,8 +265,6 @@ public:
 
     template <typename T, typename ... P>
     bool operator()(T const* const* parameters, T* residuals) const {
-
-        using M3T = Eigen::Matrix<T,3,3>;
 
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
@@ -366,8 +362,6 @@ public:
         std::array<const T*,nProjParameters+1> additionalParamsArray = {additionalParams...};
         std::tuple<P...> additionalParamsTuple(additionalParams...);
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
@@ -461,8 +455,6 @@ public:
 
     template <typename T, typename ... P>
     bool operator()(T const* const* parameters, T* residuals) const {
-
-        using M3T = Eigen::Matrix<T,3,3>;
 
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
@@ -568,7 +560,6 @@ public:
         std::array<const T*,nProjParameters+1> additionalParamsArray = {additionalParams...};
         std::tuple<P...> additionalParamsTuple(additionalParams...);
 
-        using M3T = Eigen::Matrix<T,3,3>;
         using M23T = Eigen::Matrix<T,2,3>;
 
         using V2T = Eigen::Vector<T,2>;
@@ -639,21 +630,21 @@ public:
     UV2UVCost(UVProjector1* projector1,
               Eigen::Vector2d const& uv1,
               Eigen::Matrix2d const& info1,
-              int nParams1,
+              std::vector<int> const& projector1ParamsMap,
               UVProjector2* projector2,
               Eigen::Vector2d const& uv2,
               Eigen::Matrix2d const& info2,
-              int nParams2,
+              std::vector<int> const& projector2ParamsMap,
               bool manageProjectors = true) :
         _manageProjectors(manageProjectors),
         _projector1(projector1),
         _uv1(uv1),
         _info1(info1),
-        _nParams1(nParams1),
+        _projector1ParamsMap(projector1ParamsMap),
         _projector2(projector2),
         _uv2(uv2),
         _info2(info2),
-        _nParams2(nParams2)
+        _projector2ParamsMap(projector2ParamsMap)
     {
 
     }
@@ -668,15 +659,10 @@ public:
     template <typename T, typename ... P>
     bool operator()(T const* const* parameters, T* residuals) const {
 
-        constexpr int nPoseParams = 4;
-        int nProjParameters = _nParams1 + _nParams2;
-
         T const* r1 = parameters[0];
         T const* t1 = parameters[1];
         T const* r2 = parameters[2];
         T const* t2 = parameters[3];
-
-        using M3T = Eigen::Matrix<T,3,3>;
 
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
@@ -699,25 +685,25 @@ public:
         std::array<T,2> uv1 = {T(_uv1[0]), T(_uv1[1])};
         std::array<T,2> uv2 = {T(_uv2[0]), T(_uv2[1])};
 
-        std::vector<const T*> projParams1(_nParams1);
+        std::vector<const T*> projParams1(_projector1ParamsMap.size());
 
-        for (int i = 0; i < _nParams1; i++) {
-            projParams1[i] = parameters[4+i];
+        for (size_t i = 0; i < _projector1ParamsMap.size(); i++) {
+            projParams1[i] = parameters[_projector1ParamsMap[i]];
         }
 
-        std::vector<const T*> projParams2(_nParams2);
+        std::vector<const T*> projParams2(_projector2ParamsMap.size());
 
-        for (int i = 0; i < _nParams2; i++) {
-            projParams2[i] = parameters[4+_nParams1+i];
+        for (size_t i = 0; i < _projector2ParamsMap.size(); i++) {
+            projParams2[i] = parameters[_projector2ParamsMap[i]];
         }
 
-        V3T direction1 = _projector1->dirFromUV(uv1.data(), projParams1.data());
-        V3T direction2 = _projector2->dirFromUV(uv2.data(), projParams2.data());
+        V3T direction1Img1 = _projector1->dirFromUV(uv1.data(), projParams1.data());
+        V3T direction2Img2 = _projector2->dirFromUV(uv2.data(), projParams2.data());
 
-        V3T direction1CamFrame = StereoVision::Geometry::angleAxisRotate(world2sensor2.r, direction1);
-        V3T direction2CamFrame = StereoVision::Geometry::angleAxisRotate(world2sensor2.r, direction2);
+        V3T direction1CamFrame = StereoVision::Geometry::angleAxisRotate(sensor12sensor2.r, direction1Img1);
+        V3T direction2CamFrame = direction2Img2;
 
-        //we have sensor12sensor2.t + x*direction1 = y*direction2, or [direction1 -direction2] * [x; y] = sensor12sensor2.t
+        //we have sensor12sensor2.t + x*direction1 = y*direction2, or [direction1 -direction2] * [x; y] = -sensor12sensor2.t
 
         Eigen::Matrix<T,3,2> MP;
 
@@ -734,17 +720,17 @@ public:
 
         V2T projCam1 = intersectionCam1.template block<2,1>(0,0);
         projCam1 /= intersectionCam1.z();
-        projCam1 *= direction1.z();
+        projCam1 *= direction2Img2.z();
 
         V2T projCam2 = intersectionCam2.template block<2,1>(0,0);
         projCam2 /= intersectionCam2.z();
-        projCam2 *= direction2.z();
+        projCam2 *= direction1Img1.z();
 
         V2T error1;
-        error1 << projCam1[0] - direction1[0], projCam1[1] - direction1[1];
+        error1 << projCam1[0] - direction1Img1[0], projCam1[1] - direction1Img1[1];
 
         V2T error2;
-        error2 << projCam2[0] - direction2[0], projCam2[1] - direction2[1];
+        error2 << projCam2[0] - direction2Img2[0], projCam2[1] - direction2Img2[1];
 
         residuals[0] = _info1(0,0)*error1[0] + _info1(0,1)*error1[1];
         residuals[1] = _info1(1,0)*error1[0] + _info1(1,1)*error1[1];
@@ -761,11 +747,11 @@ protected:
     UVProjector1* _projector1;
     UVProjector2* _projector2;
 
-    int _nParams1;
+    std::vector<int> _projector1ParamsMap;
     Eigen::Vector2d _uv1;
     Eigen::Matrix2d _info1;
 
-    int _nParams2;
+    std::vector<int> _projector2ParamsMap;
     Eigen::Vector2d _uv2;
     Eigen::Matrix2d _info2;
 };

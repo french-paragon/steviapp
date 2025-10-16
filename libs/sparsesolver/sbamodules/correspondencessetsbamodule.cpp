@@ -788,12 +788,13 @@ bool CorrespondencesSetSBAModule::addUV2XYZMatch(Correspondences::Typed<Correspo
     params[3] = poseNode->t.data();
     costFunction->AddParameterBlock(3);
 
-    for (int i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+    for (size_t i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
         params[4+i] = infosIm.projectionParams[i];
         costFunction->AddParameterBlock(infosIm.paramsSizeInfos[i]);
     }
 
     costFunction->SetNumResiduals(Functor::nResiduals);
+    functor->setNParams(nParams);
 
     mIm->problem().AddResidualBlock(costFunction, nullptr,
                                         params.data(), nParams);
@@ -856,7 +857,7 @@ bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Corre
     DecoratedFunctor* functor = new DecoratedFunctor(infosIm.modularProjector, ptPos, uvPos, stiffness, infosIm.paramsSizeInfos.size());
     CostFunction* costFunction = new CostFunction(functor);
 
-    int nParams = 4 + infosIm.paramsSizeInfos.size();
+    int nParams = 2 + infosIm.paramsSizeInfos.size();
     std::vector<double*> params(nParams);
 
     params[0] = pIm->rAxis.data();
@@ -864,12 +865,13 @@ bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Corre
     params[1] = pIm->t.data();
     costFunction->AddParameterBlock(3);
 
-    for (int i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
-        params[4+i] = infosIm.projectionParams[i];
+    for (size_t i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+        params[2+i] = infosIm.projectionParams[i];
         costFunction->AddParameterBlock(infosIm.paramsSizeInfos[i]);
     }
 
     costFunction->SetNumResiduals(Functor::nResiduals);
+    functor->setNParams(nParams);
 
     mIm->problem().AddResidualBlock(costFunction, nullptr,
                                     params.data(), nParams);

@@ -448,6 +448,8 @@ struct Typed<Types::GEOXYZ> {
 
     static constexpr Types CorrespType = Types::GEOXYZ;
 
+    static constexpr char LocalFrameName[] = "local";
+
     QString crsInfos;
     float x;
     float y;

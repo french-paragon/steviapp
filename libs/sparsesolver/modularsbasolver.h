@@ -799,19 +799,25 @@ public:
 
     std::optional<Eigen::MatrixXd> getCovarianceBlock(std::pair<const double*, const double*> const& params);
 
-protected:
-
     bool init() override;
-    bool initManagedParameters();
-
-    void cleanUpProblem();
-
 
     bool opt_step() override;
     bool std_step() override;
     bool writeResults() override;
     bool writeUncertainty() override;
     void cleanup() override;
+
+
+    inline ceres::Problem* ceresProblem() {
+        return _problem;
+    }
+
+protected:
+
+    bool initManagedParameters();
+
+    void cleanUpProblem();
+
 
     bool splitOptSteps() const override;
 

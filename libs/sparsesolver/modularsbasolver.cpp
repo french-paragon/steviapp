@@ -287,6 +287,15 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForFrame(qint64 imId, bool 
 
         imNode->rAxis = raxis_prior;
         imNode->t = t_prior;
+    } else {
+
+        if (!im->optRot().isSet()) {
+            imNode->rAxis = raxis_prior;
+        }
+
+        if (!im->optPos().isSet()) {
+            imNode->t = t_prior;
+        }
     }
 
     return &_poseParameters[_poseParametersIndex[imId]];
@@ -349,6 +358,15 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForLocalCoordinates(qint64 
 
         node.rAxis = raxis_prior;
         node.t = t_prior;
+    } else {
+
+        if (!lcs->optRot().isSet()) {
+            node.rAxis = raxis_prior;
+        }
+
+        if (!lcs->optPos().isSet()) {
+            node.t = t_prior;
+        }
     }
 
     Trajectory* traj = lcs->getAssignedTrajectory();
@@ -1088,9 +1106,9 @@ ModularSBASolver::ProjectorModule::~ProjectorModule() {
 template<typename CostFunctionT>
 inline std::vector<double*> addParams2CostFunction(
     CostFunctionT* costFunction,
-    ModularSBASolver::ProjectorModule::ProjectionInfos infos1,
-    ModularSBASolver::ProjectorModule::ProjectionInfos infos2,
     std::array<double*, 8> const& poseParams,
+    std::vector<double*> const& projectionParams,
+    std::vector<int> const& projectionParamSizes,
     int nResiduals) {
 
     double* const& pose1Orientation = poseParams[0];
@@ -1102,7 +1120,7 @@ inline std::vector<double*> addParams2CostFunction(
     double* const& leverArmOrientation2 = poseParams[6];
     double* const& leverArmPosition2 = poseParams[7];
 
-    int nParams = 4 + infos1.paramsSizeInfos.size() + infos2.paramsSizeInfos.size();
+    int nParams = 4 + projectionParams.size();
 
     if (leverArmOrientation1 != nullptr and leverArmPosition1 != nullptr) {
         nParams += 2;
@@ -1149,15 +1167,9 @@ inline std::vector<double*> addParams2CostFunction(
         paramId++;
     }
 
-    for (int i = 0; i < infos1.paramsSizeInfos.size(); i++) {
-        params[paramId] = infos1.projectionParams[i];
-        costFunction->AddParameterBlock(infos1.paramsSizeInfos[i]);
-        paramId++;
-    }
-
-    for (int i = 0; i < infos2.paramsSizeInfos.size(); i++) {
-        params[paramId] = infos2.projectionParams[i];
-        costFunction->AddParameterBlock(infos2.paramsSizeInfos[i]);
+    for (size_t i = 0; i < projectionParams.size(); i++) {
+        params[paramId] = projectionParams[i];
+        costFunction->AddParameterBlock(projectionParamSizes[i]);
         paramId++;
     }
 
@@ -1211,15 +1223,70 @@ bool addCrossProjectionCostFunctionHelperLvl2(std::array<double*, 8> const& pose
 
     using CostFunction = ceres::DynamicAutoDiffCostFunction<Level2CostFunctor, stride>;
 
+    double* const& pose1Orientation = poseParameters[0];
+    double* const& pose1Position = poseParameters[1];
+    double* const& leverArmOrientation1 = poseParameters[2];
+    double* const& leverArmPosition1 = poseParameters[3];
+    double* const& pose2Orientation = poseParameters[4];
+    double* const& pose2Position = poseParameters[5];
+    double* const& leverArmOrientation2 = poseParameters[6];
+    double* const& leverArmPosition2 = poseParameters[7];
+
+    int projectionParamsOffset = 4; //two poses
+
+    if (leverArmOrientation1 != nullptr and leverArmPosition1 != nullptr) { //one more lever arm
+        projectionParamsOffset += 2;
+    }
+
+    if (leverArmOrientation2 != nullptr and leverArmPosition2 != nullptr) { //one more lever arm
+        projectionParamsOffset += 2;
+    }
+
+    std::vector<int> projector1ParametersMapping(infos1.paramsSizeInfos.size());
+    std::vector<int> projector2ParametersMapping(infos2.paramsSizeInfos.size());
+
+    QMap<double*, int> addedParams;
+
+    std::vector<double*> projectionsParams;
+    projectionsParams.reserve(infos1.paramsSizeInfos.size() + infos2.paramsSizeInfos.size());
+
+    std::vector<int> projectionsParamsSizes;
+    projectionsParamsSizes.reserve(infos1.paramsSizeInfos.size() + infos2.paramsSizeInfos.size());
+
+    for (size_t i = 0; i < infos1.projectionParams.size(); i++) {
+
+        projector1ParametersMapping[i] = projectionParamsOffset;
+
+        addedParams[infos1.projectionParams[i]] = projectionParamsOffset;
+        projectionParamsOffset++;
+        projectionsParams.push_back(infos1.projectionParams[i]);
+        projectionsParamsSizes.push_back(infos1.paramsSizeInfos[i]);
+    }
+
+    for (size_t i = 0; i < infos2.projectionParams.size(); i++) {
+
+        if (addedParams.contains(infos2.projectionParams[i])) {
+            projector2ParametersMapping[i] = addedParams[infos2.projectionParams[i]];
+            continue;
+        }
+
+        projector2ParametersMapping[i] = projectionParamsOffset;
+
+        addedParams[infos2.projectionParams[i]] = projectionParamsOffset;
+        projectionParamsOffset++;
+        projectionsParams.push_back(infos2.projectionParams[i]);
+        projectionsParamsSizes.push_back(infos2.paramsSizeInfos[i]);
+    }
+
     Level2CostFunctor* functor = buildFunctor<Level2CostFunctor, offset1IsLarge, offset2IsLarge>(offset1,
                                                                                                offset2,
                                                                                                infos1.modularProjector,ptProj1Pos,ptProj1Stiffness,
-                                                                                               infos1.paramsSizeInfos.size(),
+                                                                                               projector1ParametersMapping,
                                                                                                infos2.modularProjector,
-                                                                                               ptProj2Pos,ptProj2Stiffness,infos2.paramsSizeInfos.size());
+                                                                                               ptProj2Pos,ptProj2Stiffness,projector2ParametersMapping);
     CostFunction* costFunction = new CostFunction(functor);
 
-    std::vector<double*> params = addParams2CostFunction(costFunction, infos1, infos2, poseParameters, nResiduals);
+    std::vector<double*> params = addParams2CostFunction(costFunction, poseParameters, projectionsParams, projectionsParamsSizes, nResiduals);
     functor->setNParams(params.size());
 
     module1->problem().AddResidualBlock(costFunction, nullptr,
@@ -1233,13 +1300,13 @@ bool addCrossProjectionCostFunctionHelperLvl2(std::array<double*, 8> const& pose
         Level2CostFunctor* logFunctor = buildFunctor<Level2CostFunctor, offset1IsLarge, offset2IsLarge>(offset1,
                                                                                                         offset2,
                                                                                                         infos1.modularProjector,ptProj1Pos,ptProj1Stiffness,
-                                                                                                        infos1.paramsSizeInfos.size(),
+                                                                                                        projector1ParametersMapping,
                                                                                                         infos2.modularProjector,
-                                                                                                        ptProj2Pos,ptProj2Stiffness,infos2.paramsSizeInfos.size());
+                                                                                                        ptProj2Pos,ptProj2Stiffness,projector2ParametersMapping);
 
         CostFunction* logCostFunction = new CostFunction(logFunctor);
 
-        std::vector<double*> params = addParams2CostFunction(logCostFunction, infos1, infos2, poseParameters, nResiduals);
+        std::vector<double*> params = addParams2CostFunction(logCostFunction, poseParameters, projectionsParams, projectionsParamsSizes, nResiduals);
         logFunctor->setNParams(params.size());
 
         ModularSBASolver::AutoDynamicErrorBlockLogger* projErrorLogger =

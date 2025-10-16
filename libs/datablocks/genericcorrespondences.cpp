@@ -170,7 +170,7 @@ std::optional<Eigen::Vector3d> getGeoXYZConstraintInfos(Typed<Types::GEOXYZ> con
 
     Eigen::Vector3d ret;
 
-    if (point.crsInfos.toLower() == "local") { //point in local coordinates
+    if (point.crsInfos.toLower() == Typed<Types::GEOXYZ>::LocalFrameName) { //point in local coordinates
         ret << point.x, point.y, point.z;
         return ret;
     }

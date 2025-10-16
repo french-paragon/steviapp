@@ -29,8 +29,6 @@ public:
     Eigen::Matrix<T,3,1> dirFromUV(T const* uv,
                                      T const* const* params) {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
         using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
