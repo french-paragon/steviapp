@@ -75,6 +75,16 @@ public:
                                   StereoVisionApp::ModularSBASolver* solver,
                                   ceres::Problem & problem);
 
+    static bool addXYZT2XYZMatch(Correspondences::Typed<Correspondences::XYZT> const& xyzt,
+                                 Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                                 StereoVisionApp::ModularSBASolver* solver,
+                                 ceres::Problem & problem);
+
+    static bool addXYZT2XYZTMatch(Correspondences::Typed<Correspondences::XYZT> const& xyzt1,
+                                  Correspondences::Typed<Correspondences::XYZT> const& xyzt2,
+                                  StereoVisionApp::ModularSBASolver* solver,
+                                  ceres::Problem & problem);
+
     static bool addUV2UVMatch(Correspondences::Typed<Correspondences::UV> const& uv1,
                               Correspondences::Typed<Correspondences::UV> const& uv2,
                               StereoVisionApp::ModularSBASolver* solver,

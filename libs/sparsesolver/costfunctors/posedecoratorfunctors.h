@@ -66,11 +66,6 @@ public:
 
         std::tuple<P...> args(params...);
 
-        using T = std::remove_const_t<
-            std::remove_pointer_t<
-                std::remove_reference_t<decltype (std::get<0>(args))>
-                >>;
-
         static_assert (sizeof... (params) > poseParamPos+1, "Wrong number of arguments provided");
 
         auto processedArgs = CallFromTuple::removeArgFromTuple<poseParamPos>(args);
@@ -127,11 +122,6 @@ public:
 
         std::tuple<P...> args(params...);
 
-        using T = std::remove_const_t<
-            std::remove_pointer_t<
-                std::remove_reference_t<decltype (std::get<0>(args))>
-                >>;
-
         static_assert (sizeof... (params) > poseParamGroupPos+2, "Wrong number of arguments provided");
 
         auto processedArgs = CallFromTuple::removeArgFromTuple<poseParamGroupPos>(
@@ -139,6 +129,7 @@ public:
             );
 
         auto variadic_lambda = [this] (auto... params) {
+            (void) this;
             return FunctorT::operator()(params...);
         };
 
@@ -178,11 +169,6 @@ public:
         static_assert (sizeof... (params) > std::max(leverArmParamGroupPos, poseParamGroupPos)+1, "Wrong number of arguments provided");
         static_assert (((poseConfig & PoseInfoBit) == Body2World) or ((poseConfig & PoseInfoBit) == World2Body), "misconfigured DecoratorPoseConfiguration");
         static_assert (((poseConfig & BoresightInfoBit) == Sensor2Body) or ((poseConfig & BoresightInfoBit) == Body2Sensor), "misconfigured DecoratorPoseConfiguration");
-
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
-        using V3T = Eigen::Vector<T,3>;
 
         const T* const r = std::get<poseParamGroupPos>(args);
         const T* const t = std::get<poseParamGroupPos+1>(args);
@@ -269,6 +255,7 @@ public:
         }
 
         auto variadic_lambda = [this] (auto... params) {
+            (void) this;
             return FunctorT::operator()(params...);
         };
 
@@ -301,9 +288,6 @@ public:
         static_assert (((poseConfig & PoseInfoBit) == World2Body), "misconfigured DecoratorPoseConfiguration, Body2World will have no effect!");
         static_assert (((poseConfig & BoresightInfoBit) == Sensor2Body) or ((poseConfig & BoresightInfoBit) == Body2Sensor), "misconfigured DecoratorPoseConfiguration");
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
         const T* const t = std::get<positionParamPos>(args);
@@ -392,11 +376,6 @@ public:
         static_assert (sizeof... (params) > std::max(rotationParamPos, boresightParamPos)+1, "Wrong number of arguments provided");
         static_assert (((poseConfig & PoseInfoBit) == Body2World) or ((poseConfig & PoseInfoBit) == World2Body), "misconfigured DecoratorPoseConfiguration");
         static_assert (((poseConfig & BoresightInfoBit) == Sensor2Body) or ((poseConfig & BoresightInfoBit) == Body2Sensor), "misconfigured DecoratorPoseConfiguration");
-
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
-        using V3T = Eigen::Vector<T,3>;
 
         const T* const r = std::get<rotationParamPos>(args);
 
@@ -534,11 +513,6 @@ public:
     template <typename T, typename ... P>
     bool operator()(T const* const* parameters, T* residuals) const {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
-        using V3T = Eigen::Vector<T,3>;
-
         const T* const r = parameters[poseParamGroupPos];
         const T* const t = parameters[poseParamGroupPos+1];
 
@@ -673,11 +647,6 @@ public:
         std::remove_reference_t<decltype (std::get<0>(args))>
         >>;
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
-        using V3T = Eigen::Vector<T,3>;
-
         const T* const r = std::get<poseParamGroupPos>(args);
         const T* const t = std::get<poseParamGroupPos+1>(args);
 
@@ -704,11 +673,11 @@ public:
         StereoVision::Geometry::RigidBodyTransform<T> transformed;
 
         if (poseTransformDirection == PoseTransformDirection::FinalToTarget) {
-            transformed = _transform.cast<T>() * pose;
+            transformed = pose * _transform.cast<T>();
         }
 
         if (poseTransformDirection == PoseTransformDirection::SourceToInitial) {
-            transformed = pose * _transform.cast<T>();
+            transformed = _transform.cast<T>() * pose;
         }
 
         for (int i = 0; i < 3; i++) {
@@ -717,6 +686,7 @@ public:
         }
 
         auto variadic_lambda = [this] (auto... params) {
+            (void) this;
             return FunctorT::operator()(params...);
         };
 
@@ -744,11 +714,6 @@ public:
 
     template <typename T, typename ... P>
     bool operator()(T const* const* parameters, T* residuals) const {
-
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
-        using V3T = Eigen::Vector<T,3>;
 
         const T* const r = parameters[poseParamGroupPos];
         const T* const t = parameters[poseParamGroupPos+1];
@@ -823,9 +788,6 @@ public:
                 std::remove_reference_t<decltype (std::get<0>(args))>
                 >>;
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
         const T* const r = std::get<pointParamPos>(args);
@@ -886,9 +848,6 @@ public:
     template <typename T>
     bool operator()(T const* const* parameters, T* residuals) const {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
         const T* const r = parameters[pointParamPos];
@@ -980,9 +939,6 @@ public:
         std::remove_reference_t<decltype (std::get<0>(args))>
         >>;
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
         const T* const r1 = std::get<poseParamGroupPos>(args);
@@ -1061,9 +1017,6 @@ public:
     template <typename T, typename ... P>
     bool operator()(T const* const* parameters, T* residuals) const {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
         const T* const r1 = parameters[poseParamGroupPos];
@@ -1160,9 +1113,6 @@ public:
         std::remove_reference_t<decltype (std::get<0>(args))>
         >>;
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
         const T* const r = std::get<poseParamGroupPos>(args);
@@ -1224,9 +1174,6 @@ public:
     template <typename T, typename ... P>
     bool operator()(T const* const* parameters, T* residuals) const {
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
         const T* const r = parameters[poseParamGroupIdx];
@@ -1275,44 +1222,9 @@ public:
     static constexpr int leverArmRotParamId = pParamId+2;
     static constexpr int leverArmPosParamId = pParamId+3;
 
-    using LeverArmCost = LeverArm<FunctorT,leverArmConfig,0>;
-    using PoseTransformCost = PoseTransform<FunctorT,poseTransformDirection,0>;
-    using PoseTransformLeverArmCost = PoseTransform<LeverArmCost,poseTransformDirection,0>;
-
-    using LeverArmCostDynamic = LeverArmDynamic<FunctorT,leverArmConfig,0>;
-    using PoseTransformCostDynamic = PoseTransformDynamic<FunctorT,poseTransformDirection,0>;
-    using PoseTransformLeverArmCostDynamic = PoseTransformDynamic<LeverArmCostDynamic,poseTransformDirection,0>;
-
-protected:
-
-    template<int n>
-    struct counter {
-
-    };
-
-    template<typename counterT, size_t nR, typename CFType, typename SequenceT, int... argsS>
-    struct leverArmAutoDiffCostHelper {
-        using CostFuncT = void;
-    };
-
-    template<size_t posId, size_t nR, typename CFType, int... argsP, int arg0, int... argsS>
-    struct leverArmAutoDiffCostHelper<counter<posId>, nR, CFType, std::integer_sequence<int, argsP...>, arg0, argsS...> {
-        using CostFuncT = std::conditional_t<posId == 0,
-                                             ceres::AutoDiffCostFunction<CFType, nR, argsP..., 3, 3, arg0, argsS...>,
-                                             typename leverArmAutoDiffCostHelper<std::conditional_t<posId >= 2, counter<std::max<int>(posId-1,1)>, void>, nR, CFType, std::integer_sequence<int, argsP..., arg0>, argsS...>::CostFuncT>;
-    };
-
-    template<size_t nR, typename CFType, int... argsP>
-    struct leverArmAutoDiffCostHelper<counter<0>, nR, CFType, std::integer_sequence<int, argsP...>> {
-        using CostFuncT = ceres::AutoDiffCostFunction<CFType, nR, argsP..., 3, 3>;
-    };
-
-public:
-
-    struct CostFunctionData {
-        ceres::CostFunction* costFunction;
-        std::vector<double*> params;
-    };
+    using LeverArmCostDynamic = LeverArmDynamic<FunctorT,leverArmConfig,poseParamId>;
+    using PoseTransformCostDynamic = PoseTransformDynamic<FunctorT,poseTransformDirection,poseParamId>;
+    using PoseTransformLeverArmCostDynamic = PoseTransformDynamic<LeverArmCostDynamic,poseTransformDirection,poseParamId>;
 
     template<typename ... T>
     static CostFunctionData buildPoseShiftedCostFunction(double ** parameters,
@@ -1327,28 +1239,22 @@ public:
 
             if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
 
-                LeverArmCost* costFunctor = new LeverArmCost(constructorArgs...);
+
+                //add the lever arm parameters at the front (easier for recursion)
+                using DecoratedFunctor = ApplyLeverArm<AddPose<FunctorT, 0>, 0, poseParamId+2, leverArmConfig>;
+                DecoratedFunctor* costFunctor = new DecoratedFunctor(constructorArgs...);
 
                 constexpr int modifiedNArgs = nArgs+2;
 
                 std::vector<double*> params(modifiedNArgs);
-
-                int modifiedArgsId = 0;
+                params[0] = leverArmOrientation;
+                params[1] = leverArmPosition;
 
                 for (int i = 0; i < nArgs; i++) {
-                    params[modifiedArgsId] = parameters[i];
-
-                    if (i == poseParamId+1) {
-                        modifiedArgsId++;
-                        params[modifiedArgsId] = leverArmOrientation;
-                        modifiedArgsId++;
-                        params[modifiedArgsId] = leverArmPosition;
-                    }
-
-                    modifiedArgsId++;
+                    params[i+2] = parameters[i];
                 }
 
-                using lACersCF = typename leverArmAutoDiffCostHelper<counter<poseParamId>, nRes, LeverArmCost, std::integer_sequence<int>, argsSizes...>::CostFuncT;
+                using lACersCF = ceres::AutoDiffCostFunction<DecoratedFunctor,nRes,3,3,argsSizes...>;
                 ceres::CostFunction* costFunc = new lACersCF(costFunctor);
 
                 return {costFunc, params};
@@ -1371,37 +1277,59 @@ public:
 
             if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
 
-                PoseTransformLeverArmCost* costFunctor =
-                    new PoseTransformLeverArmCost(
-                        offset, constructorArgs...);
+                if constexpr (leverArmConfig|DecoratorPoseConfiguration::Body2World) {
 
-                constexpr int modifiedNArgs = nArgs+2;
+                    using LaFunctorT = ApplyLeverArm<AddPose<FunctorT, 0>, 0, poseParamId+2, leverArmConfig>;
+                    using DecoratedFunctor = PoseTransform<LaFunctorT,poseTransformDirection,poseParamId+2>;
 
-                std::vector<double*> params(modifiedNArgs);
+                    DecoratedFunctor* costFunctor =
+                        new DecoratedFunctor(
+                            offset, constructorArgs...);
 
-                int modifiedArgsId = 0;
+                    constexpr int modifiedNArgs = nArgs+2;
 
-                for (int i = 0; i < nArgs; i++) {
-                    params[modifiedArgsId] = parameters[i];
+                    std::vector<double*> params(modifiedNArgs);
+                    params[0] = leverArmOrientation;
+                    params[1] = leverArmPosition;
 
-                    if (i == poseParamId+1) {
-                        modifiedArgsId++;
-                        params[modifiedArgsId] = leverArmOrientation;
-                        modifiedArgsId++;
-                        params[modifiedArgsId] = leverArmPosition;
+                    for (int i = 0; i < nArgs; i++) {
+                        params[i+2] = parameters[i];
                     }
 
-                    modifiedArgsId++;
+                    using lACersCF = ceres::AutoDiffCostFunction<DecoratedFunctor,nRes,3,3,argsSizes...>;
+                    ceres::CostFunction* costFunc = new lACersCF(costFunctor);
+
+                    return {costFunc, params};
+
+                } else {
+
+                    using PFunctorT = PoseTransform<FunctorT,poseTransformDirection,poseParamId>;
+                    using DecoratedFunctor = ApplyLeverArm<AddPose<PFunctorT, 0>, 0, poseParamId+2, leverArmConfig>;
+
+                    DecoratedFunctor* costFunctor =
+                        new DecoratedFunctor(
+                            offset, constructorArgs...);
+
+                    constexpr int modifiedNArgs = nArgs+2;
+
+                    std::vector<double*> params(modifiedNArgs);
+                    params[0] = leverArmOrientation;
+                    params[1] = leverArmPosition;
+
+                    for (int i = 0; i < nArgs; i++) {
+                        params[i+2] = parameters[i];
+                    }
+
+                    using lACersCF = ceres::AutoDiffCostFunction<DecoratedFunctor,nRes,3,3,argsSizes...>;
+                    ceres::CostFunction* costFunc = new lACersCF(costFunctor);
+
+                    return {costFunc, params};
                 }
-
-                using lACersCF = typename leverArmAutoDiffCostHelper<counter<poseParamId>, nRes, PoseTransformLeverArmCost, std::integer_sequence<int>, argsSizes...>::CostFuncT;
-                ceres::CostFunction* costFunc = new lACersCF(costFunctor);
-
-                return {costFunc, params};
 
             } else {
 
-                PoseTransformCost* costFunctor = new PoseTransformCost(offset, constructorArgs...);
+                using PFunctorT = PoseTransform<FunctorT,poseTransformDirection,poseParamId>;
+                PFunctorT* costFunctor = new PFunctorT(offset, constructorArgs...);
 
                 std::vector<double*> params(nArgs);
 
@@ -1409,7 +1337,7 @@ public:
                     params[i] = parameters[i];
                 }
 
-                ceres::CostFunction* costFunc = new ceres::AutoDiffCostFunction<PoseTransformCost, nRes, argsSizes...>(costFunctor);
+                ceres::CostFunction* costFunc = new ceres::AutoDiffCostFunction<PFunctorT, nRes, argsSizes...>(costFunctor);
 
                 return {costFunc, params};
 
@@ -1566,11 +1494,6 @@ public:
 
     using FunctorT = FT;
 
-    struct CostFunctionData {
-        ceres::CostFunction* costFunction;
-        std::vector<double*> params;
-    };
-
     struct PoseModificationData {
         const StereoVision::Geometry::RigidBodyTransform<double> offset; //fixed offset applied on top of the parametrized pose.
         double *leverArmOrientation; //parameter for the lever arm orientation
@@ -1604,6 +1527,113 @@ protected:
     static_assert(checkIndices(IndicesData<PoseParamsPos>::indices), "PoseParamsPos must give indices in increasing order, and indices should be at least 2 position appart to accomodate the pose parameters!");
 
     using PoseDataContainerInternal = std::array<PoseModificationData, IndicesData<PoseParamsPos>::indices.size()>;
+
+    template<typename FunctorT, int currentId = 0, int... ArgsS>
+    struct CostFunctionBuilder {
+
+        template<int PosePosOffset = 0, typename ... T>
+        static CostFunctionData buildCostFunction(double ** parameters,
+                                                  PoseDataContainerInternal const& posesData,
+                                                  T... constructorArgs) {
+
+            constexpr int currentPosePos = IndicesData<PoseParamsPos>::indices.at(std::min<size_t>(currentId,
+                                                                                                   IndicesData<PoseParamsPos>::indices.size()-1)) + PosePosOffset;
+            using PoseT = decltype(PoseModificationData::offset);
+
+            constexpr int nArgs = sizeof...(ArgsS);
+
+            if constexpr (currentId >= IndicesData<PoseParamsPos>::indices.size()) {
+
+                std::vector<double*> params(nArgs);
+
+                for (size_t i = 0; i < nArgs; i++) {
+                    params[i] = parameters[i];
+                }
+
+                return ParamsCollapseHelper<FunctorT, nRes, ArgsS...>::buildCollapsedArgsCostFunction(params, constructorArgs...);
+
+            } else {
+
+                if (posesData[currentId].offset.r.norm() < 1e-6 and posesData[currentId].offset.t.norm() < 1e-6) {
+
+                    if (posesData[currentId].leverArmOrientation != nullptr and posesData[currentId].leverArmPosition != nullptr) {
+
+                        //add the lever arm parameters at the front (easier for recursion)
+                        using DecoratedFunctor = ApplyLeverArm<AddPose<FunctorT, 0>, 0, currentPosePos+2, leverArmConfig>;
+
+                        std::vector<double*> modifiedParams(nArgs+2);
+                        modifiedParams[0] = posesData[currentId].leverArmOrientation;
+                        modifiedParams[1] = posesData[currentId].leverArmPosition;
+
+                        for (int i = 0; i < nArgs; i++) {
+                            modifiedParams[i+2] = parameters[i];
+                        }
+
+                        return CostFunctionBuilder<DecoratedFunctor, currentId+1, 3, 3, ArgsS...>::template buildCostFunction<PosePosOffset+2,T...>
+                            (modifiedParams.data(), posesData, constructorArgs...);
+
+                    } else {
+
+                        using DecoratedFunctor = FunctorT;
+
+                        return CostFunctionBuilder<DecoratedFunctor, currentId+1, ArgsS...>::template buildCostFunction<PosePosOffset,T...>
+                            (parameters, posesData, constructorArgs...);
+
+                    }
+
+                } else {
+
+                    if (posesData[currentId].leverArmOrientation != nullptr and posesData[currentId].leverArmPosition != nullptr) {
+
+                        if constexpr (leverArmConfig|DecoratorPoseConfiguration::Body2World) {
+
+                            //add the lever arm parameters at the front (easier for recursion)
+                            using LaFunctorT = ApplyLeverArm<AddPose<FunctorT, 0>, 0, currentPosePos+2, leverArmConfig>;
+                            using DecoratedFunctor = PoseTransform<LaFunctorT,poseTransformDirection,currentPosePos+2>;
+
+                            std::vector<double*> modifiedParams(nArgs+2);
+                            modifiedParams[0] = posesData[currentId].leverArmOrientation;
+                            modifiedParams[1] = posesData[currentId].leverArmPosition;
+
+                            for (int i = 0; i < nArgs; i++) {
+                                modifiedParams[i+2] = parameters[i];
+                            }
+
+                            return CostFunctionBuilder<DecoratedFunctor, currentId+1, 3, 3, ArgsS...>::template buildCostFunction<PosePosOffset+2, PoseT const& , T...>
+                                (modifiedParams.data(), posesData, posesData[currentId].offset, constructorArgs...);
+
+                        } else {
+
+                            using PFunctorT = PoseTransform<FunctorT,poseTransformDirection,currentPosePos>;
+                            //add the lever arm parameters at the front (easier for recursion)
+                            using DecoratedFunctor = ApplyLeverArm<AddPose<PFunctorT, 0>, 0, currentPosePos+2, leverArmConfig>;
+
+                            std::vector<double*> modifiedParams(nArgs+2);
+                            modifiedParams[0] = posesData[currentId].leverArmOrientation;
+                            modifiedParams[1] = posesData[currentId].leverArmPosition;
+
+                            for (int i = 0; i < nArgs; i++) {
+                                modifiedParams[i+2] = parameters[i];
+                            }
+
+                            return CostFunctionBuilder<DecoratedFunctor, currentId+1, 3, 3, ArgsS...>::template buildCostFunction<PosePosOffset+2, PoseT const& , T...>
+                                (modifiedParams.data(), posesData, posesData[currentId].offset, constructorArgs...);
+                        }
+
+                    } else {
+
+                        using DecoratedFunctor = PoseTransform<FunctorT,poseTransformDirection,currentPosePos>;
+
+                        return CostFunctionBuilder<DecoratedFunctor, currentId+1, ArgsS...>::template buildCostFunction<PosePosOffset, PoseT const& , T...>
+                            (parameters, posesData, posesData[currentId].offset, constructorArgs...);
+
+                    }
+                }
+
+            }
+
+        }
+    };
 
     template<typename FunctorT, int currentId = 0>
     struct DynamicCostFunctionBuilder {
@@ -1710,10 +1740,17 @@ protected:
 
                     if (posesData[currentId].leverArmOrientation != nullptr and posesData[currentId].leverArmPosition != nullptr) {
 
-                        using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<FunctorT,poseTransformDirection,currentPosePos>, leverArmConfig, currentPosePos>;
+                        if constexpr (leverArmConfig|DecoratorPoseConfiguration::Body2World) {
+                            using DecoratedFunctor = PoseTransformDynamic<LeverArmDynamic<FunctorT, leverArmConfig, currentPosePos>,poseTransformDirection,currentPosePos>;
 
-                        return DynamicCostFunctionBuilder<DecoratedFunctor, currentId+1>::template buildCostFunction<stride, PosePosOffset+2, PoseT const& , T...>
-                            (parameters, parametersSizeInfos, posesData, posesData[currentId].offset, constructorArgs...);
+                            return DynamicCostFunctionBuilder<DecoratedFunctor, currentId+1>::template buildCostFunction<stride, PosePosOffset+2, PoseT const& , T...>
+                                (parameters, parametersSizeInfos, posesData, posesData[currentId].offset, constructorArgs...);
+                        } else {
+                            using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<FunctorT,poseTransformDirection,currentPosePos>, leverArmConfig, currentPosePos>;
+
+                            return DynamicCostFunctionBuilder<DecoratedFunctor, currentId+1>::template buildCostFunction<stride, PosePosOffset+2, PoseT const& , T...>
+                                (parameters, parametersSizeInfos, posesData, posesData[currentId].offset, constructorArgs...);
+                        }
 
                     } else {
 
@@ -1735,13 +1772,23 @@ public:
     static constexpr int NModifiedPoses = IndicesData<PoseParamsPos>::indices.size();
     using PoseDataContainer = PoseDataContainerInternal;
 
+
+    template<typename ... T>
+    static CostFunctionData buildPoseShiftedCostFunction(double ** parameters,
+                                                         PoseDataContainerInternal const& posesData,
+                                                         T... constructorArgs) {
+
+        constexpr int currentId = 0;
+        return CostFunctionBuilder<FunctorT, currentId, argsSizes...>::template buildCostFunction(parameters, posesData, constructorArgs...);
+
+    }
+
     template<int stride = 4, typename ... T>
     static CostFunctionData buildPoseShiftedDynamicCostFunction(double ** parameters,
                                                                 std::vector<int> const& parametersSizeInfos,
                                                                 PoseDataContainerInternal const& posesData,
                                                                 T... constructorArgs) {
 
-        constexpr int strides = 4;
         return DynamicCostFunctionBuilder<FunctorT>::template buildCostFunction<stride>(parameters, parametersSizeInfos, posesData, constructorArgs...);
 
     }

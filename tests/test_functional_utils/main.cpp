@@ -138,8 +138,7 @@ void TestFunctionalUtils::testPoseDecorators() {
             }
         };
 
-        auto verifyPoseIsZero = [this] (StereoVision::Geometry::RigidBodyTransform<double> const& pose) {
-
+        auto verifyPoseIsZero = [] (StereoVision::Geometry::RigidBodyTransform<double> const& pose) {
 
             for (int i = 0; i < 3; i++) {
                 QVERIFY(std::abs(pose.r[i]) < 1e-4);

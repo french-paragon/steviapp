@@ -3,6 +3,7 @@
 #include "./landmark.h"
 #include "./itemdatamodel.h"
 #include "./trajectory.h"
+#include "./mounting.h"
 
 namespace StereoVisionApp {
 
@@ -10,6 +11,8 @@ LocalCoordinateSystem::LocalCoordinateSystem(Project *parent) :
 	RigidBody(parent)
 {
 	extendDataModel();
+    _assignedTrajectory = -1;
+    _assignedMounting = -1;
 }
 
 qint64 LocalCoordinateSystem::assignedTrajectory() const {
@@ -29,9 +32,45 @@ void LocalCoordinateSystem::assignTrajectory(qint64 trajId) {
     if (_assignedTrajectory >= 0) removeRefered({_assignedTrajectory});
     _assignedTrajectory = trajId;
     if (_assignedTrajectory >= 0) addRefered({_assignedTrajectory});
-    emit assignedTrajectoryChanged(_assignedTrajectory);
+    emit assignedTrajectoryChanged();
     return;
 
+}
+QString LocalCoordinateSystem::getAssignedTrajectoryName() const {
+    Trajectory* traj = getAssignedTrajectory();
+
+    if (traj == nullptr) {
+        return "-";
+    }
+
+    return traj->objectName();
+}
+
+qint64 LocalCoordinateSystem::assignedMounting() const {
+    return _assignedMounting;
+}
+Mounting* LocalCoordinateSystem::getAssignedMounting() const {
+    return getProject()->getDataBlock<Mounting>(_assignedMounting);
+}
+void LocalCoordinateSystem::assignMounting(qint64 mountId) {
+    if (mountId == _assignedMounting) {
+        return;
+    }
+
+    if (_assignedMounting >= 0) removeRefered({_assignedMounting});
+    _assignedMounting = mountId;
+    if (_assignedMounting >= 0) addRefered({_assignedMounting});
+    emit assignedMountingChanged();
+    return;
+}
+QString LocalCoordinateSystem::getAssignedMountingName() const {
+    Mounting* mounting = getAssignedMounting();
+
+    if (mounting == nullptr) {
+        return "-";
+    }
+
+    return mounting->objectName();
 }
 
 qint64 LocalCoordinateSystem::addLandmarkLocalCoordinates(qint64 attachedLandmarkId,
@@ -216,6 +255,29 @@ void LocalCoordinateSystem::configureFromJson(QJsonObject const& data) {
 }
 
 void LocalCoordinateSystem::extendDataModel() {
+
+
+    StereoVisionApp::ItemDataModel::Category* ldbp = _dataModel->addCategory(tr("Trajectory link"));
+
+    ldbp->addCatProperty<QString,
+                         LocalCoordinateSystem,
+                         false,
+                         StereoVisionApp::ItemDataModel::ItemPropertyDescription::NoValueSignal> (
+        tr("Trajectory"),
+        &LocalCoordinateSystem::getAssignedTrajectoryName,
+        nullptr,
+        &LocalCoordinateSystem::assignedTrajectoryChanged
+        );
+
+    ldbp->addCatProperty<QString,
+                         LocalCoordinateSystem,
+                         false,
+                         StereoVisionApp::ItemDataModel::ItemPropertyDescription::NoValueSignal> (
+        tr("Mounting"),
+        &LocalCoordinateSystem::getAssignedMountingName,
+        nullptr,
+        &LocalCoordinateSystem::assignedMountingChanged
+        );
 
 	ItemDataModel::Category* g = _dataModel->addCategory(tr("Geometric properties"));
 

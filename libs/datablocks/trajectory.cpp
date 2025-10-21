@@ -26,6 +26,7 @@ const char* Trajectory::OptDataRotZHeader = "Trajectory Z orientation";
 
 Trajectory::Trajectory(Project* parent) :
     DataBlock(parent),
+    _commentPattern("#"),
     _use_start_end_orientation_priors(false),
     _gpsAccuracy(0.02),
     _angularAccuracy(0.1),

@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/trajectories">
+        <file alias="zero_acc/ins.csv">TestTrajectories/zero_acc/ins.csv</file>
+        <file alias="zero_acc/sbet.csv">TestTrajectories/zero_acc/sbet.csv</file>
+    </qresource>
+</RCC>

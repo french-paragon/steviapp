@@ -103,6 +103,20 @@ bool CorrespondencesSetSBAModule::addGraphReductorObservations(Project *currentP
                 graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 3);
             }
 
+            //timed XYZ correspondances
+
+            if (pair.holdsCorrespondancesType<Correspondences::XYZT,Correspondences::XYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::XYZT,Correspondences::XYZ>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 3);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::XYZT,Correspondences::XYZT>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::XYZT,Correspondences::XYZT>().value();
+                graphReductor->insertObservation(typedPair.c1.blockId, typedPair.c2.blockId, 3);
+            }
+
             //image correspondences
 
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::UV>()) {
@@ -678,6 +692,373 @@ bool CorrespondencesSetSBAModule::addXYZ2PriorMatch(Correspondences::Typed<Corre
     CostFuncT* costFunc = new CostFuncT(cost);
 
     problem.AddResidualBlock(costFunc, nullptr, targetPosBuffer, p1->rAxis.data(), p1->t.data());
+
+    return true;
+}
+
+bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Correspondences::XYZT> const& xyzt,
+                                                   Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                                                   StereoVisionApp::ModularSBASolver* solver,
+                                                   ceres::Problem & problem) {
+
+    //xyznode
+
+    double* targetRData = nullptr;
+    double* targetTData = nullptr;
+
+    ModularSBASolver::PoseNode* pose = solver->getPoseNode(xyz.blockId);
+
+    if (pose != nullptr) {
+
+        qint64 trajid = pose->trajectoryId.value_or(-1);
+
+        if (trajid >= 0 and !pose->time.has_value()) {
+            return false; //cannot have just a plain XYZ match for lcs on a trajectory, need a XYZT match
+        }
+
+        targetRData = pose->rAxis.data();
+        targetTData = pose->t.data();
+
+    }
+
+    if (targetRData == nullptr or targetTData == nullptr) {
+        return false;
+    }
+
+    //xyzt node
+
+    ModularSBASolver::ItemTrajectoryInfos itemTrajectoryInfos =
+        solver->getItemTrajectoryInfos(xyzt.blockId);
+
+    if (itemTrajectoryInfos.datablockId != xyzt.blockId) {
+        return false;
+    }
+
+    bool createIfMissing = false;
+    ModularSBASolver::TrajectoryNode* trajNode = solver->getNodeForTrajectory(itemTrajectoryInfos.TrajId, createIfMissing);
+
+    if (trajNode == nullptr) { //the xyz data is not for a specific data point, but the world
+        return false;
+    }
+
+    if (xyzt.t < trajNode->nodes[0].time or xyzt.t > trajNode->nodes.back().time) {
+        return false; //outside of time range
+    }
+
+    size_t trajNodeId = trajNode->getNodeForTime(xyzt.t);
+    size_t nextNodeId = trajNodeId+1;
+
+    if (trajNodeId < 0 or nextNodeId >= trajNode->nodes.size()) {
+        return false;
+    }
+
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& previousPose = trajNode->nodes[trajNodeId];
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& nextPose = trajNode->nodes[nextNodeId];
+
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& closest =
+        (xyzt.t - previousPose.time < nextPose.time - xyzt.t) ? previousPose : nextPose;
+
+    StereoVision::Geometry::RigidBodyTransform<double> measure2node =
+        StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+    if (trajNode->initialTrajectory.nPoints() > 0) {
+
+        auto nodeInitialPose = trajNode->initialTrajectory.getValueAtTime(closest.time);
+        auto measureInitialPose = trajNode->initialTrajectory.getValueAtTime(xyzt.t);
+
+        StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
+            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
+             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+
+        StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
+            (measureInitialPose.weigthLower, measureInitialPose.valLower,
+             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+
+        measure2node =
+            node2worldInitial.inverse()*measure2worldInitial;
+
+    }
+
+    double* leverArmR = nullptr;
+    double* leverArmT = nullptr;
+
+    ModularSBASolver::PoseNode* laNode = solver->getPoseNode(itemTrajectoryInfos.ExternalLeverArmId);
+
+    if (laNode != nullptr) {
+        leverArmR = laNode->rAxis.data();
+        leverArmT = laNode->t.data();
+    }
+
+    //params values
+
+    Eigen::Vector3d trajPos;
+    trajPos << xyzt.x, xyzt.y, xyzt.z;
+
+    Eigen::Vector3d localPos;
+    localPos << xyz.x, xyz.y, xyz.z;
+
+    Eigen::Matrix3d stiffness = Eigen::Matrix3d::Identity();
+
+    if (xyzt.sigmaX.has_value() and xyzt.sigmaY.has_value() and xyzt.sigmaZ.has_value()) {
+
+        if (xyz.sigmaX.has_value() and xyz.sigmaY.has_value() and xyz.sigmaZ.has_value()) {
+            stiffness(0,0) = 1/(xyzt.sigmaX.value() + xyz.sigmaX.value());
+            stiffness(1,1) = 1/(xyzt.sigmaY.value() + xyz.sigmaY.value());
+            stiffness(2,2) = 1/(xyzt.sigmaZ.value() + xyz.sigmaZ.value());
+        } else {
+            stiffness(0,0) = 1/(xyzt.sigmaX.value());
+            stiffness(1,1) = 1/(xyzt.sigmaY.value());
+            stiffness(2,2) = 1/(xyzt.sigmaZ.value());
+        }
+
+    } else if (xyz.sigmaX.has_value() and xyz.sigmaY.has_value() and xyz.sigmaZ.has_value()) {
+
+        stiffness(0,0) = 1/(xyz.sigmaX.value());
+        stiffness(1,1) = 1/(xyz.sigmaY.value());
+        stiffness(2,2) = 1/(xyz.sigmaZ.value());
+
+    }
+
+    //cost function
+
+    constexpr int paramId = 0;
+    constexpr int nRes = 3;
+    constexpr int leverArmConfig = Body2World|Body2Sensor;
+    constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
+
+    using CostFuncBuilder = ModifiedPoseCostFunctionBuilderHelper
+        <Local3DCoalignementCost,
+        poseTransformDirection,
+        leverArmConfig,
+        paramId,
+        nRes,
+        3, 3, 3, 3>;
+
+    std::vector<double*> baseParameters(4);
+
+    baseParameters[0] = closest.rAxis.data();
+    baseParameters[1] = closest.t.data();
+    baseParameters[2] = targetRData;
+    baseParameters[3] = targetTData;
+
+    auto costInfos = CostFuncBuilder::buildPoseShiftedCostFunction(baseParameters.data(),
+                                                                   measure2node,
+                                                                   leverArmR,
+                                                                   leverArmT,
+                                                                   trajPos,
+                                                                   localPos,
+                                                                   stiffness);
+
+    problem.AddResidualBlock(costInfos.costFunction, nullptr, costInfos.params.data(), costInfos.params.size());
+
+    return true;
+
+}
+
+bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Correspondences::XYZT> const& xyzt1,
+                                                    Correspondences::Typed<Correspondences::XYZT> const& xyzt2,
+                                                    StereoVisionApp::ModularSBASolver* solver,
+                                                    ceres::Problem & problem) {
+
+
+    //xyzt1 node
+
+    ModularSBASolver::ItemTrajectoryInfos itemTrajectoryInfos1 =
+        solver->getItemTrajectoryInfos(xyzt1.blockId);
+
+    if (itemTrajectoryInfos1.datablockId != xyzt1.blockId) {
+        return false;
+    }
+
+    bool createIfMissing = false;
+    ModularSBASolver::TrajectoryNode* trajNode1 = solver->getNodeForTrajectory(itemTrajectoryInfos1.TrajId, createIfMissing);
+
+    if (trajNode1 == nullptr) { //the xyz data is not for a specific data point, but the world
+        return false;
+    }
+
+    if (xyzt1.t < trajNode1->nodes[0].time or xyzt1.t > trajNode1->nodes.back().time) {
+        return false; //outside of time range
+    }
+
+    size_t trajNode1Id = trajNode1->getNodeForTime(xyzt1.t);
+    size_t nextNode1Id = trajNode1Id+1;
+
+    if (trajNode1Id < 0 or nextNode1Id >= trajNode1->nodes.size()) {
+        return false;
+    }
+
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& previousPose1 = trajNode1->nodes[trajNode1Id];
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& nextPose1 = trajNode1->nodes[nextNode1Id];
+
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& closest1 =
+        (xyzt1.t - previousPose1.time < nextPose1.time - xyzt1.t) ? previousPose1 : nextPose1;
+
+    StereoVision::Geometry::RigidBodyTransform<double> measure2node1 =
+        StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+    if (trajNode1->initialTrajectory.nPoints() > 0) {
+
+        auto nodeInitialPose = trajNode1->initialTrajectory.getValueAtTime(closest1.time);
+        auto measureInitialPose = trajNode1->initialTrajectory.getValueAtTime(xyzt1.t);
+
+        StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
+            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
+             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+
+        StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
+            (measureInitialPose.weigthLower, measureInitialPose.valLower,
+             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+
+        measure2node1 =
+            node2worldInitial.inverse()*measure2worldInitial;
+
+    }
+
+    double* leverArmR1 = nullptr;
+    double* leverArmT1 = nullptr;
+
+    ModularSBASolver::PoseNode* laNode1 = solver->getPoseNode(itemTrajectoryInfos1.ExternalLeverArmId);
+
+    if (laNode1 != nullptr) {
+        leverArmR1 = laNode1->rAxis.data();
+        leverArmT1 = laNode1->t.data();
+    }
+
+
+    //xyzt2 node
+
+    ModularSBASolver::ItemTrajectoryInfos itemTrajectoryInfos2 =
+        solver->getItemTrajectoryInfos(xyzt2.blockId);
+
+    if (itemTrajectoryInfos2.datablockId != xyzt2.blockId) {
+        return false;
+    }
+
+    ModularSBASolver::TrajectoryNode* trajNode2 = solver->getNodeForTrajectory(itemTrajectoryInfos2.TrajId, createIfMissing);
+
+    if (trajNode2 == nullptr) { //the xyz data is not for a specific data point, but the world
+        return false;
+    }
+
+    if (xyzt2.t < trajNode2->nodes[0].time or xyzt2.t > trajNode2->nodes.back().time) {
+        return false; //outside of time range
+    }
+
+    size_t trajNode2Id = trajNode2->getNodeForTime(xyzt2.t);
+    size_t nextNode2Id = trajNode2Id+1;
+
+    if (trajNode2Id < 0 or nextNode2Id >= trajNode2->nodes.size()) {
+        return false;
+    }
+
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& previousPose2 = trajNode2->nodes[trajNode2Id];
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& nextPose2 = trajNode2->nodes[nextNode2Id];
+
+    StereoVisionApp::ModularSBASolver::TrajectoryPoseNode& closest2 =
+        (xyzt2.t - previousPose2.time < nextPose2.time - xyzt2.t) ? previousPose2 : nextPose2;
+
+    StereoVision::Geometry::RigidBodyTransform<double> measure2node2 =
+        StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+    if (trajNode2->initialTrajectory.nPoints() > 0) {
+
+        auto nodeInitialPose = trajNode2->initialTrajectory.getValueAtTime(closest2.time);
+        auto measureInitialPose = trajNode2->initialTrajectory.getValueAtTime(xyzt2.t);
+
+        StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
+            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
+             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+
+        StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
+            (measureInitialPose.weigthLower, measureInitialPose.valLower,
+             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+
+        measure2node2 =
+            node2worldInitial.inverse()*measure2worldInitial;
+
+    }
+
+    double* leverArmR2 = nullptr;
+    double* leverArmT2 = nullptr;
+
+    ModularSBASolver::PoseNode* laNode2 = solver->getPoseNode(itemTrajectoryInfos2.ExternalLeverArmId);
+
+    if (laNode2 != nullptr) {
+        leverArmR2 = laNode2->rAxis.data();
+        leverArmT2 = laNode2->t.data();
+    }
+
+    //params values
+
+    Eigen::Vector3d trajPos1;
+    trajPos1 << xyzt1.x, xyzt1.y, xyzt1.z;
+
+    Eigen::Vector3d trajPos2;
+    trajPos2 << xyzt2.x, xyzt2.y, xyzt2.z;
+
+    Eigen::Matrix3d stiffness = Eigen::Matrix3d::Identity();
+
+    if (xyzt1.sigmaX.has_value() and xyzt1.sigmaY.has_value() and xyzt1.sigmaZ.has_value()) {
+
+        if (xyzt2.sigmaX.has_value() and xyzt2.sigmaY.has_value() and xyzt2.sigmaZ.has_value()) {
+            stiffness(0,0) = 1/(xyzt1.sigmaX.value() + xyzt2.sigmaX.value());
+            stiffness(1,1) = 1/(xyzt1.sigmaY.value() + xyzt2.sigmaY.value());
+            stiffness(2,2) = 1/(xyzt1.sigmaZ.value() + xyzt2.sigmaZ.value());
+        } else {
+            stiffness(0,0) = 1/(xyzt1.sigmaX.value());
+            stiffness(1,1) = 1/(xyzt1.sigmaY.value());
+            stiffness(2,2) = 1/(xyzt1.sigmaZ.value());
+        }
+
+    } else if (xyzt2.sigmaX.has_value() and xyzt2.sigmaY.has_value() and xyzt2.sigmaZ.has_value()) {
+
+        stiffness(0,0) = 1/(xyzt2.sigmaX.value());
+        stiffness(1,1) = 1/(xyzt2.sigmaY.value());
+        stiffness(2,2) = 1/(xyzt2.sigmaZ.value());
+
+    }
+
+    //cost function
+
+    constexpr int paramId = 0;
+    constexpr int nRes = 3;
+    constexpr int leverArmConfig = Body2World|Body2Sensor;
+    constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
+
+    using PoseIdxs = std::index_sequence<0,2>;
+
+    using CostFuncBuilder = ModifiedMultiPoseCostFunctionBuilderHelper
+        <Local3DCoalignementCost,
+         poseTransformDirection,
+         leverArmConfig,
+         PoseIdxs,
+         nRes,
+         3, 3, 3, 3>;
+
+    std::vector<double*> baseParameters(4);
+
+    baseParameters[0] = closest1.rAxis.data();
+    baseParameters[1] = closest1.t.data();
+    baseParameters[2] = closest2.rAxis.data();
+    baseParameters[3] = closest2.t.data();
+
+    CostFuncBuilder::PoseModificationData pose1Infos{measure2node1, leverArmR1, leverArmT1};
+    CostFuncBuilder::PoseModificationData pose2Infos{measure2node2, leverArmR2, leverArmT2};
+
+    auto costInfos = CostFuncBuilder::buildPoseShiftedCostFunction(baseParameters.data(),
+                                                                   {pose1Infos, pose2Infos},
+                                                                   trajPos1,
+                                                                   trajPos2,
+                                                                   stiffness);
+
+    problem.AddResidualBlock(costInfos.costFunction, nullptr, costInfos.params.data(), costInfos.params.size());
 
     return true;
 }
@@ -1887,6 +2268,20 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::PRIORID>().value();
                 ok = addXYZ2PriorMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            //timed XYZ correspondances
+
+            if (pair.holdsCorrespondancesType<Correspondences::XYZT,Correspondences::XYZ>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::XYZT,Correspondences::XYZ>().value();
+                ok = addXYZT2XYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::XYZT,Correspondences::XYZT>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::XYZT,Correspondences::XYZT>().value();
+                ok = addXYZT2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem);
             }
 
             //image correspondences

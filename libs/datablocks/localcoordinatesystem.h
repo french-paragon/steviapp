@@ -10,6 +10,7 @@ namespace StereoVisionApp {
 class Landmark;
 class LandmarkLocalCoordinates;
 class Trajectory;
+class Mounting;
 
 class LocalCoordinateSystem : public RigidBody
 {
@@ -20,6 +21,12 @@ public:
     qint64 assignedTrajectory() const;
     Trajectory* getAssignedTrajectory() const;
     void assignTrajectory(qint64 trajId);
+    QString getAssignedTrajectoryName() const;
+
+    qint64 assignedMounting() const;
+    Mounting* getAssignedMounting() const;
+    void assignMounting(qint64 mountId);
+    QString getAssignedMountingName() const;
 
 	qint64 addLandmarkLocalCoordinates(qint64 attachedLandmarkId,
 									   floatParameter priorX = floatParameter(),
@@ -39,7 +46,8 @@ public:
 
 Q_SIGNALS:
 
-    void assignedTrajectoryChanged(qint64 id);
+    void assignedTrajectoryChanged();
+    void assignedMountingChanged();
 
 	void pointAdded(qint64 pt);
 	void pointRemoved(qint64 pt);
@@ -53,6 +61,7 @@ protected:
 	void extendDataModel();
 
     qint64 _assignedTrajectory; //the trajectory the local coordinate system follow (if enabled, local landmarks coordinates have to get a time attached).
+    qint64 _assignedMounting; //the lever arm between the local coordinate system and its trajectory.
 
 };
 

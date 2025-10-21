@@ -5,6 +5,8 @@
 #include "datablocks/localcoordinatesystem.h"
 #include "datablocks/correspondencesset.h"
 #include "datablocks/image.h"
+#include "datablocks/trajectory.h"
+#include "datablocks/mounting.h"
 
 #include "costfunctors/localpointalignementcost.h"
 #include "costfunctors/local3dcoalignementcost.h"
@@ -58,17 +60,27 @@ bool LocalCoordinateSystemSBAModule::addGraphReductorObservations(Project *curre
             continue;
         }
 
-        int nSelfObs = 0;
+        Trajectory* trajectory = lcs->getAssignedTrajectory();
+        Mounting* mounting = lcs->getAssignedMounting();
 
-        if (lcs->xCoord().isSet() and lcs->yCoord().isSet() and lcs->zCoord().isSet()) {
-            nSelfObs += 3;
+        if (trajectory != nullptr and mounting != nullptr) { //lcs is attached to a trajectory
+
+            graphReductor->insertObservation(id, lcs->assignedTrajectory(), 6); // the lcs is constrained to the trajectory
+
+        } else {
+
+            int nSelfObs = 0;
+
+            if (lcs->xCoord().isSet() and lcs->yCoord().isSet() and lcs->zCoord().isSet()) {
+                nSelfObs += 3;
+            }
+
+            if(lcs->xRot().isSet() and lcs->yRot().isSet() and lcs->zRot().isSet()) {
+                nSelfObs += 3;
+            }
+
+            graphReductor->insertSelfObservation(id, nSelfObs);
         }
-
-        if(lcs->xRot().isSet() and lcs->yRot().isSet() and lcs->zRot().isSet()) {
-            nSelfObs += 3;
-        }
-
-        graphReductor->insertSelfObservation(id, nSelfObs);
 
         QVector<qint64> connections = lcs->getAttachedLandmarksIds();
 
@@ -106,10 +118,44 @@ bool LocalCoordinateSystemSBAModule::setupParameters(ModularSBASolver* solver) {
             continue;
         }
 
-        ModularSBASolver::PoseNode* lcsPoseNode = solver->getNodeForLocalCoordinates(lcsId, createIfMissing);
+        Trajectory* trajectory = lcs->getAssignedTrajectory();
+        Mounting* mounting = lcs->getAssignedMounting();
 
-        if (lcsPoseNode == nullptr) {
-            continue;
+        if (trajectory != nullptr and mounting != nullptr) { //lcs is attached to a trajectory
+
+            qint64 trajId = lcs->assignedTrajectory();
+
+            StereoVisionApp::ModularSBASolver::TrajectoryNode* trajNode = solver->getNodeForTrajectory(trajId, false);
+
+            //no trajectory node
+            if (trajNode == nullptr) {
+                continue;
+            }
+
+            qint64 mountingId = lcs->assignedMounting();
+
+            StereoVisionApp::ModularSBASolver::PoseNode* mountingNode = solver->getNodeForMounting(mountingId, true);
+
+            //no mounting node
+            if (mountingNode == nullptr) {
+                continue;
+            }
+
+            ModularSBASolver::ItemTrajectoryInfos trajectoryInfos{
+                .datablockId = lcsId,
+                .TrajId = trajId,
+                .ExternalLeverArmId = mountingId
+            };
+
+            solver->registerItemTrajectoryInfos(trajectoryInfos);
+
+        } else {
+
+            ModularSBASolver::PoseNode* lcsPoseNode = solver->getNodeForLocalCoordinates(lcsId, createIfMissing);
+
+            if (lcsPoseNode == nullptr) {
+                continue;
+            }
         }
 
     }
@@ -138,6 +184,15 @@ bool LocalCoordinateSystemSBAModule::init(ModularSBASolver* solver, ceres::Probl
         LocalCoordinateSystem* lcs = qobject_cast<LocalCoordinateSystem*>(currentProject->getById(lcsId));
 
         if (lcs == nullptr) {
+            continue;
+        }
+
+        Trajectory* trajectory = lcs->getAssignedTrajectory();
+        Mounting* mounting = lcs->getAssignedMounting();
+
+        if (trajectory != nullptr and mounting != nullptr) { //lcs is attached to a trajectory
+            //nothing to do for the moment
+            //TODO: implement timed point correspondances
             continue;
         }
 
@@ -364,6 +419,15 @@ bool LocalCoordinateSystemSBAModule::writeResults(ModularSBASolver* solver) {
         }
 
         if (lcs->isFixed()) {
+            continue;
+        }
+
+        Trajectory* trajectory = lcs->getAssignedTrajectory();
+        Mounting* mounting = lcs->getAssignedMounting();
+
+        if (trajectory != nullptr and mounting != nullptr) { //lcs is attached to a trajectory
+            //nothing to do for the moment
+            //TODO: implement timed point correspondances
             continue;
         }
 

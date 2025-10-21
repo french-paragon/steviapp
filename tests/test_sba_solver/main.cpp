@@ -9,6 +9,8 @@
 #include "../../libs/datablocks/landmark.h"
 #include "../../libs/datablocks/correspondencesset.h"
 #include "../../libs/datablocks/localcoordinatesystem.h"
+#include "../../libs/datablocks/trajectory.h"
+#include "../../libs/datablocks/mounting.h"
 
 #include "../../libs/sparsesolver/modularsbasolver.h"
 #include "../../libs/sparsesolver/sbamodules/landmarkssbamodule.h"
@@ -16,6 +18,8 @@
 #include "../../libs/sparsesolver/sbamodules/imagealignementsbamodule.h"
 #include "../../libs/sparsesolver/sbamodules/correspondencessetsbamodule.h"
 #include "../../libs/sparsesolver/sbamodules/localcoordinatesystemsbamodule.h"
+#include "../../libs/sparsesolver/sbamodules/trajectorybasesbamodule.h"
+#include "../../libs/sparsesolver/sbamodules/mountingssbamodule.h"
 
 
 class TestSBASolver : public QObject
@@ -35,9 +39,13 @@ private Q_SLOTS:
     void image2RigidBody();
     void rigidBody2RigidBody();
 
+    void basicTrajectory();
+    void movingBody2MovingBody();
+
 protected:
 
     void genericPnPTest(bool withCorrespondance, bool fixedPoints);
+    void configureStandardTrajectory(StereoVisionApp::Trajectory* traj, QString const& sbet, QString const& ins);
 
 };
 
@@ -183,6 +191,7 @@ void TestSBASolver::genericPnPTest(bool withCorrespondance, bool fixedPoints) {
 
 
     StereoVisionApp::ModularSBASolver sbaSolver(&project);
+    sbaSolver.setSilent(true);
 
     bool lmModuleAdded = sbaSolver.addModule(new StereoVisionApp::LandmarksSBAModule());
     bool imModuleAdded = sbaSolver.addModule(new StereoVisionApp::ImageAlignementSBAModule());
@@ -219,6 +228,64 @@ void TestSBASolver::genericPnPTest(bool withCorrespondance, bool fixedPoints) {
 
 }
 
+void TestSBASolver::configureStandardTrajectory(StereoVisionApp::Trajectory* traj, QString const& sbet, QString const& ins) {
+    traj->setPositionFile(sbet);
+    traj->setPositionEpsg("");
+    traj->setPositionTimeDelta(0);
+    traj->setPositionTimeScale(1);
+    traj->setPositionColumn(StereoVisionApp::Trajectory::Axis::T,0);
+    traj->setPositionColumn(StereoVisionApp::Trajectory::Axis::X,1);
+    traj->setPositionColumn(StereoVisionApp::Trajectory::Axis::Y,2);
+    traj->setPositionColumn(StereoVisionApp::Trajectory::Axis::Z,3);
+
+    traj->setOrientationFile(sbet);
+    traj->setOrientationTopocentricConvention(StereoVisionApp::Trajectory::TopocentricConvention::NED);
+    traj->setOrientationAngleRepresentation(StereoVisionApp::Trajectory::AngleRepresentation::AxisAngle);
+    traj->setOrientationAngleUnits(StereoVisionApp::Trajectory::AngleUnits::Radians);
+    traj->setOrientationTimeDelta(0);
+    traj->setOrientationTimeScale(1);
+    traj->setOrientationColumn(StereoVisionApp::Trajectory::Axis::T,0);
+    traj->setOrientationColumn(StereoVisionApp::Trajectory::Axis::X,4);
+    traj->setOrientationColumn(StereoVisionApp::Trajectory::Axis::Y,5);
+    traj->setOrientationColumn(StereoVisionApp::Trajectory::Axis::Z,6);
+    traj->setOrientationSign(StereoVisionApp::Trajectory::Axis::X, 1);
+    traj->setOrientationSign(StereoVisionApp::Trajectory::Axis::Y, 1);
+    traj->setOrientationSign(StereoVisionApp::Trajectory::Axis::Z, 1);
+
+    traj->setAccelerometerFile(ins);
+    traj->setAccelerometerId(0);
+    traj->setAccelerometerMounting(StereoVision::Geometry::AffineTransform<double>(Eigen::Matrix3d::Identity(),
+                                                                                   Eigen::Vector3d::Zero()));
+    traj->setAccelerometerTimeDelta(0);
+    traj->setAccelerometerTimeScale(1);
+    traj->setEstAccelerometerScale(false);
+    traj->setEstAccelerometerBias(false);
+    traj->setAccelerometerColumn(StereoVisionApp::Trajectory::Axis::T,0);
+    traj->setAccelerometerColumn(StereoVisionApp::Trajectory::Axis::X,1);
+    traj->setAccelerometerColumn(StereoVisionApp::Trajectory::Axis::Y,2);
+    traj->setAccelerometerColumn(StereoVisionApp::Trajectory::Axis::Z,3);
+
+    traj->setGyroFile(ins);
+    traj->setGyroAngleRepresentation(StereoVisionApp::Trajectory::AngleRepresentation::AxisAngle);
+    traj->setGyroAngleUnits(StereoVisionApp::Trajectory::AngleUnits::Radians);
+    traj->setGyroTimeDelta(0);
+    traj->setGyroTimeScale(1);
+    traj->setEstGyroScale(false);
+    traj->setEstGyroBias(false);
+    traj->setGyroColumn(StereoVisionApp::Trajectory::Axis::T,0);
+    traj->setGyroColumn(StereoVisionApp::Trajectory::Axis::X,4);
+    traj->setGyroColumn(StereoVisionApp::Trajectory::Axis::Y,5);
+    traj->setGyroColumn(StereoVisionApp::Trajectory::Axis::Z,6);
+    traj->setGyroSign(StereoVisionApp::Trajectory::Axis::X, 1);
+    traj->setGyroSign(StereoVisionApp::Trajectory::Axis::Y, 1);
+    traj->setGyroSign(StereoVisionApp::Trajectory::Axis::Z, 1);
+
+    traj->setPreIntegrationTime(0.1);
+    traj->setGpsAccuracy(0.02);
+    traj->setGyroAccuracy(0.1);
+    traj->setAccAccuracy(0.5);
+}
+
 void TestSBASolver::initTestCase() {
 
     srand(time(nullptr));
@@ -233,6 +300,8 @@ void TestSBASolver::initTestCase() {
     pF.addType(new StereoVisionApp::CameraFactory(this));
     pF.addType(new StereoVisionApp::CorrespondencesSetFactory(this));
     pF.addType(new StereoVisionApp::LocalCoordinateSystemFactory(this));
+    pF.addType(new StereoVisionApp::TrajectoryFactory(this));
+    pF.addType(new StereoVisionApp::MountingFactory(this));
 
 }
 
@@ -378,6 +447,7 @@ void TestSBASolver::imagePair() {
 
 
     StereoVisionApp::ModularSBASolver sbaSolver(&project);
+    sbaSolver.setSilent(true);
 
     bool lmModuleAdded = sbaSolver.addModule(new StereoVisionApp::LandmarksSBAModule());
     bool imModuleAdded = sbaSolver.addModule(new StereoVisionApp::ImageAlignementSBAModule());
@@ -538,6 +608,7 @@ void TestSBASolver::image2RigidBody() {
 
 
     StereoVisionApp::ModularSBASolver sbaSolver(&project);
+    sbaSolver.setSilent(true);
 
     bool imModuleAdded = sbaSolver.addModule(new StereoVisionApp::ImageAlignementSBAModule());
     bool lcsModuleAdded = sbaSolver.addModule(new StereoVisionApp::LocalCoordinateSystemSBAModule());
@@ -658,6 +729,7 @@ void TestSBASolver::rigidBody2RigidBody() {
 
 
     StereoVisionApp::ModularSBASolver sbaSolver(&project);
+    sbaSolver.setSilent(true);
 
     bool lcsModuleAdded = sbaSolver.addModule(new StereoVisionApp::LocalCoordinateSystemSBAModule());
     bool correspModuleAdded = sbaSolver.addModule(new StereoVisionApp::CorrespondencesSetSBAModule());
@@ -693,6 +765,246 @@ void TestSBASolver::rigidBody2RigidBody() {
 
 }
 
+void TestSBASolver::basicTrajectory() {
+
+    StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
+
+    StereoVisionApp::Project* pPtr = pF.createProject(this);
+
+    QVERIFY(pPtr != nullptr);
+
+    StereoVisionApp::Project& project = *pPtr;
+
+    qint64 trajectoryId = project.createDataBlock(StereoVisionApp::Trajectory::staticMetaObject.className());
+
+    StereoVisionApp::Trajectory* traj = project.getDataBlock<StereoVisionApp::Trajectory>(trajectoryId);
+
+    QVERIFY(traj != nullptr);
+
+    configureStandardTrajectory(traj, ":/trajectories/zero_acc/sbet.csv", ":/trajectories/zero_acc/ins.csv");
+
+    StereoVisionApp::StatusOptionalReturn<StereoVisionApp::Trajectory::TimeTrajectorySequence> optTrajData =
+        traj->loadTrajectorySequence(); //time sequence of trajectory, corresponding to body to mapping
+
+    QVERIFY(optTrajData.isValid());
+
+    StereoVisionApp::ModularSBASolver sbaSolver(&project);
+    sbaSolver.setSilent(true);
+
+    StereoVisionApp::TrajectoryBaseSBAModule* trajSBAModule =
+        new StereoVisionApp::TrajectoryBaseSBAModule(traj->getPreIntegrationTime());
+    bool trajModuleAdded = sbaSolver.addModule(trajSBAModule);
+
+    QVERIFY(trajModuleAdded);
+
+    bool initSuccess = sbaSolver.init();
+
+    QVERIFY(initSuccess);
+
+    QVERIFY(sbaSolver.itemIsObservable(trajectoryId));
+
+    ceres::Problem* problem = sbaSolver.ceresProblem();
+
+    QVERIFY(problem != nullptr);
+
+    //check something was added in the factor graph
+    QVERIFY(problem->NumResidualBlocks() > 0);
+
+    double cost;
+
+    ceres::Problem::EvaluateOptions options;
+
+    bool evaluateOk = problem->Evaluate(options, &cost, nullptr, nullptr, nullptr);
+
+    QVERIFY(evaluateOk);
+
+    QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
+
+    delete pPtr;
+
+}
+
+void TestSBASolver::movingBody2MovingBody() {
+
+    StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
+
+    StereoVisionApp::Project* pPtr = pF.createProject(this);
+
+    QVERIFY(pPtr != nullptr);
+
+    StereoVisionApp::Project& project = *pPtr;
+
+    qint64 lcs1Id = project.createDataBlock(StereoVisionApp::LocalCoordinateSystem::staticMetaObject.className());
+    qint64 lcs2Id = project.createDataBlock(StereoVisionApp::LocalCoordinateSystem::staticMetaObject.className());
+    qint64 trajectoryId = project.createDataBlock(StereoVisionApp::Trajectory::staticMetaObject.className());
+    qint64 mountingId = project.createDataBlock(StereoVisionApp::Mounting::staticMetaObject.className());
+    qint64 correspSetId = project.createDataBlock(StereoVisionApp::CorrespondencesSet::staticMetaObject.className());
+
+    StereoVisionApp::LocalCoordinateSystem* lcs1 = project.getDataBlock<StereoVisionApp::LocalCoordinateSystem>(lcs1Id);
+    StereoVisionApp::LocalCoordinateSystem* lcs2 = project.getDataBlock<StereoVisionApp::LocalCoordinateSystem>(lcs2Id);
+    StereoVisionApp::Trajectory* traj = project.getDataBlock<StereoVisionApp::Trajectory>(trajectoryId);
+    StereoVisionApp::Mounting* mounting = project.getDataBlock<StereoVisionApp::Mounting>(mountingId);
+    StereoVisionApp::CorrespondencesSet* correspSet = project.getDataBlock<StereoVisionApp::CorrespondencesSet>(correspSetId);
+
+    QVERIFY(lcs1 != nullptr);
+    QVERIFY(lcs2 != nullptr);
+    QVERIFY(traj != nullptr);
+    QVERIFY(mounting != nullptr);
+    QVERIFY(correspSet != nullptr);
+
+    lcs1->assignTrajectory(trajectoryId);
+    lcs2->assignTrajectory(trajectoryId);
+
+    lcs1->assignMounting(mountingId);
+    lcs2->assignMounting(mountingId);
+
+    QCOMPARE(lcs1->getAssignedTrajectory(), traj);
+    QCOMPARE(lcs2->getAssignedTrajectory(), traj);
+
+    QCOMPARE(lcs1->getAssignedMounting(), mounting);
+    QCOMPARE(lcs2->getAssignedMounting(), mounting);
+
+    configureStandardTrajectory(traj, ":/trajectories/zero_acc/sbet.csv", ":/trajectories/zero_acc/ins.csv");
+
+    mounting->setXCoord(0.42);
+    mounting->setYCoord(0.33);
+    mounting->setZCoord(0.69);
+
+    mounting->setXRot(0.27);
+    mounting->setYRot(0.13);
+    mounting->setZRot(0.06);
+
+    std::optional<StereoVision::Geometry::AffineTransform<float>> optMountingTransform = mounting->getTransform();
+
+    QVERIFY(optMountingTransform.has_value());
+
+    StereoVision::Geometry::RigidBodyTransform<double> body2sensor =
+        StereoVision::Geometry::RigidBodyTransform<double>(optMountingTransform.value().cast<double>());
+
+    StereoVision::Geometry::RigidBodyTransform<double> sensor2body = body2sensor.inverse();
+
+    //setup correspondences
+
+    StereoVisionApp::StatusOptionalReturn<StereoVisionApp::Trajectory::TimeTrajectorySequence> optTrajData =
+        traj->loadTrajectorySequence(); //time sequence of trajectory, corresponding to body to mapping
+
+    QVERIFY(optTrajData.isValid());
+
+    StereoVisionApp::Trajectory::TimeTrajectorySequence& trajData = optTrajData.value();
+
+    struct PointsInfos {
+        Eigen::Vector3d point;
+        Eigen::Vector2d times;
+    };
+
+    std::vector<PointsInfos> points =
+        {
+            {Eigen::Vector3d{42,69,33}, Eigen::Vector2d{0.42,0.69}},
+            {Eigen::Vector3d{33,27,50}, Eigen::Vector2d{0.33,0.27}},
+            {Eigen::Vector3d{-6,-99,70}, Eigen::Vector2d{0.69,0.69}}, //same pose
+            {Eigen::Vector3d{-49,-28,12}, Eigen::Vector2d{0.77,0.33}},
+            {Eigen::Vector3d{-69,-42,33}, Eigen::Vector2d{0.42,0.42}} //same pose
+        };
+
+    for (PointsInfos const& infos : points) {
+
+        Eigen::Vector3d const& point = infos.point;
+        Eigen::Vector2d const& times = infos.times;
+
+        constexpr StereoVisionApp::Correspondences::Types LidarVec = StereoVisionApp::Correspondences::XYZT;
+
+        using LidarCorresp = StereoVisionApp::Correspondences::Typed<LidarVec>;
+
+        auto interpolableBody1ToMapping = trajData.getValueAtTime(times[0]);
+        StereoVision::Geometry::RigidBodyTransform<double> body1ToMapping =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
+            interpolableBody1ToMapping.weigthLower,
+            interpolableBody1ToMapping.valLower,
+            interpolableBody1ToMapping.weigthUpper,
+            interpolableBody1ToMapping.valUpper);
+
+        StereoVision::Geometry::RigidBodyTransform<double> sensor1ToMapping =
+            body1ToMapping*sensor2body;
+
+        auto interpolableBody2ToMapping = trajData.getValueAtTime(times[1]);
+        StereoVision::Geometry::RigidBodyTransform<double> body2ToMapping =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
+                interpolableBody2ToMapping.weigthLower,
+                interpolableBody2ToMapping.valLower,
+                interpolableBody2ToMapping.weigthUpper,
+                interpolableBody2ToMapping.valUpper);
+
+        StereoVision::Geometry::RigidBodyTransform<double> sensor2ToMapping =
+            body2ToMapping*sensor2body;
+
+        StereoVision::Geometry::RigidBodyTransform<double> sensor1ToSensor2 =
+            sensor2ToMapping.inverse()*sensor1ToMapping;
+
+        Eigen::Vector3d ptSensor1 = point;
+
+        LidarCorresp xyztCorresp1;
+        xyztCorresp1.blockId = lcs1Id;
+        xyztCorresp1.x = ptSensor1.x();
+        xyztCorresp1.y = ptSensor1.y();
+        xyztCorresp1.z = ptSensor1.z();
+        xyztCorresp1.t = times[0];
+
+        Eigen::Vector3d ptSensor2 = sensor1ToSensor2*point;
+
+        LidarCorresp xyztCorresp2;
+        xyztCorresp2.blockId = lcs2Id;
+        xyztCorresp2.x = ptSensor2.x();
+        xyztCorresp2.y = ptSensor2.y();
+        xyztCorresp2.z = ptSensor2.z();
+        xyztCorresp2.t = times[1];
+
+        correspSet->addCorrespondence({xyztCorresp1, xyztCorresp2});
+    }
+
+
+    StereoVisionApp::ModularSBASolver sbaSolver(&project);
+    sbaSolver.setSilent(true);
+
+    StereoVisionApp::TrajectoryBaseSBAModule* trajSBAModule =
+        new StereoVisionApp::TrajectoryBaseSBAModule(traj->getPreIntegrationTime());
+    bool trajModuleAdded = sbaSolver.addModule(trajSBAModule);
+
+    bool lcsModuleAdded = sbaSolver.addModule(new StereoVisionApp::LocalCoordinateSystemSBAModule());
+    bool correspModuleAdded = sbaSolver.addModule(new StereoVisionApp::CorrespondencesSetSBAModule());
+    bool mountingModuleAdded = sbaSolver.addModule(new StereoVisionApp::MountingsSBAModule());
+
+    QVERIFY(trajModuleAdded);
+    QVERIFY(lcsModuleAdded);
+    QVERIFY(correspModuleAdded);
+    QVERIFY(mountingModuleAdded);
+
+    bool initSuccess = sbaSolver.init();
+
+    QVERIFY(initSuccess);
+
+    QVERIFY(sbaSolver.itemIsObservable(lcs1Id));
+    QVERIFY(sbaSolver.itemIsObservable(lcs2Id));
+    QVERIFY(sbaSolver.itemIsObservable(trajectoryId));
+
+    ceres::Problem* problem = sbaSolver.ceresProblem();
+
+    QVERIFY(problem != nullptr);
+
+    //check something was added in the factor graph
+    QVERIFY(problem->NumResidualBlocks() > 0);
+
+    double cost;
+
+    ceres::Problem::EvaluateOptions options;
+
+    bool evaluateOk = problem->Evaluate(options, &cost, nullptr, nullptr, nullptr);
+
+    QVERIFY(evaluateOk);
+
+    QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
+
+    delete pPtr;
+}
 
 QTEST_MAIN(TestSBASolver);
 #include "main.moc"

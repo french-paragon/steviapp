@@ -51,9 +51,6 @@ public:
 
         static_assert (sizeof... (params) > maxParamPos, "Not enough arguments provided");
 
-        using M3T = Eigen::Matrix<T,3,3>;
-
-        using V2T = Eigen::Vector<T,2>;
         using V3T = Eigen::Vector<T,3>;
 
         const T* const pos = std::get<localPosParamPos>(args);
@@ -92,6 +89,7 @@ public:
         processed_g[2] = alignGVec[2];
 
         auto variadic_lambda = [this] (auto... params) {
+            (void) this;
             return FunctorT::operator()(params...);
         };
 

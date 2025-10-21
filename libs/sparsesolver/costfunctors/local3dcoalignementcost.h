@@ -30,7 +30,6 @@ public:
                     const T* const t2,
                     T* residual) const {
 
-        using MatType = Eigen::Matrix<T,3,3>;
         using VecType = Eigen::Matrix<T,3,1>;
 
         using PoseType = StereoVision::Geometry::AffineTransform<T>;
