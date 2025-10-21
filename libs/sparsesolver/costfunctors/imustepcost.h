@@ -62,8 +62,16 @@ public:
         V3T vr0(r0[0], r0[1], r0[2]);
         V3T vr1(r1[0], r1[1], r1[2]);
 
-        V3T g(gyroScale[0] - T(1), gyroScale[1] - T(1), gyroScale[2] - T(1));
-        V3T b(gyroBias[0], gyroBias[1], gyroBias[2]);
+        V3T g(T(0), T(0), T(0));
+        V3T b(T(0), T(0), T(0));
+
+        if (gyroScale != nullptr) {
+            g = V3T(gyroScale[0] - T(1), gyroScale[1] - T(1), gyroScale[2] - T(1));
+        }
+
+        if (gyroBias != nullptr) {
+            b = V3T(gyroBias[0], gyroBias[1], gyroBias[2]);
+        }
 
         M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
         M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
