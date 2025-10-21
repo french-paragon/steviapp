@@ -234,11 +234,11 @@ void RigidBody::setOptZRot(const floatParameter &rz) {
 
 std::optional<StereoVision::Geometry::AffineTransform<float> > RigidBody::getTransform() const {
 
-	if (!_x.isSet() or !_y.isSet() or _z.isSet()) {
+    if (!_x.isSet() or !_y.isSet() or !_z.isSet()) {
 		return std::nullopt;
 	}
 
-	if (!_rx.isSet() or !_ry.isSet() or _rz.isSet()) {
+    if (!_rx.isSet() or !_ry.isSet() or !_rz.isSet()) {
 		return std::nullopt;
 	}
 
