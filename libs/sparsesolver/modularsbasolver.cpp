@@ -440,6 +440,14 @@ ModularSBASolver::PoseNode* ModularSBASolver::getNodeForMounting(qint64 mounting
         node.t = t_prior;
     }
 
+    if (!mounting->optPos().isSet()) {
+        node.t = t_prior;
+    }
+
+    if (!mounting->optRot().isSet()) {
+        node.rAxis = raxis_prior;
+    }
+
     node.trajectoryId = std::nullopt;
 
     return &_poseParameters[idx];
