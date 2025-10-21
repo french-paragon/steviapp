@@ -812,6 +812,26 @@ public:
         return _problem;
     }
 
+    /*!
+     * \brief isSilent idicate if the solver is silent
+     * \return true if the solver is silent, false otherwise.
+     *
+     * A silent solver will print nothing to stdout or stderr.
+     * This is mainly meant to be used for unit test, where we do
+     * not want to interfere with the output from the test framework.
+     */
+    inline bool isSilent() const {
+        return _silent;
+    }
+
+    /*!
+     * \brief setSilent set the solver silent
+     * \param silent if the solver should be silent or not
+     */
+    inline void setSilent(bool silent) {
+        _silent = silent;
+    }
+
 protected:
 
     bool initManagedParameters();
@@ -822,6 +842,7 @@ protected:
     bool splitOptSteps() const override;
 
     bool _sparse;
+    bool _silent;
     bool _verbose;
     bool _compute_marginals;
     bool _not_first_step;

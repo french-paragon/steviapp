@@ -567,7 +567,9 @@ bool TrajectoryBaseSBAModule::writeResults(ModularSBASolver* solver) {
 
     QTextStream out(stdout);
 
-    out << "Optimized gravity: " << _gravity[0] << " " << _gravity[1] << " " << _gravity[2] << Qt::endl;
+    if (!solver->isSilent()) {
+        out << "Optimized gravity: " << _gravity[0] << " " << _gravity[1] << " " << _gravity[2] << Qt::endl;
+    }
 
     StereoVisionApp::Project* currentProject = solver->currentProject();
 

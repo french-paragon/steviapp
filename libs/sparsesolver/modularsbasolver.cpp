@@ -59,6 +59,7 @@ ModularSBASolver::ModularSBASolver(Project *p, bool computeUncertainty, bool spa
     SparseSolverBase(p, parent),
     _compute_marginals(computeUncertainty),
     _sparse(sparse),
+    _silent(false),
     _verbose(verbose),
     _loggingDir(""),
     _problem(nullptr),
@@ -703,7 +704,9 @@ bool ModularSBASolver::init() {
 
     for (SBAModule* module : _modules) {
 
-        out << "\r" << "Preparing graph reduction variables for module: " << module->moduleName() << " " << Qt::flush;
+        if (!_silent) {
+            out << "\r" << "Preparing graph reduction variables for module: " << module->moduleName() << " " << Qt::flush;
+        }
 
         ok = module->addGraphReductorVariables(_currentProject, &_observabilityGraph);
 
@@ -715,7 +718,9 @@ bool ModularSBASolver::init() {
 
     for (SBAModule* module : _modules) {
 
-        out << "\r" << "Preparing graph reduction observations for module: " << module->moduleName() << " " << Qt::flush;
+        if (!_silent) {
+            out << "\r" << "Preparing graph reduction observations for module: " << module->moduleName() << " " << Qt::flush;
+        }
 
         ok = module->addGraphReductorObservations(_currentProject, &_observabilityGraph);
 
@@ -724,13 +729,18 @@ bool ModularSBASolver::init() {
             return false;
         }
     }
-    out << "\n" << "Reducing observation graph" << Qt::endl;
+
+    if (!_silent) {
+        out << "\n" << "Reducing observation graph" << Qt::endl;
+    }
 
     _observabilityGraph.reduceGraph();
 
     for (SBAModule* module : _modules) {
 
-        out << "\r" << "Setup parameters for module: " << module->moduleName() << " " << Qt::flush;
+        if (!_silent) {
+            out << "\r" << "Setup parameters for module: " << module->moduleName() << " " << Qt::flush;
+        }
         ok = module->setupParameters(this);
 
         if (!ok) {
@@ -760,7 +770,9 @@ bool ModularSBASolver::init() {
     //setup the sba modules
     for (SBAModule* module : _modules) {
 
-        out << "\r" << "Init module: " << module->moduleName() << " " << Qt::flush;
+        if (!_silent) {
+            out << "\r" << "Init module: " << module->moduleName() << " " << Qt::flush;
+        }
         ok = module->init(this, *_problem);
 
         if (!ok) {
@@ -769,7 +781,9 @@ bool ModularSBASolver::init() {
         }
     }
 
-    out << "\n";
+    if (!_silent) {
+        out << "\n";
+    }
 
     logDatas("after_init.log");
     _not_first_step = false;
@@ -813,7 +827,9 @@ bool ModularSBASolver::initManagedParameters() {
         _problem->AddParameterBlock(node.t.data(), node.t.size());
 
         if (block->isFixed()) {
-            std::cout << "Set parameters fix for block: " << block->objectName().toStdString() << std::endl;
+            if (!_silent) {
+                std::cout << "Set parameters fix for block: " << block->objectName().toStdString() << std::endl;
+            }
             _problem->SetParameterBlockConstant(node.rAxis.data());
             _problem->SetParameterBlockConstant(node.t.data());
         }
@@ -861,13 +877,24 @@ bool ModularSBASolver::opt_step() {
     }
 
     if (_verbose) {
-        std::cout << "Start optimization!" << std::endl;
+
+        if (!_silent) {
+            std::cout << "Start optimization!" << std::endl;
+        }
     }
 
     ceres::Solver::Options options;
     options.linear_solver_type = (_sparse) ? ceres::SPARSE_SCHUR : ceres::DENSE_QR;
-    std::cout << "Using linear solver type: " << ((options.linear_solver_type == ceres::DENSE_QR) ? "dense QR" : "sparse schur") << std::endl;
+
+    if (!_silent) {
+        std::cout << "Using linear solver type: " << ((options.linear_solver_type == ceres::DENSE_QR) ? "dense QR" : "sparse schur") << std::endl;
+    }
     options.minimizer_progress_to_stdout = _verbose;
+
+    if (_silent) {
+        options.minimizer_progress_to_stdout = false;
+        options.logging_type = ceres::SILENT;
+    }
 
     ModularSBASolverIterationCallback* iterationCallBack = new ModularSBASolverIterationCallback(this);
 
@@ -883,7 +910,7 @@ bool ModularSBASolver::opt_step() {
 
     delete iterationCallBack;
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << summary.FullReport() << "\n";
         std::cout << "Optimization complete!" << std::endl;
     }
@@ -893,7 +920,7 @@ bool ModularSBASolver::opt_step() {
 }
 bool ModularSBASolver::std_step() {
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Start computing uncertainty!" << std::endl;
     }
 
@@ -932,7 +959,7 @@ bool ModularSBASolver::std_step() {
 
     bool ok = _covariance->Compute(vpairs, _problem);
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Uncertainty computed!" << std::endl;
     }
 
@@ -951,24 +978,24 @@ bool ModularSBASolver::writeResults() {
         return false;
     }
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Start writing results!" << std::endl;
     }
 
     bool ok = true;
 
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Logging data!" << std::endl;
     }
 
     logDatas("after_opt.log");
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Logging data done!" << std::endl;
     }
 
     for (SBAModule* module : _modules) {
-        if (_verbose) {
+        if (_verbose and !_silent) {
             std::cout << "\r\t writing results for module: " << module->moduleName().toStdString() << "  " << std::flush;
         }
         ok = module->writeResults(this);
@@ -978,9 +1005,11 @@ bool ModularSBASolver::writeResults() {
             return false;
         }
     }
-    std::cout << "\n";
+    if (!_silent) {
+        std::cout << "\n";
+    }
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "\r\t writing results for projectors modules" << std::endl;
     }
     for (ProjectorModule* projector : _projectors) {
@@ -1002,7 +1031,7 @@ bool ModularSBASolver::writeUncertainty() {
         return false;
     }
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Start writing uncertainty!" << std::endl;
     }
 
@@ -1030,7 +1059,7 @@ bool ModularSBASolver::writeUncertainty() {
 }
 void ModularSBASolver::cleanup() {
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Start cleanup!" << std::endl;
     }
 
@@ -1042,7 +1071,7 @@ void ModularSBASolver::cleanup() {
         projector->cleanup();
     }
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Modules cleanup ended!" << std::endl;
     }
 
@@ -1051,7 +1080,7 @@ void ModularSBASolver::cleanup() {
         _covariance = nullptr;
     }
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Covariance cleanup ended!" << std::endl;
     }
 
@@ -1068,7 +1097,7 @@ void ModularSBASolver::cleanup() {
     _leverArmParameters.clear();
     _leverArmParametersIndex.clear();
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Parameters block cleanup ended!" << std::endl;
     }
 
@@ -1077,7 +1106,7 @@ void ModularSBASolver::cleanup() {
         cleanUpProblem();
     }
 
-    if (_verbose) {
+    if (_verbose and !_silent) {
         std::cout << "Problem reseted!" << std::endl;
     }
 }
