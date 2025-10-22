@@ -100,7 +100,6 @@ find_package(exiv2 REQUIRED CONFIG NAMES exiv2)
 find_package(Eigen3 3.3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
-find_package(StereoVision REQUIRED)
 FetchContent_Declare(
   StereoVision
   GIT_REPOSITORY https://github.com/french-paragon/LibStevi.git
