@@ -13,7 +13,7 @@ add_library(
     ${LIB_HEADERS}
 )
 
-target_link_libraries(${GEO_LIB} PUBLIC PROJ::proj)
+target_link_libraries(${GEO_LIB} PUBLIC StereoVision::stevi PROJ::proj)
 
 install_stereovisionapp_sdklib(${GEO_LIB})
 

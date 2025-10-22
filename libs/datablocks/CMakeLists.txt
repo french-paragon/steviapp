@@ -69,7 +69,7 @@ add_library(
     ${LIB_CAMERAS_HEADERS}
 )
 
-target_link_libraries(${DATA_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets PROJ::proj)
+target_link_libraries(${DATA_LIB} PRIVATE StereoVision::stevi Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets PROJ::proj)
 
 install_stereovisionapp_sdklib(${DATA_LIB})
 
