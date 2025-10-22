@@ -101,6 +101,14 @@ find_package(Eigen3 3.3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 find_package(StereoVision REQUIRED)
+FetchContent_Declare(
+  StereoVision
+  GIT_REPOSITORY https://github.com/french-paragon/LibStevi.git
+  GIT_TAG be27591f5edb4a400ffd4c3f1913ef89757c80a3
+  FIND_PACKAGE_ARGS
+)
+set(buildGui ON) #ensuire gui is built for stereo vision
+FetchContent_MakeAvailable(StereoVision)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PROJ REQUIRED IMPORTED_TARGET proj)
