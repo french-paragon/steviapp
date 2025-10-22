@@ -103,7 +103,7 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 FetchContent_Declare(
   StereoVision
   GIT_REPOSITORY https://github.com/french-paragon/LibStevi.git
-  GIT_TAG be27591f5edb4a400ffd4c3f1913ef89757c80a3
+  GIT_TAG 8175f3a85d28b12033ca0717891e58cf310f6539
   FIND_PACKAGE_ARGS
 )
 set(buildGui ON) #ensuire gui is built for stereo vision
