@@ -9,6 +9,9 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonValue>
+#include <QFileInfo>
+#include <QDir>
+#include <QFile>
 
 #include <algorithm>
 
@@ -616,6 +619,19 @@ QString Project::source() const {
 }
 void Project::setSource(QString const& s) {
 	_source = s;
+}
+QString Project::relativeFilePathToAbsolute(QString const& relative) {
+    QFileInfo pathInfo(relative);
+
+    if (!pathInfo.isRelative()) {
+        return relative;
+    }
+
+    QFileInfo sourceInfos(_source);
+    QDir projectDir = sourceInfos.dir();
+
+    return projectDir.absoluteFilePath(relative);
+
 }
 
 bool Project::hasSolution() const {

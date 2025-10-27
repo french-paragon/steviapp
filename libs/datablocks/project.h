@@ -109,6 +109,7 @@ public:
 
 	QString source() const;
 	void setSource(QString const& source);
+    QString relativeFilePathToAbsolute(QString const& relative);
 
 	bool hasSolution() const;
 

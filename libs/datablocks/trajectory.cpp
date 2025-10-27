@@ -1,6 +1,7 @@
 #include "trajectory.h"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QRegularExpression>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -101,7 +102,15 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
     using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
 
-    QFile angspdFile(_angularSpeedFile);
+    QFileInfo angularSpeedFileInfo(_angularSpeedFile);
+
+    QString path = _angularSpeedFile;
+
+    if (angularSpeedFileInfo.isRelative()) {
+        path = getProject()->relativeFilePathToAbsolute(path);
+    }
+
+    QFile angspdFile(path);
 
     if (!angspdFile.open(QIODevice::ReadOnly)) {
         return RType::error("Could not open the angular speed file!");
@@ -286,7 +295,16 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
     using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
 
-    QFile accFile(_accelerationFile);
+
+    QFileInfo accelerationFileInfo(_accelerationFile);
+
+    QString path = _accelerationFile;
+
+    if (accelerationFileInfo.isRelative()) {
+        path = getProject()->relativeFilePathToAbsolute(path);
+    }
+
+    QFile accFile(path);
 
     if (!accFile.open(QIODevice::ReadOnly)) {
         return RType::error("Could not open accelerometer file!");
@@ -591,10 +609,19 @@ StatusOptionalReturn<Trajectory::RawGpsData> Trajectory::loadRawGPSData() const 
 
     using RType = StatusOptionalReturn<Trajectory::RawGpsData>;
 
-    QFile trajFile(_gpsFile);
+
+    QFileInfo gpsFileInfo(_gpsFile);
+
+    QString path = _gpsFile;
+
+    if (gpsFileInfo.isRelative()) {
+        path = getProject()->relativeFilePathToAbsolute(path);
+    }
+
+    QFile trajFile(path);
 
     if (!trajFile.open(QIODevice::ReadOnly)) {
-        return RType::error("Could not open position file!");
+        return RType::error("Could not open gps file!");
     }
 
     QString lineData;
@@ -1196,7 +1223,15 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
     using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
 
-    QFile trajFile(_positionFile);
+    QFileInfo positionFileInfo(_positionFile);
+
+    QString path = _positionFile;
+
+    if (positionFileInfo.isRelative()) {
+        path = getProject()->relativeFilePathToAbsolute(path);
+    }
+
+    QFile trajFile(path);
 
     if (!trajFile.open(QIODevice::ReadOnly)) {
         return RType::error("Could not open position file!");
@@ -1299,7 +1334,15 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
     using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
 
-    QFile trajFile(_orientationFile);
+    QFileInfo orientationFileInfo(_orientationFile);
+
+    QString path = _orientationFile;
+
+    if (orientationFileInfo.isRelative()) {
+        path = getProject()->relativeFilePathToAbsolute(path);
+    }
+
+    QFile trajFile(path);
 
     if (!trajFile.open(QIODevice::ReadOnly)) {
         return RType::error("Could not open orientation file!");
