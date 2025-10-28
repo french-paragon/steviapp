@@ -74,6 +74,74 @@
 
 #include <glog/logging.h>
 
+#ifdef ADVANCED_LOGGING
+
+#include <QDir>
+#include <QStandardPaths>
+
+#include <cpptrace/cpptrace.hpp>
+#include <cpptrace/formatting.hpp>
+
+#include <fstream>
+
+#include <signal.h>
+
+void segfaultHandler(int sig) {
+
+     StereoVisionApp::StereoVisionApplication* app =  StereoVisionApp::StereoVisionApplication::GetAppInstance();
+
+    QStringList paths = QStandardPaths::standardLocations(QStandardPaths::ConfigLocation);
+    QString path = paths.first();
+    QDir dir(path);
+
+    dir.mkpath(StereoVisionApp::StereoVisionApplication::appName());
+    dir.cd(StereoVisionApp::StereoVisionApplication::appName());
+
+    const char* logDirName = "logs";
+
+    dir.mkpath(logDirName);
+    dir.cd(logDirName);
+
+    QString stacktrace_log_file_name = dir.absoluteFilePath(QString("segfault_trace_%1.log")
+                                                                .arg(QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss_zzz")));
+
+    cpptrace::stacktrace trace = cpptrace::generate_trace();
+
+    std::cerr << "Application " << StereoVisionApp::StereoVisionApplication::appName() << " segfaulted with error code " << sig << std::endl;
+
+    std::fstream logFile;
+    logFile.open(stacktrace_log_file_name.toStdString(), std::ios::out);
+    if (logFile.is_open()) {
+
+        if (app != nullptr) {
+
+            logFile << "App: " <<  StereoVisionApp::StereoVisionApplication::appName() << "\n";
+
+            StereoVisionApp::Project* currentProject = app->getCurrentProject();
+            QString currentProjectPath = "";
+            if (currentProject != nullptr) {
+                currentProjectPath = currentProject->source();
+            }
+
+            if (currentProjectPath.isEmpty()) {
+                logFile << "No project open" << "\n";
+            } else {
+                logFile << "With opened project: " << qPrintable(currentProjectPath) << "\n";
+            }
+        }
+
+        trace.print(logFile);
+        logFile.flush();
+        logFile.close();
+        std::cerr << "stack saved to: " << stacktrace_log_file_name.toStdString() << std::endl;
+    } else {
+        trace.print(std::cerr);
+    }
+
+    exit(1);
+}
+#endif
+
 namespace py = pybind11;
 
 void runScript(QString const& scriptPath, QStringList argv = {}) {
@@ -129,6 +197,10 @@ int main(int argc, char *argv[])
 #ifndef NDEBUG //debug mode enabled
     std::cout << "Steviapp - debug mode" << std::endl;
 #endif
+
+    #ifdef ADVANCED_LOGGING
+    signal(SIGSEGV, segfaultHandler);   // install our handler
+    #endif
 
     //configure libraries
     google::InitGoogleLogging(argv[0]);

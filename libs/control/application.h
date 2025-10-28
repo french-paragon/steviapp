@@ -17,6 +17,7 @@ class StereoVisionApplication : public QObject
 public:
 
 	static StereoVisionApplication* GetAppInstance();
+    static const char* appName();
 
 	StereoVisionApplication(int & argc, char** argv);
 	~StereoVisionApplication();

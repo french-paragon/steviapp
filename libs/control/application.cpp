@@ -24,6 +24,10 @@ StereoVisionApplication* StereoVisionApplication::GetAppInstance() {
 	return CurrentApp;
 }
 
+const char* StereoVisionApplication::appName() {
+    return "steviapp";
+}
+
 StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 	_headLessProject(nullptr),
     _mw(nullptr),
