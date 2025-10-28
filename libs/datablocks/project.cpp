@@ -636,7 +636,7 @@ QString Project::relativeFilePathToAbsolute(QString const& relative) {
 QString Project::relativePath(QString const& path, bool onlyIfNested) {
     QFileInfo pathInfo(path);
 
-    if (!pathInfo.isRelative()) { //path is already relative
+    if (pathInfo.isRelative()) { //path is already relative
         return path;
     }
 
