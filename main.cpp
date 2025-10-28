@@ -105,10 +105,11 @@ void messagesHandler(QtMsgType type, const QMessageLogContext &context, const QS
     if (mw != nullptr) { //we have a gui
         //invoke the method in the main windows' thread.
         QMetaObject::invokeMethod(mw, [mw, type, msg] () {
-            if (type == QtInfoMsg) { //do not set the mw as parent, as it might live in a different thread.
+            if (type == QtInfoMsg) {
                 QMessageBox::information(mw, StereoVisionApp::MainWindow::tr("Information"), msg);
             } else if (type == QtWarningMsg) {
-                QMessageBox::warning(mw, StereoVisionApp::MainWindow::tr("Warning!"), msg);
+                return; //skip warning messages for now, they clutter the interface.
+                //QMessageBox::warning(mw, StereoVisionApp::MainWindow::tr("Warning!"), msg);
             } else if (type == QtCriticalMsg) {
                 QMessageBox::critical(mw, StereoVisionApp::MainWindow::tr("Critical"), msg);
             } else if (type == QtFatalMsg) {
