@@ -633,6 +633,26 @@ QString Project::relativeFilePathToAbsolute(QString const& relative) {
     return projectDir.absoluteFilePath(relative);
 
 }
+QString Project::relativePath(QString const& path, bool onlyIfNested) {
+    QFileInfo pathInfo(path);
+
+    if (!pathInfo.isRelative()) { //path is already relative
+        return path;
+    }
+
+    QFileInfo sourceInfos(_source);
+    QDir projectDir = sourceInfos.dir();
+
+    QString relative = projectDir.relativeFilePath(path);
+
+    if (onlyIfNested) {
+        if (relative.startsWith("..")) { // file is not nested within project directory
+            return path;
+        }
+    }
+
+    return relative;
+}
 
 bool Project::hasSolution() const {
 

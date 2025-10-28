@@ -2609,6 +2609,9 @@ bool Trajectory::hasOptimizedTrajectory() const {
 
 QJsonObject Trajectory::encodeJson() const {
 
+    Project* proj = getProject();
+    constexpr bool onlyIfNested = true;
+
     QJsonObject obj;
 
     QJsonObject accelerationDefinition;
@@ -2626,7 +2629,11 @@ QJsonObject Trajectory::encodeJson() const {
     accelerationDefinition.insert("mounting", accMountingObj);
 
     obj.insert("accelerationDefinition", accelerationDefinition);
-    obj.insert("accelerationFile", _accelerationFile);
+    QString accFile = _accelerationFile;
+    if (proj != nullptr) {
+        accFile = proj->relativePath(accFile, onlyIfNested);
+    }
+    obj.insert("accelerationFile", accFile);
 
     QJsonObject angularSpeedDefinition;
 
@@ -2653,7 +2660,12 @@ QJsonObject Trajectory::encodeJson() const {
     angularSpeedDefinition.insert("mounting", gyroMountingObj);
 
     obj.insert("angularSpeedDefinition", angularSpeedDefinition);
-    obj.insert("angularSpeedFile", _angularSpeedFile);
+
+    QString gyroFile = _angularSpeedFile;
+    if (proj != nullptr) {
+        gyroFile = proj->relativePath(gyroFile, onlyIfNested);
+    }
+    obj.insert("angularSpeedFile", gyroFile);
 
     QJsonObject positionDefinition;
 
@@ -2668,7 +2680,12 @@ QJsonObject Trajectory::encodeJson() const {
     positionDefinition.insert("pos_z_col", _positionDefinition.pos_z_col);
 
     obj.insert("positionDefinition", positionDefinition);
-    obj.insert("positionFile", _positionFile);
+
+    QString posFile = _positionFile;
+    if (proj != nullptr) {
+        posFile = proj->relativePath(posFile, onlyIfNested);
+    }
+    obj.insert("positionFile", posFile);
 
     QJsonObject gpsDefinition;
 
@@ -2700,7 +2717,12 @@ QJsonObject Trajectory::encodeJson() const {
 
     if (!_gpsFile.isEmpty()) {
         obj.insert("gpsDefinition", gpsDefinition);
-        obj.insert("gpsFile", _gpsFile);
+
+        QString gpsFile = _gpsFile;
+        if (proj != nullptr) {
+            gpsFile = proj->relativePath(gpsFile, onlyIfNested);
+        }
+        obj.insert("gpsFile", gpsFile);
     }
 
     QJsonObject orientationDefinition;
@@ -2727,7 +2749,12 @@ QJsonObject Trajectory::encodeJson() const {
     orientationDefinition.insert("sign_w", _orientationDefinition.sign_w);
 
     obj.insert("orientationDefinition", orientationDefinition);
-    obj.insert("orientationFile", _orientationFile);
+
+    QString orientationFile = _orientationFile;
+    if (proj != nullptr) {
+        orientationFile = proj->relativePath(orientationFile, onlyIfNested);
+    }
+    obj.insert("orientationFile", orientationFile);
 
     obj.insert("accelerometerId", _accelerometerId);
     obj.insert("gyroId", _gyroId);

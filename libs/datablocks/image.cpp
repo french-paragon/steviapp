@@ -306,9 +306,18 @@ void Image::setParametersFromJsonRepresentation(QJsonObject const& rep) {
 
 QJsonObject Image::encodeJson() const {
 
+    Project* proj = getProject();
+    constexpr bool onlyIfNested = true;
+
 	QJsonObject obj = RigidBody::encodeJson();
 
-	obj.insert("imFile", getImageFile());
+    QString imgFile = getImageFile();
+
+    if (proj != nullptr) {
+        imgFile = proj->relativePath(imgFile, onlyIfNested);
+    }
+
+    obj.insert("imFile", imgFile);
 
 	obj.insert("assignedCamera", assignedCamera());
     obj.insert("assignedTrajectory", assignedTrajectory());

@@ -110,6 +110,13 @@ public:
 	QString source() const;
 	void setSource(QString const& source);
     QString relativeFilePathToAbsolute(QString const& relative);
+    /*!
+     * \brief relativePath return the relative path of a file w.r.t the project folder
+     * \param path the path of the file
+     * \param onlyIfNested if true, the path will be relative to the project only if the file is nested within the project directory.
+     * \return a path to the file, relative to the project directory unless onlyIfNested is true and the file is not nested in the project directory
+     */
+    QString relativePath(QString const& path, bool onlyIfNested = true);
 
 	bool hasSolution() const;
 
