@@ -6,5 +6,6 @@ add_subdirectory(test_trajectory)
 add_subdirectory(test_functional_utils)
 add_subdirectory(test_uv_projectors)
 add_subdirectory(test_sba_solver)
+add_subdirectory(test_test_utils)
 
 add_subdirectory(demo_gyro_bias_preintegration)

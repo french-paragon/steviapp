@@ -684,13 +684,13 @@ protected:
      * \brief loadAngularSpeedRawData load the angular speed data (in body frame)
      * \return the data as TimeCartesianBlocks representing an angular speed, or empty vector if failed to load
      */
-    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadAngularSpeedRawData() const;
+    virtual StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadAngularSpeedRawData() const;
 
     /*!
      * \brief loadAccelerationRawData load the acceleration data (in body frame)
      * \return the data as TimeCartesianBlocks, or empty vector if failed to load
      */
-    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadAccelerationRawData() const;
+    virtual StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadAccelerationRawData() const;
 
     /*!
      * \brief loadPositionData load the position data (including geodetic conversion if defined properly)
@@ -706,19 +706,19 @@ protected:
     };
 
     StatusOptionalReturn<RawGpsData> loadGPSData() const;
-    StatusOptionalReturn<RawGpsData> loadRawGPSData() const;
+    virtual StatusOptionalReturn<RawGpsData> loadRawGPSData() const;
 
     /*!
      * \brief loadPositionRawData load the position raw data (i.e. without any geodetic conversion).
      * \return a vector of time position blocks
      */
-    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadPositionRawData() const;
+    virtual StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadPositionRawData() const;
 
     /*!
      * \brief loadOrientationRawData load the orientation raw data (i.e. without any conversion from local topometric frame).
      * \return a vector of time orientation blocks (represented as axis angles)
      */
-    StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadOrientationRawData() const;
+    virtual StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadOrientationRawData() const;
 
     /*!
      * \brief loadPositionData load the trajectory (including geodetic conversion of the position, if defined properly, and conversion of the orientation from local topometric frame)
