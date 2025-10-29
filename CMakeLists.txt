@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 cmake_policy(SET CMP0095 NEW)
 
 option(BUILD_TESTS "Build the test suite" ON)
+option(ADVANCED_LOGGING "Log a lot of information, usefull if you want to investigate bug reports from users." ON)
 
 include(CheckCXXCompilerFlag)
 project(steviapp LANGUAGES CXX)
@@ -109,6 +110,15 @@ FetchContent_Declare(
 set(buildGui ON) #ensuire gui is built for stereo vision
 FetchContent_MakeAvailable(StereoVision)
 
+if (ADVANCED_LOGGING)
+        FetchContent_Declare(
+          cpptrace
+          GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+          GIT_TAG        v0.8.3
+    )
+    FetchContent_MakeAvailable(cpptrace)
+endif(ADVANCED_LOGGING)
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PROJ REQUIRED IMPORTED_TARGET proj)
 
@@ -144,6 +154,11 @@ add_executable(steviapp
 target_link_libraries(steviapp PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets pybind11::embed glog::glog)
 
 target_link_libraries(steviapp PRIVATE StereoVision::stevi MultidimArrays::MultidimArrays ${DATA_LIB} ${VISION_LIB} ${GUI_LIB} ${PROCESSING_LIB} ${SOLVING_LIB} ${CONTROL_LIB} Threads::Threads)
+
+if (ADVANCED_LOGGING)
+        target_compile_definitions(steviapp PRIVATE ADVANCED_LOGGING)
+        target_link_libraries(steviapp PRIVATE cpptrace::cpptrace)
+endif()
 
 pybind11_add_module(pysteviapp SHARED python_api.cpp)
 
