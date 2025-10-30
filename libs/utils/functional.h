@@ -82,14 +82,14 @@ protected:
     template <int start, int end, typename TupleT>
     struct TupleSlice {
         static inline auto val(TupleT const& initial) {
-            return std::tuple_cat(std::tuple<decltype (std::get<start>(initial))>(std::get<start>(initial)),
+            return std::tuple_cat(std::tuple<std::tuple_element_t<start, TupleT>>(std::get<start>(initial)),
                                   TupleSlice<start+1,std::max(start+1,end),TupleT>::val(initial)); //using std::max(start+1,end) ensure to kill unwanted recursion
         }
     };
     template <int id, typename TupleT>
     struct TupleSlice<id,id,TupleT> {
         static inline auto val(TupleT const& initial) {
-            return std::tuple<decltype (std::get<id>(initial))>(std::get<id>(initial));
+            return std::tuple<std::tuple_element_t<id, TupleT>>(std::get<id>(initial));
         }
     };
 
