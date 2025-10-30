@@ -673,11 +673,11 @@ public:
         StereoVision::Geometry::RigidBodyTransform<T> transformed;
 
         if (poseTransformDirection == PoseTransformDirection::FinalToTarget) {
-            transformed = pose * _transform.cast<T>();
+            transformed = _transform.cast<T>()*pose;
         }
 
         if (poseTransformDirection == PoseTransformDirection::SourceToInitial) {
-            transformed = _transform.cast<T>() * pose;
+            transformed = pose*_transform.cast<T>();
         }
 
         for (int i = 0; i < 3; i++) {

@@ -2,6 +2,7 @@
 
 #include "utils/functional.h"
 #include "sparsesolver/costfunctors/posedecoratorfunctors.h"
+#include "sparsesolver/costfunctors/gravityDecorators.h"
 
 #include <random>
 #include <time.h>
@@ -22,6 +23,8 @@ private Q_SLOTS:
     void testPoseDecorators();
 
     void testPoseBuilderHelpers();
+
+    void testGravityDecorators();
 
 };
 
@@ -743,10 +746,66 @@ void TestFunctionalUtils::testPoseBuilderHelpers() {
         evaluateMulti({identity, r_in3.data(), t_in3.data()}, {identity, r_in4.data(), t_in4.data()}, pose1*pose3, pose2*pose4);
 
         //with combined transform
-        evaluateMulti({pose4, r_in3.data(), t_in3.data()}, {pose3, r_in4.data(), t_in4.data()}, pose1*pose3*pose4, pose2*pose4*pose3);
+        evaluateMulti({pose4, r_in3.data(), t_in3.data()}, {pose3, r_in4.data(), t_in4.data()}, pose1*pose4*pose3, pose2*pose3*pose4);
+        //with current configuration, we assume the pose is body2world. Initial is node2world, final should be sensor2world,
+        // i.e node2world*platform2node*sensor2platform, where node is the node in the factor graph, platform2node is the fixed transform and sensor2platform is the lever arm.
 
     }
 
+}
+
+
+
+void TestFunctionalUtils::testGravityDecorators() {
+
+
+
+    class IdentityGravity {
+    public:
+        IdentityGravity() {
+
+        }
+
+        bool operator()(const double* g,
+                        const double* pos,
+                        double* res) const {
+            (void) pos;
+            for (int i = 0; i < 3; i++) {
+                res[i] = g[i];
+            }
+
+            return true;
+        }
+    };
+
+    using GravityVecFunctor = StereoVisionApp::GravityReoriented<IdentityGravity,1,0>;
+
+    Eigen::Vector3d earthCenter(0,0,-10);
+
+    GravityVecFunctor functor(earthCenter);
+
+    std::array<double,3> refGrav{0,0,-9.81};
+    std::array<double,3> posRef{0,0,0};
+    std::array<double,3> posShifted{0,10,-10};
+
+    std::array<double,3> out;
+
+    bool ok = functor(refGrav.data(), posRef.data(), out.data());
+
+    QVERIFY(ok);
+
+    for (int i = 0; i < 3; i++) {
+        QCOMPARE(out[i],refGrav[i]);
+    }
+
+
+    ok = functor(refGrav.data(), posShifted.data(), out.data());
+
+    QVERIFY(ok);
+
+    QCOMPARE(out[0],refGrav[0]);
+    QCOMPARE(out[1],refGrav[2]);
+    QCOMPARE(out[2],refGrav[1]);
 }
 
 QTEST_MAIN(TestFunctionalUtils);

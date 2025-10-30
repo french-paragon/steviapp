@@ -2,7 +2,6 @@
 
 #include <time.h>
 
-
 #include "../../libs/datablocks/project.h"
 #include "../../libs/datablocks/image.h"
 #include "../../libs/datablocks/camera.h"
@@ -20,6 +19,8 @@
 #include "../../libs/sparsesolver/sbamodules/localcoordinatesystemsbamodule.h"
 #include "../../libs/sparsesolver/sbamodules/trajectorybasesbamodule.h"
 #include "../../libs/sparsesolver/sbamodules/mountingssbamodule.h"
+
+#include "../../libs/testutils/datablocks/generatedtrajectory.h"
 
 
 class TestSBASolver : public QObject
@@ -42,6 +43,8 @@ private Q_SLOTS:
     void basicTrajectory();
     void movingBody2MovingBody();
 
+    void testWithEarthGravity();
+
 protected:
 
     void genericPnPTest(bool withCorrespondance, bool fixedPoints);
@@ -53,7 +56,7 @@ void TestSBASolver::genericPnPTest(bool withCorrespondance, bool fixedPoints) {
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
-    StereoVisionApp::Project* pPtr = pF.createProject(this);
+    std::unique_ptr<StereoVisionApp::Project> pPtr(pF.createProject(this)); //use unique ptr to ensure project is deleted at the end of test case
 
     QVERIFY(pPtr != nullptr);
 
@@ -224,11 +227,10 @@ void TestSBASolver::genericPnPTest(bool withCorrespondance, bool fixedPoints) {
 
     QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
 
-    delete pPtr;
-
 }
 
 void TestSBASolver::configureStandardTrajectory(StereoVisionApp::Trajectory* traj, QString const& sbet, QString const& ins) {
+
     traj->setPositionFile(sbet);
     traj->setPositionEpsg("");
     traj->setPositionTimeDelta(0);
@@ -300,7 +302,7 @@ void TestSBASolver::initTestCase() {
     pF.addType(new StereoVisionApp::CameraFactory(this));
     pF.addType(new StereoVisionApp::CorrespondencesSetFactory(this));
     pF.addType(new StereoVisionApp::LocalCoordinateSystemFactory(this));
-    pF.addType(new StereoVisionApp::TrajectoryFactory(this));
+    pF.addType(new StereoVisionApp::GeneratedTrajectoryFactory(this)); //ensure the trajectores can be configured with generators
     pF.addType(new StereoVisionApp::MountingFactory(this));
 
 }
@@ -328,7 +330,7 @@ void TestSBASolver::imagePair() {
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
-    StereoVisionApp::Project* pPtr = pF.createProject(this);
+    std::unique_ptr<StereoVisionApp::Project> pPtr(pF.createProject(this)); //use unique ptr to ensure project is deleted at the end of test case
 
     QVERIFY(pPtr != nullptr);
 
@@ -481,8 +483,6 @@ void TestSBASolver::imagePair() {
 
     QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
 
-    delete pPtr;
-
 }
 
 
@@ -490,7 +490,7 @@ void TestSBASolver::image2RigidBody() {
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
-    StereoVisionApp::Project* pPtr = pF.createProject(this);
+    std::unique_ptr<StereoVisionApp::Project> pPtr(pF.createProject(this)); //use unique ptr to ensure project is deleted at the end of test case
 
     QVERIFY(pPtr != nullptr);
 
@@ -642,14 +642,12 @@ void TestSBASolver::image2RigidBody() {
 
     QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
 
-    delete pPtr;
-
 }
 void TestSBASolver::rigidBody2RigidBody() {
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
-    StereoVisionApp::Project* pPtr = pF.createProject(this);
+    std::unique_ptr<StereoVisionApp::Project> pPtr(pF.createProject(this)); //use unique ptr to ensure project is deleted at the end of test case
 
     QVERIFY(pPtr != nullptr);
 
@@ -761,15 +759,13 @@ void TestSBASolver::rigidBody2RigidBody() {
 
     QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
 
-    delete pPtr;
-
 }
 
 void TestSBASolver::basicTrajectory() {
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
-    StereoVisionApp::Project* pPtr = pF.createProject(this);
+    std::unique_ptr<StereoVisionApp::Project> pPtr(pF.createProject(this)); //use unique ptr to ensure project is deleted at the end of test case
 
     QVERIFY(pPtr != nullptr);
 
@@ -820,15 +816,13 @@ void TestSBASolver::basicTrajectory() {
 
     QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
 
-    delete pPtr;
-
 }
 
 void TestSBASolver::movingBody2MovingBody() {
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
-    StereoVisionApp::Project* pPtr = pF.createProject(this);
+    std::unique_ptr<StereoVisionApp::Project> pPtr(pF.createProject(this)); //use unique ptr to ensure project is deleted at the end of test case
 
     QVERIFY(pPtr != nullptr);
 
@@ -1002,8 +996,158 @@ void TestSBASolver::movingBody2MovingBody() {
     QVERIFY(evaluateOk);
 
     QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
+}
 
-    delete pPtr;
+void TestSBASolver::testWithEarthGravity() {
+
+    StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
+
+    StereoVisionApp::Project* pPtr = pF.createProject(this);
+
+    QVERIFY(pPtr != nullptr);
+
+    StereoVisionApp::Project& project = *pPtr;
+
+    project.setDefaultProjectCRS("EPSG:4978");
+
+    constexpr double EarthRadius = 6357000;
+
+    StereoVision::Geometry::AffineTransform<double> ecef2Local(Eigen::Matrix3d::Identity(), Eigen::Vector3d(0,0,-EarthRadius));
+
+    project.setLocalCoordinateFrame(ecef2Local);
+
+    qint64 trajectoryId = project.createDataBlock(StereoVisionApp::Trajectory::staticMetaObject.className());
+
+    StereoVisionApp::Trajectory* traj = project.getDataBlock<StereoVisionApp::Trajectory>(trajectoryId);
+
+    QVERIFY(traj != nullptr);
+
+    StereoVisionApp::GeneratedTrajectory* genTraj = qobject_cast<StereoVisionApp::GeneratedTrajectory*>(traj);
+
+    QVERIFY(genTraj != nullptr);
+
+    using TrajGeneratorInfos = StereoVisionApp::GeneratedTrajectory::TrajGeneratorInfos;
+
+    constexpr double t0 = 0;
+    constexpr double tf = 100;
+    constexpr double dt = tf-t0;
+
+    constexpr double rotationRate = 2*M_PI/(tf-t0);
+    constexpr double circleRadius = 1000;
+
+    constexpr double gAmpl = 9.81;
+
+    double dtPos = 0.5;
+    double dtAcc = 0.1;
+
+    struct PositionCalculator {
+        static Eigen::Vector3d pos(double t) {
+            double x = circleRadius*std::cos(t/dt * 2*M_PI);
+            double y = circleRadius*std::sin(t/dt * 2*M_PI);
+            double z = EarthRadius;
+            return Eigen::Vector3d(x,y,z);
+        }
+    };
+
+    genTraj->setInitialAndFinalTimes(t0,tf);
+
+    genTraj->setAngularSpeedGenerator(TrajGeneratorInfos{[] (double t) {
+                                                             double omega = rotationRate;
+                                                             (void) t; return Eigen::Vector3d(0,0,omega);
+                                                         }, dtAcc}); //constant rotation rate
+    genTraj->setAccelerationGenerator(TrajGeneratorInfos{[&ecef2Local, gAmpl] (double t) {
+                                                             double acc = -circleRadius*rotationRate*rotationRate;
+                                                             Eigen::Vector3d pos = ecef2Local*PositionCalculator::pos(t);
+                                                             Eigen::Vector3d g = ecef2Local.t - pos;
+                                                             g.normalize();
+                                                             g *= gAmpl; //g keep its amplitude and points toward center of the earth
+                                                             Eigen::Vector3d ret = Eigen::Vector3d(0,acc,0) - g;
+                                                             return ret;
+                                                         }, dtAcc});
+
+    genTraj->setPositionGenerator(TrajGeneratorInfos{[] (double t) {
+                                                         return PositionCalculator::pos(t);
+                                                     }, dtPos});
+    genTraj->setOrientationGenerator(TrajGeneratorInfos{[] (double t) {
+                                                            double rz = t/dt * 2*M_PI - M_PI_2;
+                                                            return Eigen::Vector3d(0,0,rz);
+                                                        }, dtPos});
+
+
+
+    traj->setPreIntegrationTime(0.5);
+    traj->setGpsAccuracy(0.02);
+    traj->setGyroAccuracy(0.1);
+    traj->setAccAccuracy(0.5);
+
+
+
+    StereoVisionApp::ModularSBASolver sbaSolver(&project);
+    sbaSolver.setSilent(true);
+
+    StereoVisionApp::TrajectoryBaseSBAModule* trajSBAModule =
+        new StereoVisionApp::TrajectoryBaseSBAModule(traj->getPreIntegrationTime());
+    bool trajModuleAdded = sbaSolver.addModule(trajSBAModule);
+
+    QVERIFY(trajModuleAdded);
+
+    bool initSuccess = sbaSolver.init();
+
+    QVERIFY(initSuccess);
+
+    QVERIFY(sbaSolver.itemIsObservable(trajectoryId));
+
+    ceres::Problem* problem = sbaSolver.ceresProblem();
+
+    QVERIFY(problem != nullptr);
+
+    //check something was added in the factor graph
+    QVERIFY(problem->NumResidualBlocks() > 0);
+
+
+
+    bool optSuccess = sbaSolver.opt_step();
+
+    QVERIFY(optSuccess);
+
+    bool stdSuccess = sbaSolver.std_step();
+
+    QVERIFY(stdSuccess);
+
+    bool writeOk = sbaSolver.writeResults();
+
+    QVERIFY(writeOk);
+
+    bool writeStdOk = sbaSolver.writeUncertainty();
+
+    QVERIFY(writeStdOk);
+
+    sbaSolver.cleanup();
+
+    StereoVisionApp::StatusOptionalReturn<StereoVisionApp::Trajectory::TimeTrajectorySequence> optoptTraj =
+        traj->optimizedTrajectory();
+
+    QVERIFY(optoptTraj.isValid());
+
+    StereoVisionApp::Trajectory::TimeTrajectorySequence& optTraj = optoptTraj.value();
+
+    for (int i = 0; i < optTraj.nPoints(); i++) {
+        auto& node = optTraj[i];
+        Eigen::Vector3d expected = ecef2Local*PositionCalculator::pos(optTraj[i].time);
+
+        double delta = (node.val.t - expected).norm() / expected.norm();
+
+        double threshold = 1e-6;
+
+        if (delta >= threshold) {
+            qWarning() << "About to fail with delta = " << delta << " (t = " << node.time << " position = "
+                    << node.val.t.x() << " " << node.val.t.y() << " " << node.val.t.z()
+                    << ", expected = " << expected.x() << " " << expected.y() << " " << expected.z() << ")";
+        }
+
+        QVERIFY(delta < threshold);
+    }
+
 }
 
 QTEST_MAIN(TestSBASolver);

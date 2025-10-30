@@ -14,6 +14,8 @@
 
 namespace StereoVisionApp {
 
+
+
 template<typename FunctorT, int localPosParamPos, int gravityParamPos>
 class GravityReoriented : private FunctorT {
 
@@ -23,13 +25,40 @@ class GravityReoriented : private FunctorT {
 
 public:
 
+    /*!
+ * \brief reorientGravity reorient the gravity towards the center of the earth in a local frame
+ * \param referenceGravity the reference gravity at position 0,0,0
+ * \param localEarthCenter the position of the earth center in the local frame
+ * \param pos the position at which gravity should be estimated, in local frame
+ * \return an estimation of the gravity
+ */
+    template<typename T>
+    static Eigen::Matrix<T,3,1> reorientGravity(Eigen::Matrix<T,3,1> const& referenceGravity,
+                                                  Eigen::Matrix<double,3,1> const& localEarthCenter,
+                                                  Eigen::Matrix<T,3,1> const& pos) {
+
+
+        using V3T = Eigen::Matrix<T,3,1>;
+
+        V3T deltaPos = localEarthCenter.cast<T>() - pos;
+        deltaPos.normalize();
+
+        V3T cross = localEarthCenter.normalized().cast<T>().cross(deltaPos);
+        T alpha = ceres::asin(cross.norm());
+
+        if (alpha > T(1e-3)) {
+            cross.normalize();
+            cross *= alpha;
+        }
+
+        return StereoVision::Geometry::angleAxisRotate(cross, referenceGravity);
+    }
+
     template <typename ... P>
     GravityReoriented(Eigen::Vector3d const& localEarthCenter, P... args) :
         FunctorT(args...),
         _localEarthCenter(localEarthCenter)
     {
-        _localEarthCenterDir = _localEarthCenter;
-        _localEarthCenterDir.normalize();
     }
 
     template <typename ... P>
@@ -71,18 +100,7 @@ public:
         V3T gVec;
         gVec << g[0], g[1], g[2];
 
-        V3T deltaPos = _localEarthCenter.cast<T>() - posVec;
-        deltaPos.normalize();
-
-        V3T cross = _localEarthCenterDir.cast<T>().cross(deltaPos);
-        T alpha = ceres::asin(cross.norm());
-
-        if (alpha > T(1e-3)) {
-            cross.normalize();
-            cross *= alpha;
-        }
-
-        V3T alignGVec = StereoVision::Geometry::angleAxisRotate(cross, gVec);
+        V3T alignGVec = reorientGravity(gVec, _localEarthCenter, posVec);
 
         processed_g[0] = alignGVec[0];
         processed_g[1] = alignGVec[1];

@@ -28,6 +28,10 @@ void GeneratedTrajectory::configureStandardNonAccelaratingTrajectory(double t0,
 
 StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> GeneratedTrajectory::loadAngularSpeedRawData() const {
 
+    if (!_angularSpeedGenerator.functor) {
+        return Trajectory::loadAngularSpeedRawData();
+    }
+
     double interval = _tf - _t0;
     double steps = interval / _angularSpeedGenerator.step;
     long maxxedSteps = std::ceil(steps) + 1;
@@ -48,6 +52,11 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> GeneratedTraje
 
 }
 StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> GeneratedTrajectory::loadAccelerationRawData() const {
+
+    if (!_accelerationGenerator.functor) {
+        return Trajectory::loadAccelerationRawData();
+    }
+
     double interval = _tf - _t0;
     double steps = interval / _accelerationGenerator.step;
     long maxxedSteps = std::ceil(steps) + 1;
@@ -70,6 +79,11 @@ StatusOptionalReturn<Trajectory::RawGpsData> GeneratedTrajectory::loadRawGPSData
     return StatusOptionalReturn<Trajectory::RawGpsData>::error("Not implemented yet");
 }
 StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> GeneratedTrajectory::loadPositionRawData() const {
+
+    if (!_positionGenerator.functor) {
+        return Trajectory::loadPositionRawData();
+    }
+
     double interval = _tf - _t0;
     double steps = interval / _positionGenerator.step;
     long maxxedSteps = std::ceil(steps) + 1;
@@ -89,6 +103,11 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> GeneratedTraje
     return ret;
 }
 StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> GeneratedTrajectory::loadOrientationRawData() const {
+
+    if (!_orientationGenerator.functor) {
+        return Trajectory::loadOrientationRawData();
+    }
+
     double interval = _tf - _t0;
     double steps = interval / _orientationGenerator.step;
     long maxxedSteps = std::ceil(steps) + 1;
