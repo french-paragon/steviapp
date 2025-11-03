@@ -1251,6 +1251,7 @@ bool addCrossProjectionCostFunctionHelperLvl2(std::array<double*, 8> const& pose
                                               Eigen::Vector2d const& ptProj2Pos,
                                               Eigen::Matrix2d const& ptProj2Stiffness,
                                               StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
+                                              ceres::LossFunction* lossFunction,
                                               QString const& logLabel) {
 
     using Functor = UV2UVCost<ModularUVProjection, ModularUVProjection>;
@@ -1326,7 +1327,7 @@ bool addCrossProjectionCostFunctionHelperLvl2(std::array<double*, 8> const& pose
     std::vector<double*> params = addParams2CostFunction(costFunction, poseParameters, projectionsParams, projectionsParamsSizes, nResiduals);
     functor->setNParams(params.size());
 
-    module1->problem().AddResidualBlock(costFunction, nullptr,
+    module1->problem().AddResidualBlock(costFunction, lossFunction,
                                         params.data(), params.size());
 
     if ((module1->isVerbose() or module2->isVerbose()) and !logLabel.isEmpty()) {
@@ -1371,6 +1372,7 @@ bool addCrossProjectionCostFunctionHelper(std::array<double*, 8> const& posePara
                                           Eigen::Vector2d const& ptProj2Pos,
                                           Eigen::Matrix2d const& ptProj2Stiffness,
                                           StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
+                                          ceres::LossFunction* lossFunction,
                                           QString const& logLabel) {
 
     using PoseInvertedFunctor = InvertPoseDynamic<Level1CostFunctor, pose2Pos>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
@@ -1398,7 +1400,7 @@ bool addCrossProjectionCostFunctionHelper(std::array<double*, 8> const& posePara
                 infos1, infos2,
                 module1, ptProj1Pos, ptProj1Stiffness, offset1,
                 module2, ptProj2Pos, ptProj2Stiffness, offset2,
-                logLabel);
+                lossFunction,logLabel);
 
         } else {
 
@@ -1410,7 +1412,7 @@ bool addCrossProjectionCostFunctionHelper(std::array<double*, 8> const& posePara
                     infos1, infos2,
                     module1, ptProj1Pos, ptProj1Stiffness, offset1,
                     module2, ptProj2Pos, ptProj2Stiffness, offset2,
-                    logLabel);
+                    lossFunction,logLabel);
 
         }
 
@@ -1428,7 +1430,7 @@ bool addCrossProjectionCostFunctionHelper(std::array<double*, 8> const& posePara
                     infos1, infos2,
                     module1, ptProj1Pos, ptProj1Stiffness, offset1,
                     module2, ptProj2Pos, ptProj2Stiffness, offset2,
-                    logLabel);
+                    lossFunction,logLabel);
 
         } else {
 
@@ -1440,7 +1442,7 @@ bool addCrossProjectionCostFunctionHelper(std::array<double*, 8> const& posePara
                     infos1, infos2,
                     module1, ptProj1Pos, ptProj1Stiffness, offset1,
                     module2, ptProj2Pos, ptProj2Stiffness, offset2,
-                    logLabel);
+                    lossFunction,logLabel);
 
         }
 
@@ -1465,6 +1467,7 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
                                     StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
                                     double* leverArmOrientation2,
                                     double* leverArmPosition2,
+                                    ceres::LossFunction* lossFunction,
                                     QString const& logLabel) {
 
     if (module1->_problem != module2->_problem or module1->_problem == nullptr) {
@@ -1521,7 +1524,7 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
                 infos1, infos2,
                 module1, ptProj1Pos, ptProj1Stiffness, offset1,
                 module2, ptProj2Pos, ptProj2Stiffness, offset2,
-                logLabel);
+                lossFunction,logLabel);
 
         } else {
 
@@ -1533,7 +1536,7 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
                     infos1, infos2,
                     module1, ptProj1Pos, ptProj1Stiffness, offset1,
                     module2, ptProj2Pos, ptProj2Stiffness, offset2,
-                    logLabel);
+                    lossFunction,logLabel);
 
         }
 
@@ -1551,7 +1554,7 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
                     infos1, infos2,
                     module1, ptProj1Pos, ptProj1Stiffness, offset1,
                     module2, ptProj2Pos, ptProj2Stiffness, offset2,
-                    logLabel);
+                    lossFunction,logLabel);
 
         } else {
 
@@ -1563,7 +1566,7 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
                     infos1, infos2,
                     module1, ptProj1Pos, ptProj1Stiffness, offset1,
                     module2, ptProj2Pos, ptProj2Stiffness, offset2,
-                    logLabel);
+                    lossFunction,logLabel);
 
         }
 

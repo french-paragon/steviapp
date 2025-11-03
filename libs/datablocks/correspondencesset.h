@@ -27,6 +27,17 @@ class CorrespondencesSet : public DataBlock
 {
     Q_OBJECT
 public:
+
+    struct RobustificationLevel {
+        enum Level {
+            None = 0,
+            Huber = 1,
+            Cauchy = 2,
+            Arctan = 3,
+            Maximum = Arctan //both maximal level, and maximal level of robustification
+        };
+    };
+
     CorrespondencesSet(Project* parent = nullptr);
 
     void addCorrespondence(Correspondences::GenericPair const& correspondence);
@@ -73,7 +84,13 @@ public:
     QJsonObject getJsonRepresentation() const override;
     void setParametersFromJsonRepresentation(QJsonObject const& rep) override;
 
+    int robustificationLevel() const;
+    QString robustificationMethod() const;
+    void setRobustificationMethod(QString const& methodName);
+
 Q_SIGNALS:
+
+    void robustificationLevelChanged();
 
 protected:
 
@@ -85,6 +102,8 @@ protected:
     void extendDataModel();
 
     QVector<Correspondences::GenericPair> _correspondences;
+    int _robustificationLevel;
+
 };
 
 

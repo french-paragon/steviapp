@@ -2,6 +2,7 @@ define_stereovisionapp_lib(UTILS Utils)
 
 set(LIB_SRC
     editablefloatingpointblock.cpp
+    optionlistvalue.cpp
 )
 
 set(LIB_HEADERS
@@ -9,6 +10,7 @@ set(LIB_HEADERS
     functional.h
     inplace_vector.h
     editablefloatingpointblock.h
+    optionlistvalue.h
 )
 
 add_library(

@@ -286,7 +286,30 @@ public:
                                                    StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
                                                    double* leverArmOrientation2,
                                                    double* leverArmPosition2,
+                                                   ceres::LossFunction* lossFunction = nullptr,
                                                    QString const& logLabel = "");
+
+        static inline bool addCrossProjectionCostFunction(ProjectorModule* module1,
+                                                          double* pose1Orientation,
+                                                          double* pose1Position,
+                                                          Eigen::Vector2d const& ptProj1Pos,
+                                                          Eigen::Matrix2d const& ptProj1Stiffness,
+                                                          StereoVision::Geometry::RigidBodyTransform<double> const& offset1,
+                                                          double* leverArmOrientation1,
+                                                          double* leverArmPosition1,
+                                                          ProjectorModule* module2,
+                                                          double* pose2Orientation,
+                                                          double* pose2Position,
+                                                          Eigen::Vector2d const& ptProj2Pos,
+                                                          Eigen::Matrix2d const& ptProj2Stiffness,
+                                                          StereoVision::Geometry::RigidBodyTransform<double> const& offset2,
+                                                          double* leverArmOrientation2,
+                                                          double* leverArmPosition2,
+                                                          QString const& logLabel) {
+            return addCrossProjectionCostFunction(module1, pose1Orientation, pose1Position, ptProj1Pos, ptProj1Stiffness, offset1, leverArmOrientation1, leverArmPosition1,
+                                                  module2, pose2Orientation, pose2Position, ptProj2Pos, ptProj2Stiffness, offset2, leverArmOrientation2, pose2Position,
+                                                  nullptr, logLabel);
+        }
 
         static inline bool addCrossProjectionCostFunction(ProjectorModule* module1,
                                                    double* pose1Orientation,
@@ -298,12 +321,34 @@ public:
                                                    double* pose2Position,
                                                    Eigen::Vector2d const& ptProj2Pos,
                                                    Eigen::Matrix2d const& ptProj2Stiffness,
+                                                   ceres::LossFunction* lossFunction = nullptr,
                                                    QString const& logLabel = "") {
 
             const StereoVision::Geometry::RigidBodyTransform<double> identity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
 
             return addCrossProjectionCostFunction(module1, pose1Orientation, pose1Position, ptProj1Pos, ptProj1Stiffness, identity, nullptr, nullptr,
-                                                  module2, pose2Orientation, pose2Position, ptProj2Pos, ptProj2Stiffness, identity, nullptr, nullptr, logLabel);
+                                                  module2, pose2Orientation, pose2Position, ptProj2Pos, ptProj2Stiffness, identity, nullptr, nullptr,
+                                                  lossFunction, logLabel);
+
+        }
+
+        static inline bool addCrossProjectionCostFunction(ProjectorModule* module1,
+                                                          double* pose1Orientation,
+                                                          double* pose1Position,
+                                                          Eigen::Vector2d const& ptProj1Pos,
+                                                          Eigen::Matrix2d const& ptProj1Stiffness,
+                                                          ProjectorModule* module2,
+                                                          double* pose2Orientation,
+                                                          double* pose2Position,
+                                                          Eigen::Vector2d const& ptProj2Pos,
+                                                          Eigen::Matrix2d const& ptProj2Stiffness,
+                                                          QString const& logLabel) {
+
+            const StereoVision::Geometry::RigidBodyTransform<double> identity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+            return addCrossProjectionCostFunction(module1, pose1Orientation, pose1Position, ptProj1Pos, ptProj1Stiffness, identity, nullptr, nullptr,
+                                                  module2, pose2Orientation, pose2Position, ptProj2Pos, ptProj2Stiffness, identity, nullptr, nullptr,
+                                                  nullptr, logLabel);
 
         }
 

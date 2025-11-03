@@ -8,7 +8,8 @@
 namespace StereoVisionApp {
 
 CorrespondencesSet::CorrespondencesSet(Project *parent) :
-    DataBlock(parent)
+    DataBlock(parent),
+    _robustificationLevel(RobustificationLevel::None)
 {
     extendDataModel();
 }
@@ -87,6 +88,42 @@ void CorrespondencesSet::setParametersFromJsonRepresentation(QJsonObject const& 
     configureFromJson(rep);
 }
 
+int CorrespondencesSet::robustificationLevel() const {
+    return _robustificationLevel;
+}
+QString CorrespondencesSet::robustificationMethod() const {
+    switch(_robustificationLevel) {
+    case RobustificationLevel::Huber:
+        return "Huber";
+    case RobustificationLevel::Cauchy:
+        return "Cauchy";
+    case RobustificationLevel::Arctan:
+        return "Arctan";
+    }
+
+    return "None";
+}
+void CorrespondencesSet::setRobustificationMethod(QString const& methodName) {
+    QString str = methodName.toLower().trimmed();
+
+    int level = RobustificationLevel::None;
+
+    if (str == "huber") {
+        level = RobustificationLevel::Huber;
+    } else if (str == "cauchy") {
+        level = RobustificationLevel::Cauchy;
+    } else if (str == "arctan") {
+        level = RobustificationLevel::Arctan;
+    } else {
+        level = RobustificationLevel::None;
+    }
+
+    if (level != _robustificationLevel) {
+        _robustificationLevel = level;
+        Q_EMIT robustificationLevelChanged();
+    }
+}
+
 void CorrespondencesSet::referedCleared(QVector<qint64> const& referedId) {
 
     if (referedId.size() != 1) {
@@ -113,6 +150,18 @@ QJsonObject CorrespondencesSet::encodeJson() const {
     }
 
     obj.insert("correspondences", correspondences);
+
+    switch (_robustificationLevel) {
+    case RobustificationLevel::Huber:
+        obj.insert("robustification", "huber");
+        break;
+    case RobustificationLevel::Cauchy:
+        obj.insert("robustification", "cauchy");
+        break;
+    case RobustificationLevel::Arctan:
+        obj.insert("robustification", "arctan");
+        break;
+    }
 
     return obj;
 }
@@ -141,9 +190,49 @@ void CorrespondencesSet::configureFromJson(QJsonObject const& data) {
             _correspondences.push_back(pair.value());
         }
     }
+
+    _robustificationLevel = RobustificationLevel::None;
+
+    if (data.contains("robustification")) {
+        QJsonValue val = data.value("robustification");
+
+        QString str = val.toString().toLower().trimmed();
+
+        if (str == "huber") {
+            _robustificationLevel = RobustificationLevel::Huber;
+        } else if (str == "cauchy") {
+            _robustificationLevel = RobustificationLevel::Cauchy;
+        } else if (str == "arctan") {
+            _robustificationLevel = RobustificationLevel::Arctan;
+        } else {
+            int level = val.toInt(RobustificationLevel::None);
+
+            if (level >= RobustificationLevel::None and level <= RobustificationLevel::Maximum) {
+                _robustificationLevel = level;
+            }
+        }
+    }
 }
 
 void CorrespondencesSet::extendDataModel() {
+
+
+    ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
+
+    optCat->addCatProperty<bool, DataBlock, false, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Enabled"),
+                                                                                                              &DataBlock::isEnabled,
+                                                                                                              &DataBlock::setEnabled,
+                                                                                                              &DataBlock::isEnabledChanged);
+
+    auto* robustificationProp = optCat->addCatProperty<QString, CorrespondencesSet, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+        tr("Robustificaion"),
+        &CorrespondencesSet::robustificationMethod,
+        &CorrespondencesSet::setRobustificationMethod,
+        &CorrespondencesSet::robustificationLevelChanged);
+
+    robustificationProp->setOptions(QStringList{"None", "Huber", "Cauchy", "Arctan"});
+
+
 
 }
 

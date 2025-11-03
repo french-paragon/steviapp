@@ -3,6 +3,7 @@
 #include "./project.h"
 
 #include "utils/editablefloatingpointblock.h"
+#include "utils/optionlistvalue.h"
 
 #include <QFont>
 
@@ -574,6 +575,12 @@ QVariant ItemDataModel::data(const QModelIndex &index, int role) const {
                         block.max = descr->numericMaximum();
 
                         return QVariant::fromValue(block);
+                    } else if (data.type() == QVariant::String and role == Qt::EditRole and !descr->options().isEmpty()) {
+                        OptionListValue ret;
+                        ret.value = data.toString();
+                        ret.possibleValues = descr->options();
+
+                        return QVariant::fromValue(ret);
                     }
 
                     return data;
