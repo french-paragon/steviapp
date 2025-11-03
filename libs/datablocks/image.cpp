@@ -70,6 +70,13 @@ void Image::assignTrajectory(qint64 trajId) {
 
 QString Image::getImageFile() const
 {
+
+    Project* proj = getProject();
+
+    if (proj != nullptr) {
+        return proj->relativeFilePathToAbsolute(_imageFile);
+    }
+
 	return _imageFile;
 }
 
