@@ -34,7 +34,9 @@ void AutoFormatStyledItemDelegate::setEditorData(QWidget *editor, const QModelIn
 
     if (data.userType() == qMetaTypeId<EditableFloatingPointBlock>()) {
         FloatingPointBlockEditSpinBox* floating_point_block_editor = qobject_cast<FloatingPointBlockEditSpinBox*>(editor);
-        floating_point_block_editor->setEditableFloatingPointBlock(qvariant_cast<EditableFloatingPointBlock>(data));
+        if (floating_point_block_editor != nullptr) { //can reach this point with nullptr editor in certain situation with stddev inputs.
+            floating_point_block_editor->setEditableFloatingPointBlock(qvariant_cast<EditableFloatingPointBlock>(data));
+        }
         return;
     } else if (data.userType() == qMetaTypeId<OptionListValue>()) {
         OptionListValue val = qvariant_cast<OptionListValue>(data);
