@@ -89,7 +89,7 @@ endif()
 FetchContent_Declare(
   MultidimArrays
   GIT_REPOSITORY https://github.com/french-paragon/MultidimArrays.git
-  GIT_TAG 6b816b3b0ab8f1a484cfa695daa9f64f11ea2348
+  GIT_TAG 78d674a3a3713feee4ced37a95fef3b53cc2832b
   FIND_PACKAGE_ARGS
 )
 FetchContent_MakeAvailable(MultidimArrays)
@@ -104,7 +104,7 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 FetchContent_Declare(
   StereoVision
   GIT_REPOSITORY https://github.com/french-paragon/LibStevi.git
-  GIT_TAG 8175f3a85d28b12033ca0717891e58cf310f6539
+  GIT_TAG 87849698455a19308e7d488935372f71ac5b72d8
   FIND_PACKAGE_ARGS
 )
 set(buildGui ON) #ensuire gui is built for stereo vision

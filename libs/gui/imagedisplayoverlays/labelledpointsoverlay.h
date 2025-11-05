@@ -43,7 +43,7 @@ protected:
     bool mousePressEvent(QImageDisplay::ImageWidget* interactionWidget, QMouseEvent *event);
 
     void paintItemImpl(QPainter* painter) const override;
-    void drawDecoratedPoint(QPainter* painter, QPointF point, bool isActive, QString label) const;
+    void drawDecoratedPoint(QPainter* painter, QPointF point, bool isActive, QString label, QColor color = QColor(255, 150, 20)) const;
 
     qint64 pointAt(QImageDisplay::ImageWidget* interactionWidget, QPoint const& widgetCoordinate) const;
 

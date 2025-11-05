@@ -13,11 +13,14 @@
 
 #include "gui/imagedisplayoverlays/labelledpointsoverlay.h"
 
+#include "vision/sparseMatchingPipeline.h"
+
 #include <QVBoxLayout>
 #include <QGroupBox>
 #include <QFormLayout>
 #include <QSpinBox>
 #include <QPushButton>
+#include <QSet>
 
 namespace SpaMat = StereoVision::SparseMatching;
 namespace Corr = StereoVision::Correlation;
@@ -146,6 +149,9 @@ void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> const& img
     _pointsOverlay1->setPointSet({});
     _pointsOverlay2->setPointSet({});
 
+    _imageViewAdapter1->imageDataUpdated();
+    _imageViewAdapter2->imageDataUpdated();
+
     _imageDisplay1->update();
     _imageDisplay2->update();
 }
@@ -157,6 +163,9 @@ void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> && imgData
 
     _pointsOverlay1->setPointSet({});
     _pointsOverlay2->setPointSet({});
+
+    _imageViewAdapter1->imageDataUpdated();
+    _imageViewAdapter2->imageDataUpdated();
 
     _imageDisplay1->update();
     _imageDisplay2->update();
@@ -198,93 +207,88 @@ void CornerMatchingTestEditor::compute() {
 
     int lpRadius = _lowPassRadius->value();
 
-    Multidim::Array<float, 2> scoreData1;
-    Multidim::Array<float, 2> scoreData2;
-
-    scoreData1 = SpaMat::windowedHarrisCornerScore(Multidim::Array<float, 3, Multidim::ConstView>(_imgData1), lpRadius, 0, batchDim);
-    scoreData2 = SpaMat::windowedHarrisCornerScore(Multidim::Array<float, 3, Multidim::ConstView>(_imgData2), lpRadius, 0, batchDim);
-
     int nomMaxSupprRadius = _nonMaximumMaxSuppressionRadius->value();
     int nItems = _nSelected->value();
 
-    float threshold = 0;
-
-    std::vector<std::array<float, 2>> corners1 =
-            SpaMat::nonLocalMaximumPointSelection(Multidim::Array<float, 2, Multidim::ConstView>(scoreData1),
-                                                  nomMaxSupprRadius,
-                                                  threshold,
-                                                  nItems);
-
-    std::vector<std::array<float, 2>> corners2 =
-            SpaMat::nonLocalMaximumPointSelection(Multidim::Array<float, 2, Multidim::ConstView>(scoreData2),
-                                                  nomMaxSupprRadius,
-                                                  threshold,
-                                                  nItems);
-
-
-    std::vector<std::array<int, 2>> integral_corners1(corners1.size());
-    std::vector<std::array<int, 2>> integral_corners2(corners2.size());
-
-    for (int i = 0; i < corners1.size(); i++) {
-        std::array<float, 2> pt = corners1[i];
-        integral_corners1[i] = std::array<int, 2>{static_cast<int>(std::round(pt[0])), static_cast<int>(std::round(pt[1]))};
-    }
-
-    for (int i = 0; i < corners2.size(); i++) {
-        std::array<float, 2> pt = corners2[i];
-        integral_corners2[i] = std::array<int, 2>{static_cast<int>(std::round(pt[0])), static_cast<int>(std::round(pt[1]))};
-    }
-
     int patchRadius = _featurePatchRadius->value();
-
-    std::vector<SpaMat::orientedCoordinate<2>> oriented1 = SpaMat::intensityOrientedCoordinates<true>(integral_corners1, _imgData1, patchRadius, batchDim);
-    std::vector<SpaMat::orientedCoordinate<2>> oriented2 = SpaMat::intensityOrientedCoordinates<true>(integral_corners2, _imgData1, patchRadius, batchDim);
-
     int nSamples = _nFeatures->value();
 
-    std::array<int,nDim> shape;
-    std::fill(shape.begin(), shape.end(), 2*patchRadius+1);
-    shape[batchDim] = 3;
+    using CornerDetectorModule = HarrisCornerDetectorModule<float>;
+    using MatchingModule = HungarianCornerMatchModule<float>;
+    using RefinementModule = IdentityRefineInlierModule<float>;
+    using FilteringModule = RansacEpipolarInlinerSelectionModule<float>;
 
-    std::vector<std::array<int,nDim>> patchCoords = SpaMat::generateDensePatchCoordinates<nDim>(shape);
+    using MatchingPipeline = ModularSparseMatchingPipeline<float,
+                                                           CornerDetectorModule,
+                                                           MatchingModule,
+                                                           RefinementModule,
+                                                           FilteringModule>;
 
+    MatchingPipeline matchingPipeline(new CornerDetectorModule(lpRadius, nomMaxSupprRadius, nItems),
+                                      new MatchingModule(patchRadius, nSamples),
+                                      nullptr,
+                                      new FilteringModule(200));
 
-    auto features1 = SpaMat::WhitenedPixelsDescriptor(oriented1, _imgData1, patchCoords, batchDim);
-    auto features2 = SpaMat::WhitenedPixelsDescriptor(oriented2, _imgData2, patchCoords, batchDim);
+    matchingPipeline.setupPipeline(_imgData1, _imgData2);
 
-    int n = features1.size();
-    int m = features2.size();
+    bool verbose = true;
+    matchingPipeline.runAllSteps(verbose);
 
-    Eigen::MatrixXf costs;
-    costs.resize(n, m);
+    std::vector<std::array<float, 2>> const& corners1 = matchingPipeline.corners1();
+    std::vector<std::array<float, 2>> const& corners2 = matchingPipeline.corners2();
 
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            costs(i,j) = Corr::SumAbsDiff(features1[i].features, features2[j].features);
-        }
-    }
-
-    std::vector<std::array<int,2>> assignements = Optm::optimalAssignement(costs);
+    std::vector<std::array<int,2>> assignements = matchingPipeline.assignements();
+    QSet<int> inliers(matchingPipeline.inliers().begin(), matchingPipeline.inliers().end());
 
     QVector<QPointF> points1;
     QVector<QPointF> points2;
 
+    QVector<QColor> points1Colors;
+    QVector<QColor> points2Colors;
+
     points1.reserve(assignements.size());
     points2.reserve(assignements.size());
 
-    for (std::array<int,2> const& assignement : assignements) {
+    points1Colors.reserve(assignements.size());
+    points2Colors.reserve(assignements.size());
+
+    QColor inlierColor(50,255,120);
+    QColor outlierColor(255,50,50);
+
+    for (int i = 0; i < assignements.size(); i++) {
+        std::array<int,2> const& assignement = assignements[i];
+
         int f1_idx = assignement[0];
-        int f2_idx = assignement[0];
+        int f2_idx = assignement[1];
 
-        auto& f1 = features1[f1_idx];
-        auto& f2 = features2[f2_idx];
+        if (f1_idx >= (int) corners1.size()) {
+            continue;
+        }
 
-        points1.push_back(QPointF(f1.coord[1], f1.coord[0]));
-        points2.push_back(QPointF(f2.coord[1], f2.coord[0]));
+        if (f2_idx >= (int) corners2.size()) {
+            continue;
+        }
+
+        auto& f1 = corners1[f1_idx];
+        auto& f2 = corners2[f2_idx];
+
+        points1.push_back(QPointF(f1[1], f1[0]));
+        points2.push_back(QPointF(f2[1], f2[0]));
+
+        if (inliers.contains(i)) {
+            points1Colors.push_back(inlierColor);
+            points2Colors.push_back(inlierColor);
+        } else {
+            points1Colors.push_back(outlierColor);
+            points2Colors.push_back(outlierColor);
+        }
     }
 
     _pointsOverlay1->setPointSet(points1);
     _pointsOverlay2->setPointSet(points2);
+
+    _pointsOverlay1->setColorMap(points1Colors);
+    _pointsOverlay2->setColorMap(points2Colors);
 
 }
 

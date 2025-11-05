@@ -1169,11 +1169,13 @@ int orientCamerasRelativeToObservedLandmarks(qint64 imgId, Project* p) {
 
 		if (lm->optPos().isSet()) {
 			observedLandmarks.push_back(lm);
-		}
+        } else if (lm->xCoord().isSet() and lm->yCoord().isSet() and lm->zCoord().isSet()) {
+            observedLandmarks.push_back(lm);
+        }
 
 	}
 
-	if (observedLandmarks.size() <= 4) {
+    if (observedLandmarks.size() < 4) {
 		qDebug() << "Not enough landmarks available";
 		return 1;
 	}
@@ -1188,7 +1190,16 @@ int orientCamerasRelativeToObservedLandmarks(qint64 imgId, Project* p) {
 	for (int i = 0; i < observedLandmarks.size(); i++) {
 
 		Landmark* lm = observedLandmarks[i];
-		pointsCoordinates.col(i) = Eigen::Vector3f(lm->optPos().value(0), lm->optPos().value(1), lm->optPos().value(2));
+
+        constexpr bool applyLocalTransform = true;
+
+        if (lm->optPos().isSet()) {
+            constexpr bool optimized = true;
+            pointsCoordinates.col(i) = lm->getOptimizableCoordinates(optimized, applyLocalTransform).value().cast<float>();
+        } else {
+            constexpr bool optimized = false;
+            pointsCoordinates.col(i) = lm->getOptimizableCoordinates(optimized, applyLocalTransform).value().cast<float>();
+        }
 
 		ImageLandmark* imLm = img->getImageLandmarkByLandmarkId(lm->internalId());
 

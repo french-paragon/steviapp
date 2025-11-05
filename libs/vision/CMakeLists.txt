@@ -13,6 +13,7 @@ set(LIB_HEADERS
     pointcloudio.h
     indexed_timed_sequence.h
     trajectoryImuPreIntegration.h
+    sparseMatchingPipeline.h
 )
 
 add_library(

@@ -88,7 +88,11 @@ void LabelledPointsOverlay::paintItemImpl(QPainter* painter) const {
             label = _labels[i];
         }
 
-        drawDecoratedPoint(painter, _pointsSet[i], allActive, label);
+        if (_pointsColor.isEmpty()) {
+            drawDecoratedPoint(painter, _pointsSet[i], allActive, label);
+        } else {
+            drawDecoratedPoint(painter, _pointsSet[i], allActive, label, _pointsColor[i]);
+        }
 
     }
 
@@ -104,7 +108,7 @@ void LabelledPointsOverlay::paintItemImpl(QPainter* painter) const {
     }
 }
 
-void LabelledPointsOverlay::drawDecoratedPoint(QPainter* painter, QPointF point, bool isActive, QString label) const {
+void LabelledPointsOverlay::drawDecoratedPoint(QPainter* painter, QPointF point, bool isActive, QString label, QColor color) const {
 
     QTransform img2paint = imageToPaintArea();
 
@@ -117,7 +121,7 @@ void LabelledPointsOverlay::drawDecoratedPoint(QPainter* painter, QPointF point,
     QColor black(0, 0, 0);
 
     if (isActive) {
-        pColor = QColor(255, 150, 20);
+        pColor = color;
     }
 
     QBrush fill;
