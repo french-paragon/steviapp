@@ -135,6 +135,7 @@ inline constexpr bool correspTypeHasBlockId(Types correspT) {
     case Types::XY:
     case Types::XYZ:
     case Types::T:
+    case Types::UV:
     case Types::UVT:
     case Types::XYT:
     case Types::XYZT:

@@ -88,7 +88,12 @@ bool importCorrespondencesFromTxt(Project* project, qint64 correspSetId, QString
     int nLines = 0;
 
     while (!stream.atEnd()) {
-        QString line = stream.readLine();
+        QString line = stream.readLine().trimmed();
+
+        if (line.startsWith("#") or line.isEmpty()) {
+            continue; //ignore comments and empty lines
+        }
+
         nLines++;
 
         //replace object names with object ids
