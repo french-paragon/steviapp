@@ -13,14 +13,16 @@
 
 #include "gui/imagedisplayoverlays/labelledpointsoverlay.h"
 
-#include "vision/sparseMatchingPipeline.h"
+#include "datablocks/correspondencesset.h"
 
 #include <QVBoxLayout>
 #include <QGroupBox>
 #include <QFormLayout>
 #include <QSpinBox>
+#include <QDoubleSpinBox>
 #include <QPushButton>
 #include <QSet>
+#include <QMessageBox>
 
 namespace SpaMat = StereoVision::SparseMatching;
 namespace Corr = StereoVision::Correlation;
@@ -28,7 +30,15 @@ namespace Optm = StereoVision::Optimization;
 
 namespace StereoVisionApp {
 
-CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent)
+
+CornerMatchingTestEditor::MatchBuilder::~MatchBuilder() {
+
+}
+
+CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent) :
+    Editor(parent),
+    _matchBuilder1(nullptr),
+    _matchBuilder2(nullptr)
 {
 
     QVBoxLayout* verticalLayout = new QVBoxLayout();
@@ -123,6 +133,32 @@ CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent)
 
     optionsLayout->addWidget(featureOptionsBox);
 
+    QGroupBox* inliersOptionsBox = new QGroupBox(this);
+    inliersOptionsBox->setTitle(tr("Inliers filtering options"));
+
+    QFormLayout* inlierFormLayout = new QFormLayout(inliersOptionsBox);
+
+    _nRansacIterationInput = new QSpinBox(this);
+    _nRansacIterationInput->setMinimum(1);
+    _nRansacIterationInput->setMaximum(999999);
+
+    _nRansacIterationInput->setValue(200);
+
+    _ransacThreshold = new QDoubleSpinBox(this);
+    _ransacThreshold->setMinimum(0.0);
+    _ransacThreshold->setMaximum(999999);
+
+    _ransacThreshold->setValue(0.02);
+    _ransacThreshold->setSingleStep(0.01);
+
+    inlierFormLayout->addRow(tr("Ransac iterations"), _nRansacIterationInput);
+    inlierFormLayout->addRow(tr("Ransac threshold"), _ransacThreshold);
+
+
+    optionsLayout->addWidget(inliersOptionsBox);
+
+
+
     verticalLayout->addLayout(optionsLayout);
 
     QHBoxLayout* buttonLayout = new QHBoxLayout();
@@ -130,15 +166,37 @@ CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent)
     QPushButton* computeButton = new QPushButton(this);
     computeButton->setText(tr("Compute"));
 
+    _saveButton = new QPushButton(this);
+    _saveButton->setText(tr("Write matches"));
+
+    _saveButton->setEnabled(false);
+
     connect(computeButton, &QPushButton::clicked, this, &CornerMatchingTestEditor::compute);
+    connect(_saveButton, &QPushButton::clicked, this, &CornerMatchingTestEditor::writeCorrespondanceSet);
 
     buttonLayout->addStretch();
+    buttonLayout->addWidget(_saveButton);
     buttonLayout->addWidget(computeButton);
 
     verticalLayout->addLayout(buttonLayout);
 
     setLayout(verticalLayout);
 
+    //special function to setup matching pipeline, clearner.
+    setupMatchingPipeline();
+
+}
+CornerMatchingTestEditor::~CornerMatchingTestEditor() {
+    if (_matchingPipeline != nullptr) {
+        delete _matchingPipeline;
+    }
+
+    if (_matchBuilder1 != nullptr) {
+        delete _matchBuilder1;
+    }
+    if (_matchBuilder2 != nullptr) {
+        delete _matchBuilder2;
+    }
 }
 
 void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> const& imgData1,
@@ -171,6 +229,19 @@ void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> && imgData
     _imageDisplay2->update();
 
 }
+void CornerMatchingTestEditor::setMatchBuilders(MatchBuilder* matchBuilder1,
+                                                MatchBuilder* matchBuilder2) {
+
+    if (_matchBuilder1 != nullptr) {
+        delete _matchBuilder1;
+    }
+    if (_matchBuilder2 != nullptr) {
+        delete _matchBuilder2;
+    }
+
+    _matchBuilder1 = matchBuilder1;
+    _matchBuilder2 = matchBuilder2;
+}
 
 void CornerMatchingTestEditor::clearImageData() {
 
@@ -184,10 +255,61 @@ void CornerMatchingTestEditor::clearImageData() {
     _imageDisplay2->update();
 }
 
+void CornerMatchingTestEditor::setupMatchingPipeline() {
+
+    int lpRadius = _lowPassRadius->value();
+
+    int nomMaxSupprRadius = _nonMaximumMaxSuppressionRadius->value();
+    int nItems = _nSelected->value();
+
+    int patchRadius = _featurePatchRadius->value();
+    int nSamples = _nFeatures->value();
+
+    int nRansacIteration = _nRansacIterationInput->value();
+    float threshold = _ransacThreshold->value();
+
+    HarrisCornerDetectorModule<float>* baseCornerDetectionModule = new HarrisCornerDetectorModule<float>(lpRadius, nomMaxSupprRadius, nItems);
+    HungarianCornerMatchModule<float>* basePointsMatchingModule = new HungarianCornerMatchModule<float>(patchRadius, nSamples);
+    RansacEpipolarInlinerSelectionModule<float>* baseInlierModule = new RansacEpipolarInlinerSelectionModule<float>(nRansacIteration, threshold);
+
+    _matchingPipeline = new MatchingPipeline(baseCornerDetectionModule, basePointsMatchingModule, nullptr, baseInlierModule);
+
+    //edit modules values
+    connect(_lowPassRadius, qOverload<int>(&QSpinBox::valueChanged), this, [baseCornerDetectionModule] (int val) {
+        baseCornerDetectionModule->setLowPassRadius(val);
+    });
+
+    connect(_nonMaximumMaxSuppressionRadius, qOverload<int>(&QSpinBox::valueChanged), this, [baseCornerDetectionModule] (int val) {
+        baseCornerDetectionModule->setNonMaxSupprRadius(val);
+    });
+
+    connect(_nSelected, qOverload<int>(&QSpinBox::valueChanged), this, [baseCornerDetectionModule] (int val) {
+        baseCornerDetectionModule->setMaxNCorners(val);
+    });
+
+
+    connect(_featurePatchRadius, qOverload<int>(&QSpinBox::valueChanged), this, [basePointsMatchingModule] (int val) {
+        basePointsMatchingModule->setPatchRadius(val);
+    });
+
+    connect(_nFeatures, qOverload<int>(&QSpinBox::valueChanged), this, [basePointsMatchingModule] (int val) {
+        basePointsMatchingModule->setNSamples(val);
+    });
+
+
+    connect(_nRansacIterationInput, qOverload<int>(&QSpinBox::valueChanged), this, [baseInlierModule] (int val) {
+        baseInlierModule->setNIterations(val);
+    });
+
+    connect(_ransacThreshold, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [baseInlierModule] (double val) {
+        baseInlierModule->setThreshold(val);
+    });
+
+}
+
 void CornerMatchingTestEditor::compute() {
 
-    constexpr int batchDim = 2;
-    constexpr int nDim = 3;
+    _saveButton->setEnabled(false);
 
     if (_imgData1.empty()) {
 
@@ -205,40 +327,16 @@ void CornerMatchingTestEditor::compute() {
         return;
     }
 
-    int lpRadius = _lowPassRadius->value();
-
-    int nomMaxSupprRadius = _nonMaximumMaxSuppressionRadius->value();
-    int nItems = _nSelected->value();
-
-    int patchRadius = _featurePatchRadius->value();
-    int nSamples = _nFeatures->value();
-
-    using CornerDetectorModule = HarrisCornerDetectorModule<float>;
-    using MatchingModule = HungarianCornerMatchModule<float>;
-    using RefinementModule = IdentityRefineInlierModule<float>;
-    using FilteringModule = RansacEpipolarInlinerSelectionModule<float>;
-
-    using MatchingPipeline = ModularSparseMatchingPipeline<float,
-                                                           CornerDetectorModule,
-                                                           MatchingModule,
-                                                           RefinementModule,
-                                                           FilteringModule>;
-
-    MatchingPipeline matchingPipeline(new CornerDetectorModule(lpRadius, nomMaxSupprRadius, nItems),
-                                      new MatchingModule(patchRadius, nSamples),
-                                      nullptr,
-                                      new FilteringModule(200));
-
-    matchingPipeline.setupPipeline(_imgData1, _imgData2);
+    _matchingPipeline->setupPipeline(_imgData1, _imgData2);
 
     bool verbose = true;
-    matchingPipeline.runAllSteps(verbose);
+    _matchingPipeline->runAllSteps(verbose);
 
-    std::vector<std::array<float, 2>> const& corners1 = matchingPipeline.corners1();
-    std::vector<std::array<float, 2>> const& corners2 = matchingPipeline.corners2();
+    std::vector<std::array<float, 2>> const& corners1 = _matchingPipeline->corners1();
+    std::vector<std::array<float, 2>> const& corners2 = _matchingPipeline->corners2();
 
-    std::vector<std::array<int,2>> assignements = matchingPipeline.assignements();
-    QSet<int> inliers(matchingPipeline.inliers().begin(), matchingPipeline.inliers().end());
+    std::vector<std::array<int,2>> assignements = _matchingPipeline->assignements();
+    QSet<int> inliers(_matchingPipeline->inliers().begin(), _matchingPipeline->inliers().end());
 
     QVector<QPointF> points1;
     QVector<QPointF> points2;
@@ -252,7 +350,7 @@ void CornerMatchingTestEditor::compute() {
     points1Colors.reserve(assignements.size());
     points2Colors.reserve(assignements.size());
 
-    QColor inlierColor(50,255,120);
+    QColor inlierColor(10,150,30);
     QColor outlierColor(255,50,50);
 
     for (int i = 0; i < assignements.size(); i++) {
@@ -289,6 +387,89 @@ void CornerMatchingTestEditor::compute() {
 
     _pointsOverlay1->setColorMap(points1Colors);
     _pointsOverlay2->setColorMap(points2Colors);
+
+    if (_matchBuilder1 != nullptr and _matchBuilder2 != nullptr) {
+        _saveButton->setEnabled(true);
+    }
+
+}
+
+void CornerMatchingTestEditor::writeCorrespondanceSet() {
+
+    if (_matchBuilder1 == nullptr or _matchBuilder2 == nullptr) {
+        return;
+    }
+
+    Project* project = activeProject();
+
+    if (project == nullptr) {
+        QMessageBox::warning(this,
+                             QObject::tr("Could not import correspondences"),
+                             QObject::tr("Could not get project to create datablock!"));
+        return;
+    }
+
+    CorrespondencesSet* correspSet = nullptr;
+
+    if (correspSet == nullptr) {
+        qint64 id = project->createDataBlock(CorrespondencesSet::staticMetaObject.className());
+
+        if (id < 0) {
+            QMessageBox::warning(this,
+                                 QObject::tr("Could not import correspondences"),
+                                 QObject::tr("Could not create datablock in project!"));
+            return ;
+        }
+
+        correspSet = project->getDataBlock<CorrespondencesSet>(id);
+
+        if (correspSet == nullptr) {
+            QMessageBox::warning(this,
+                                 QObject::tr("Could not import correspondences"),
+                                 QObject::tr("Could not load created datablock from project!"));
+            return;
+        }
+
+        correspSet->setObjectName(QString("%1 - %2 correspondence set").arg(_matchBuilder1->targetTitle(), _matchBuilder2->targetTitle()));
+    }
+
+    std::vector<std::array<float, 2>> const& corners1 = _matchingPipeline->corners1();
+    std::vector<std::array<float, 2>> const& corners2 = _matchingPipeline->corners2();
+
+    std::vector<std::array<int,2>> assignements = _matchingPipeline->assignements();
+    QSet<int> inliers(_matchingPipeline->inliers().begin(), _matchingPipeline->inliers().end());
+
+
+    for (int i = 0; i < assignements.size(); i++) {
+        if (!inliers.contains(i)) {
+            continue;
+        }
+
+        std::array<int,2> const& assignement = assignements[i];
+
+        int f1_idx = assignement[0];
+        int f2_idx = assignement[1];
+
+        if (f1_idx >= (int) corners1.size()) {
+            continue;
+        }
+
+        if (f2_idx >= (int) corners2.size()) {
+            continue;
+        }
+
+        auto& f1 = corners1[f1_idx];
+        auto& f2 = corners2[f2_idx];
+
+        float u1 = f1[0];
+        float v1 = f1[1];
+
+        float u2 = f2[0];
+        float v2 = f2[1];
+
+        correspSet->addCorrespondence(Correspondences::GenericPair{_matchBuilder1->correspondanceFromUV(u1,v1),
+                                                                   _matchBuilder2->correspondanceFromUV(u2,v2)});
+    }
 
 }
 

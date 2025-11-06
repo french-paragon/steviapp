@@ -360,6 +360,9 @@ protected:
         return true;
     }
     bool refineMatchedCornersImpl() override {
+        if (_refineModule == nullptr) {
+            return true; //refine module is not mandatory
+        }
         bool ok =
             _refineModule->refineMatchedPositions(
                 SparseMatchingPipeline<T>::_assignements,
@@ -459,6 +462,18 @@ public:
                                                   _maxNCorners);
 
         return corners;
+    }
+
+    inline void setLowPassRadius(int lpRadius) {
+        _lpRadius = lpRadius;
+    }
+
+    inline void setNonMaxSupprRadius(int radius) {
+        _nonMaxSupprRadius = radius;
+    }
+
+    inline void setMaxNCorners(int nCorners) {
+        _maxNCorners = nCorners;
     }
 
 protected:
@@ -585,10 +600,33 @@ public:
         return ret;
     }
 
+    void setPatchRadius(int radius) {
+        _patchRadius = radius;
+    }
+
+    void setNSamples(int n) {
+        _nSamples = n;
+    }
+
 protected:
 
     int _patchRadius;
     int _nSamples;
+};
+
+template<typename T>
+class GenericTiePointsRenfinementModule {
+public:
+
+    virtual ~GenericTiePointsRenfinementModule() {
+
+    }
+    virtual bool refineMatchedPositions(std::vector<std::array<int,2>> const& assignement,
+                                Multidim::Array<T,3, Multidim::ConstView> const& imgData1,
+                                std::vector<std::array<float, 2>> & corners1,
+                                Multidim::Array<T,3, Multidim::ConstView> const& imgData2,
+                                std::vector<std::array<float, 2>> & corners2) = 0;
+
 };
 
 template<typename T>
@@ -610,8 +648,9 @@ template<typename T>
 class RansacEpipolarInlinerSelectionModule : public GenericInlinerSelectionModule<T> {
 public:
 
-    RansacEpipolarInlinerSelectionModule(int nRansacIterations) :
-        _nIterations(nRansacIterations)
+    RansacEpipolarInlinerSelectionModule(int nRansacIterations, float threshold = 0.02) :
+        _nIterations(nRansacIterations),
+        _threshold(threshold)
     {
 
     }
@@ -680,7 +719,8 @@ public:
                 float const& x2 = observation[2];
                 float const& y2 = observation[3];
 
-                float res = Eigen::Vector3f(x1,y1,1).dot(FundamentalMatrix*Eigen::Vector3f(x2,y2,1)) ;
+                Eigen::Vector3f line = FundamentalMatrix*Eigen::Vector3f(x2,y2,1);
+                float res = std::fabs(Eigen::Vector3f(x1,y1,1).dot(line))/std::sqrt(line.x()*line.x() + line.y()*line.y()); //distance to the epipolar line
                 return std::fabs(res);
             }
 
@@ -702,9 +742,8 @@ public:
         }
 
         constexpr int minObs = 8;
-        float threshold = 0.02;
 
-        StereoVision::Optimization::GenericRansac<Measure, Model> ransac(observations, minObs, threshold);
+        StereoVision::Optimization::GenericRansac<Measure, Model> ransac(observations, minObs, _threshold);
 
         ransac.ransacIterations(_nIterations);
 
@@ -721,9 +760,18 @@ public:
 
     }
 
+    void setNIterations(int nIterations) {
+        _nIterations = nIterations;
+    }
+
+    void setThreshold(float threshold) {
+        _threshold = threshold;
+    }
+
 protected:
 
     int _nIterations;
+    float _threshold;
 };
 
 } // namespace StereoVisionApp

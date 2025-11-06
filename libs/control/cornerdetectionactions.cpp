@@ -265,6 +265,27 @@ void matchCornersInImagePair(Project* proj, qint64 imgId1, qint64 imgId2) {
 
     cmte->setImageData(img_data1, img_data2);
 
+    class ImageMatchBuilder : public CornerMatchingTestEditor::MatchBuilder {
+    public:
+        ImageMatchBuilder(Image* img) : _img(img) {
+
+        }
+        virtual Correspondences::Generic correspondanceFromUV(float u, float v) const {
+            Correspondences::Typed<Correspondences::UV> ret;
+            ret.blockId = _img->internalId();
+            ret.u = u;
+            ret.v = v;
+            return ret;
+        }
+        virtual QString targetTitle() const {
+            return _img->objectName();
+        }
+    protected:
+        Image* _img;
+    };
+
+    cmte->setMatchBuilders(new ImageMatchBuilder(img_block1), new ImageMatchBuilder(img_block2));
+
 }
 
 } // namespace StereoVisionApp
