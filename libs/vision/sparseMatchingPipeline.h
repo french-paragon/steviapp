@@ -540,13 +540,29 @@ public:
         Eigen::MatrixXf costs;
         costs.resize(n, m);
 
+        std::vector<float> bestCosts(n);
+
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < m; j++) {
                 costs(i,j) = StereoVision::Correlation::SumAbsDiff(features1[i].features, features2[j].features);
+                if (j == 0) {
+                    bestCosts[i] = costs(i,j);
+                } else {
+                    bestCosts[i] = std::min(bestCosts[i],costs(i,j));
+                }
             }
         }
 
+        auto targetIt = bestCosts.begin();
+        std::advance(targetIt, bestCosts.size()/2);
+        std::nth_element(bestCosts.begin(), targetIt, bestCosts.end());
+
+        float maxNonAssignementCost = *targetIt;
+        maxNonAssignementCost *= 1.5;
+
         Eigen::MatrixXf extendedCosts = StereoVision::Optimization::extendCostForNBestCosts(costs,3);
+
+        extendedCosts = StereoVision::Optimization::setConstantMaxNonAssignementCost(extendedCosts, maxNonAssignementCost);
 
         std::vector<std::array<int,2>> assignements = StereoVision::Optimization::optimalAssignement(extendedCosts);
 
@@ -566,7 +582,7 @@ public:
             ret.push_back(proposal);
         }
 
-        return ret;;
+        return ret;
     }
 
 protected:
@@ -686,7 +702,7 @@ public:
         }
 
         constexpr int minObs = 8;
-        float threshold = 0.01;
+        float threshold = 0.02;
 
         StereoVision::Optimization::GenericRansac<Measure, Model> ransac(observations, minObs, threshold);
 
