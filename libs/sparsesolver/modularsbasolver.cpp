@@ -1340,7 +1340,7 @@ bool addCrossProjectionCostFunctionHelperLvl2(std::array<double*, 8> const& pose
                                                                                                         infos1.modularProjector,ptProj1Pos,ptProj1Stiffness,
                                                                                                         projector1ParametersMapping,
                                                                                                         infos2.modularProjector,
-                                                                                                        ptProj2Pos,ptProj2Stiffness,projector2ParametersMapping);
+                                                                                                        ptProj2Pos,ptProj2Stiffness,projector2ParametersMapping,false);
 
         CostFunction* logCostFunction = new CostFunction(logFunctor);
 
@@ -1349,7 +1349,7 @@ bool addCrossProjectionCostFunctionHelperLvl2(std::array<double*, 8> const& pose
 
         ModularSBASolver::AutoDynamicErrorBlockLogger* projErrorLogger =
             new ModularSBASolver::AutoDynamicErrorBlockLogger(
-                new CostFunction(logFunctor),
+                logCostFunction,
                 params,
                 true);
 

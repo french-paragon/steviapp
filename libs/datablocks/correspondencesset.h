@@ -88,9 +88,13 @@ public:
     QString robustificationMethod() const;
     void setRobustificationMethod(QString const& methodName);
 
+    bool isVerbose() const;
+    void setVerbose(bool verbose);
+
 Q_SIGNALS:
 
     void robustificationLevelChanged();
+    void verboseLevelChanged();
 
 protected:
 
@@ -103,6 +107,8 @@ protected:
 
     QVector<Correspondences::GenericPair> _correspondences;
     int _robustificationLevel;
+
+    bool _verbose;
 
 };
 

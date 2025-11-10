@@ -9,7 +9,8 @@ namespace StereoVisionApp {
 
 CorrespondencesSet::CorrespondencesSet(Project *parent) :
     DataBlock(parent),
-    _robustificationLevel(RobustificationLevel::None)
+    _robustificationLevel(RobustificationLevel::None),
+    _verbose(false)
 {
     extendDataModel();
 }
@@ -121,7 +122,22 @@ void CorrespondencesSet::setRobustificationMethod(QString const& methodName) {
     if (level != _robustificationLevel) {
         _robustificationLevel = level;
         Q_EMIT robustificationLevelChanged();
+        isChanged();
     }
+}
+
+bool CorrespondencesSet::isVerbose() const {
+    return _verbose;
+}
+void CorrespondencesSet::setVerbose(bool verbose) {
+
+    if (_verbose == verbose) {
+        return;
+    }
+
+    _verbose = verbose;
+    Q_EMIT verboseLevelChanged();
+    isChanged();
 }
 
 void CorrespondencesSet::referedCleared(QVector<qint64> const& referedId) {
@@ -162,6 +178,8 @@ QJsonObject CorrespondencesSet::encodeJson() const {
         obj.insert("robustification", "arctan");
         break;
     }
+
+    obj.insert("verbose", _verbose);
 
     return obj;
 }
@@ -212,6 +230,12 @@ void CorrespondencesSet::configureFromJson(QJsonObject const& data) {
             }
         }
     }
+
+    if (data.contains("verbose")) {
+        _verbose = data.value("verbose").toBool();
+    } else {
+        _verbose = false;
+    }
 }
 
 void CorrespondencesSet::extendDataModel() {
@@ -232,7 +256,11 @@ void CorrespondencesSet::extendDataModel() {
 
     robustificationProp->setOptions(QStringList{"None", "Huber", "Cauchy", "Arctan"});
 
-
+    optCat->addCatProperty<bool, CorrespondencesSet, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+        tr("Verbose"),
+        &CorrespondencesSet::isVerbose,
+        &CorrespondencesSet::setVerbose,
+        &CorrespondencesSet::verboseLevelChanged);
 
 }
 

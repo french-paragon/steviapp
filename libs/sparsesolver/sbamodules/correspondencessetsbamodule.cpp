@@ -191,7 +191,8 @@ bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspo
                                                  Correspondences::Typed<Correspondences::GEOXYZ> const& geoPos,
                                                  StereoVisionApp::ModularSBASolver* solver,
                                                  ceres::Problem & problem,
-                                                 ceres::LossFunction* lossFunction) {
+                                                 ceres::LossFunction* lossFunction,
+                                                 QString logName) {
 
     StereoVisionApp::Project* currentProject = solver->currentProject();
 
@@ -247,6 +248,14 @@ bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspo
 
     problem.AddResidualBlock(costFunc, lossFunction, posData);
 
+    if (!logName.isEmpty()) {
+
+        FixedSizeNormalPrior<3,3>* logFunc =
+            new FixedSizeNormalPrior<3,3>(Eigen::Matrix3d::Identity(), pointPos.value());
+
+        solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(logFunc, {posData}, true));
+    }
+
     return true;
 
 }
@@ -257,7 +266,8 @@ bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Corresp
                                                   Correspondences::Typed<Correspondences::GEOXY> const& geoPos,
                                                   ModularSBASolver* solver,
                                                   ceres::Problem & problem,
-                                                  ceres::LossFunction* lossFunction) {
+                                                  ceres::LossFunction* lossFunction,
+                                                  QString logName) {
 
     Project* currentProject = solver->currentProject();
 
@@ -331,14 +341,16 @@ bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Corresp
     FixedSizeNormalPrior<3,2>* errorFunc =
             new FixedSizeNormalPrior<3,2>(A, x);
 
-    QString loggerName = QString("Geo projection constraint for %1 (id = %2, class = %3)")
-            .arg(targetBlock->objectName())
-            .arg(targetBlock->internalId())
-            .arg(targetBlock->metaObject()->className());
+    if (!logName.isEmpty()) {
+        QString loggerName = QString("Geo projection constraint for %1 (id = %2, class = %3)")
+                .arg(targetBlock->objectName())
+                .arg(targetBlock->internalId())
+                .arg(targetBlock->metaObject()->className());
 
-    constexpr bool  manageFunc = true;
-    solver->addLogger(loggerName,
-                      new ModularSBASolver::AutoErrorBlockLogger<1,2>(errorFunc, {posData}, manageFunc));
+        constexpr bool  manageFunc = true;
+        solver->addLogger(loggerName,
+                          new ModularSBASolver::AutoErrorBlockLogger<1,2>(errorFunc, {posData}, manageFunc));
+    }
     problem.AddResidualBlock(costFunc, lossFunction, posData);
 
     return true;
@@ -349,7 +361,8 @@ bool CorrespondencesSetSBAModule::addXYZMatch(Correspondences::Typed<Corresponde
                                               Correspondences::Typed<Correspondences::XYZ> const& xyz2,
                                               StereoVisionApp::ModularSBASolver* solver,
                                               ceres::Problem & problem,
-                                              ceres::LossFunction* lossFunction) {
+                                              ceres::LossFunction* lossFunction,
+                                              QString logName) {
 
     StereoVisionApp::Project* currentProject = solver->currentProject();
 
@@ -410,6 +423,14 @@ bool CorrespondencesSetSBAModule::addXYZMatch(Correspondences::Typed<Corresponde
 
     problem.AddResidualBlock(costFunc, lossFunction, p1->rAxis.data(), p1->t.data(), p2->rAxis.data(), p2->t.data());
 
+    if (!logName.isEmpty()) {
+
+        CostFuncT* logFunc =
+            new CostFuncT(new Local3DCoalignementCost(localPos1, localPos2, Eigen::Matrix3d::Identity()));
+
+        solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<4,3>(logFunc, {p1->rAxis.data(), p1->t.data(), p2->rAxis.data(), p2->t.data()}, true));
+    }
+
     return true;
 
 }
@@ -418,7 +439,8 @@ bool CorrespondencesSetSBAModule::addXYZ2LineMatch(Correspondences::Typed<Corres
                                                    Correspondences::Typed<Correspondences::Line3D> const& line,
                                                    StereoVisionApp::ModularSBASolver* solver,
                                                    ceres::Problem & problem,
-                                                   ceres::LossFunction* lossFunction) {
+                                                   ceres::LossFunction* lossFunction,
+                                                   QString logName) {
     //TODO: add constraint
     solver->logMessage(QObject::tr("Tried to add a correspondance from a point in local coordinate system to a line in a local coordinate system, but the operation is not yet supported"));
     return false;
@@ -428,7 +450,8 @@ bool CorrespondencesSetSBAModule::addXYZ2PlaneMatch(Correspondences::Typed<Corre
                                                     Correspondences::Typed<Correspondences::Plane3D> const& line,
                                                     StereoVisionApp::ModularSBASolver* solver,
                                                     ceres::Problem & problem,
-                                                    ceres::LossFunction* lossFunction) {
+                                                    ceres::LossFunction* lossFunction,
+                                                    QString logName) {
     //TODO: add constraint
     solver->logMessage(QObject::tr("Tried to add a correspondance from a point in local coordinate system to a plane in a local coordinate system, but the operation is not yet supported"));
     return false;
@@ -438,7 +461,8 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
                                                   Correspondences::Typed<Correspondences::GEOXYZ> const& geoMatch,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
-                                                  ceres::LossFunction* lossFunction) {
+                                                  ceres::LossFunction* lossFunction,
+                                                  QString logName) {
 
     StereoVisionApp::Project* currentProject = solver->currentProject();
 
@@ -501,6 +525,14 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
 
     problem.AddResidualBlock(costFunc, lossFunction, p->rAxis.data(), p->t.data());
 
+    if (!logName.isEmpty()) {
+
+        CostFuncT* logFunc =
+            new CostFuncT(new LocalPoint2TargetAlignementCost(localPos, pointPos.value(), Eigen::Matrix3d::Identity()));
+
+        solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(logFunc, {p->rAxis.data(), p->t.data()}, true));
+    }
+
     return true;
 
 }
@@ -509,7 +541,8 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
                                                   Correspondences::Typed<Correspondences::GEOXY> const& geoMatch,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
-                                                  ceres::LossFunction* lossFunction) {
+                                                  ceres::LossFunction* lossFunction,
+                                                  QString logName) {
 
     StereoVisionApp::Project* currentProject = solver->currentProject();
 
@@ -577,6 +610,14 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
 
     problem.AddResidualBlock(costFunc, lossFunction, p->rAxis.data(), p->t.data());
 
+    if (!logName.isEmpty()) {
+
+        CostFuncT* logFunc =
+            new CostFuncT(new LocalPoint2TargetProjectionCost<2>(localPos, b, A, Eigen::Matrix2d::Identity()));
+
+        solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(logFunc, {p->rAxis.data(), p->t.data()}, true));
+    }
+
     return true;
 
 }
@@ -584,7 +625,8 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
 bool CorrespondencesSetSBAModule::setupXYZPrior(Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                 StereoVisionApp::ModularSBASolver* solver,
                                                 ceres::Problem & problem,
-                                                ceres::LossFunction* lossFunction) {
+                                                ceres::LossFunction* lossFunction,
+                                                QString logName) {
 
     StereoVisionApp::Project* currentProject = solver->currentProject();
 
@@ -634,6 +676,14 @@ bool CorrespondencesSetSBAModule::setupXYZPrior(Correspondences::Typed<Correspon
 
     problem.AddResidualBlock(costFunc, lossFunction, targetData);
 
+    if (!logName.isEmpty()) {
+
+        FixedSizeNormalPrior<3,3>* logFunc =
+            new FixedSizeNormalPrior<3,3>(stiffness, localPos);
+
+        solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<1,3>(logFunc, {targetData}, true));
+    }
+
     return true;
 
 }
@@ -642,7 +692,8 @@ bool CorrespondencesSetSBAModule::addXYZ2PriorMatch(Correspondences::Typed<Corre
                                                     Correspondences::Typed<Correspondences::PRIORID> const& priorId,
                                                     StereoVisionApp::ModularSBASolver* solver,
                                                     ceres::Problem & problem,
-                                                    ceres::LossFunction* lossFunction) {
+                                                    ceres::LossFunction* lossFunction,
+                                                    QString logName) {
 
     ModularSBASolver::PoseNode* p1 = solver->getPoseNode(xyz.blockId);
     double* targetPosBuffer = nullptr;
@@ -702,6 +753,14 @@ bool CorrespondencesSetSBAModule::addXYZ2PriorMatch(Correspondences::Typed<Corre
 
     problem.AddResidualBlock(costFunc, lossFunction, targetPosBuffer, p1->rAxis.data(), p1->t.data());
 
+    if (!logName.isEmpty()) {
+
+        CostFuncT* logFunc =
+            new CostFuncT(new LocalPointAlignementCost(localPos, Eigen::Matrix3d::Identity()));
+
+        solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<2,3>(logFunc, {p1->rAxis.data(), p1->t.data()}, true));
+    }
+
     return true;
 }
 
@@ -709,7 +768,8 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Corres
                                                    Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                    StereoVisionApp::ModularSBASolver* solver,
                                                    ceres::Problem & problem,
-                                                   ceres::LossFunction* lossFunction) {
+                                                   ceres::LossFunction* lossFunction,
+                                                   QString logName) {
 
     //xyznode
 
@@ -863,6 +923,19 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Corres
 
     problem.AddResidualBlock(costInfos.costFunction, lossFunction, costInfos.params.data(), costInfos.params.size());
 
+    if (!logName.isEmpty()) {
+
+        auto logInfos = CostFuncBuilder::buildPoseShiftedCostFunction(baseParameters.data(),
+                                                                       measure2node,
+                                                                       leverArmR,
+                                                                       leverArmT,
+                                                                       trajPos,
+                                                                       localPos,
+                                                                      Eigen::Matrix3d::Identity());
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logInfos.costFunction, logInfos.params, true));
+    }
+
     return true;
 
 }
@@ -871,7 +944,8 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Corre
                                                     Correspondences::Typed<Correspondences::XYZT> const& xyzt2,
                                                     StereoVisionApp::ModularSBASolver* solver,
                                                     ceres::Problem & problem,
-                                                    ceres::LossFunction* lossFunction) {
+                                                    ceres::LossFunction* lossFunction,
+                                                    QString logName) {
 
 
     //xyzt1 node
@@ -1071,6 +1145,17 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Corre
 
     problem.AddResidualBlock(costInfos.costFunction, lossFunction, costInfos.params.data(), costInfos.params.size());
 
+    if (!logName.isEmpty()) {
+
+        auto logInfos = CostFuncBuilder::buildPoseShiftedCostFunction(baseParameters.data(),
+                                                                      {pose1Infos, pose2Infos},
+                                                                      trajPos1,
+                                                                      trajPos2,
+                                                                      Eigen::Matrix3d::Identity());
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logInfos.costFunction, logInfos.params, true));
+    }
+
     return true;
 }
 
@@ -1078,7 +1163,8 @@ bool CorrespondencesSetSBAModule::addUV2UVMatch(const Correspondences::Typed<Cor
                                                 const Correspondences::Typed<Correspondences::UV> &uv2,
                                                 StereoVisionApp::ModularSBASolver* solver,
                                                 ceres::Problem & problem,
-                                                ceres::LossFunction* lossFunction) {
+                                                ceres::LossFunction* lossFunction,
+                                                QString logName) {
 
     ModularSBASolver::PoseNode* p1 = solver->getPoseNode(uv1.blockId);
     ModularSBASolver::PoseNode* p2 = solver->getPoseNode(uv2.blockId);
@@ -1109,7 +1195,7 @@ bool CorrespondencesSetSBAModule::addUV2UVMatch(const Correspondences::Typed<Cor
 
     ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(m1, p1->rAxis.data(), p1->t.data(), pos1, stiffness1,
                                                                       m2, p2->rAxis.data(), p2->t.data(), pos2, stiffness2,
-                                                                      lossFunction);
+                                                                      lossFunction, logName);
 
     return true;
 
@@ -1121,7 +1207,8 @@ bool CorrespondencesSetSBAModule::addUV2XYZMatch(Correspondences::Typed<Correspo
                                                  Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                  StereoVisionApp::ModularSBASolver* solver,
                                                  ceres::Problem & problem,
-                                                 ceres::LossFunction* lossFunction) {
+                                                 ceres::LossFunction* lossFunction,
+                                                 QString logName) {
 
     ModularSBASolver::PoseNode* pIm = solver->getPoseNode(uv.blockId);
 
@@ -1194,6 +1281,27 @@ bool CorrespondencesSetSBAModule::addUV2XYZMatch(Correspondences::Typed<Correspo
     mIm->problem().AddResidualBlock(costFunction, lossFunction,
                                         params.data(), nParams);
 
+    if (!logName.isEmpty()) {
+
+        constexpr bool manageProjectors = false;
+        DecoratedFunctor* logFunctor = new DecoratedFunctor(ptPos, infosIm.modularProjector, uvPos, Eigen::Matrix2d::Identity(), infosIm.paramsSizeInfos.size(), manageProjectors);
+        CostFunction* logFunction = new CostFunction(logFunctor);
+
+        logFunction->AddParameterBlock(3);
+        logFunction->AddParameterBlock(3);
+        logFunction->AddParameterBlock(3);
+        logFunction->AddParameterBlock(3);
+
+        for (size_t i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+            logFunction->AddParameterBlock(infosIm.paramsSizeInfos[i]);
+        }
+
+        logFunction->SetNumResiduals(Functor::nResiduals);
+        logFunctor->setNParams(nParams);
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logFunction, params, true));
+    }
+
     return true;
 
 }
@@ -1202,7 +1310,8 @@ bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Corre
                                                     Correspondences::Typed<Correspondences::GEOXYZ> const& geoMatch,
                                                     StereoVisionApp::ModularSBASolver* solver,
                                                     ceres::Problem & problem,
-                                                    ceres::LossFunction* lossFunction) {
+                                                    ceres::LossFunction* lossFunction,
+                                                    QString logName) {
 
     ModularSBASolver::PoseNode* pIm = solver->getPoseNode(uv.blockId);
 
@@ -1221,8 +1330,6 @@ bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Corre
     if (infosIm.modularProjector == nullptr) {
         return false;
     }
-
-    double* targetPosBuffer = nullptr;
 
     std::optional<Eigen::Vector3d> lmPos =
         Correspondences::getGeoXYZConstraintInfos(geoMatch, solver->getTransform2LocalFrame());
@@ -1272,6 +1379,25 @@ bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Corre
     mIm->problem().AddResidualBlock(costFunction, lossFunction,
                                     params.data(), nParams);
 
+    if (!logName.isEmpty()) {
+
+        constexpr bool manageProjectors = false;
+        DecoratedFunctor* logFunctor = new DecoratedFunctor(infosIm.modularProjector, ptPos, uvPos, Eigen::Matrix2d::Identity(), infosIm.paramsSizeInfos.size(), manageProjectors);
+        CostFunction* logFunction = new CostFunction(logFunctor);
+
+        logFunction->AddParameterBlock(3);
+        logFunction->AddParameterBlock(3);
+
+        for (size_t i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+            logFunction->AddParameterBlock(infosIm.paramsSizeInfos[i]);
+        }
+
+        logFunction->SetNumResiduals(Functor::nResiduals);
+        logFunctor->setNParams(nParams);
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logFunction, params, true));
+    }
+
     return true;
 }
 
@@ -1279,7 +1405,8 @@ bool CorrespondencesSetSBAModule::addUV2XYZTMatch(Correspondences::Typed<Corresp
                                                   Correspondences::Typed<Correspondences::XYZT> const& xyzt,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
-                                                  ceres::LossFunction* lossFunction) {
+                                                  ceres::LossFunction* lossFunction,
+                                                  QString logName) {
 
     ModularSBASolver::PoseNode* pIm = solver->getPoseNode(uv.blockId);
 
@@ -1423,6 +1550,24 @@ bool CorrespondencesSetSBAModule::addUV2XYZTMatch(Correspondences::Typed<Corresp
                                     lossFunction,
                                     costFunctionData.params);
 
+    if (!logName.isEmpty()) {
+
+        bool manageProjector = false;
+        auto logInfos = CostBuildHelper::buildPoseShiftedDynamicCostFunction<stride>(params.data(),
+                                                                      paramsSizes,
+                                                                      measure2node,
+                                                                      leverArmR,
+                                                                      leverArmT,
+                                                                      ptPos,
+                                                                      infosIm.modularProjector,
+                                                                      uvPos,
+                                                                      Eigen::Matrix2d::Identity(),
+                                                                      infosIm.paramsSizeInfos.size(),
+                                                                                     manageProjector);
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logInfos.costFunction, logInfos.params, true));
+    }
+
     return true;
 }
 
@@ -1430,7 +1575,8 @@ bool CorrespondencesSetSBAModule::addUVT2UVMatch(Correspondences::Typed<Correspo
                                                  Correspondences::Typed<Correspondences::UV> const& uv,
                                                  StereoVisionApp::ModularSBASolver* solver,
                                                  ceres::Problem & problem,
-                                                 ceres::LossFunction* lossFunction) {
+                                                 ceres::LossFunction* lossFunction,
+                                                 QString logName) {
 
 
     ModularSBASolver::ItemTrajectoryInfos itemTrajectoryInfos =
@@ -1524,7 +1670,7 @@ bool CorrespondencesSetSBAModule::addUVT2UVMatch(Correspondences::Typed<Correspo
     ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(mT, closest.rAxis.data(), closest.t.data(), posT, stiffnessT,
                                                                       measure2node, leverArmR, leverArmT,
                                                                       mF, p->rAxis.data(), p->t.data(), posF, stiffnessF,
-                                                                      Identity, nullptr, nullptr, lossFunction);
+                                                                      Identity, nullptr, nullptr, lossFunction, logName);
 
     return true;
 }
@@ -1533,7 +1679,8 @@ bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Corresp
                                                   Correspondences::Typed<Correspondences::UVT> const& uvt2,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
-                                                  ceres::LossFunction* lossFunction) {
+                                                  ceres::LossFunction* lossFunction,
+                                                  QString logName) {
 
 
     ModularSBASolver::ItemTrajectoryInfos itemTrajectoryInfos1 =
@@ -1683,7 +1830,7 @@ bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Corresp
                                                                       measure2node1, leverArm1R, leverArm1T,
                                                                       m2, closest2.rAxis.data(), closest2.t.data(), pos2, stiffness2,
                                                                       measure2node2, leverArm2R, leverArm2T,
-                                                                      lossFunction);
+                                                                      lossFunction, logName);
     return true;
 }
 
@@ -1691,7 +1838,8 @@ bool CorrespondencesSetSBAModule::addUVT2XYZMatch(Correspondences::Typed<Corresp
                                                   Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
-                                                  ceres::LossFunction* lossFunction) {
+                                                  ceres::LossFunction* lossFunction,
+                                                  QString logName) {
 
 
     ModularSBASolver::ItemTrajectoryInfos itemTrajectoryInfos =
@@ -1838,6 +1986,24 @@ bool CorrespondencesSetSBAModule::addUVT2XYZMatch(Correspondences::Typed<Corresp
                                     lossFunction,
                                     costFunctionData.params);
 
+    if (!logName.isEmpty()) {
+
+        constexpr bool manageProjector = false;
+        auto logInfos = CostBuildHelper::buildPoseShiftedDynamicCostFunction<stride>(params.data(),
+                                                                                     paramsSizes,
+                                                                                     measure2node,
+                                                                                     leverArmR,
+                                                                                     leverArmT,
+                                                                                     ptPos,
+                                                                                     infosIm.modularProjector,
+                                                                                     uvPos,
+                                                                                     Eigen::Matrix2d::Identity(),
+                                                                                     infosIm.paramsSizeInfos.size(),
+                                                                                     manageProjector);
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logInfos.costFunction, logInfos.params, true));
+    }
+
     return true;
 }
 
@@ -1845,7 +2011,8 @@ bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Corr
                                                      Correspondences::Typed<Correspondences::GEOXYZ> const& geoMatch,
                                                      StereoVisionApp::ModularSBASolver* solver,
                                                      ceres::Problem & problem,
-                                                     ceres::LossFunction* lossFunction) {
+                                                     ceres::LossFunction* lossFunction,
+                                                     QString logName) {
 
 
     ModularSBASolver::ItemTrajectoryInfos itemTrajectoryInfos =
@@ -1913,8 +2080,6 @@ bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Corr
     if (infosIm.modularProjector == nullptr) {
         return false;
     }
-
-    double* targetPosBuffer = nullptr;
 
     std::optional<Eigen::Vector3d> lmPos =
         Correspondences::getGeoXYZConstraintInfos(geoMatch, solver->getTransform2LocalFrame());
@@ -1988,6 +2153,24 @@ bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Corr
                                     lossFunction,
                                     costFunctionData.params);
 
+    if (!logName.isEmpty()) {
+
+        constexpr bool manageProjectors = false;
+        auto logInfos = CostBuildHelper::buildPoseShiftedDynamicCostFunction<stride>(params.data(),
+                                                                                     paramsSizes,
+                                                                                     measure2node,
+                                                                                     leverArmR,
+                                                                                     leverArmT,
+                                                                                     infosIm.modularProjector,
+                                                                                     ptPos,
+                                                                                     uvPos,
+                                                                                     Eigen::Matrix2d::Identity(),
+                                                                                     infosIm.paramsSizeInfos.size(),
+                                                                                     manageProjectors);
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logInfos.costFunction, logInfos.params, true));
+    }
+
     return true;
 }
 
@@ -1995,7 +2178,8 @@ bool CorrespondencesSetSBAModule::addUVT2XYZTMatch(Correspondences::Typed<Corres
                                                    Correspondences::Typed<Correspondences::XYZT> const& xyzt,
                                                    StereoVisionApp::ModularSBASolver* solver,
                                                    ceres::Problem & problem,
-                                                   ceres::LossFunction* lossFunction) {
+                                                   ceres::LossFunction* lossFunction,
+                                                   QString logName) {
 
 
     ModularSBASolver::ItemTrajectoryInfos uvTrajectoryInfos =
@@ -2201,6 +2385,22 @@ bool CorrespondencesSetSBAModule::addUVT2XYZTMatch(Correspondences::Typed<Corres
                                     lossFunction,
                                     costFunctionData.params);
 
+    if (!logName.isEmpty()) {
+
+        constexpr bool manageProjectors = false;
+        auto logInfos = CostBuildHelper::buildPoseShiftedDynamicCostFunction<stride>(params.data(),
+                                                                                     paramsSizes,
+                                                                                     dataContainer,
+                                                                                     ptPos,
+                                                                                     infosIm.modularProjector,
+                                                                                     uvPos,
+                                                                                     Eigen::Matrix2d::Identity(),
+                                                                                     infosIm.paramsSizeInfos.size(),
+                                                                                     manageProjectors);
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logInfos.costFunction, logInfos.params, true));
+    }
+
     return true;
 }
 
@@ -2254,58 +2454,65 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
 
             bool ok = false;
 
+            QString pairLogName = pair.toString();
+            QString costLogName = "";
+
+            if (correspSet->isVerbose()) {
+                costLogName = correspSet->objectName() + " " +  pairLogName;
+            }
+
             if (pair.holdsCorrespondancesType<Correspondences::PRIOR,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::PRIOR,Correspondences::XYZ>().value();
-                ok = setupXYZPrior(typedPair.c2, solver, problem);
+                ok = setupXYZPrior(typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::PRIORID,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::PRIORID,Correspondences::GEOXYZ>().value();
-                ok = addGeoPosPrior(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addGeoPosPrior(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::PRIORID,Correspondences::GEOXY>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::PRIORID,Correspondences::GEOXY>().value();
-                ok = addGeoProjPrior(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addGeoProjPrior(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::XYZ>().value();
-                ok = addXYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addXYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::Line3D>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::Line3D>().value();
-                ok = addXYZ2LineMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addXYZ2LineMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::Plane3D>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::Plane3D>().value();
-                ok = addXYZ2PlaneMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addXYZ2PlaneMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::GEOXYZ>().value();
-                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::GEOXY>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::GEOXY>().value();
-                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::PRIORID>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::PRIORID>().value();
-                ok = addXYZ2PriorMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addXYZ2PriorMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             //timed XYZ correspondances
@@ -2313,73 +2520,73 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
             if (pair.holdsCorrespondancesType<Correspondences::XYZT,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZT,Correspondences::XYZ>().value();
-                ok = addXYZT2XYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addXYZT2XYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZT,Correspondences::XYZT>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZT,Correspondences::XYZT>().value();
-                ok = addXYZT2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addXYZT2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             //image correspondences
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::UV>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::UV>().value();
-                ok = addUV2UVMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUV2UVMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::XYZ>().value();
-                ok = addUV2XYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUV2XYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::GEOXYZ>().value();
-                ok = addUV2GeoXYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUV2GeoXYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::XYZT>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::XYZT>().value();
-                ok = addUV2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUV2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             //timed image correspondences
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::UV>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::UV>().value();
-                ok = addUVT2UVMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUVT2UVMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::UVT>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::UVT>().value();
-                ok = addUVT2UVTMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUVT2UVTMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::XYZ>().value();
-                ok = addUVT2XYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUVT2XYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::GEOXYZ>().value();
-                ok = addUVT2GeoXYZMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUVT2GeoXYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::XYZT>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::XYZT>().value();
-                ok = addUVT2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem);
+                ok = addUVT2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
             }
 
             if (!ok) {
-                solver->logMessage(QString("Could not add match %1 to factor graph").arg(pair.toString()));
+                solver->logMessage(QString("Could not add match %1 to factor graph").arg(pairLogName));
             }
         }
 
