@@ -19,9 +19,7 @@
 
 #include "imagebaseactions.h"
 
-#ifdef STEVIAPP_DEVEL_TOOLS
 #include "cornerdetectionactions.h"
-#endif
 
 namespace StereoVisionApp {
 
