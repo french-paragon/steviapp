@@ -69,6 +69,7 @@ set(LIB_SRC imagewidget.cpp
             inputsWidgets/floatingpointblockeditspinbox.cpp
             itemDelegates/autoformatstyleditemdelegate.cpp
             cornermatchingeditor.cpp
+            cornerdetectortesteditor.cpp
 )
 
 set(LIB_HEADERS
@@ -103,6 +104,7 @@ set(LIB_HEADERS
     trajectorycomparisoneditor.h
     trajectoryalignementanalysiseditor.h
     cornermatchingeditor.h
+    cornerdetectortesteditor.h
 )
 
 set(LIB_HEADERS_IMGADAPTERS
@@ -140,11 +142,6 @@ set(LIB_HEADERS_INPUT_WIDGET
 set(LIB_HEADERS_DELEGATES
     itemDelegates/autoformatstyleditemdelegate.h
 )
-
-if (ADD_DEVEL_TOOLS)
-    list (APPEND LIB_SRC cornerdetectortesteditor.cpp)
-    list (APPEND LIB_HEADERS cornerdetectortesteditor.h)
-endif()
 
 find_package(OpenGL REQUIRED)
 
