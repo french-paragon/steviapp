@@ -40,10 +40,10 @@
 #include "gui/trajectorysequencevieweditor.h"
 #include "gui/trajectorycomparisoneditor.h"
 #include "gui/trajectoryalignementanalysiseditor.h"
+#include "gui/cornermatchingeditor.h"
 
 #ifdef STEVIAPP_DEVEL_TOOLS
 #include "gui/cornerdetectortesteditor.h"
-#include "gui/cornermatchingtesteditor.h"
 #endif
 
 #include "control/datatableactionmanager.h"

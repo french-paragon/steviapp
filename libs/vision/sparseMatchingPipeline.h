@@ -343,6 +343,74 @@ public:
 
     }
 
+    inline CornerModuleT* cornerModule() {
+        return _cornerModule;
+    }
+
+    inline MatcherModuleT* matcherModule() {
+        return _matcherModule;
+    }
+
+    inline RefineModuleT* refineModule() {
+        return _refineModule;
+    }
+
+    inline InlierModuleT* inlierModule() {
+        return _inlierModule;
+    }
+
+    inline CornerModuleT* takeCornerModule() {
+        CornerModuleT* ret = _cornerModule;
+        _cornerModule = nullptr;
+        return ret;
+    }
+
+    inline MatcherModuleT* takeMatcherModule() {
+        InlierModuleT* ret = _matcherModule;
+        _matcherModule = nullptr;
+        return ret;
+    }
+
+    inline RefineModuleT* takeRefineModule() {
+        RefineModuleT* ret = _refineModule;
+        _refineModule = nullptr;
+        return ret;
+    }
+
+    inline InlierModuleT* takeInlierModule() {
+        InlierModuleT* ret = _inlierModule;
+        _inlierModule = nullptr;
+        return ret;
+    }
+
+    void setCornerModule(CornerModuleT* newCornerModule) {
+        if (_cornerModule != nullptr) {
+            delete _cornerModule;
+        }
+        _cornerModule = newCornerModule;
+    }
+
+    void setMatcherModule(MatcherModuleT* newMatcherModule) {
+        if (_matcherModule != nullptr) {
+            delete _matcherModule;
+        }
+        _matcherModule = newMatcherModule;
+    }
+
+    void setRefineModule(RefineModuleT* newRefineModule) {
+        if (_refineModule != nullptr) {
+            delete _refineModule;
+        }
+        _refineModule = newRefineModule;
+    }
+
+    void setInlierModule(InlierModuleT* newInlierModule) {
+        if (_inlierModule != nullptr) {
+            delete _inlierModule;
+        }
+        _inlierModule = newInlierModule;
+    }
+
 protected:
 
     bool detectCornersImpl() override {
@@ -664,7 +732,7 @@ public:
         int s1 = std::min(imgData1.shape()[0], imgData1.shape()[1]);
         int s2 = std::min(imgData2.shape()[0], imgData2.shape()[1]);
 
-        if (assignement.size() < 8) { //too small to run ranscan
+        if (assignement.size() < 8) { //too small to run ransac
             std::vector<int> ret(assignement.size());
             for (int i = 0; i < ret.size(); i++) {
                 ret[i] = i;
@@ -742,6 +810,135 @@ public:
         }
 
         constexpr int minObs = 8;
+
+        StereoVision::Optimization::GenericRansac<Measure, Model> ransac(observations, minObs, _threshold);
+
+        ransac.ransacIterations(_nIterations);
+
+        std::vector<int> ret;
+        ret.reserve(corners1.size());
+
+        for (int i = 0; i < corners1.size(); i++) {
+            if (ransac.currentInliers()[i]) {
+                ret.push_back(i);
+            }
+        }
+
+        return ret;
+
+    }
+
+    void setNIterations(int nIterations) {
+        _nIterations = nIterations;
+    }
+
+    void setThreshold(float threshold) {
+        _threshold = threshold;
+    }
+
+protected:
+
+    int _nIterations;
+    float _threshold;
+};
+
+template<typename T>
+class RansacPerspectiveInlinerSelectionModule : public GenericInlinerSelectionModule<T> {
+public:
+
+    RansacPerspectiveInlinerSelectionModule(int nRansacIterations, float threshold = 10) :
+        _nIterations(nRansacIterations),
+        _threshold(threshold)
+    {
+
+    }
+
+    std::vector<int> getInliers(std::vector<std::array<int,2>> const& assignement,
+                                Multidim::Array<T,3, Multidim::ConstView> const& imgData1,
+                                std::vector<std::array<float, 2>> & corners1,
+                                Multidim::Array<T,3, Multidim::ConstView> const& imgData2,
+                                std::vector<std::array<float, 2>> & corners2) {
+
+        if (assignement.size() < 4) { //too small to run ransac
+            std::vector<int> ret(assignement.size());
+            for (int i = 0; i < ret.size(); i++) {
+                ret[i] = i;
+            }
+
+            return ret;
+        }
+
+        using Measure = std::array<float,4>; //points pair [x1, y1, x2, y2];
+
+        struct Model {
+            Model() {
+                PerspectiveWarpMatrix = Eigen::Matrix3f::Identity();
+            }
+            Model(std::vector<Measure> const& observations) {
+
+                using PointsArrayT = Eigen::Array<float, 2, Eigen::Dynamic>;
+
+                PointsArrayT pts1;
+                PointsArrayT pts2;
+
+                pts1.resize(2, observations.size());
+                pts2.resize(2, observations.size());
+
+                for (int i = 0; i < observations.size(); i++) {
+
+                    Measure const& observation = observations[i];
+
+                    float const& x1 = observation[0];
+                    float const& y1 = observation[1];
+
+                    float const& x2 = observation[2];
+                    float const& y2 = observation[3];
+
+                    pts1(0,i) = x1;
+                    pts1(1,i) = y1;
+
+                    pts2(0,i) = x2;
+                    pts2(1,i) = y2;
+
+                }
+
+                PerspectiveWarpMatrix = StereoVision::Geometry::estimatePerspectiveTransformMatrix(pts1, pts2);
+
+            }
+
+            float error(Measure const& observation) {
+
+                float const& x1 = observation[0];
+                float const& y1 = observation[1];
+
+                float const& x2 = observation[2];
+                float const& y2 = observation[3];
+
+                Eigen::Vector3f reprojected = PerspectiveWarpMatrix*Eigen::Vector3f(x2,y2,1);
+                float dx = reprojected.x()/reprojected.z() - x1;
+                float dy = reprojected.y()/reprojected.z() - y1;
+                float res = std::sqrt(dx*dx + dy*dy); //distance to the original point
+                return res;
+            }
+
+            Eigen::Matrix3f PerspectiveWarpMatrix;
+        };
+
+        std::vector<Measure> observations(assignement.size());
+
+        for (int i = 0; i < assignement.size(); i++) {
+
+            int corner1Id = assignement[i][0];
+            int corner2Id = assignement[i][1];
+
+            observations[i][0] = corners1[corner1Id][0];
+            observations[i][1] = corners1[corner1Id][1];
+
+            observations[i][2] = corners2[corner2Id][0];
+            observations[i][3] = corners2[corner2Id][1];
+        }
+
+        constexpr int minObs = 4;
 
         StereoVision::Optimization::GenericRansac<Measure, Model> ransac(observations, minObs, _threshold);
 

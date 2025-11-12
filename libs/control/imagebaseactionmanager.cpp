@@ -241,7 +241,7 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 		lst.append(assignToStereoRig);
 	}
 
-    QAction* openImagesInCornerMatchingEditor = createOpenInCornerMatchingEditor(parent, p, ims);
+    QAction* openImagesInCornerMatchingEditor = createOpenInCornerMatchingEditor(parent, p, imIds);
 
     if (openImagesInCornerMatchingEditor != nullptr) {
         lst.append(openImagesInCornerMatchingEditor);
@@ -415,23 +415,14 @@ QAction* ImageBaseActionManager::createAssignToStereoRigAction(QObject* parent, 
 
 }
 
-QAction* ImageBaseActionManager::createOpenInCornerMatchingEditor(QObject* parent, Project* p, const QVector<Image *> &ims) const {
+QAction* ImageBaseActionManager::createOpenInCornerMatchingEditor(QObject* parent, Project* p, const QVector<qint64> &imIds) const {
 
-    if (ims.size() != 2) {
-        return nullptr;
-    }
-
-    #ifdef STEVIAPP_DEVEL_TOOLS
-
-    QAction* testMatchCorners = new QAction(tr("Test match corners"), parent);
-    connect(testMatchCorners, &QAction::triggered, [p, ims] () {
-        matchCornersInImagePair(p, ims[0]->internalId(), ims[1]->internalId());
+    QAction* testMatchCorners = new QAction(tr("Add to corner matching editor"), parent);
+    connect(testMatchCorners, &QAction::triggered, [p, imIds] () {
+        addImages2MatchCornersEditor(p, imIds);
     });
 
     return testMatchCorners;
-
-    #endif
-    return nullptr;
 }
 
 QAction* ImageBaseActionManager::createExportRectifiedForRigAction(QObject* parent, Project* p, const QVector<qint64> &ims, QWidget* w) const {

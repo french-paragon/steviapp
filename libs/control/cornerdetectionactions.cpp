@@ -3,7 +3,7 @@
 #include "mainwindow.h"
 
 #include "gui/cornerdetectortesteditor.h"
-#include "gui/cornermatchingtesteditor.h"
+#include "gui/cornermatchingeditor.h"
 
 #include "datablocks/project.h"
 #include "datablocks/image.h"
@@ -187,22 +187,42 @@ void matchCornersInTestImagePair() {
                                                            {300+dy2+dy,500+dx2-dx});
 
 
-    Editor* editor = mw->openEditor(CornerMatchingTestEditor::staticMetaObject.className());
+    Editor* editor = mw->openEditor(CornerMatchingEditor::staticMetaObject.className());
 
     if (editor == nullptr) {
         out << "No editor available" << Qt::endl;
         return;
     }
 
-    CornerMatchingTestEditor* cmte = qobject_cast<CornerMatchingTestEditor*>(editor);
+    CornerMatchingEditor* cmte = qobject_cast<CornerMatchingEditor*>(editor);
 
     if (cmte == nullptr) {
         out << "Failed to cast editor" << Qt::endl;
         return;
     }
 
-    cmte->setImageData(img_data1, img_data2);
+    cmte->addImageData("simulatedImage1", img_data1, nullptr);
+    cmte->addImageData("simulatedImage2", img_data2, nullptr);
 }
+
+class ImageMatchBuilder : public CornerMatchingEditor::MatchBuilder {
+public:
+    ImageMatchBuilder(Image* img) : _img(img) {
+
+    }
+    virtual Correspondences::Generic correspondanceFromUV(float u, float v) const {
+        Correspondences::Typed<Correspondences::UV> ret;
+        ret.blockId = _img->internalId();
+        ret.u = u;
+        ret.v = v;
+        return ret;
+    }
+    virtual QString targetTitle() const {
+        return _img->objectName();
+    }
+protected:
+    Image* _img;
+};
 
 void matchCornersInImagePair(Project* proj, qint64 imgId1, qint64 imgId2) {
 
@@ -249,42 +269,75 @@ void matchCornersInImagePair(Project* proj, qint64 imgId1, qint64 imgId2) {
         return;
     }
 
-    Editor* editor = mw->openEditor(CornerMatchingTestEditor::staticMetaObject.className());
+    Editor* editor = mw->openEditor(CornerMatchingEditor::staticMetaObject.className());
 
     if (editor == nullptr) {
         out << "No editor available" << Qt::endl;
         return;
     }
 
-    CornerMatchingTestEditor* cmte = qobject_cast<CornerMatchingTestEditor*>(editor);
+    CornerMatchingEditor* cmte = qobject_cast<CornerMatchingEditor*>(editor);
 
     if (cmte == nullptr) {
         out << "Failed to cast editor" << Qt::endl;
         return;
     }
 
-    cmte->setImageData(img_data1, img_data2);
+    cmte->addImageData(img_block1->objectName(), img_data1, new ImageMatchBuilder(img_block1));
+    cmte->addImageData(img_block2->objectName(), img_data2, new ImageMatchBuilder(img_block2));
 
-    class ImageMatchBuilder : public CornerMatchingTestEditor::MatchBuilder {
-    public:
-        ImageMatchBuilder(Image* img) : _img(img) {
+}
 
-        }
-        virtual Correspondences::Generic correspondanceFromUV(float u, float v) const {
-            Correspondences::Typed<Correspondences::UV> ret;
-            ret.blockId = _img->internalId();
-            ret.u = u;
-            ret.v = v;
-            return ret;
-        }
-        virtual QString targetTitle() const {
-            return _img->objectName();
-        }
-    protected:
-        Image* _img;
-    };
+void addImages2MatchCornersEditor(Project* proj, QVector<qint64> const& imgs) {
 
-    cmte->setMatchBuilders(new ImageMatchBuilder(img_block1), new ImageMatchBuilder(img_block2));
+    QTextStream out(stdout);
+
+    if (proj == nullptr) {
+        return;
+    }
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (mw == nullptr) {
+        out << "No main windows available" << Qt::endl;
+        return; //no headless at the moment
+    }
+
+    Editor* editor = mw->openEditor(CornerMatchingEditor::staticMetaObject.className());
+
+    if (editor == nullptr) {
+        out << "No editor available" << Qt::endl;
+        return;
+    }
+
+    CornerMatchingEditor* cmte = qobject_cast<CornerMatchingEditor*>(editor);
+
+    if (cmte == nullptr) {
+        out << "Failed to cast editor" << Qt::endl;
+        return;
+    }
+
+    for (qint64 id : imgs) {
+
+        Image* img_block = proj->getDataBlock<Image>(id);
+
+        if (img_block == nullptr) {
+            out << "No image block available for id " << id << Qt::endl;
+            continue;
+        }
+
+        QString img_path = img_block->getImageFile();
+
+        Multidim::Array<float,3> img_data = StereoVision::IO::readImage<float>(img_path.toStdString());
+
+        if (img_data.empty()) {
+            out << "Empty image data for id " << id << Qt::endl;
+            continue;
+        }
+
+        cmte->addImageData(img_block->objectName(), img_data, new ImageMatchBuilder(img_block));
+
+    }
 
 }
 

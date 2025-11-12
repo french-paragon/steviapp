@@ -1,4 +1,4 @@
-#include "cornermatchingtesteditor.h"
+#include "cornermatchingeditor.h"
 
 #include <StereoVision/sparseMatching/cornerDetectors.h>
 #include <StereoVision/sparseMatching/nonLocalMaximumPointSelection.h>
@@ -23,6 +23,8 @@
 #include <QPushButton>
 #include <QSet>
 #include <QMessageBox>
+#include <QCoreApplication>
+#include <QComboBox>
 
 namespace SpaMat = StereoVision::SparseMatching;
 namespace Corr = StereoVision::Correlation;
@@ -31,17 +33,181 @@ namespace Optm = StereoVision::Optimization;
 namespace StereoVisionApp {
 
 
-CornerMatchingTestEditor::MatchBuilder::~MatchBuilder() {
+CornerMatchingEditor::MatchBuilder::~MatchBuilder() {
 
 }
 
-CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent) :
+using HarrisDetectorBase = CornerMatchingEditor::ConfigurableCornerDetectionModule<HarrisCornerDetectorModule<CornerMatchingEditor::ComputeType>>;
+class ConfigurableHarrisCornerDetectorModule : public HarrisDetectorBase
+{
+    Q_DECLARE_TR_FUNCTIONS(ConfigurableHarrisCornerDetectorModule)
+public:
+    ConfigurableHarrisCornerDetectorModule(int lowPassRadius = 3, int nonMaximumSuppressionRadius = 3, int maxNCorners = 100) :
+        HarrisDetectorBase(lowPassRadius, nonMaximumSuppressionRadius, maxNCorners)
+    {
+
+    }
+    virtual QWidget* getConfigurationWidget(QWidget* parent) {
+
+        QWidget* configWidget = new QWidget(parent);
+
+        QFormLayout* cornerFormLayout = new QFormLayout(configWidget);
+
+        QSpinBox* lowPassRadius = new QSpinBox(configWidget);
+        lowPassRadius->setMinimum(1);
+        lowPassRadius->setMaximum(10);
+        lowPassRadius->setSuffix("px");
+
+        lowPassRadius->setValue(HarrisDetectorBase::_lpRadius);
+
+        QSpinBox* nonMaximumMaxSuppressionRadius = new QSpinBox(configWidget);
+        nonMaximumMaxSuppressionRadius->setMinimum(1);
+        nonMaximumMaxSuppressionRadius->setMaximum(25);
+        nonMaximumMaxSuppressionRadius->setSuffix("px");
+
+        nonMaximumMaxSuppressionRadius->setValue(HarrisDetectorBase::_nonMaxSupprRadius);
+
+        QSpinBox* nSelected = new QSpinBox(configWidget);
+        nSelected->setMinimum(-1);
+        nSelected->setMaximum(999999);
+
+        nSelected->setValue(HarrisDetectorBase::_maxNCorners);
+
+        cornerFormLayout->addRow(tr("Low pass radius"), lowPassRadius);
+        cornerFormLayout->addRow(tr("Non maximum suppression radius"), nonMaximumMaxSuppressionRadius);
+        cornerFormLayout->addRow(tr("Max # selected points"), nSelected);
+
+        QObject::connect(lowPassRadius, qOverload<int>(&QSpinBox::valueChanged), [this] (int radius) {
+            setLowPassRadius(radius);
+        });
+
+        QObject::connect(nonMaximumMaxSuppressionRadius, qOverload<int>(&QSpinBox::valueChanged), [this] (int radius) {
+            setNonMaxSupprRadius(radius);
+        });
+
+        QObject::connect(nSelected, qOverload<int>(&QSpinBox::valueChanged), [this] (int nCorners) {
+            setMaxNCorners(nCorners);
+        });
+
+        return configWidget;
+
+    }
+
+protected:
+};
+
+using RansacEpipolarSelectionBase = CornerMatchingEditor::ConfigurableInlierSelectionModule<RansacEpipolarInlinerSelectionModule<CornerMatchingEditor::ComputeType>>;
+class ConfigurableRansacEpipolarSelectionModule : public RansacEpipolarSelectionBase {
+    Q_DECLARE_TR_FUNCTIONS(ConfigurableRansacEpipolarSelectionModule)
+public:
+    ConfigurableRansacEpipolarSelectionModule(int nRansacIterations = 200, float threshold = 0.02) :
+        RansacEpipolarSelectionBase(nRansacIterations, threshold)
+    {
+
+    }
+    virtual QWidget* getConfigurationWidget(QWidget* parent) override {
+
+        QWidget* ret = new QWidget(parent);
+
+        QFormLayout* inlierFormLayout = new QFormLayout(ret);
+
+        QSpinBox* nRansacIterationInput = new QSpinBox(ret);
+        nRansacIterationInput->setMinimum(1);
+        nRansacIterationInput->setMaximum(999999);
+
+        nRansacIterationInput->setValue(RansacEpipolarSelectionBase::_nIterations);
+
+        QDoubleSpinBox* ransacThreshold = new QDoubleSpinBox(ret);
+        ransacThreshold->setMinimum(0.0);
+        ransacThreshold->setMaximum(999999);
+
+        ransacThreshold->setValue(RansacEpipolarSelectionBase::_threshold);
+        ransacThreshold->setSingleStep(0.01);
+
+        inlierFormLayout->addRow(tr("Ransac iterations"), nRansacIterationInput);
+        inlierFormLayout->addRow(tr("Ransac threshold"), ransacThreshold);
+
+        QObject::connect(nRansacIterationInput, qOverload<int>(&QSpinBox::valueChanged), [this] (int n) {
+            setNIterations(n);
+        });
+
+        QObject::connect(ransacThreshold, qOverload<double>(&QDoubleSpinBox::valueChanged), [this] (double threshold) {
+            setThreshold(threshold);
+        });
+
+        return ret;
+
+    }
+};
+
+using RansacPerspectiveSelectionBase = CornerMatchingEditor::ConfigurableInlierSelectionModule<RansacPerspectiveInlinerSelectionModule<CornerMatchingEditor::ComputeType>>;
+class ConfigurableRansacPerspectiveSelectionModule : public RansacPerspectiveSelectionBase {
+    Q_DECLARE_TR_FUNCTIONS(ConfigurableRansacEpipolarSelectionModule)
+public:
+    ConfigurableRansacPerspectiveSelectionModule(int nRansacIterations = 200, float threshold = 5) :
+        RansacPerspectiveSelectionBase(nRansacIterations, threshold)
+    {
+
+    }
+    virtual QWidget* getConfigurationWidget(QWidget* parent) override {
+
+        QWidget* ret = new QWidget(parent);
+
+        QFormLayout* inlierFormLayout = new QFormLayout(ret);
+
+        QSpinBox* nRansacIterationInput = new QSpinBox(ret);
+        nRansacIterationInput->setMinimum(1);
+        nRansacIterationInput->setMaximum(999999);
+
+        nRansacIterationInput->setValue(RansacPerspectiveSelectionBase::_nIterations);
+
+        QDoubleSpinBox* ransacThreshold = new QDoubleSpinBox(ret);
+        ransacThreshold->setMinimum(0.0);
+        ransacThreshold->setMaximum(999999);
+
+        ransacThreshold->setValue(RansacPerspectiveSelectionBase::_threshold);
+        ransacThreshold->setSingleStep(0.5);
+        ransacThreshold->setSuffix("px");
+
+        inlierFormLayout->addRow(tr("Ransac iterations"), nRansacIterationInput);
+        inlierFormLayout->addRow(tr("Ransac threshold"), ransacThreshold);
+
+        QObject::connect(nRansacIterationInput, qOverload<int>(&QSpinBox::valueChanged), [this] (int n) {
+            setNIterations(n);
+        });
+
+        QObject::connect(ransacThreshold, qOverload<double>(&QDoubleSpinBox::valueChanged), [this] (double threshold) {
+            setThreshold(threshold);
+        });
+
+        return ret;
+
+    }
+};
+
+CornerMatchingEditor::CornerMatchingEditor(QWidget *parent) :
     Editor(parent),
+    _nextSideToAddToIsRight(false),
     _matchBuilder1(nullptr),
     _matchBuilder2(nullptr)
 {
 
     QVBoxLayout* verticalLayout = new QVBoxLayout();
+
+    _leftImageSelector = new QComboBox(this);
+    _rightImageSelector = new QComboBox(this);
+
+    QHBoxLayout* comboBoxesLayout = new QHBoxLayout();
+
+    connect(_leftImageSelector, qOverload<int>(&QComboBox::currentIndexChanged),
+            this, &CornerMatchingEditor::commitImageSelection);
+    connect(_rightImageSelector, qOverload<int>(&QComboBox::currentIndexChanged),
+            this, &CornerMatchingEditor::commitImageSelection);
+
+    comboBoxesLayout->addWidget(_leftImageSelector);
+    comboBoxesLayout->addWidget(_rightImageSelector);
+
+    verticalLayout->addLayout(comboBoxesLayout);
 
     QHBoxLayout* imagesAlignementLayout = new QHBoxLayout();
 
@@ -78,33 +244,9 @@ CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent) :
     QGroupBox* cornerOptionsBox = new QGroupBox(this);
     cornerOptionsBox->setTitle(tr("Corner detection options"));
 
-    QFormLayout* cornerFormLayout = new QFormLayout();
+    _cornerOptionsLayout = new QVBoxLayout();
 
-    _lowPassRadius = new QSpinBox(this);
-    _lowPassRadius->setMinimum(1);
-    _lowPassRadius->setMaximum(10);
-    _lowPassRadius->setSuffix("px");
-
-    _lowPassRadius->setValue(3);
-
-    _nonMaximumMaxSuppressionRadius = new QSpinBox(this);
-    _nonMaximumMaxSuppressionRadius->setMinimum(1);
-    _nonMaximumMaxSuppressionRadius->setMaximum(25);
-    _nonMaximumMaxSuppressionRadius->setSuffix("px");
-
-    _nonMaximumMaxSuppressionRadius->setValue(3);
-
-    _nSelected = new QSpinBox(this);
-    _nSelected->setMinimum(-1);
-    _nSelected->setMaximum(999999);
-
-    _nSelected->setValue(-1);
-
-    cornerFormLayout->addRow(tr("Low pass radius"), _lowPassRadius);
-    cornerFormLayout->addRow(tr("Non maximum suppression radius"), _nonMaximumMaxSuppressionRadius);
-    cornerFormLayout->addRow(tr("Max # selected points"), _nSelected);
-
-    cornerOptionsBox->setLayout(cornerFormLayout);
+    cornerOptionsBox->setLayout(_cornerOptionsLayout);
 
     optionsLayout->addWidget(cornerOptionsBox);
 
@@ -136,28 +278,34 @@ CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent) :
     QGroupBox* inliersOptionsBox = new QGroupBox(this);
     inliersOptionsBox->setTitle(tr("Inliers filtering options"));
 
-    QFormLayout* inlierFormLayout = new QFormLayout(inliersOptionsBox);
+    _inlierOptionsLayout = new QVBoxLayout(inliersOptionsBox);
 
-    _nRansacIterationInput = new QSpinBox(this);
-    _nRansacIterationInput->setMinimum(1);
-    _nRansacIterationInput->setMaximum(999999);
+    QComboBox* inlierSelectionMethodBox = new QComboBox(this);
 
-    _nRansacIterationInput->setValue(200);
+    inlierSelectionMethodBox->addItem(tr("Epipolar Ransac"), static_cast<int>(epipolarRansac));
+    inlierSelectionMethodBox->addItem(tr("Perspective Ransac"), static_cast<int>(perspectiveRansac));
 
-    _ransacThreshold = new QDoubleSpinBox(this);
-    _ransacThreshold->setMinimum(0.0);
-    _ransacThreshold->setMaximum(999999);
+    connect(inlierSelectionMethodBox, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, inlierSelectionMethodBox] (int idx) {
+        int data = inlierSelectionMethodBox->itemData(idx).toInt();
 
-    _ransacThreshold->setValue(0.02);
-    _ransacThreshold->setSingleStep(0.01);
+        switch (data) {
+        case epipolarRansac:{
+            ConfigurableRansacEpipolarSelectionModule* baseInlierModule = new ConfigurableRansacEpipolarSelectionModule();
+            _matchingPipeline->setInlierModule(baseInlierModule);
+        }
+        break;
+        case perspectiveRansac:{
+            ConfigurableRansacPerspectiveSelectionModule* baseInlierModule = new ConfigurableRansacPerspectiveSelectionModule();
+            _matchingPipeline->setInlierModule(baseInlierModule);
+        }
+        break;
+        }
+        reconfigureInlierSelectorOptions();
+    });
 
-    inlierFormLayout->addRow(tr("Ransac iterations"), _nRansacIterationInput);
-    inlierFormLayout->addRow(tr("Ransac threshold"), _ransacThreshold);
-
+    _inlierOptionsLayout->addWidget(inlierSelectionMethodBox);
 
     optionsLayout->addWidget(inliersOptionsBox);
-
-
 
     verticalLayout->addLayout(optionsLayout);
 
@@ -171,8 +319,8 @@ CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent) :
 
     _saveButton->setEnabled(false);
 
-    connect(computeButton, &QPushButton::clicked, this, &CornerMatchingTestEditor::compute);
-    connect(_saveButton, &QPushButton::clicked, this, &CornerMatchingTestEditor::writeCorrespondanceSet);
+    connect(computeButton, &QPushButton::clicked, this, &CornerMatchingEditor::compute);
+    connect(_saveButton, &QPushButton::clicked, this, &CornerMatchingEditor::writeCorrespondanceSet);
 
     buttonLayout->addStretch();
     buttonLayout->addWidget(_saveButton);
@@ -186,20 +334,47 @@ CornerMatchingTestEditor::CornerMatchingTestEditor(QWidget *parent) :
     setupMatchingPipeline();
 
 }
-CornerMatchingTestEditor::~CornerMatchingTestEditor() {
+CornerMatchingEditor::~CornerMatchingEditor() {
+
     if (_matchingPipeline != nullptr) {
         delete _matchingPipeline;
     }
 
-    if (_matchBuilder1 != nullptr) {
-        delete _matchBuilder1;
+    for (ImageDataHolder* imageDataHolder : _availableImgsData) {
+        if (imageDataHolder != nullptr) {
+            delete imageDataHolder;
+        }
     }
-    if (_matchBuilder2 != nullptr) {
-        delete _matchBuilder2;
+}
+CornerMatchingEditor::ImageDataHolder::~ImageDataHolder() {
+    if (matchBuilder != nullptr) {
+        delete matchBuilder;
     }
 }
 
-void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> const& imgData1,
+void CornerMatchingEditor::commitImageSelection() {
+
+    int leftIdx = _leftImageSelector->currentIndex();
+    int rightIdx = _rightImageSelector->currentIndex();
+
+    if (leftIdx == rightIdx) {
+        return;
+    }
+
+    if (leftIdx < 0) {
+        return;
+    }
+
+    if (rightIdx < 0) {
+        return;
+    }
+
+    setImageData(_availableImgsData[leftIdx]->imgData, _availableImgsData[rightIdx]->imgData);
+    setMatchBuilders(_availableImgsData[leftIdx]->matchBuilder, _availableImgsData[rightIdx]->matchBuilder);
+
+}
+
+void CornerMatchingEditor::setImageData(Multidim::Array<float, 3> const& imgData1,
                                             Multidim::Array<float, 3> const& imgData2) {
     _imgData1 = imgData1;
     _imgData2 = imgData2;
@@ -214,7 +389,7 @@ void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> const& img
     _imageDisplay2->update();
 }
 
-void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> && imgData1,
+void CornerMatchingEditor::setImageData(Multidim::Array<float, 3> && imgData1,
                                             Multidim::Array<float, 3> && imgData2) {
     _imgData1 = imgData1;
     _imgData2 = imgData2;
@@ -229,21 +404,14 @@ void CornerMatchingTestEditor::setImageData(Multidim::Array<float, 3> && imgData
     _imageDisplay2->update();
 
 }
-void CornerMatchingTestEditor::setMatchBuilders(MatchBuilder* matchBuilder1,
+void CornerMatchingEditor::setMatchBuilders(MatchBuilder* matchBuilder1,
                                                 MatchBuilder* matchBuilder2) {
-
-    if (_matchBuilder1 != nullptr) {
-        delete _matchBuilder1;
-    }
-    if (_matchBuilder2 != nullptr) {
-        delete _matchBuilder2;
-    }
 
     _matchBuilder1 = matchBuilder1;
     _matchBuilder2 = matchBuilder2;
 }
 
-void CornerMatchingTestEditor::clearImageData() {
+void CornerMatchingEditor::clearImageData() {
 
     _imgData1 = Multidim::Array<float, 3>();
     _imgData2 = Multidim::Array<float, 3>();
@@ -255,37 +423,25 @@ void CornerMatchingTestEditor::clearImageData() {
     _imageDisplay2->update();
 }
 
-void CornerMatchingTestEditor::setupMatchingPipeline() {
+void CornerMatchingEditor::setupMatchingPipeline() {
 
-    int lpRadius = _lowPassRadius->value();
-
-    int nomMaxSupprRadius = _nonMaximumMaxSuppressionRadius->value();
-    int nItems = _nSelected->value();
+    int lpRadius = 3;
+    int nomMaxSupprRadius = 3;
+    int nItems = 100;
 
     int patchRadius = _featurePatchRadius->value();
     int nSamples = _nFeatures->value();
 
-    int nRansacIteration = _nRansacIterationInput->value();
-    float threshold = _ransacThreshold->value();
+    int nRansacIteration = 200;
+    float threshold = 0.1;
 
-    HarrisCornerDetectorModule<float>* baseCornerDetectionModule = new HarrisCornerDetectorModule<float>(lpRadius, nomMaxSupprRadius, nItems);
+    GenericConfigurableCornerDetectionModule* baseCornerDetectionModule = new ConfigurableHarrisCornerDetectorModule(lpRadius, nomMaxSupprRadius, nItems);
     HungarianCornerMatchModule<float>* basePointsMatchingModule = new HungarianCornerMatchModule<float>(patchRadius, nSamples);
-    RansacEpipolarInlinerSelectionModule<float>* baseInlierModule = new RansacEpipolarInlinerSelectionModule<float>(nRansacIteration, threshold);
+    ConfigurableRansacEpipolarSelectionModule* baseInlierModule = new ConfigurableRansacEpipolarSelectionModule(nRansacIteration, threshold);
 
     _matchingPipeline = new MatchingPipeline(baseCornerDetectionModule, basePointsMatchingModule, nullptr, baseInlierModule);
 
     //edit modules values
-    connect(_lowPassRadius, qOverload<int>(&QSpinBox::valueChanged), this, [baseCornerDetectionModule] (int val) {
-        baseCornerDetectionModule->setLowPassRadius(val);
-    });
-
-    connect(_nonMaximumMaxSuppressionRadius, qOverload<int>(&QSpinBox::valueChanged), this, [baseCornerDetectionModule] (int val) {
-        baseCornerDetectionModule->setNonMaxSupprRadius(val);
-    });
-
-    connect(_nSelected, qOverload<int>(&QSpinBox::valueChanged), this, [baseCornerDetectionModule] (int val) {
-        baseCornerDetectionModule->setMaxNCorners(val);
-    });
 
 
     connect(_featurePatchRadius, qOverload<int>(&QSpinBox::valueChanged), this, [basePointsMatchingModule] (int val) {
@@ -296,18 +452,56 @@ void CornerMatchingTestEditor::setupMatchingPipeline() {
         basePointsMatchingModule->setNSamples(val);
     });
 
-
-    connect(_nRansacIterationInput, qOverload<int>(&QSpinBox::valueChanged), this, [baseInlierModule] (int val) {
-        baseInlierModule->setNIterations(val);
-    });
-
-    connect(_ransacThreshold, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [baseInlierModule] (double val) {
-        baseInlierModule->setThreshold(val);
-    });
+    reconfigureCornerDetectorOptions();
+    reconfigureInlierSelectorOptions();
 
 }
 
-void CornerMatchingTestEditor::compute() {
+
+void CornerMatchingEditor::reconfigureCornerDetectorOptions() {
+    if (_cornerOptionsLayout == nullptr) {
+        return;
+    }
+
+    //clear the element, if an element is present
+    QLayoutItem *item = _cornerOptionsLayout->takeAt(0);
+
+    if (item != nullptr) {
+        if (item->widget()) {
+            delete item->widget();
+        }
+        delete item;
+    }
+
+    QWidget* configWidget = _matchingPipeline->cornerModule()->getConfigurationWidget(this);
+
+    _cornerOptionsLayout->addWidget(configWidget);
+}
+
+void CornerMatchingEditor::reconfigureInlierSelectorOptions() {
+    if (_inlierOptionsLayout == nullptr) {
+        return;
+    }
+
+    //clear the element, if an element is present
+    if (_inlierOptionsLayout->count() > 1) { //configurartion widget has been added
+        QLayoutItem *item = _inlierOptionsLayout->takeAt(1);
+
+        if (item != nullptr) {
+            if (item->widget()) {
+                delete item->widget();
+            }
+            delete item;
+        }
+    }
+
+    QWidget* configWidget = _matchingPipeline->inlierModule()->getConfigurationWidget(this);
+
+    _inlierOptionsLayout->addWidget(configWidget);
+
+}
+
+void CornerMatchingEditor::compute() {
 
     _saveButton->setEnabled(false);
 
@@ -394,7 +588,7 @@ void CornerMatchingTestEditor::compute() {
 
 }
 
-void CornerMatchingTestEditor::writeCorrespondanceSet() {
+void CornerMatchingEditor::writeCorrespondanceSet() {
 
     if (_matchBuilder1 == nullptr or _matchBuilder2 == nullptr) {
         return;
@@ -483,10 +677,10 @@ QString CornerMatchingTestEditorFactory::TypeDescrName() const {
     return tr("Corner matching test editor");
 }
 QString CornerMatchingTestEditorFactory::itemClassName() const {
-    return CornerMatchingTestEditor::staticMetaObject.className();
+    return CornerMatchingEditor::staticMetaObject.className();
 }
 Editor* CornerMatchingTestEditorFactory::factorizeEditor(QWidget* parent) const {
-    return new CornerMatchingTestEditor(parent);
+    return new CornerMatchingEditor(parent);
 }
 
 } // namespace StereoVisionApp
