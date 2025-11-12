@@ -251,13 +251,17 @@ public:
     template <typename T>
     bool operator()(T const* const* parameters, T* residuals) const {
 
-        std::vector<T*> mapped(_mapping.size());
+        std::vector<T const*> mapped(_mapping.size());
 
         for (int i = 0; i < _mapping.size(); i++) {
             mapped[i] = parameters[_mapping[i]];
         }
 
-        return DynamicFunctorT::operator()(mapped.data(), residuals);
+        int oldNParams = nParams();
+        setNParams(mapped.size()); //ensure the nParams is configured to the number expected by the subfunctor
+        bool status = DynamicFunctorT::operator()(mapped.data(), residuals);
+        setNParams(oldNParams);
+        return status;
 
     }
 
@@ -442,6 +446,73 @@ public:
         using CostFunc = ceres::AutoDiffCostFunction<FunctorT,nRes,argsSizes...>;
         return CostFunctionData{new CostFunc(new FunctorT(constructorArgs...)), parameters};
     }
+
+    template <typename ... T>
+    static CostFunctionData buildCollapsedArgsDynamicCostFunction(std::vector<double*> const& parameters,
+                                                                  std::vector<int> const& dynamicParametersSizes,
+                                                                  T ... constructorArgs) {
+
+
+        int nArgs = parameters.size();
+
+        std::vector<int> mapping(nArgs);
+        std::fill(mapping.begin(), mapping.end(), -1);
+        bool duplicateDetected = false;
+
+        std::vector<double*> filteredParameters;
+        std::vector<int> filteredParametersSizes;
+        filteredParameters.reserve(nArgs);
+        filteredParametersSizes.reserve(nArgs);
+
+        for (size_t i = 0; i < nArgs; i++) {
+            if (mapping[i] >= 0) {
+                continue; //parameters has been remapped already
+            }
+            mapping[i] = filteredParameters.size();
+            filteredParameters.push_back(parameters[i]);
+            filteredParametersSizes.push_back(dynamicParametersSizes[i]);
+
+            for (int j = i+1; j < nArgs; j++) {
+                if (parameters[j] == parameters[i]) {
+                    duplicateDetected = true;
+                    mapping[j] = mapping[i];
+                }
+            }
+        }
+
+        constexpr int stride = 4;
+
+        if (duplicateDetected) {
+            using DynFunctorT = CollapseArgsDynamic<FunctorT>;
+            using CostFunc = ceres::DynamicAutoDiffCostFunction<DynFunctorT,stride>;
+
+            CostFunc* costFunct = new CostFunc(new DynFunctorT(mapping, constructorArgs...)); //CollapseArgsDynamic manage the nArguments for the functor
+
+            for (size_t i = 0; i < filteredParametersSizes.size(); i++) {
+                costFunct->AddParameterBlock(filteredParametersSizes[i]);
+            }
+
+            costFunct->SetNumResiduals(nRes);
+
+            return {costFunct, filteredParameters};
+        }
+
+        using CostFunc = ceres::DynamicAutoDiffCostFunction<FunctorT,stride>;
+
+        FunctorT* functor = new FunctorT(constructorArgs...);
+        //need to indicate number of arguments to dynamic functor
+        functor->setNParams(parameters.size());
+        CostFunc* costFunct = new CostFunc(functor);
+
+        for (size_t i = 0; i < dynamicParametersSizes.size(); i++) {
+            costFunct->AddParameterBlock(dynamicParametersSizes[i]);
+        }
+
+        costFunct->SetNumResiduals(nRes);
+
+        return {costFunct, parameters};
+    }
+
 };
 
 }

@@ -415,6 +415,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 problem.SetParameterBlockConstant(trajNode->nodes[i].t.data());
                 problem.SetParameterBlockConstant(trajNode->nodes[i].rAxis.data());
 
+                continue;
+
             } else if (addLogger) { //if trajectory is not fixed, add the logger for the parameters value.
 
                 QString posLoggerName = QString("Trajectory \"%1\" Position index %2 (t = %3)").arg(traj->objectName()).arg(i).arg(trajNode->nodes[i].time, 0, 'f', 2);
@@ -536,7 +538,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
             if (optGyro.isValid() and optImu.isValid() and i > 1) { //need at least three nodes for second order cost function
 
-                addAccObs(
+                addAccObs( //TODO: investigate why this function is slow!
                     trajNode,
                     traj,
                     gyroId,
