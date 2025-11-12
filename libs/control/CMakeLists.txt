@@ -35,6 +35,7 @@ set(LIB_SRC
         correspondencessetactionsmanager.cpp
         correspondencessetactions.cpp
         projectactions.cpp
+        cornerdetectionactions.cpp
 )
 
 set(LIB_HEADERS
@@ -70,12 +71,8 @@ set(LIB_HEADERS
     correspondencessetactionsmanager.h
     correspondencessetactions.h
     projectactions.h
+    cornerdetectionactions.h
 )
-
-if (ADD_DEVEL_TOOLS)
-    list (APPEND LIB_SRC cornerdetectionactions.cpp)
-    list (APPEND LIB_HEADERS cornerdetectionactions.h)
-endif()
 
 add_library(
 ${CONTROL_LIB}
