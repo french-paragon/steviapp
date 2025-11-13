@@ -4,6 +4,7 @@
 #include "qcustomplot/qcustomplot.h"
 
 #include "datablocks/trajectory.h"
+#include "datablocks/mounting.h"
 
 #include "utils/statusoptionalreturn.h"
 
@@ -103,9 +104,19 @@ TrajectoryAlignementAnalysisEditor::TrajectoryAlignementAnalysisEditor(QWidget *
 
     //synchronize the ranges
     connect(_speedDeltasPlot->xAxis, static_cast<void(QCPAxis::*)(const QCPRange &)>(&QCPAxis::rangeChanged),
-            _orientationDeltasPlot->xAxis, static_cast<void(QCPAxis::*)(const QCPRange &)>(&QCPAxis::setRange));
+            this, [this] () {
+        _orientationDeltasPlot->xAxis->blockSignals(true);
+        _orientationDeltasPlot->xAxis->setRange(_speedDeltasPlot->xAxis->range());
+        _orientationDeltasPlot->xAxis->blockSignals(false);
+        _orientationDeltasPlot->replot();
+    });
     connect(_orientationDeltasPlot->xAxis, static_cast<void(QCPAxis::*)(const QCPRange &)>(&QCPAxis::rangeChanged),
-            _speedDeltasPlot->xAxis, static_cast<void(QCPAxis::*)(const QCPRange &)>(&QCPAxis::setRange));
+            this, [this] () {
+        _speedDeltasPlot->xAxis->blockSignals(true);
+        _speedDeltasPlot->xAxis->setRange(_orientationDeltasPlot->xAxis->range());
+        _speedDeltasPlot->xAxis->blockSignals(false);
+        _speedDeltasPlot->replot();
+    });
 
 }
 
@@ -136,13 +147,25 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
 
     StatusOptionalReturn<Trajectory::TimeCartesianSequence> accelerometerOpt = StatusOptionalReturn<Trajectory::TimeCartesianSequence>::error("");
 
+    Trajectory::PoseType imu2body = Trajectory::PoseType();
+
     bool valid_trajectory = true;
 
     if (_trajectory == nullptr) {
         valid_trajectory = false;
     } else {
 
-        trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
+        StereoVisionApp::Mounting* insMounting = _trajectory->getInsMounting();
+
+        if (insMounting != nullptr) {
+            std::optional<StereoVision::Geometry::AffineTransform<float>> transformOpt = insMounting->getTransform();
+
+            if (transformOpt.has_value()) {
+                imu2body = transformOpt.value().cast<double>();
+            }
+        }
+
+        trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence(imu2body); //load the trajectory in the body of the imu
 
         angularSpeedOpt = _trajectory->loadAngularSpeedSequence();
 
@@ -159,6 +182,7 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
         if (!accelerometerOpt.isValid()) {
             valid_trajectory = false;
         }
+
     }
 
     if (!valid_trajectory) {
@@ -177,7 +201,6 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
     Trajectory::TimeTrajectorySequence& traj = trajOptional.value();
     Trajectory::TimeCartesianSequence& gyro = angularSpeedOpt.value();
     Trajectory::TimeCartesianSequence& accelerometer = accelerometerOpt.value();
-
 
     double minIntegrationTime = 0.1; //min integration time of half a second
 

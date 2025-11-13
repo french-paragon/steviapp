@@ -179,6 +179,18 @@ public:
      * \return optionaly a TimeTrajectorySequence
      */
     StatusOptionalReturn<TimeTrajectorySequence> loadTrajectoryProjectLocalFrameSequence() const;
+    /*!
+     * \brief loadTrajectoryProjectLocalFrameSequence load the trajectory data, and apply the conversion from ECEF to project local frame on the fly. Add an additional transform on top
+     * \param target2body the transformation to apply to the trajectory (e.g. to get the trajectory of a sensor attached to the body with a given mounting). Assumed to be the transformation from the target frame to the body frame, i.e. the pose of the target in the body frame.
+     * \return optionaly a TimeTrajectorySequence
+     */
+    StatusOptionalReturn<TimeTrajectorySequence> loadTrajectoryProjectLocalFrameSequence(StereoVision::Geometry::AffineTransform<double> const& target2body) const;
+    /*!
+     * \brief loadTrajectoryProjectLocalFrameSequence load the trajectory data, and apply the conversion from ECEF to project local frame on the fly. Add an additional transform on top
+     * \param target2body the transformation to apply to the trajectory (e.g. to get the trajectory of a sensor attached to the body with a given mounting). Assumed to be the transformation from the target frame to the body frame, i.e. the pose of the target in the body frame.
+     * \return optionaly a TimeTrajectorySequence
+     */
+    StatusOptionalReturn<TimeTrajectorySequence> loadTrajectoryProjectLocalFrameSequence(StereoVision::Geometry::RigidBodyTransform<double> const& target2body) const;
 
     /*!
      * \brief optimizedTrajectory return the optimized trajectory, if it is set. The optimized trajectory will be in the project local frame

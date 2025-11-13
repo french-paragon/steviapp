@@ -16,6 +16,10 @@ class TrajectoryBaseSBAModule : public ModularSBASolver::SBAModule
 {
 
 public:
+    /*!
+     * \brief insLeverArmPoseDefinition indicate how the mounting parameters for the ins lever arm are considered
+     */
+    static constexpr int insLeverArmPoseDefinition = Body2World | Sensor2Body;
 
     static const char* ModuleName;
     inline static void registerDefaultModuleFactory(SBASolverModulesInterface* interface) {
@@ -253,8 +257,6 @@ protected:
         return params;
 
     }
-
-    static constexpr int insLeverArmPoseDefinition = Body2World | Sensor2Body;
 
     template <template<class, int...> class CostT, class AccCost, int flags>
     using AccTemplateParametrizedCost =

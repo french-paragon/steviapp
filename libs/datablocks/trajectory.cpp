@@ -1769,6 +1769,34 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
     return TimeTrajectorySequence(std::move(data));
 
 }
+StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProjectLocalFrameSequence
+    (StereoVision::Geometry::AffineTransform<double> const& target2body) const {
+    StatusOptionalReturn<TimeTrajectorySequence> ret = loadTrajectoryProjectLocalFrameSequence();
+
+    if (!ret.isValid()) {
+        return ret;
+    }
+
+    for (int i = 0; i < ret.value().nPoints(); i++) {
+        ret.value()[i].val = ret.value()[i].val*target2body; //from body2world to target2world
+    }
+
+    return ret;
+}
+StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTrajectoryProjectLocalFrameSequence
+    (StereoVision::Geometry::RigidBodyTransform<double> const& target2body) const {
+    StatusOptionalReturn<TimeTrajectorySequence> ret = loadTrajectoryProjectLocalFrameSequence();
+
+    if (!ret.isValid()) {
+        return ret;
+    }
+
+    for (int i = 0; i < ret.value().nPoints(); i++) {
+        ret.value()[i].val = ret.value()[i].val*target2body; //from body2world to target2world
+    }
+
+    return ret;
+}
 
 StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::optimizedTrajectory(bool subsample) const {
 

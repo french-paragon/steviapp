@@ -64,9 +64,20 @@ TrajectoryComparisonEditor::TrajectoryComparisonEditor(QWidget *parent) :
 
     //synchronize the ranges
     connect(_positionDeltasPlot->xAxis, static_cast<void(QCPAxis::*)(const QCPRange &)>(&QCPAxis::rangeChanged),
-            _orientationDeltasPlot->xAxis, static_cast<void(QCPAxis::*)(const QCPRange &)>(&QCPAxis::setRange));
+            this, [this] () {
+                _orientationDeltasPlot->xAxis->blockSignals(true);
+                _orientationDeltasPlot->xAxis->setRange(_positionDeltasPlot->xAxis->range());
+                _orientationDeltasPlot->xAxis->blockSignals(false);
+                _orientationDeltasPlot->replot();
+            });
     connect(_orientationDeltasPlot->xAxis, static_cast<void(QCPAxis::*)(const QCPRange &)>(&QCPAxis::rangeChanged),
-            _positionDeltasPlot->xAxis, static_cast<void(QCPAxis::*)(const QCPRange &)>(&QCPAxis::setRange));
+            this, [this] () {
+                _positionDeltasPlot->xAxis->blockSignals(true);
+                _positionDeltasPlot->xAxis->setRange(_orientationDeltasPlot->xAxis->range());
+                _positionDeltasPlot->xAxis->blockSignals(false);
+                _positionDeltasPlot->replot();
+            });
+
 
 }
 
