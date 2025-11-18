@@ -579,6 +579,31 @@ public:
 
     }
 
+    static float computeMatchingCost(Multidim::Array<T,3, Multidim::ConstView> const& img1,
+                                     std::array<float, 2> const& corner1,
+                                     Multidim::Array<T,3, Multidim::ConstView> const& img2,
+                                     std::array<float, 2> const& corner2) {
+
+        std::array<int, 2> integralCorner1{static_cast<int>(std::round(corner1[0])),static_cast<int>(std::round(corner1[1]))};
+        std::array<int, 2> integralCorner2{static_cast<int>(std::round(corner2[0])),static_cast<int>(std::round(corner2[1]))};
+
+        std::array<float, 2> dummy{0,0};
+
+        std::vector<StereoVision::SparseMatching::orientedCoordinate<2>> oriented1 =
+            {StereoVision::SparseMatching::orientedCoordinate<2>{integralCorner1,dummy}};
+        std::vector<StereoVision::SparseMatching::orientedCoordinate<2>> oriented2 =
+            {StereoVision::SparseMatching::orientedCoordinate<2>{integralCorner2,dummy}};
+
+        using FFTDescr = StereoVision::SparseMatching::CircularFFTFeatureInfos<8,16,32>;
+
+        std::vector<float> radiuses= {2,4,8};
+
+        auto features1 = StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(oriented1, img1, radiuses, batchDim);
+        auto features2 = StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(oriented2, img2, radiuses, batchDim);
+
+        return StereoVision::Correlation::SumAbsDiff(features1[0].features, features2[0].features);
+    }
+
     virtual std::vector<std::array<int,2>> matchCorners(
         Multidim::Array<T,3, Multidim::ConstView> const& img1,
         std::vector<std::array<float, 2>> const& corners1,
@@ -607,15 +632,19 @@ public:
 
         constexpr int nDim = 3;
 
-        std::array<int,nDim> shape;
-        std::fill(shape.begin(), shape.end(), 2*_patchRadius+1);
-        shape[batchDim] = 3;
+        std::array<int,nDim> shape = img1.shape();
 
-        std::vector<std::array<int,nDim>> patchCoords = StereoVision::SparseMatching::generateDensePatchCoordinates<nDim>(shape);
+        /*auto patchCoords = StereoVision::SparseMatching::generateUniformRadialSampleCoordinatesWithFeaturesDim<nDim,batchDim>(_patchRadius, _nSamples, shape[batchDim]);
 
+        auto features1 = StereoVision::SparseMatching::OrientedWhitenedPixelsDescriptor(oriented1, img1, patchCoords, batchDim);
+        auto features2 = StereoVision::SparseMatching::OrientedWhitenedPixelsDescriptor(oriented2, img2, patchCoords, batchDim);*/
 
-        auto features1 = StereoVision::SparseMatching::WhitenedPixelsDescriptor(oriented1, img1, patchCoords, batchDim);
-        auto features2 = StereoVision::SparseMatching::WhitenedPixelsDescriptor(oriented2, img2, patchCoords, batchDim);
+        using FFTDescr = StereoVision::SparseMatching::CircularFFTFeatureInfos<8,16,32>;
+
+        std::vector<float> radiuses= {2,4,8};
+
+        auto features1 = StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(oriented1, img1, radiuses, batchDim);
+        auto features2 = StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(oriented2, img2, radiuses, batchDim);
 
         int n = features1.size();
         int m = features2.size();
@@ -664,6 +693,10 @@ public:
 
             ret.push_back(proposal);
         }
+
+        std::sort(ret.begin(), ret.end(), [&costs] (std::array<int,2> const& match1, std::array<int,2> const& match2) {
+            return costs(match1[0],match1[1]) < costs(match2[0],match2[1]);
+        });
 
         return ret;
     }
@@ -914,9 +947,9 @@ public:
                 float const& x2 = observation[2];
                 float const& y2 = observation[3];
 
-                Eigen::Vector3f reprojected = PerspectiveWarpMatrix*Eigen::Vector3f(x2,y2,1);
-                float dx = reprojected.x()/reprojected.z() - x1;
-                float dy = reprojected.y()/reprojected.z() - y1;
+                Eigen::Vector3f reprojected = PerspectiveWarpMatrix*Eigen::Vector3f(x1,y1,1);
+                float dx = reprojected.x()/reprojected.z() - x2;
+                float dy = reprojected.y()/reprojected.z() - y2;
                 float res = std::sqrt(dx*dx + dy*dy); //distance to the original point
                 return res;
             }
@@ -938,16 +971,24 @@ public:
             observations[i][3] = corners2[corner2Id][1];
         }
 
+        using Sampler = StereoVision::Optimization::FullyPrioritizedRansacSamplingStrategy;
+
         constexpr int minObs = 4;
 
-        StereoVision::Optimization::GenericRansac<Measure, Model> ransac(observations, minObs, _threshold);
+        std::vector<int> order(observations.size());
+
+        for (int i = 0; i < observations.size(); i++) {
+            order[i] = i; //samples are assumed to be sorted from smallest cost to highest cost by the matching module
+        }
+
+        StereoVision::Optimization::GenericRansac<Measure, Model, Sampler> ransac(observations, Sampler(order), minObs, _threshold);
 
         ransac.ransacIterations(_nIterations);
 
         std::vector<int> ret;
-        ret.reserve(corners1.size());
+        ret.reserve(assignement.size());
 
-        for (int i = 0; i < corners1.size(); i++) {
+        for (int i = 0; i < assignement.size(); i++) {
             if (ransac.currentInliers()[i]) {
                 ret.push_back(i);
             }

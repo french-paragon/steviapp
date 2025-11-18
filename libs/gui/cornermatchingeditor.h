@@ -149,6 +149,8 @@ protected:
     void setImageData(Multidim::Array<float, 3> && imgData1,
                       Multidim::Array<float, 3> && imgData2);
 
+    void onPointClicked(int id);
+
     /*!
      * \brief setMatchBuilders set the match builders for the editor
      * \param matchBuilder1 the match builder for the first image

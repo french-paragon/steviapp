@@ -223,6 +223,9 @@ CornerMatchingEditor::CornerMatchingEditor(QWidget *parent) :
     connect(_pointsOverlay1, &LabelledPointsOverlay::activePointChanged, _pointsOverlay2, &LabelledPointsOverlay::setActivePoint);
     connect(_pointsOverlay2, &LabelledPointsOverlay::activePointChanged, _pointsOverlay1, &LabelledPointsOverlay::setActivePoint);
 
+    connect(_pointsOverlay1, &LabelledPointsOverlay::pointClicked, this, &CornerMatchingEditor::onPointClicked);
+    connect(_pointsOverlay2, &LabelledPointsOverlay::pointClicked, this, &CornerMatchingEditor::onPointClicked);
+
     _imageDisplay1->setImage(_imageViewAdapter1);
     _imageDisplay1->addOverlay(_pointsOverlay1);
     _imageDisplay1->installEventFilter(_pointsOverlay1);
@@ -404,6 +407,49 @@ void CornerMatchingEditor::setImageData(Multidim::Array<float, 3> && imgData1,
     _imageDisplay2->update();
 
 }
+
+void CornerMatchingEditor::onPointClicked(int id) {
+
+    QTextStream out(stdout);
+
+    if (_matchingPipeline == nullptr) {
+        return;
+    }
+
+    std::vector<std::array<int,2>> const& assignements = _matchingPipeline->assignements();
+
+    if (id >= assignements.size() or id < 0) {
+        return;
+    }
+
+    std::array<int,2> const& cornersIdxs = assignements[id];
+
+    std::array<float, 2> const& corner1 = _matchingPipeline->corners1()[cornersIdxs[0]];
+    std::array<float, 2> const& corner2 = _matchingPipeline->corners2()[cornersIdxs[1]];
+
+
+    QString message = QString("Clicked point %1 (corners %2 [%3, %4] and %5 [%6, %7])")
+                          .arg(id)
+                          .arg(cornersIdxs[0]).arg(corner1[0]).arg(corner1[1])
+                          .arg(cornersIdxs[1]).arg(corner2[0]).arg(corner2[1]);
+
+    HungarianCornerMatchModule<float>* matchingModule =
+        dynamic_cast<HungarianCornerMatchModule<float>*>(_matchingPipeline->matcherModule()); //should be safe because of vtable
+
+    if (matchingModule == nullptr) {
+        out << message << Qt::endl;
+        sendStatusMessage(message);
+        return;
+    }
+
+    float cost = matchingModule->computeMatchingCost(_imgData1, corner1, _imgData2, corner2);
+
+    message += QString(" - matching cost = %1").arg(cost);
+
+    out << message << Qt::endl;
+    sendStatusMessage(message);
+}
+
 void CornerMatchingEditor::setMatchBuilders(MatchBuilder* matchBuilder1,
                                                 MatchBuilder* matchBuilder2) {
 
@@ -529,8 +575,16 @@ void CornerMatchingEditor::compute() {
     std::vector<std::array<float, 2>> const& corners1 = _matchingPipeline->corners1();
     std::vector<std::array<float, 2>> const& corners2 = _matchingPipeline->corners2();
 
-    std::vector<std::array<int,2>> assignements = _matchingPipeline->assignements();
+    std::vector<std::array<int,2>> const& assignements = _matchingPipeline->assignements();
     QSet<int> inliers(_matchingPipeline->inliers().begin(), _matchingPipeline->inliers().end());
+
+    std::cout << "Selected inliers:";
+
+    for (int id : inliers) {
+        std::cout << " " << id;
+    }
+
+    std::cout << std::endl;
 
     QVector<QPointF> points1;
     QVector<QPointF> points2;
