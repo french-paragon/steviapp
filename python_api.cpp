@@ -81,6 +81,14 @@ public:
 		}
 		return "";
 	}
+
+    std::string reference() const {
+        if (_watcher.watchedIsAlive()) {
+            QVector<qint64> url = _datablock->internalUrl();
+            return StereoVisionApp::DataBlock::encodeUrl(url).toStdString();
+        }
+        return "";
+    }
 	void setObjectName(std::string const& name) {
 		if (_watcher.watchedIsAlive()) {
 			_datablock->setObjectName(QString::fromStdString(name));
@@ -352,6 +360,40 @@ public:
 
 		return DataBlockReference(block);
 	}
+
+    std::vector<DataBlockReference> listDatablocks(std::string const& typeName) {
+
+        StereoVisionApp::StereoVisionApplication* app = getApp();
+
+        if (app == nullptr) {
+            py::print("Ho no, cannot access a valid app instance !");
+            return std::vector<DataBlockReference>();
+        }
+
+        StereoVisionApp::Project* proj = app->getCurrentProject();
+
+        if (proj == nullptr) {
+            py::print("No open project !");
+            return std::vector<DataBlockReference>();
+        }
+
+        QVector<qint64> idxs = proj->getIdsByClass(QString::fromStdString(typeName));
+
+        std::vector<DataBlockReference> ret;
+        ret.reserve(idxs.size());
+
+        for (qint64 idx : idxs) {
+            StereoVisionApp::DataBlock* block = proj->getById(idx);
+
+            if (block == nullptr) {
+                continue;
+            }
+
+            ret.emplace_back(block);
+        }
+
+        return ret;
+    }
 
 	void setImageAsReference(DataBlockReference image) {
 
@@ -922,6 +964,14 @@ public:
 
 	void printDataBlocks() const;
 
+    void printAvailableActions();
+    void printAvailableActionsInNamespace(std::string const& namespaceName);
+
+    void callAction(std::string const& namespaceName,
+                    std::string const& actionName,
+                    std::vector<std::string> const& args,
+                    std::map<std::string, std::string> const& kwargs);
+
 private:
 
 	std::string _app_argv;
@@ -1040,13 +1090,87 @@ void PythonStereoVisionApp::printDataBlocks() const {
 	}
 }
 
+
+
+void PythonStereoVisionApp::printAvailableActions() {
+
+    StereoVisionApp::StereoVisionApplication* app = getApp();
+
+    if (app == nullptr) {
+        py::print("No app instance available");
+        return;
+    }
+
+    QStringList namespaces = app->getRegisteredHeadlessActionsNamespaces();
+
+    for (QString & namespaceName : namespaces) {
+        printAvailableActionsInNamespace(namespaceName.toStdString());
+        py::print("");
+    }
+
+}
+void PythonStereoVisionApp::printAvailableActionsInNamespace(std::string const& namespaceName) {
+
+    StereoVisionApp::StereoVisionApplication* app = getApp();
+
+    if (app == nullptr) {
+        py::print("No app instance available");
+        return;
+    }
+
+    py::print("Namespace ", namespaceName, " actions:");
+    QStringList actions = app->getRegisteredHeadlessActionsInNamespace(QString::fromStdString(namespaceName));
+
+
+    for (QString & action : actions) {
+        py::print("\t", qPrintable(action));
+    }
+
+}
+
+void PythonStereoVisionApp::callAction(std::string const& namespaceName,
+                                       std::string const& actionName,
+                                       std::vector<std::string> const& args,
+                                       std::map<std::string, std::string> const& kwargs) {
+
+    StereoVisionApp::StereoVisionApplication* app = getApp();
+
+    if (app == nullptr) {
+        py::print("No app instance available");
+        return;
+    }
+
+    QMap<QString,QString> convertedKwargs;
+    QStringList convertedArgs;
+    convertedArgs.reserve(args.size());
+
+    for (std::string const& str: args) {
+        convertedArgs << QString::fromStdString(str);
+    }
+
+    for (auto& [key, str] : kwargs) {
+        convertedKwargs[QString::fromStdString(key)] = QString::fromStdString(str);
+    }
+
+    auto status = app->callHeadlessAction(QString::fromStdString(namespaceName),
+                                                    QString::fromStdString(actionName),
+                                                    convertedKwargs,
+                                                    convertedArgs);
+
+    if (!status.isValid()) {
+        py::print("Error occured: ", status.error());
+    }
+
+}
+
 PYBIND11_MODULE(pysteviapp, m) {
 	m.doc() = "Stereovision app python interface";
 
-	py::class_<DataBlockReference>(m, "DatablockReference")
-			.def_property_readonly("isValid", &DataBlockReference::isValid)
-			.def_property("fixed", &DataBlockReference::isFixed, &DataBlockReference::setFixed)
-			.def_property("name", &DataBlockReference::name, &DataBlockReference::setObjectName);
+    py::class_<DataBlockReference>(m, "DatablockReference")
+        .def_property_readonly("isValid", &DataBlockReference::isValid)
+        .def_property("fixed", &DataBlockReference::isFixed, &DataBlockReference::setFixed)
+        .def_property("name", &DataBlockReference::name, &DataBlockReference::setObjectName)
+        .def_property_readonly("reference", &DataBlockReference::reference);
 
 	py::class_<PythonStereoVisionApp>(m, "AppInstance")
 			.def(py::init<const std::string &, bool>(), py::arg("appLocation") = "", py::arg("headless") = true)
@@ -1055,6 +1179,7 @@ PYBIND11_MODULE(pysteviapp, m) {
 			.def("saveProject", &PythonStereoVisionApp::saveProject)
 			.def("saveProjectAs", &PythonStereoVisionApp::saveProjectAs, py::arg("path"))
             .def("getDatablockByName", &PythonStereoVisionApp::getDataBlockByName, py::arg("name"), py::arg("typeHint") = "")
+        .def("listDatablocks", &PythonStereoVisionApp::listDatablocks, py::arg("type"))
             .def("addPlaceholderImage", &PythonStereoVisionApp::addPlaceholderImage, py::arg("name"), py::arg("cam"))
             .def("addImage", &PythonStereoVisionApp::addImage, py::arg("filename"), py::arg("imgname"))
 			.def("addImage", &PythonStereoVisionApp::addImageWithCam, py::arg("filename"), py::arg("imgname"), py::arg("cam"))
@@ -1156,7 +1281,10 @@ PYBIND11_MODULE(pysteviapp, m) {
 				 py::arg("useSparseOptimizer") = true,
 				 py::arg("predictUncertainty") = false)
 			.def("alignLocalCoordinateSystems", &PythonStereoVisionApp::alignLocalCoordinateSystems, py::arg("localCoordinateSystems"))
-			.def("printDatablocks", &PythonStereoVisionApp::printDataBlocks);
+            .def("printDatablocks", &PythonStereoVisionApp::printDataBlocks)
+            .def("availableActions", &PythonStereoVisionApp::printAvailableActions)
+            .def("availableActionsInNamespace", &PythonStereoVisionApp::printAvailableActionsInNamespace, py::arg("namespace"))
+            .def("callAction", &PythonStereoVisionApp::callAction, py::arg("namespace"), py::arg("name"), py::arg("arguments"), py::arg("namedArguments"));
 
 }
 

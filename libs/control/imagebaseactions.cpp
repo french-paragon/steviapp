@@ -2,13 +2,15 @@
 
 #include "utils_functions.h"
 
+#include "application.h"
+
 #include "datablocks/project.h"
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
 #include "datablocks/stereorig.h"
 #include "datablocks/cameracalibration.h"
 #include "datablocks/angleconstrain.h"
-#include "datablocks/distanceconstrain.h"
+#include "datablocks/correspondencesset.h"
 #include "datablocks/localcoordinatesystem.h"
 
 #include <StereoVision/interpolation/interpolation.h>
@@ -25,6 +27,7 @@
 #include <StereoVision/io/image_io.h>
 
 #include "vision/imageio.h"
+#include "vision/sparseMatchingPipeline.h"
 
 #include "sparsesolver/helperfunctions.h"
 
@@ -1317,6 +1320,165 @@ QTextStream& printImagesRelativePositions(QTextStream & stream, QVector<qint64> 
 
 	return stream;
 
+}
+
+
+
+StatusOptionalReturn<void> autoDetectImagesTiePointsHeadless(QMap<QString,QString> const& kwargs, QStringList const& argv) {
+
+    StereoVisionApplication* app = StereoVisionApplication::GetAppInstance();
+
+    if (app == nullptr) {
+        return StatusOptionalReturn<void>::error("could not load app instance!");
+    }
+
+    Project* p = app->getCurrentProject();
+
+    if (p == nullptr) {
+        return StatusOptionalReturn<void>::error("could not access any active project!");
+    }
+
+    //images
+
+    if (argv.size() < 2) {
+        return StatusOptionalReturn<void>::error("Invalid number of arguments, expected at least two images");
+    }
+
+    QString const& image1UrlStr = argv[0];
+    QString const& image2UrlStr = argv[1];
+
+    QVector<qint64> image1Url = DataBlock::decodeUrl(image1UrlStr);
+    QVector<qint64> image2Url = DataBlock::decodeUrl(image2UrlStr);
+
+    Image* img1 = qobject_cast<Image*>(p->getByUrl(image1Url));
+    Image* img2 = qobject_cast<Image*>(p->getByUrl(image2Url));
+
+    if (img1 == nullptr or img2 == nullptr) {
+        return StatusOptionalReturn<void>::error("Could not load images, invalid images references! Are the datablock present in the project?");
+    }
+
+    //matching pipeline configuration
+
+    using ComputeType = float;
+
+    using CornerDetecor = HarrisCornerDetectorModule<ComputeType>;
+    using MatchModule = HungarianCornerMatchModule<ComputeType>;
+    using InlierModule = GenericInlinerSelectionModule<ComputeType>;
+
+    using MatchingPipeline = ModularSparseMatchingPipeline<ComputeType,
+                                                           CornerDetecor,
+                                                           MatchModule,
+                                                           GenericTiePointsRenfinementModule<ComputeType>,
+                                                           GenericInlinerSelectionModule<ComputeType>>;
+
+    int lowPassRadius = 3;
+    int nonMaxSupprRadius = 3;
+    int maxNCorners = 1000;
+
+    if (kwargs.contains("cornerLowPassRadius")) {
+        bool ok = true;
+        lowPassRadius = kwargs["cornerLowPassRadius"].toInt(&ok);
+
+        if (!ok) {
+            return StatusOptionalReturn<void>::error("argument cornerLowPassRadius has invalid value (must be convertible to int)");
+        }
+    }
+
+    if (kwargs.contains("cornerNonMaxSupprRadius")) {
+        bool ok = true;
+        nonMaxSupprRadius = kwargs["cornerNonMaxSupprRadius"].toInt(&ok);
+
+        if (!ok) {
+            return StatusOptionalReturn<void>::error("argument cornerNonMaxSupprRadius has invalid value (must be convertible to int)");
+        }
+    }
+
+    if (kwargs.contains("cornerMaxNCorners")) {
+        bool ok = true;
+        maxNCorners = kwargs["cornerMaxNCorners"].toInt(&ok);
+
+        if (!ok) {
+            return StatusOptionalReturn<void>::error("argument cornerMaxNCorners has invalid value (must be convertible to int)");
+        }
+    }
+
+    // not used at the moment
+    constexpr int patchRadius = 100;
+    constexpr int nSamples = 100;
+
+    int nRansacIterations = 20000;
+
+    if (kwargs.contains("ransacIterations")) {
+        bool ok = true;
+        nRansacIterations = kwargs["ransacIterations"].toInt(&ok);
+
+        if (!ok) {
+            return StatusOptionalReturn<void>::error("argument ransacIterations has invalid value (must be convertible to int)");
+        }
+    }
+
+    float epipolarRansacThreshold = 0.02;
+    float perspectiveRansacThreshold = 20;
+
+    if (kwargs.contains("ransacThreshold")) {
+        bool ok = true;
+        float threshold = kwargs["ransacThreshold"].toFloat(&ok);
+
+        if (!ok) {
+            return StatusOptionalReturn<void>::error("argument ransacThreshold has invalid value (must be convertible to float)");
+        }
+        epipolarRansacThreshold = threshold;
+        perspectiveRansacThreshold = threshold;
+    }
+
+    CornerDetecor* baseCornerDetectionModule = new CornerDetecor(lowPassRadius, nonMaxSupprRadius, maxNCorners);
+    MatchModule* basePointsMatchingModule = new HungarianCornerMatchModule<float>(patchRadius, nSamples);
+    InlierModule* baseInlierModule = nullptr;
+    if (kwargs.contains("inlierModule")) {
+        if (kwargs["inlierModule"] == "perspective") {
+            baseInlierModule = new RansacPerspectiveInlinerSelectionModule<ComputeType>(nRansacIterations, perspectiveRansacThreshold);
+        } else {
+            baseInlierModule = new RansacEpipolarInlinerSelectionModule<ComputeType>(nRansacIterations, epipolarRansacThreshold);
+        }
+    } else {
+        baseInlierModule = new RansacEpipolarInlinerSelectionModule<ComputeType>(nRansacIterations, epipolarRansacThreshold);
+    }
+
+    MatchingPipeline matchingPipeline(baseCornerDetectionModule, basePointsMatchingModule, nullptr, baseInlierModule);
+
+    //run the pipeline
+
+    Multidim::Array<float,3> img1_data = StereoVision::IO::readImage<float>(img1->getImageFile().toStdString());
+
+    if (img1_data.empty()) {
+        return StatusOptionalReturn<void>::error("Could not load raster data from img1!");
+    }
+
+    Multidim::Array<float,3> img2_data = StereoVision::IO::readImage<float>(img2->getImageFile().toStdString());
+
+    if (img2_data.empty()) {
+        return StatusOptionalReturn<void>::error("Could not load raster data from img2!");
+    }
+
+    matchingPipeline.setupPipeline(img1_data, img2_data);
+    matchingPipeline.runAllSteps();
+
+    if (!matchingPipeline.lastErrorMessage().isEmpty()) {
+        return StatusOptionalReturn<void>::error(qPrintable(QString("Error during matching process: %1").arg(matchingPipeline.lastErrorMessage())));
+    }
+
+    Image::ImageMatchBuilder builder1(img1);
+    Image::ImageMatchBuilder builder2(img2);
+
+    auto[uvs1, uvs2] = matchingPipeline.filteredCorners();
+
+    auto status = CorrespondencesSet::writeUVCorrespondancesToSet(&builder1, uvs1, &builder2, uvs2, p);
+
+    if (!status.isValid()) {
+        return StatusOptionalReturn<void>::error(status.errorMessage());
+    }
+
+    return StatusOptionalReturn<void>();
 }
 
 } //namespace StereoVisionApp

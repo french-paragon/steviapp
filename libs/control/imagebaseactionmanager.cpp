@@ -291,6 +291,13 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 
 }
 
+
+void ImageBaseActionManager::registerAppHeadlessActions(StereoVisionApplication* application) const {
+    constexpr char* ImageNamespace = "Image";
+
+    application->registerHeadlessAction(ImageNamespace,"autoDetectTiePoints", autoDetectImagesTiePointsHeadless);
+}
+
 QAction* ImageBaseActionManager::createAssignToCameraAction(QObject* parent, Project* p, QVector<Image*> const& ims) const {
 
 	QAction* assignToCamera = new QAction(tr("Assign to camera"), parent);

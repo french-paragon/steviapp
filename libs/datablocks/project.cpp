@@ -837,6 +837,32 @@ void DataBlock::clearIsChanged() {
 	}
 }
 
+QVector<qint64> DataBlock::decodeUrl(QString const& encodedUrl) {
+
+    QStringList splitted = encodedUrl.split("/");
+    QVector<qint64>ret(splitted.size());
+
+    for (int i = 0; i < splitted.size(); i++) {
+        bool ok = true;
+        ret[i] = splitted[i].toInt(&ok);
+        if (!ok) {
+            return QVector<qint64>();
+        }
+    }
+
+    return ret;
+}
+QString DataBlock::encodeUrl(QVector<qint64> const& url) {
+    if (url.isEmpty()) {
+        return "";
+    }
+    QString joined = QString("%1").arg(url[0]);
+    for (int i = 1; i < url.size(); i++) {
+        joined = QString("/%1").arg(url[i]);
+    }
+    return joined;
+}
+
 QVector<qint64> DataBlock::internalUrl() const {
 	Project* p = qobject_cast<Project*>(parent());
 

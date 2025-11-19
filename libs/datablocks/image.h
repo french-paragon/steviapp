@@ -4,6 +4,7 @@
 #include "./project.h"
 #include "./rigidbody.h"
 #include "./floatparameter.h"
+#include "./genericcorrespondences.h"
 
 #include <QPointF>
 #include <QSet>
@@ -21,6 +22,17 @@ class Image : public RigidBody
 {
 	Q_OBJECT
 public:
+
+
+    class ImageMatchBuilder : public Correspondences::UVMatchBuilder {
+    public:
+        ImageMatchBuilder(Image* img);
+        virtual Correspondences::Generic correspondanceFromUV(float u, float v) const override;
+        virtual QString targetTitle() const override;
+    protected:
+        Image* _img;
+    };
+
     Image(Project* parent = nullptr);
 
     qint64 assignedCamera() const;

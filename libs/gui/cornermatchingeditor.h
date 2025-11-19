@@ -35,15 +35,7 @@ public:
         perspectiveRansac = 1
     };
 
-    /*!
-     * \brief The MatchBuilder class is a strategy for the CornerMatchingEditor to build matches from its correspondances
-     */
-    class MatchBuilder {
-    public:
-        virtual ~MatchBuilder();
-        virtual Correspondences::Generic correspondanceFromUV(float u, float v) const = 0;
-        virtual QString targetTitle() const = 0;
-    };
+    using MatchBuilder = Correspondences::UVMatchBuilder;
 
     using ComputeType = float;
 

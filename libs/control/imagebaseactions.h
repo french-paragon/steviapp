@@ -4,6 +4,8 @@
 #include <QStringList>
 #include <QTextStream>
 
+#include "../utils/statusoptionalreturn.h"
+
 class QWidget;
 
 namespace StereoVisionApp {
@@ -80,6 +82,8 @@ int orientCamerasRelativeToObservedLandmarks(qint64 imgId, Project* p);
 
 
 QTextStream& printImagesRelativePositions(QTextStream & stream, QVector<qint64> imagesIds, Project* p);
+
+StatusOptionalReturn<void> autoDetectImagesTiePointsHeadless(QMap<QString,QString> const& kwargs, QStringList const& argv);
 
 } // namespace StereoVisionApp
 

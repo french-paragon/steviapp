@@ -140,6 +140,64 @@ void CorrespondencesSet::setVerbose(bool verbose) {
     isChanged();
 }
 
+StatusOptionalReturn<CorrespondencesSet*> CorrespondencesSet::writeUVCorrespondancesToSet(
+    Correspondences::UVMatchBuilder* builder1,
+    std::vector<std::array<float, 2>> const& uvs1,
+    Correspondences::UVMatchBuilder* builder2,
+    std::vector<std::array<float, 2>> const& uvs2,
+    Project* project,
+    bool doNotDuplicatedNamedSet,
+    CorrespondencesSet* correspondenceSet
+    ) {
+
+    if (builder1 == nullptr or builder2 == nullptr) {
+        return StatusOptionalReturn<CorrespondencesSet*>::error("Null builder!");
+    }
+
+    if (project == nullptr) {
+        return StatusOptionalReturn<CorrespondencesSet*>::error("Null project!");
+    }
+
+    CorrespondencesSet* correspSet = correspondenceSet;
+
+    if (correspSet == nullptr) {
+
+        QString expectedName = QString("%1 - %2 correspondence set").arg(builder1->targetTitle(), builder2->targetTitle());
+
+        if (!doNotDuplicatedNamedSet) {
+            correspSet = project->getDataBlockByName<CorrespondencesSet>(expectedName);
+        }
+
+        if (correspSet == nullptr) {
+            qint64 id = project->createDataBlock(CorrespondencesSet::staticMetaObject.className());
+
+            if (id < 0) {
+                return StatusOptionalReturn<CorrespondencesSet*>::error("Could not create correspondences set in project!");
+            }
+
+            correspSet = project->getDataBlock<CorrespondencesSet>(id);
+        }
+
+        if (correspSet == nullptr) {
+            return StatusOptionalReturn<CorrespondencesSet*>::error("Could not load created correspondences set in project!");
+        }
+
+        correspSet->setObjectName(expectedName);
+    }
+
+
+    for (int i = 0; i < uvs1.size(); i++) {
+
+        auto& [u1, v1] = uvs1[i];
+        auto& [u2, v2] = uvs2[i];
+
+        correspSet->addCorrespondence(Correspondences::GenericPair{builder1->correspondanceFromUV(u1,v1),
+                                                                   builder2->correspondanceFromUV(u2,v2)});
+    }
+
+    return correspSet;
+}
+
 void CorrespondencesSet::referedCleared(QVector<qint64> const& referedId) {
 
     if (referedId.size() != 1) {

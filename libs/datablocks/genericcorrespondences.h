@@ -985,6 +985,16 @@ std::optional<Eigen::Vector3d> getGeoXYZConstraintInfos(Typed<Types::GEOXYZ> con
                                          StereoVision::Geometry::AffineTransform<double> const& ecef2local
                                          = StereoVision::Geometry::AffineTransform<double>(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero()));
 
+/*!
+     * \brief The MatchBuilder class is a strategy to build matches from any UV correspondances
+     */
+class UVMatchBuilder {
+public:
+    virtual ~UVMatchBuilder();
+    virtual Correspondences::Generic correspondanceFromUV(float u, float v) const = 0;
+    virtual QString targetTitle() const = 0;
+};
+
 } // namespace Correspondences
 
 } // namespace StereoVisionApp

@@ -205,25 +205,6 @@ void matchCornersInTestImagePair() {
     cmte->addImageData("simulatedImage2", img_data2, nullptr);
 }
 
-class ImageMatchBuilder : public CornerMatchingEditor::MatchBuilder {
-public:
-    ImageMatchBuilder(Image* img) : _img(img) {
-
-    }
-    virtual Correspondences::Generic correspondanceFromUV(float u, float v) const {
-        Correspondences::Typed<Correspondences::UV> ret;
-        ret.blockId = _img->internalId();
-        ret.u = u;
-        ret.v = v;
-        return ret;
-    }
-    virtual QString targetTitle() const {
-        return _img->objectName();
-    }
-protected:
-    Image* _img;
-};
-
 void matchCornersInImagePair(Project* proj, qint64 imgId1, qint64 imgId2) {
 
     QTextStream out(stdout);
@@ -283,8 +264,8 @@ void matchCornersInImagePair(Project* proj, qint64 imgId1, qint64 imgId2) {
         return;
     }
 
-    cmte->addImageData(img_block1->objectName(), img_data1, new ImageMatchBuilder(img_block1));
-    cmte->addImageData(img_block2->objectName(), img_data2, new ImageMatchBuilder(img_block2));
+    cmte->addImageData(img_block1->objectName(), img_data1, new Image::ImageMatchBuilder(img_block1));
+    cmte->addImageData(img_block2->objectName(), img_data2, new Image::ImageMatchBuilder(img_block2));
 
 }
 
@@ -335,7 +316,7 @@ void addImages2MatchCornersEditor(Project* proj, QVector<qint64> const& imgs) {
             continue;
         }
 
-        cmte->addImageData(img_block->objectName(), img_data, new ImageMatchBuilder(img_block));
+        cmte->addImageData(img_block->objectName(), img_data, new Image::ImageMatchBuilder(img_block));
 
     }
 

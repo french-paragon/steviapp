@@ -70,7 +70,8 @@ StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 	}
 
 	if (_isHeadLess) {
-		_QtApp = new QCoreApplication(argc, argv);
+        _QtApp = new QApplication(argc, argv);
+        //QApplication required to use some stuff like painters and pixmaps, even in headless mode
 	} else {
 		_QtApp = new QApplication(argc, argv);
 		_mw = new MainWindow();

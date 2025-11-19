@@ -202,6 +202,10 @@ std::optional<Eigen::Vector3d> getGeoXYZConstraintInfos(Typed<Types::GEOXYZ> con
 
 }
 
+UVMatchBuilder::~UVMatchBuilder() {
+
+}
+
 } // namespace Correspondences
 
 } // namespace StereoVisionApp

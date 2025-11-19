@@ -19,6 +19,8 @@
 
 #include <StereoVision/geometry/alignement.h>
 
+#include "../datablocks/genericcorrespondences.h"
+
 namespace StereoVisionApp {
 
 template<typename T>
@@ -266,6 +268,42 @@ public:
 
     std::vector<std::array<int,2>> const& assignements() const { return _assignements; }
     std::vector<int> const& inliers() const { return _inliers; }
+
+    std::pair<std::vector<std::array<float, 2>>,std::vector<std::array<float, 2>>> filteredCorners() const {
+        std::vector<std::array<float, 2>> uvs1(_inliers.size());
+        std::vector<std::array<float, 2>> uvs2(_inliers.size());
+
+        for (int i = 0; i < _inliers.size(); i++) {
+
+            std::array<int,2> const& assignement = _assignements[i];
+
+            int f1_idx = assignement[0];
+            int f2_idx = assignement[1];
+
+            if (f1_idx >= (int) _corners1.size()) {
+                continue;
+            }
+
+            if (f2_idx >= (int) _corners2.size()) {
+                continue;
+            }
+
+            auto& f1 = _corners1[f1_idx];
+            auto& f2 = _corners2[f2_idx];
+
+            float u1 = f1[0];
+            float v1 = f1[1];
+
+            float u2 = f2[0];
+            float v2 = f2[1];
+
+            uvs1[i] = {u1,v1};
+            uvs2[i] = {u2,v2};
+
+        }
+
+        return std::make_pair(uvs1, uvs2);
+    }
 
 protected:
 

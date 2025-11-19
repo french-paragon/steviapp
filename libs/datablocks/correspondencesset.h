@@ -14,6 +14,7 @@
 #include <optional>
 
 #include "./genericcorrespondences.h"
+#include "../utils/statusoptionalreturn.h"
 
 namespace StereoVisionApp {
 
@@ -90,6 +91,27 @@ public:
 
     bool isVerbose() const;
     void setVerbose(bool verbose);
+
+    static StatusOptionalReturn<CorrespondencesSet*> writeUVCorrespondancesToSet(
+        Correspondences::UVMatchBuilder* builder1,
+        std::vector<std::array<float, 2>> const& uvs1,
+        Correspondences::UVMatchBuilder* builder2,
+        std::vector<std::array<float, 2>> const& uvs2,
+        Project* project,
+        bool doNotDuplicatedNamedSet = false,
+        CorrespondencesSet* correspondenceSet = nullptr
+        );
+
+    inline static StatusOptionalReturn<CorrespondencesSet*> writeUVCorrespondancesToSet(
+        Correspondences::UVMatchBuilder* builder1,
+        std::vector<std::array<float, 2>> const& uvs1,
+        Correspondences::UVMatchBuilder* builder2,
+        std::vector<std::array<float, 2>> const& uvs2,
+        Project* project,
+        CorrespondencesSet* correspondenceSet
+        ) {
+        return writeUVCorrespondancesToSet(builder1, uvs1, builder2, uvs2,project,false,correspondenceSet);
+    }
 
 Q_SIGNALS:
 

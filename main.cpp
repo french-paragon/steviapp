@@ -88,7 +88,7 @@
 
 void segfaultHandler(int sig) {
 
-     StereoVisionApp::StereoVisionApplication* app =  StereoVisionApp::StereoVisionApplication::GetAppInstance();
+    StereoVisionApp::StereoVisionApplication* app =  StereoVisionApp::StereoVisionApplication::GetAppInstance();
 
     QStringList paths = QStandardPaths::standardLocations(QStandardPaths::ConfigLocation);
     QString path = paths.first();

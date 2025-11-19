@@ -16,6 +16,8 @@ public:
 
     QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const override;
     QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* p) const override;
+
+    void registerAppHeadlessActions(StereoVisionApplication* application) const override;
 };
 
 } // namespace StereoVisionApp

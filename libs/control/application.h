@@ -3,6 +3,12 @@
 
 #include <QObject>
 #include <QMap>
+#include <QString>
+#include <QStringList>
+
+#include <functional>
+
+#include "../utils/statusoptionalreturn.h"
 
 class QCoreApplication;
 
@@ -15,6 +21,7 @@ class StereoVisionApplication : public QObject
 {
 	Q_OBJECT
 public:
+    using HeadlessAction = std::function<StatusOptionalReturn<void>(QMap<QString,QString> const& kwargs, QStringList const& argv)>;
 
 	static StereoVisionApplication* GetAppInstance();
     static const char* appName();
@@ -57,7 +64,39 @@ public:
 	 * \brief exec start the application event loop
 	 * \return the final status code of the application.
 	 */
-	int exec();
+    int exec();
+
+    inline QStringList getRegisteredHeadlessActionsNamespaces() const {
+        return _registeredHeadlessActions.keys();
+    }
+
+    inline QStringList getRegisteredHeadlessActionsInNamespace(QString const& namespaceName) const {
+        if (!_registeredHeadlessActions.contains(namespaceName)) {
+            return QStringList{};
+        }
+        return _registeredHeadlessActions[namespaceName].keys();
+    }
+
+    inline void registerHeadlessAction(QString const& namespaceName,
+                                       QString const& actionName,
+                                       HeadlessAction const& action) {
+        _registeredHeadlessActions[namespaceName][actionName] = action;
+    }
+
+    inline StatusOptionalReturn<void> callHeadlessAction(QString const& namespaceName,
+                                                         QString const& actionName,
+                                                         QMap<QString,QString> const& kwargs,
+                                                         QStringList const& argv) {
+        if (!_registeredHeadlessActions.contains(namespaceName)) {
+            return StatusOptionalReturn<void>::error(qPrintable(QString("Namespace %1 is not registered in the application").arg(namespaceName)));
+        }
+
+        if (!_registeredHeadlessActions[namespaceName].contains(actionName)) {
+            return StatusOptionalReturn<void>::error(qPrintable(QString("Action %1 is not registered in namespace %2").arg(actionName, namespaceName)));
+        }
+
+        return _registeredHeadlessActions[namespaceName][actionName](kwargs, argv);
+    }
 
 Q_SIGNALS:
 
@@ -90,6 +129,11 @@ protected:
     QVector<QString> _requestedPlugins;
 
     QMap<QString, QObject*> _additionalInterfaces;
+
+    /*
+     * \brief _registeredHeadlessActions is a register for actions that can be called automatically (e.g. for scripting)
+     */
+    QMap<QString,QMap<QString,HeadlessAction>> _registeredHeadlessActions;
 
     bool _ressource_load_flag;
 };

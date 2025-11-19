@@ -58,6 +58,11 @@ QList<QAction*> DatablockActionManager::factorizeMultiItemsContextActions(QObjec
 	return {};
 }
 
+void DatablockActionManager::registerAppHeadlessActions(StereoVisionApplication* application) const {
+    Q_UNUSED(application);
+    return;
+}
+
 
 ActionManagersLibrary* ActionManagersLibrary::_defaultActionManagersLibrary = nullptr;
 
@@ -88,6 +93,12 @@ bool ActionManagersLibrary::registerDatablockActionManager(DatablockActionManage
 	}
 
 	_dataBlockActionManagers.insert(c, block);
+
+    StereoVisionApplication* app = StereoVisionApplication::GetAppInstance();
+
+    if (app != nullptr) {
+        block->registerAppHeadlessActions(app);
+    }
 
 	return true;
 

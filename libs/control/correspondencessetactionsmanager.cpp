@@ -100,4 +100,41 @@ QList<QAction*> CorrespondencesSetActionsManager::factorizeItemContextActions(QO
 
 }
 
+void CorrespondencesSetActionsManager::registerAppHeadlessActions(StereoVisionApplication* application) const {
+
+    constexpr char const* CorrespondencesSetNamespace = "CorrespondencesSet";
+
+    application->registerHeadlessAction(CorrespondencesSetNamespace,"exportSet", [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+
+        bool ok = true;
+
+        qint64 id = argv[0].toInt(&ok);
+
+        if (!ok) {
+            return StatusOptionalReturn<void>::error("Invalid set id provided!");
+        }
+
+        QString outPath = argv[1];
+
+        StereoVisionApplication* app = StereoVisionApplication::GetAppInstance();
+
+        if (app == nullptr) {
+            return StatusOptionalReturn<void>::error("No active app instance!");
+        }
+
+        Project* p = app->getCurrentProject();
+
+        if (p == nullptr) {
+            return StatusOptionalReturn<void>::error("No active project!");
+        }
+
+        ok = exportCorrespondencesToTxt(p, id, outPath);
+
+        if (!ok) {
+            return StatusOptionalReturn<void>::error("Unknwon error!");
+        }
+
+        return StatusOptionalReturn<void>();
+    });
+}
 } // namespace StereoVisionApp

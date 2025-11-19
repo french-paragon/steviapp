@@ -18,6 +18,20 @@ namespace StereoVisionApp {
 
 const QString ImageLandmark::ImageLandmarkClassName = "StereoVisionApp::ImageLandmark";
 
+Image::ImageMatchBuilder::ImageMatchBuilder(Image* img) : _img(img) {
+
+}
+Correspondences::Generic Image::ImageMatchBuilder::correspondanceFromUV(float u, float v) const {
+    Correspondences::Typed<Correspondences::UV> ret;
+    ret.blockId = _img->internalId();
+    ret.u = u;
+    ret.v = v;
+    return ret;
+}
+QString Image::ImageMatchBuilder::targetTitle() const {
+    return _img->objectName();
+}
+
 Image::Image(Project *parent) :
     RigidBody(parent),
     _assignedCamera(-1),

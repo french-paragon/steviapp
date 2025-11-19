@@ -262,6 +262,8 @@ public:
 
 	void clearIsChanged();
 
+    static QVector<qint64> decodeUrl(QString const& encodedUrl);
+    static QString encodeUrl(QVector<qint64> const& url);
 	QVector<qint64> internalUrl() const;
 	QStringList subTypes() const;
 	DataBlock* getById(qint64 internalId) const;

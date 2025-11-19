@@ -32,11 +32,6 @@ namespace Optm = StereoVision::Optimization;
 
 namespace StereoVisionApp {
 
-
-CornerMatchingEditor::MatchBuilder::~MatchBuilder() {
-
-}
-
 using HarrisDetectorBase = CornerMatchingEditor::ConfigurableCornerDetectionModule<HarrisCornerDetectorModule<CornerMatchingEditor::ComputeType>>;
 class ConfigurableHarrisCornerDetectorModule : public HarrisDetectorBase
 {
@@ -644,9 +639,15 @@ void CornerMatchingEditor::compute() {
 
 void CornerMatchingEditor::writeCorrespondanceSet() {
 
+    if (_matchingPipeline == nullptr) {
+        return;
+    }
+
     if (_matchBuilder1 == nullptr or _matchBuilder2 == nullptr) {
         return;
     }
+
+    auto[uvs1, uvs2] = _matchingPipeline->filteredCorners();
 
     Project* project = activeProject();
 
@@ -657,66 +658,12 @@ void CornerMatchingEditor::writeCorrespondanceSet() {
         return;
     }
 
-    CorrespondencesSet* correspSet = nullptr;
+    auto status = CorrespondencesSet::writeUVCorrespondancesToSet(_matchBuilder1, uvs1, _matchBuilder2, uvs2, project);
 
-    if (correspSet == nullptr) {
-        qint64 id = project->createDataBlock(CorrespondencesSet::staticMetaObject.className());
-
-        if (id < 0) {
-            QMessageBox::warning(this,
-                                 QObject::tr("Could not import correspondences"),
-                                 QObject::tr("Could not create datablock in project!"));
-            return ;
-        }
-
-        correspSet = project->getDataBlock<CorrespondencesSet>(id);
-
-        if (correspSet == nullptr) {
-            QMessageBox::warning(this,
-                                 QObject::tr("Could not import correspondences"),
-                                 QObject::tr("Could not load created datablock from project!"));
-            return;
-        }
-
-        correspSet->setObjectName(QString("%1 - %2 correspondence set").arg(_matchBuilder1->targetTitle(), _matchBuilder2->targetTitle()));
-    }
-
-    std::vector<std::array<float, 2>> const& corners1 = _matchingPipeline->corners1();
-    std::vector<std::array<float, 2>> const& corners2 = _matchingPipeline->corners2();
-
-    std::vector<std::array<int,2>> assignements = _matchingPipeline->assignements();
-    QSet<int> inliers(_matchingPipeline->inliers().begin(), _matchingPipeline->inliers().end());
-
-
-    for (int i = 0; i < assignements.size(); i++) {
-        if (!inliers.contains(i)) {
-            continue;
-        }
-
-        std::array<int,2> const& assignement = assignements[i];
-
-        int f1_idx = assignement[0];
-        int f2_idx = assignement[1];
-
-        if (f1_idx >= (int) corners1.size()) {
-            continue;
-        }
-
-        if (f2_idx >= (int) corners2.size()) {
-            continue;
-        }
-
-        auto& f1 = corners1[f1_idx];
-        auto& f2 = corners2[f2_idx];
-
-        float u1 = f1[0];
-        float v1 = f1[1];
-
-        float u2 = f2[0];
-        float v2 = f2[1];
-
-        correspSet->addCorrespondence(Correspondences::GenericPair{_matchBuilder1->correspondanceFromUV(u1,v1),
-                                                                   _matchBuilder2->correspondanceFromUV(u2,v2)});
+    if (!status.isValid()) {
+        QMessageBox::warning(this,
+                             QObject::tr("Could not import correspondences"),
+                             status.errorMessage());
     }
 
 }

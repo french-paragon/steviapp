@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QModelIndexList>
 
+#include "application.h"
+
 class QAction;
 
 namespace StereoVisionApp {
@@ -24,6 +26,8 @@ public:
 	virtual QList<QAction*> factorizeClassContextActions(QObject* parent, Project* p) const;
     virtual QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* block) const;
 	virtual QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const;
+
+    virtual void registerAppHeadlessActions(StereoVisionApplication* application) const;
 
 signals:
 

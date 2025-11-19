@@ -20,6 +20,8 @@ public:
 	QList<QAction*> factorizeItemContextActions(QObject* parent, DataBlock* p) const override;
 	QList<QAction*> factorizeMultiItemsContextActions(QObject* parent, Project* p, QModelIndexList const& projectIndex) const override;
 
+    void registerAppHeadlessActions(StereoVisionApplication* application) const override;
+
 protected:
 
 	QAction* createAssignToCameraAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
