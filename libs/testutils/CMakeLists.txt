@@ -21,6 +21,7 @@ install_stereovisionapp_sdklib(${TESTUTILS_LIB})
 
 get_filename_component(LibDirName ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 
-install(FILES ${LIB_HEADERS}
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}
-  )
+foreach ( file ${LIB_HEADERS} )
+    get_filename_component( dir ${file} DIRECTORY )
+    install( FILES ${file} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LibDirName}/${dir} )
+endforeach()

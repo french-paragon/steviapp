@@ -1803,6 +1803,9 @@ bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Corresp
     ModularSBASolver::PoseNode* laNode1 = solver->getPoseNode(itemTrajectoryInfos1.ExternalLeverArmId);
 
     if (laNode1 != nullptr) {
+        if (!logName.isEmpty()) {
+            solver->logMessage(logName + " - use lever arm for node 1");
+        }
         leverArm1R = laNode1->rAxis.data();
         leverArm1T = laNode1->t.data();
     }
@@ -1813,6 +1816,9 @@ bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Corresp
     ModularSBASolver::PoseNode* laNode2 = solver->getPoseNode(itemTrajectoryInfos2.ExternalLeverArmId);
 
     if (laNode2 != nullptr) {
+        if (!logName.isEmpty()) {
+            solver->logMessage(logName + " - use lever arm for node 2");
+        }
         leverArm2R = laNode2->rAxis.data();
         leverArm2T = laNode2->t.data();
     }

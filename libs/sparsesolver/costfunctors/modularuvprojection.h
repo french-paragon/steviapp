@@ -714,7 +714,10 @@ public:
 
         V2T xy = MP.householderQr().solve(-sensor12sensor2.t);
 
-        V3T intersectionCam2 = (sensor12sensor2.t + xy.x()*direction1CamFrame + xy.y()*direction2CamFrame)/T(2);
+        V3T inter1 = sensor12sensor2.t + xy.x()*direction1CamFrame;
+        V3T inter2 = xy.y()*direction2CamFrame;
+
+        V3T intersectionCam2 = (inter1 + inter2)/T(2);
 
         V3T intersectionCam1 = sensor12sensor2.inverse()*intersectionCam2;
 

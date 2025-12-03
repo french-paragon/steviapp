@@ -1,7 +1,7 @@
 #ifndef GENERATEDTRAJECTORY_H
 #define GENERATEDTRAJECTORY_H
 
-#include <datablocks/trajectory.h>
+#include "../../datablocks/trajectory.h"
 
 namespace StereoVisionApp {
 
