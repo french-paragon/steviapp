@@ -1744,24 +1744,18 @@ StatusOptionalReturn<Trajectory::TimeTrajectorySequence> Trajectory::loadTraject
 
     if (transform2projFrame.has_value()) {
 
-        StereoVision::Geometry::AffineTransform<double> transform = transform2projFrame.value().cast<double>();
+        StereoVision::Geometry::RigidBodyTransform<double> transform = transform2projFrame.value().cast<double>(); //ecef2local
 
         if (!transform.isFinite()) {
             return RType::error("Non finite transform to local frame!");
         }
 
-        for (int i = 0; i < data.size(); i++) {
+        for (size_t i = 0; i < data.size(); i++) {
 
-            PoseType pose = data[i].val; //sensor 2 ecef
+            PoseType& pose = data[i].val; //sensor 2 ecef
             // plateform 2 project local
 
-            Eigen::Vector3d pos = transform*pose.t;
-
-            Eigen::Vector3d rot = pose.r;
-            Eigen::Matrix3d R = transform.R*StereoVision::Geometry::rodriguezFormula<double>(rot);
-            rot = StereoVision::Geometry::inverseRodriguezFormula<double>(R);
-
-            data[i].val = PoseType(rot, pos);
+            data[i].val = transform*pose;
         }
 
     }
