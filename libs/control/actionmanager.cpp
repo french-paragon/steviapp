@@ -38,6 +38,14 @@ QList<QAction*> DatablockActionManager::factorizeItemContextActions(QObject* par
 
     QList<QAction*> lst;
 
+    if (block->hasOptimizedParameters()) {
+        QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
+        connect(clearOptimized, &QAction::triggered, [block] () {
+            block->clearOptimized();
+        });
+        lst.append(clearOptimized);
+    }
+
     QAction* remove = new QAction(tr("Remove"), parent);
     connect(remove, &QAction::triggered, [block] () {
         Project* p = block->getProject();

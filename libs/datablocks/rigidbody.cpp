@@ -333,6 +333,13 @@ void RigidBody::setOptTransform(const StereoVision::Geometry::AffineTransform<fl
 	setOptRot(o_rot);
 
 }
+bool RigidBody::hasOptimizedParameters() const {
+    return _o_pos.isSet() or _o_rot.isSet();
+}
+void RigidBody::clearOptimized() {
+    clearOptPos();
+    clearOptRot();
+}
 
 QJsonObject RigidBody::encodeJson() const {
 

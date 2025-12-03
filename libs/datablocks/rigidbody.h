@@ -88,6 +88,10 @@ public:
          */
         void setOptTransform(StereoVision::Geometry::AffineTransform<float> const& transform);
 
+
+        bool hasOptimizedParameters() const override;
+        void clearOptimized() override;
+
 Q_SIGNALS:
 
 	void xCoordChanged(floatParameter);

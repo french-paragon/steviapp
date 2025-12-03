@@ -25,6 +25,14 @@ public:
     floatParameter opticalCenterX() const;
     void setOpticalCenterX(const floatParameter &c_x);
 
+    inline bool optimizedAsAreSet() const {
+        return _o_a0.isSet() and _o_a1.isSet() and _o_a2.isSet() and _o_a3.isSet() and _o_a4.isSet() and _o_a5.isSet();
+    }
+
+    inline bool optimizedBsAreSet() const {
+        return _o_b0.isSet() and _o_b1.isSet() and _o_b2.isSet() and _o_b3.isSet() and _o_b4.isSet() and _o_b5.isSet();
+    }
+
     floatParameter a0() const;
     void setA0(const floatParameter &a0);
 
