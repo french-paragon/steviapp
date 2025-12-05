@@ -14,6 +14,7 @@ set(LIB_HEADERS
     indexed_timed_sequence.h
     trajectoryImuPreIntegration.h
     sparseMatchingPipeline.h
+    type_conversions.h
 )
 
 add_library(

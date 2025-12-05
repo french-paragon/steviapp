@@ -13,6 +13,9 @@
 #include <MultidimArrays/MultidimArrays.h>
 
 #include <QTextStream>
+#include <QPdfWriter>
+#include <QPainter>
+#include <QFile>
 
 namespace StereoVisionApp {
 
@@ -267,6 +270,122 @@ void matchCornersInImagePair(Project* proj, qint64 imgId1, qint64 imgId2) {
     cmte->addImageData(img_block1->objectName(), img_data1, new Image::ImageMatchBuilder(img_block1));
     cmte->addImageData(img_block2->objectName(), img_data2, new Image::ImageMatchBuilder(img_block2));
 
+}
+
+StatusOptionalReturn<void> exportCorrespondancesFromImages(QString const& outFile, QString const& img1Label, QString const& img2Label,
+                                     QPixmap const& img1, QPixmap const& img2,
+                                     QVector<QPointF> const& coords1, QVector<QPointF> const& coords2,
+                                     QVector<QString> const& labels, QVector<QColor> const& colors) {
+
+    if (img1.isNull() and img2.isNull()) {
+        return StatusOptionalReturn<void>::error("Null images 1 & 2");
+    } else if (img1.isNull()) {
+        return StatusOptionalReturn<void>::error("Null image 1");
+    } else if (img2.isNull()) {
+        return StatusOptionalReturn<void>::error("Null image 2");
+    }
+
+    if (coords1.size() != coords2.size()) {
+        return StatusOptionalReturn<void>::error("Incompatible number of points given!");
+    }
+
+    int nPoints = coords1.size();
+
+    QFile out(outFile);
+
+    if (!out.open(QFile::WriteOnly)) {
+        return StatusOptionalReturn<void>::error(qPrintable(QString("Impossible to open file %1 in write mode!").arg(outFile)));
+    }
+
+    QPdfWriter writer(&out);
+    writer.setResolution(72);
+
+    QSize paperSize = QPageSize(QPageSize::A4).sizePoints();
+
+    if (paperSize.width() < paperSize.height()) {
+        paperSize.transpose(); //set horizontal
+    }
+
+    writer.setPageSize(QPageSize(paperSize));
+    writer.setPageMargins(QMarginsF(0,0,0,0));
+
+    QSize img1Size = img1.size();
+    QSize img2Size = img2.size();
+
+    constexpr float marginInPoints = 5;
+    constexpr float spacingInPoints = 50;
+
+    float availableHeight = paperSize.height() - 2*marginInPoints;
+    float availableWidth = (paperSize.width() - 2*marginInPoints - spacingInPoints)/2;
+
+    float img1HeightScale = availableHeight / img1Size.height();
+    float img2HeightScale = availableHeight / img2Size.height();
+
+
+    float img1WidthScale = availableWidth / img1Size.width();
+    float img2WidthScale = availableWidth / img2Size.width();
+
+    float img1Scale = std::min(img1HeightScale, img1WidthScale);
+    float img2Scale = std::min(img2HeightScale, img2WidthScale);
+
+    QSizeF img1PrintSize = QSizeF(img1Size)*img1Scale;
+    QSizeF img2PrintSize = QSizeF(img2Size)*img2Scale;
+
+    float leftoverHorizontalSpace1 = availableWidth - img1PrintSize.width();
+    float leftoverVerticalSpace1 = availableHeight - img1PrintSize.height();
+
+    float leftoverHorizontalSpace2 = availableWidth - img2PrintSize.width();
+    float leftoverVerticalSpace2 = availableHeight - img2PrintSize.height();
+
+    QPointF img1TopLeftCorner(marginInPoints + leftoverHorizontalSpace1/2,
+                              marginInPoints + leftoverVerticalSpace1/2);
+    QPointF img2TopLeftCorner(marginInPoints + availableWidth + spacingInPoints + leftoverHorizontalSpace2/2,
+                              marginInPoints + leftoverVerticalSpace2/2);
+
+    QPainter painter(&writer);
+
+    painter.drawPixmap(QRectF(img1TopLeftCorner, img1PrintSize).toRect(), img1);
+    painter.drawPixmap(QRectF(img2TopLeftCorner, img2PrintSize).toRect(), img2);
+
+    QVector<QColor> linkColors;
+
+    if (!colors.isEmpty()) {
+        linkColors = colors;
+    } else {
+        linkColors = QVector<QColor>(coords1.size());
+        std::default_random_engine re(img1Size.width() + img1Size.height() + img2Size.width() + img2Size.height()); //deterministic seeding
+        std::uniform_int_distribution<uint8_t> dist(0,230);
+
+        for (int i = 0; i < linkColors.size(); i++) {
+            linkColors[i] = QColor(dist(re),dist(re),dist(re));
+        }
+    }
+
+    QVector<QString> pointsLabels;
+
+    if (!labels.isEmpty()) {
+        pointsLabels = labels;
+    } else {
+        pointsLabels = QVector<QString>(coords1.size());
+
+        for (int i = 0; i < pointsLabels.size(); i++) {
+            pointsLabels[i] = "";
+        }
+    }
+
+    for (int i = 0; i < nPoints; i++) {
+        QPointF ptImg1 = img1Scale*coords1[i] + img1TopLeftCorner;
+        QPointF ptImg2 = img2Scale*coords2[i] + img2TopLeftCorner;
+
+        QPen pen(linkColors[i]);
+        pen.setWidthF(0.3);
+        pen.setStyle(Qt::PenStyle::SolidLine);
+
+        painter.setPen(pen);
+        painter.drawLine(ptImg1, ptImg2);
+    }
+
+    return StatusOptionalReturn<void>();
 }
 
 void addImages2MatchCornersEditor(Project* proj, QVector<qint64> const& imgs) {

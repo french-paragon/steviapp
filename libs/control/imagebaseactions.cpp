@@ -22,6 +22,8 @@
 
 #include "sparsesolver/vertices/camerapose.h"
 
+#include "vision/type_conversions.h"
+
 #include <StereoVision/imageProcessing/hexagonalRGBTargetsDetection.h>
 
 #include <StereoVision/io/image_io.h>
@@ -45,6 +47,8 @@
 #include <QDebug>
 
 #include <exiv2/exiv2.hpp>
+
+#include "./cornerdetectionactions.h"
 
 namespace StereoVisionApp {
 
@@ -1322,8 +1326,6 @@ QTextStream& printImagesRelativePositions(QTextStream & stream, QVector<qint64> 
 
 }
 
-
-
 StatusOptionalReturn<void> autoDetectImagesTiePointsHeadless(QMap<QString,QString> const& kwargs, QStringList const& argv) {
 
     StereoVisionApplication* app = StereoVisionApplication::GetAppInstance();
@@ -1476,6 +1478,28 @@ StatusOptionalReturn<void> autoDetectImagesTiePointsHeadless(QMap<QString,QStrin
 
     if (!status.isValid()) {
         return StatusOptionalReturn<void>::error(status.errorMessage());
+    }
+
+    if (kwargs.contains("outFile")) {
+        QString outFile = kwargs["outFile"];
+
+        QPixmap img1_pixmap = pixmapFromImgdata(img1_data);
+        QPixmap img2_pixmap = pixmapFromImgdata(img2_data);
+
+        QVector<QPointF> coords1(uvs1.size());
+        QVector<QPointF> coords2(uvs2.size());
+
+        for (int i = 0; i < coords1.size(); i++) {
+            coords1[i] = QPointF(uvs1[i][1], uvs1[i][0]);
+        }
+
+        for (int i = 0; i < coords2.size(); i++) {
+            coords2[i] = QPointF(uvs2[i][1], uvs2[i][0]);
+        }
+
+        return exportCorrespondancesFromImages(outFile, img1->objectName(), img2->objectName(),
+                                               img1_pixmap, img2_pixmap,
+                                               coords1, coords2);
     }
 
     return StatusOptionalReturn<void>();
