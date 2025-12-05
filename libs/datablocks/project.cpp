@@ -153,7 +153,7 @@ bool Project::load(QString const& inFile) {
 
             auto ecef2local = json2affineTransform<double>(local);
             if (ecef2local.has_value()) {
-                _ecef2local = ecef2local.value();
+                _ecef2local = StereoVision::Geometry::RigidBodyTransform<double>(ecef2local.value()).toAffineTransform();
                 _hasLocalCoordinateFrame = true;
             }
         }
@@ -309,6 +309,11 @@ DataBlock* Project::getByName(QString const& name, QString const& typeHint) cons
 }
 
 DataBlock* Project::getByUrl(QVector<qint64> const& internalUrl) const {
+
+    if (internalUrl.isEmpty()) {
+        return nullptr;
+    }
+
 	QVector<qint64> url = internalUrl;
 	qint64 base = url.takeFirst();
 

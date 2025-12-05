@@ -569,12 +569,12 @@ void exportTrajectory(Trajectory* traj,
 
     constexpr bool subsample = true;
 
-    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> exportTraj = 
+    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> exportTraj =
         exportOptimized ? traj->optimizedTrajectory(subsample) : traj->loadTrajectorySequence();
 
     StereoVision::Geometry::AffineTransform<double> local2ecef(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
 
-    if (exportOptimized) {        
+    if (exportOptimized) {
         if (currentProject != nullptr) {
             StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local();
             local2ecef.R = ecef2local.R.inverse();

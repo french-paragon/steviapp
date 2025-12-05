@@ -147,7 +147,7 @@ public:
 
     inline void setLocalCoordinateFrame(StereoVision::Geometry::AffineTransform<double> const& reference2local) {
         _hasLocalCoordinateFrame = true;
-        _ecef2local = reference2local;
+        _ecef2local = StereoVision::Geometry::RigidBodyTransform<double>(reference2local).toAffineTransform(); //enforce transform in SO(3)
 
         Q_EMIT projectDataChanged();
         Q_EMIT localCooordinateFrameChanged();

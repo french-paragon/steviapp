@@ -1595,16 +1595,15 @@ StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::l
         }
     }
 
-    PoseType plateform2sensor(_plateformDefinition.boresight, _plateformDefinition.leverArm);
+    PoseType plateform2body(_plateformDefinition.boresight, _plateformDefinition.leverArm);
 
     for (int i = 0; i < posECEF.size(); i++) {
 
-        Eigen::Matrix3d body2local = StereoVision::Geometry::rodriguezFormula(orientationRaw[i].val);
-        StereoVision::Geometry::AffineTransform<double>& local2ecef = localFrames[i];
+        StereoVision::Geometry::RigidBodyTransform<double> body2local(orientationRaw[i].val, Eigen::Vector3d::Zero());
+        StereoVision::Geometry::RigidBodyTransform<double> local2ecef = localFrames[i];
 
         trajectory[i].time = posECEF[i].time;
-        StereoVision::Geometry::AffineTransform<double> transformed(local2ecef.R*body2local, local2ecef.t);
-        trajectory[i].val = PoseType(StereoVision::Geometry::inverseRodriguezFormula(transformed.R), transformed.t) * plateform2sensor;
+        trajectory[i].val = local2ecef * body2local * plateform2body;
 
     }
 
