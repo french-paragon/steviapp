@@ -72,6 +72,39 @@ bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
 
     _gravity = {0,0,-9.81};
 
+    if (currentProject->hasLocalCoordinateFrame()) {
+        StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local();
+        Eigen::Vector3d ecefPos = -ecef2local.R.transpose()*ecef2local.t;
+
+        PJ_CONTEXT* ctx = proj_context_create();
+
+        if (ctx != nullptr) {
+            const char* ecefCartesian = "EPSG:4978";
+            const char* wgs84Ellipsoid = "EPSG:4979";
+            PJ* projection = proj_create_crs_to_crs(
+                ctx, ecefCartesian, wgs84Ellipsoid,
+                nullptr);
+
+            if (projection != nullptr) {
+
+                PJ_COORD localFrameOriginECEF = proj_coord(ecefPos.x(), ecefPos.y(), ecefPos.z(), 0);
+                PJ_COORD localFrameOriginWGS84 = proj_trans(projection, PJ_FWD, localFrameOriginECEF);
+                PJ_COORD localFrameUpWGS84 = localFrameOriginWGS84;
+                localFrameUpWGS84.lpz.z += 9.81;
+                PJ_COORD localFrameUpECEF = proj_trans(projection, PJ_INV, localFrameUpWGS84);
+
+                Eigen::Vector3d upEcef(localFrameUpECEF.xyz.x, localFrameUpECEF.xyz.y, localFrameUpECEF.xyz.z);
+                Eigen::Vector3d gravityLocal = ecef2local*upEcef;
+
+                _gravity = {-gravityLocal.x(), -gravityLocal.y(), -gravityLocal.z()};
+
+                proj_destroy(projection);
+            }
+
+            proj_context_destroy(ctx);
+        }
+    }
+
     QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
 
     if (trajectoriesIdxs.isEmpty()) {
