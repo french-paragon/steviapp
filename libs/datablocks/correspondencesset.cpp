@@ -188,8 +188,8 @@ StatusOptionalReturn<CorrespondencesSet*> CorrespondencesSet::writeUVCorresponda
 
     for (int i = 0; i < uvs1.size(); i++) {
 
-        auto& [u1, v1] = uvs1[i];
-        auto& [u2, v2] = uvs2[i];
+        auto& [v1, u1] = uvs1[i];
+        auto& [v2, u2] = uvs2[i];
 
         correspSet->addCorrespondence(Correspondences::GenericPair{builder1->correspondanceFromUV(u1,v1),
                                                                    builder2->correspondanceFromUV(u2,v2)});
