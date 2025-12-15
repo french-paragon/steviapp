@@ -917,9 +917,22 @@ template<typename T>
 class RansacPerspectiveInlinerSelectionModule : public GenericInlinerSelectionModule<T> {
 public:
 
-    RansacPerspectiveInlinerSelectionModule(int nRansacIterations, float threshold = 10) :
+    RansacPerspectiveInlinerSelectionModule(int nRansacIterations,
+                                            bool enableMultiThresholding = false,
+                                            float threshold = 10,
+                                            float subthreshold = 5) :
         _nIterations(nRansacIterations),
-        _threshold(threshold)
+        _multiThresholdingEnabled(enableMultiThresholding),
+        _threshold(threshold),
+        _sub_threshold(subthreshold)
+    {
+
+    }
+
+    RansacPerspectiveInlinerSelectionModule(int nRansacIterations,
+                                            float threshold,
+                                            float subthreshold = 5) :
+        RansacPerspectiveInlinerSelectionModule(nRansacIterations, false, threshold, subthreshold)
     {
 
     }
@@ -1032,6 +1045,95 @@ public:
             }
         }
 
+        if (_multiThresholdingEnabled) {
+
+            constexpr int nNearest = minObs+1;
+
+            std::vector<int> prev = std::move(ret);
+            ret = std::vector<int>();
+            ret.reserve(prev.size());
+
+            for (int id : prev) {
+
+                int corner1Id = assignement[id][0];
+                int corner2Id = assignement[id][1];
+
+                float ptIm1U = corners1[corner1Id][0];
+                float ptIm1V = corners1[corner1Id][1];
+
+                float ptIm2U = corners2[corner2Id][0];
+                float ptIm2V = corners2[corner2Id][1];
+
+                std::array<int, nNearest> nearestId;
+                std::array<float, nNearest> nearestDistance;
+
+                for (int i = 0; i < nNearest; i++) {
+                    nearestId[i] = -1;
+                    nearestDistance[i] = std::numeric_limits<float>::infinity();
+                }
+
+                for (int oId : prev) {
+                    if (oId == id) {
+                        continue;
+                    }
+                    int corner1Id = assignement[oId][0];
+
+                    float pt2Im1U = corners1[corner1Id][0];
+                    float pt2Im1V = corners1[corner1Id][1];
+
+                    float dU = pt2Im1U - ptIm1U;
+                    float dV = pt2Im1V - ptIm1V;
+
+                    int cid = oId;
+                    float d = dU*dU + dV*dV;
+
+                    for (int i = 0; i < nNearest; i++) {
+                        if (d <= nearestDistance[i]) {
+                            int tmpId = nearestId[i];
+                            float tmpD = nearestDistance[i];
+                            nearestId[i] = cid;
+                            nearestDistance[i] = d;
+                            cid = tmpId;
+                            d = tmpD;
+                        }
+                    }
+
+                }
+
+                Measure point;
+                std::vector<Measure> neighboors(nNearest);
+
+                point[0] = ptIm1U;
+                point[1] = ptIm1V;
+
+                point[2] = ptIm2U;
+                point[3] = ptIm2V;
+
+                for (int i = 0; i < nNearest; i++) {
+
+                    int ptid = nearestId[i];
+
+                    int corner1Id = assignement[ptid][0];
+                    int corner2Id = assignement[ptid][1];
+
+                    neighboors[i][0] = corners1[corner1Id][0];
+                    neighboors[i][1] = corners1[corner1Id][1];
+
+                    neighboors[i][2] = corners2[corner2Id][0];
+                    neighboors[i][3] = corners2[corner2Id][1];
+
+                }
+
+                Model model(neighboors);
+                float error = model.error(point);
+
+                if (error <= _sub_threshold) {
+                    ret.push_back(id);
+                }
+
+            }
+        }
+
         return ret;
 
     }
@@ -1044,10 +1146,20 @@ public:
         _threshold = threshold;
     }
 
+    void setSubThreshold(float threshold) {
+        _sub_threshold = threshold;
+    }
+
+    void enableSubThresholding(bool enabled) {
+        _multiThresholdingEnabled = enabled;
+    }
+
 protected:
 
     int _nIterations;
+    bool _multiThresholdingEnabled;
     float _threshold;
+    float _sub_threshold;
 };
 
 } // namespace StereoVisionApp

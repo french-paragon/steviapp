@@ -25,6 +25,7 @@
 #include <QMessageBox>
 #include <QCoreApplication>
 #include <QComboBox>
+#include <QCheckBox>
 
 namespace SpaMat = StereoVision::SparseMatching;
 namespace Corr = StereoVision::Correlation;
@@ -164,8 +165,23 @@ public:
         ransacThreshold->setSingleStep(0.5);
         ransacThreshold->setSuffix("px");
 
+        QDoubleSpinBox* ransacSubThreshold = new QDoubleSpinBox(ret);
+        ransacSubThreshold->setMinimum(0.0);
+        ransacSubThreshold->setMaximum(999999);
+
+        ransacSubThreshold->setValue(RansacPerspectiveSelectionBase::_sub_threshold);
+        ransacSubThreshold->setSingleStep(0.5);
+        ransacSubThreshold->setSuffix("px");
+
+        QCheckBox* enableSubThresholdingBox = new QCheckBox(ret);
+        enableSubThresholdingBox->setTristate(false);
+
+        enableSubThresholdingBox->setChecked(RansacPerspectiveSelectionBase::_multiThresholdingEnabled);
+
         inlierFormLayout->addRow(tr("Ransac iterations"), nRansacIterationInput);
         inlierFormLayout->addRow(tr("Ransac threshold"), ransacThreshold);
+        inlierFormLayout->addRow(tr("Ransac local-threshold"), ransacSubThreshold);
+        inlierFormLayout->addRow(tr("Enable local-thresholding"), enableSubThresholdingBox);
 
         QObject::connect(nRansacIterationInput, qOverload<int>(&QSpinBox::valueChanged), [this] (int n) {
             setNIterations(n);
@@ -173,6 +189,14 @@ public:
 
         QObject::connect(ransacThreshold, qOverload<double>(&QDoubleSpinBox::valueChanged), [this] (double threshold) {
             setThreshold(threshold);
+        });
+
+        QObject::connect(ransacSubThreshold, qOverload<double>(&QDoubleSpinBox::valueChanged), [this] (double threshold) {
+            setSubThreshold(threshold);
+        });
+
+        QObject::connect(enableSubThresholdingBox, &QCheckBox::stateChanged, [this, enableSubThresholdingBox] (int state) {
+            enableSubThresholding(enableSubThresholdingBox->isChecked());
         });
 
         return ret;
