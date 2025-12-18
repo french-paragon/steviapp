@@ -1,2 +1,8 @@
 @PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(MultidimArrays)
+find_dependency(StereoVision)
+
 include( "${CMAKE_CURRENT_LIST_DIR}/SteviappSDKTargets.cmake" )
