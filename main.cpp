@@ -289,10 +289,10 @@ int main(int argc, char *argv[])
 		w->installEditor(new StereoVisionApp::CameraCalibrationEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::CameraCalibrationSparseAlignementEditorFactory(&a));
 		w->installEditor(new StereoVisionApp::FixedStereoSequenceEditorFactory(&a));
+        w->installEditor(new StereoVisionApp::CornerMatchingTestEditorFactory(&a));
 
         #ifdef STEVIAPP_DEVEL_TOOLS
         w->installEditor(new StereoVisionApp::CornerDetectorTestEditorFactory(&a));
-        w->installEditor(new StereoVisionApp::CornerMatchingTestEditorFactory(&a));
         #endif
 	}
 
