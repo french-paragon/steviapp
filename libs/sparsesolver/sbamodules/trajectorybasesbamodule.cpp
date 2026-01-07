@@ -7,8 +7,9 @@
 
 #include "../costfunctors/interpolatedvectorprior.h"
 #include "../costfunctors/imustepcost.h"
-#include "./costfunctors/weightedcostfunction.h"
-#include "./costfunctors/posedecoratorfunctors.h"
+#include "../costfunctors/weightedcostfunction.h"
+#include "../costfunctors/posedecoratorfunctors.h"
+#include "../costfunctors/stochasticprocessaggregator.h"
 
 #include "../sbagraphreductor.h"
 
@@ -29,6 +30,12 @@ TrajectoryBaseSBAModule::TrajectoryBaseSBAModule(double defaultIntegrationTime) 
 
     _gyrosBiases = std::vector<std::array<double,3>>();
     _gyrosScales = std::vector<std::array<double,3>>();
+
+    _accelerometersBiasesStochasticProcesses = std::vector<std::vector<INSStochasticProcessOptParams>>();
+    _accelerometersScalesStochasticProcesses = std::vector<std::vector<INSStochasticProcessOptParams>>();
+
+    _gyrosBiasesStochasticProcesses = std::vector<std::vector<INSStochasticProcessOptParams>>();
+    _gyrosScalesStochasticProcesses = std::vector<std::vector<INSStochasticProcessOptParams>>();
 
     _defaultGpsAccuracy = 1;
     _defaultOrientAccuracy = 1;
@@ -117,7 +124,15 @@ bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
     _gyrosBiases.reserve(trajectoriesIdxs.size());
     _gyrosScales.reserve(trajectoriesIdxs.size());
 
-    for (qint64 trajId : trajectoriesIdxs) {
+    _accelerometersBiasesStochasticProcesses.reserve(trajectoriesIdxs.size());
+    _accelerometersScalesStochasticProcesses.reserve(trajectoriesIdxs.size());
+
+    _gyrosBiasesStochasticProcesses.reserve(trajectoriesIdxs.size());
+    _gyrosScalesStochasticProcesses.reserve(trajectoriesIdxs.size());
+
+    for (int i = 0; i < trajectoriesIdxs.size(); i++) {
+
+        qint64 trajId = trajectoriesIdxs[i];
 
         Trajectory* traj = currentProject->getDataBlock<Trajectory>(trajId);
 
@@ -252,7 +267,23 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
     problem.AddResidualBlock(g_prior, nullptr, _gravity.data());
 
-    for (qint64 trajId : trajectoriesIdxs) {
+    _accelerometersBiasesStochasticProcesses.clear();
+    _accelerometersBiasesStochasticProcesses.resize(trajectoriesIdxs.size());
+
+    _accelerometersScalesStochasticProcesses.clear();
+    _accelerometersScalesStochasticProcesses.resize(trajectoriesIdxs.size());
+
+    _gyrosBiasesStochasticProcesses.clear();
+    _gyrosBiasesStochasticProcesses.resize(trajectoriesIdxs.size());
+
+    _gyrosScalesStochasticProcesses.clear();
+    _gyrosScalesStochasticProcesses.resize(trajectoriesIdxs.size());
+
+
+    for (int i = 0; i < trajectoriesIdxs.size(); i++) {
+
+        int trajIdx = i;
+        qint64 trajId = trajectoriesIdxs[i];
 
         Trajectory* traj = currentProject->getDataBlock<Trajectory>(trajId);
 
@@ -402,6 +433,41 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         int nAlignChar = std::ceil(std::log10(nSteps));
 
+        //setup ins stochastic parameters
+        QVector<Trajectory::InsStochasticProcessDef> stochasticProcesses;
+
+        if (accelerometerBias) {
+            stochasticProcesses = traj->accBiasStochasticProcesses();
+            if (!stochasticProcesses.isEmpty()) {
+                setupStochasticProcesses(_accelerometersBiasesStochasticProcesses[i],
+                                         traj, minTime, maxTime, problem, stochasticProcesses);
+            }
+        }
+
+        if (accelerometerScale) {
+            stochasticProcesses = traj->accScaleStochasticProcesses();
+            if (!stochasticProcesses.isEmpty()) {
+                setupStochasticProcesses(_accelerometersScalesStochasticProcesses[i],
+                                         traj, minTime, maxTime, problem, stochasticProcesses);
+            }
+        }
+
+        if (gyroBias) {
+            stochasticProcesses = traj->gyroBiasStochasticProcesses();
+            if (!stochasticProcesses.isEmpty()) {
+                setupStochasticProcesses(_gyrosBiasesStochasticProcesses[i],
+                                         traj, minTime, maxTime, problem, stochasticProcesses);
+            }
+        }
+
+        if (gyroScale) {
+            stochasticProcesses = traj->gyroScaleStochasticProcesses();
+            if (!stochasticProcesses.isEmpty()) {
+                setupStochasticProcesses(_gyrosScalesStochasticProcesses[i],
+                                         traj, minTime, maxTime, problem, stochasticProcesses);
+            }
+        }
+
         for (int i = 0; i < nSteps; i++) {
 
             double time = minTime + i*stepTime;
@@ -409,7 +475,6 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             trajNode->nodes[i].time = time;
 
             //GPS initilation and cost
-            auto interpolatablePos = optGps.value().getValueAtTime(time);
 
             auto interpolatablePose = optPose.value().getValueAtTime(time); //plateform to world.
             StereoVision::Geometry::RigidBodyTransform<double> interpolated =
@@ -549,6 +614,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
                 addGyroObs(trajNode,
                            traj,
+                           trajIdx,
                            gyroId,
                            i,
                            time,
@@ -574,6 +640,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                 addAccObs( //TODO: investigate why this function is slow!
                     trajNode,
                     traj,
+                    trajIdx,
                     gyroId,
                     accId,
                     i,
@@ -945,6 +1012,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addGpsObs(
 StatusOptionalReturn<void> TrajectoryBaseSBAModule::addGyroObs(
     ModularSBASolver::TrajectoryNode* trajNode,
     Trajectory* traj,
+    int trajIdx,
     int gyroId,
     int i,
     double time,
@@ -964,25 +1032,25 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addGyroObs(
 
     if (gyroBias and gyroScale) {
 
-        return addTempltGyroObs<WBias, WScale>(trajNode, traj, gyroId,
+        return addTempltGyroObs<WBias, WScale>(trajNode, traj, trajIdx, gyroId,
                                                i, time, gyroSeq, gyroAccuracy,
                                                problem, solver, addLogger);
 
     } else if (gyroBias) {
 
-        return addTempltGyroObs<WBias, WoScale>(trajNode, traj, gyroId,
+        return addTempltGyroObs<WBias, WoScale>(trajNode, traj, trajIdx, gyroId,
                                                i, time, gyroSeq, gyroAccuracy,
                                                problem, solver, addLogger);
 
     } else if (gyroScale) {
 
-        return addTempltGyroObs<WoBias, WScale>(trajNode, traj, gyroId,
+        return addTempltGyroObs<WoBias, WScale>(trajNode, traj, trajIdx, gyroId,
                                                i, time, gyroSeq, gyroAccuracy,
                                                problem, solver, addLogger);
 
     } else {
 
-        return addTempltGyroObs<WoBias, WoScale>(trajNode, traj, gyroId,
+        return addTempltGyroObs<WoBias, WoScale>(trajNode, traj, trajIdx, gyroId,
                                                i, time, gyroSeq, gyroAccuracy,
                                                problem, solver, addLogger);
     }
@@ -992,23 +1060,23 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addGyroObs(
 
 
 
-StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
-    ModularSBASolver::TrajectoryNode* trajNode,
-    Trajectory* traj,
-    int gyroId,
-    int accId,
-    int i,
-    double time,
-    Trajectory::TimeCartesianSequence const& gyroSeq,
-    Trajectory::TimeCartesianSequence const& imuSeq,
-    double accAccuracy,
-    bool gyroBias,
-    bool gyroScale,
-    bool accelerometerBias,
-    bool accelerometerScale,
-    ceres::Problem & problem,
-    ModularSBASolver* solver,
-    bool addLogger) {
+StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(ModularSBASolver::TrajectoryNode* trajNode,
+                                                              Trajectory* traj,
+                                                              int trajIdx,
+                                                              int gyroId,
+                                                              int accId,
+                                                              int i,
+                                                              double time,
+                                                              Trajectory::TimeCartesianSequence const& gyroSeq,
+                                                              Trajectory::TimeCartesianSequence const& imuSeq,
+                                                              double accAccuracy,
+                                                              bool gyroBias,
+                                                              bool gyroScale,
+                                                              bool accelerometerBias,
+                                                              bool accelerometerScale,
+                                                              ceres::Problem & problem,
+                                                              ModularSBASolver* solver,
+                                                              bool addLogger) {
 
     if (gyroBias and gyroScale and accelerometerBias and accelerometerScale) {
 
@@ -1017,7 +1085,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
                               AccelerometerStepCostFlags::AccBias |
                               AccelerometerStepCostFlags::AccScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1027,7 +1095,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
                               AccelerometerStepCostFlags::GyroScale |
                               AccelerometerStepCostFlags::AccBias;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1037,7 +1105,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
                               AccelerometerStepCostFlags::GyroScale |
                               AccelerometerStepCostFlags::AccScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1046,7 +1114,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
         constexpr int flags = AccelerometerStepCostFlags::GyroBias |
                               AccelerometerStepCostFlags::GyroScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1056,7 +1124,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
                               AccelerometerStepCostFlags::AccBias |
                               AccelerometerStepCostFlags::AccScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1065,7 +1133,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
         constexpr int flags = AccelerometerStepCostFlags::GyroBias |
                               AccelerometerStepCostFlags::AccBias;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1074,7 +1142,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
         constexpr int flags = AccelerometerStepCostFlags::GyroBias |
                               AccelerometerStepCostFlags::AccScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1082,7 +1150,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
 
         constexpr int flags = AccelerometerStepCostFlags::GyroBias;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1092,7 +1160,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
                               AccelerometerStepCostFlags::AccBias |
                               AccelerometerStepCostFlags::AccScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1101,7 +1169,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
         constexpr int flags = AccelerometerStepCostFlags::GyroScale |
                               AccelerometerStepCostFlags::AccBias;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1110,7 +1178,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
         constexpr int flags = AccelerometerStepCostFlags::GyroScale |
                               AccelerometerStepCostFlags::AccScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1118,7 +1186,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
 
         constexpr int flags = AccelerometerStepCostFlags::GyroScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1127,7 +1195,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
         constexpr int flags = AccelerometerStepCostFlags::AccBias |
                               AccelerometerStepCostFlags::AccScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1135,7 +1203,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
 
         constexpr int flags = AccelerometerStepCostFlags::AccBias;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1143,7 +1211,7 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
 
         constexpr int flags = AccelerometerStepCostFlags::AccScale;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
 
@@ -1151,12 +1219,66 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(
 
         constexpr int flags = AccelerometerStepCostFlags::NoBias;
 
-        return addTempltAccObs<flags>(trajNode, traj, gyroId, accId,
+        return addTempltAccObs<flags>(trajNode, traj, trajIdx, gyroId, accId,
                                       i, time, gyroSeq, imuSeq, accAccuracy,
                                       problem, solver, addLogger);
     }
 
     return StatusOptionalReturn<void>();
+
+}
+
+void TrajectoryBaseSBAModule::setupStochasticProcesses(
+    std::vector<TrajectoryBaseSBAModule::INSStochasticProcessOptParams> & paramSet,
+    Trajectory* traj,
+    double t0,
+    double tf,
+    ceres::Problem & problem,
+    QVector<Trajectory::InsStochasticProcessDef> const& processesParams) {
+
+    paramSet = std::vector<TrajectoryBaseSBAModule::INSStochasticProcessOptParams>();
+
+    if (traj == nullptr or processesParams.isEmpty() or tf <= t0) {
+        return;
+    }
+
+    paramSet.resize(processesParams.size());
+
+    double interval = tf - t0;
+
+    for (int i = 0; i < processesParams.size(); i++) {
+
+        Trajectory::InsStochasticProcessDef const& def = processesParams[i];
+
+        int nSteps = std::ceil(interval / def.timeScale) + 1;
+
+        if (nSteps < 2) {
+            nSteps = 2;
+        }
+
+        paramSet[i].times.resize(nSteps);
+        paramSet[i].vals.resize(nSteps);
+
+        std::fill(paramSet[i].vals.begin(), paramSet[i].vals.end(), std::array<double,3>{0,0,0}); //init at 0
+
+        double dt = interval/(nSteps-1);
+
+        for (int j = 0; j < nSteps; j++) {
+            paramSet[i].times[j] = t0 + j*dt;
+            problem.AddParameterBlock(paramSet[i].vals[j].data(), paramSet[i].vals[j].size());
+        }
+
+        StationaryGaussMarkovProcessCost<3>* cost = new StationaryGaussMarkovProcessCost<3>(def.betas, def.sigmas, dt);
+
+        ceres::AutoDiffCostFunction<StationaryGaussMarkovProcessCost<3>,3,3,3>* costFunction =
+            new ceres::AutoDiffCostFunction<StationaryGaussMarkovProcessCost<3>,3,3,3>(cost);
+
+        for (int j = 0; j < nSteps-1; j++) {
+
+            problem.AddResidualBlock(costFunction, nullptr, {paramSet[i].vals[j].data(), paramSet[i].vals[j+1].data()});
+
+        }
+    }
 
 }
 

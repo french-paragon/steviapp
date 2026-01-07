@@ -115,6 +115,13 @@ public:
         std::optional<TimeVarianceSequence> speedSigma;
     };
 
+    struct InsStochasticProcessDef {
+
+        double timeScale;
+        std::array<double, 3> betas;
+        std::array<double, 3> sigmas;
+    };
+
     static StatusOptionalReturn<std::vector<TimeTrajectoryBlock>> guidedSubsampleTrajectory
     (std::vector<TimeTrajectoryBlock> const& trajectory,
      std::vector<TimeTrajectoryBlock> const& guide);
@@ -647,6 +654,46 @@ public:
     QString getInsMountingName() const;
     void assignInsMounting(qint64 mountingId);
 
+    inline void setAccBiasStochasticProcesses(QVector<InsStochasticProcessDef> const& stochasticProcesses) {
+        if (_imuBiasStochasticProcesses != stochasticProcesses) {
+            _imuBiasStochasticProcesses = stochasticProcesses;
+            isChanged();
+        }
+    }
+    inline void setGyroBiasStochasticProcesses(QVector<InsStochasticProcessDef> const& stochasticProcesses) {
+        if (_gyroBiasStochasticProcesses != stochasticProcesses) {
+            _gyroBiasStochasticProcesses = stochasticProcesses;
+            isChanged();
+        }
+    }
+
+    inline QVector<InsStochasticProcessDef> accBiasStochasticProcesses() const {
+        return _imuBiasStochasticProcesses;
+    }
+    inline QVector<InsStochasticProcessDef> gyroBiasStochasticProcesses() const {
+        return _gyroBiasStochasticProcesses;
+    }
+
+    inline void setAccScaleStochasticProcesses(QVector<InsStochasticProcessDef> const& stochasticProcesses) {
+        if (_imuScaleStochasticProcesses != stochasticProcesses) {
+            _imuScaleStochasticProcesses = stochasticProcesses;
+            isChanged();
+        }
+    }
+    inline void setGyroScaleStochasticProcesses(QVector<InsStochasticProcessDef> const& stochasticProcesses) {
+        if (_gyroScaleStochasticProcesses != stochasticProcesses) {
+            _gyroScaleStochasticProcesses = stochasticProcesses;
+            isChanged();
+        }
+    }
+
+    inline QVector<InsStochasticProcessDef> accScaleStochasticProcesses() const {
+        return _imuScaleStochasticProcesses;
+    }
+    inline QVector<InsStochasticProcessDef> gyroScaleStochasticProcesses() const {
+        return _gyroScaleStochasticProcesses;
+    }
+
 Q_SIGNALS:
     void trajectoryDataChanged();
     void optimizedTrajectoryDataChanged();
@@ -740,6 +787,9 @@ protected:
 
     QJsonObject encodeJson() const override;
     void configureFromJson(QJsonObject const& data) override;
+
+    static QJsonArray encodeStochasticProcessesDefinition(QVector<InsStochasticProcessDef> const& stochasticProcesses);
+    static QVector<InsStochasticProcessDef> decodeStochasticProcessesDefinition(QJsonArray const& stochasticProcesses);
 
     void extendDataModel();
 
@@ -934,7 +984,32 @@ protected:
     double _opt_preintegration_time;
 
     DataTable* _optimizedTrajectoryData;
+
+    QVector<InsStochasticProcessDef> _imuBiasStochasticProcesses;
+    QVector<InsStochasticProcessDef> _imuScaleStochasticProcesses;
+    QVector<InsStochasticProcessDef> _gyroBiasStochasticProcesses;
+    QVector<InsStochasticProcessDef> _gyroScaleStochasticProcesses;
 };
+
+inline bool operator==(Trajectory::InsStochasticProcessDef const& d1, Trajectory::InsStochasticProcessDef const& d2) {
+    if (d1.timeScale != d2.timeScale) {
+        return false;
+    }
+
+    for (size_t i = 0; i < d1.betas.size(); i++) {
+        if (d1.betas[i] != d2.betas[i]) {
+            return false;
+        }
+    }
+
+    for (size_t i = 0; i < d1.sigmas.size(); i++) {
+        if (d1.sigmas[i] != d2.sigmas[i]) {
+            return false;
+        }
+    }
+
+    return false;
+}
 
 class TrajectoryFactory : public DataBlockFactory
 {

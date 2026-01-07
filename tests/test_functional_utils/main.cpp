@@ -3,6 +3,7 @@
 #include "utils/functional.h"
 #include "sparsesolver/costfunctors/posedecoratorfunctors.h"
 #include "sparsesolver/costfunctors/gravityDecorators.h"
+#include "sparsesolver/costfunctors/stochasticprocessaggregator.h"
 
 #include <random>
 #include <time.h>
@@ -26,6 +27,9 @@ private Q_SLOTS:
 
     void testGravityDecorators();
 
+    void testStochasticProcessAggregator();
+
+
 };
 
 void TestFunctionalUtils::initTestCase() {
@@ -40,11 +44,29 @@ struct DynamicIdentityArgFunctor {
 
     }
 
-    template <typename T, typename ... P>
+    template <typename T>
     bool operator()(T const* const* parameters, T* residuals) const {
 
         for (int i = 0; i < argSize; i++) {
             residuals[i] = parameters[copyArgId][i];
+        }
+
+        return true;
+    }
+
+};
+
+template<int argSize>
+struct IdentityArgFunctor {
+    IdentityArgFunctor() {
+
+    }
+
+    template <typename T>
+    bool operator()(T const* parameter, T* residuals) const {
+
+        for (int i = 0; i < argSize; i++) {
+            residuals[i] = parameter[i];
         }
 
         return true;
@@ -806,6 +828,60 @@ void TestFunctionalUtils::testGravityDecorators() {
     QCOMPARE(out[0],refGrav[0]);
     QCOMPARE(out[1],refGrav[2]);
     QCOMPARE(out[2],refGrav[1]);
+}
+
+
+
+void TestFunctionalUtils::testStochasticProcessAggregator() {
+
+    std::array<double, 3> expected = {42+27, 33+7, 69+67};
+    std::array<double, 3> values = {27, 7, 67};
+    std::array<double, 3> d1 = {42, 33, 69};
+    std::array<double, 3> d2 = {42, 33, 69};
+    std::array<double, 3> d3 = {42, 33, 69};
+
+    double w1 = 0.5;
+    double w2 = 0.35;
+    double w3 = 0.15;
+
+    std::vector<double const*> params{values.data(), d1.data(), d2.data(), d3.data()};
+
+    constexpr bool isDynamic = true;
+
+    using BaseDynamicFunctorT = DynamicIdentityArgFunctor<1,0,3>;
+    using DynamicFunctorT = StereoVisionApp::StochasticProcessAggregator<BaseDynamicFunctorT, isDynamic, 3>;
+
+    constexpr int accumulationArgIdx = 0;
+
+    DynamicFunctorT dFunctor;
+    dFunctor.setAccumulationWeights(accumulationArgIdx, {w1, w2, w3});
+    dFunctor.setNParams(params.size());
+
+    std::array<double, 3> res;
+
+    bool ok = dFunctor(params.data(), res.data());
+
+    QVERIFY2(ok, "StochasticProcessAggregator with dynamic function unexpectly returned false");
+
+    QCOMPARE(res[0],expected[0]);
+    QCOMPARE(res[1],expected[1]);
+    QCOMPARE(res[2],expected[2]);
+
+    using BaseFunctorT = IdentityArgFunctor<3>;
+    using FunctorT = StereoVisionApp::StochasticProcessAggregator<BaseFunctorT, !isDynamic, 3, 1>;
+
+    FunctorT functor;
+    functor.setAccumulationWeights(accumulationArgIdx, {w1, w2, w3});
+    functor.setNParams(params.size());
+
+    ok = functor(params.data(), res.data());
+
+    QVERIFY2(ok, "StochasticProcessAggregator with fixed size function unexpectly returned false");
+
+    QCOMPARE(res[0],expected[0]);
+    QCOMPARE(res[1],expected[1]);
+    QCOMPARE(res[2],expected[2]);
+
 }
 
 QTEST_MAIN(TestFunctionalUtils);

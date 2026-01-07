@@ -2811,6 +2811,22 @@ QJsonObject Trajectory::encodeJson() const {
 
     obj.insert("commentPattern", _commentPattern);
 
+    if (!_imuBiasStochasticProcesses.isEmpty()) {
+        obj.insert("imuBiasStochasticProcesses", encodeStochasticProcessesDefinition(_imuBiasStochasticProcesses));
+    }
+
+    if (!_imuScaleStochasticProcesses.isEmpty()) {
+        obj.insert("imuScaleStochasticProcesses", encodeStochasticProcessesDefinition(_imuScaleStochasticProcesses));
+    }
+
+    if (!_gyroBiasStochasticProcesses.isEmpty()) {
+        obj.insert("gyroBiasStochasticProcesses", encodeStochasticProcessesDefinition(_gyroBiasStochasticProcesses));
+    }
+
+    if (!_gyroScaleStochasticProcesses.isEmpty()) {
+        obj.insert("gyroScaleStochasticProcesses", encodeStochasticProcessesDefinition(_gyroScaleStochasticProcesses));
+    }
+
     return obj;
 
 }
@@ -3381,9 +3397,123 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         }
     }
 
+    _imuBiasStochasticProcesses.clear();
+    if (data.contains("imuBiasStochasticProcesses")) {
+        _imuBiasStochasticProcesses = decodeStochasticProcessesDefinition(data.value("imuBiasStochasticProcesses").toArray());
+    }
+
+    _imuScaleStochasticProcesses.clear();
+    if (data.contains("imuScaleStochasticProcesses")) {
+        _imuScaleStochasticProcesses = decodeStochasticProcessesDefinition(data.value("imuScaleStochasticProcesses").toArray());
+    }
+
+    _gyroBiasStochasticProcesses.clear();
+    if (data.contains("gyroBiasStochasticProcesses")) {
+        _gyroBiasStochasticProcesses = decodeStochasticProcessesDefinition(data.value("gyroBiasStochasticProcesses").toArray());
+    }
+
+    _gyroScaleStochasticProcesses.clear();
+    if (data.contains("gyroScaleStochasticProcesses")) {
+        _gyroScaleStochasticProcesses = decodeStochasticProcessesDefinition(data.value("gyroScaleStochasticProcesses").toArray());
+    }
+
 }
 
 
+
+QJsonArray Trajectory::encodeStochasticProcessesDefinition(QVector<InsStochasticProcessDef> const& stochasticProcesses) {
+
+    QJsonArray ret;
+
+    for (InsStochasticProcessDef const& process : stochasticProcesses) {
+
+        QJsonObject obj;
+
+
+        struct InsStochasticProcessDef {
+            double timeScale;
+            std::array<double, 3> betas;
+            std::array<double, 3> sigmas;
+        };
+
+        obj.insert("dt", process.timeScale);
+
+        QJsonArray betas;
+        for (size_t i = 0; i < process.betas.size(); i++) {
+            betas.append(process.betas[i]);
+        }
+
+        QJsonArray sigmas;
+        for (size_t i = 0; i < process.sigmas.size(); i++) {
+            sigmas.append(process.sigmas[i]);
+        }
+
+        obj.insert("b", betas);
+        obj.insert("s", sigmas);
+
+        ret.append(obj);
+    }
+
+    return ret;
+
+}
+QVector<Trajectory::InsStochasticProcessDef> Trajectory::decodeStochasticProcessesDefinition(QJsonArray const& stochasticProcesses) {
+
+    QVector<InsStochasticProcessDef> ret;
+    ret.reserve(stochasticProcesses.size());
+
+    for (QJsonValue const& val : stochasticProcesses) {
+
+        if (!val.isObject()) {
+            continue;
+        }
+
+        QJsonObject obj = val.toObject();
+
+        if (!obj.contains("dt")) {
+            continue;
+        }
+
+        InsStochasticProcessDef process;
+
+        process.timeScale = obj.value("dt").toDouble();
+        std::fill(process.betas.begin(), process.betas.end(), 0);
+        std::fill(process.sigmas.begin(), process.sigmas.end(), 1);
+
+        if (obj.contains("b")) {
+            QJsonValue bVal = obj.value("b");
+
+            if (bVal.isArray()) {
+                QJsonArray b = bVal.toArray();
+
+                if (b.size() == process.betas.size()) {
+                    for (size_t i = 0; i < process.betas.size(); i++) {
+                        process.betas[i] = b[i].toDouble(0);
+                    }
+                }
+            }
+        }
+
+        if (obj.contains("s")) {
+            QJsonValue sVal = obj.value("s");
+
+            if (sVal.isArray()) {
+                QJsonArray s = sVal.toArray();
+
+                if (s.size() == process.sigmas.size()) {
+                    for (size_t i = 0; i < process.sigmas.size(); i++) {
+                        process.sigmas[i] = s[i].toDouble(1);
+                    }
+                }
+            }
+        }
+
+        ret.push_back(process);
+    }
+
+    return ret;
+
+}
 
 void Trajectory::extendDataModel() {
     ItemDataModel::Category* sensorsIdsCat = _dataModel->addCategory(tr("Sensors Ids"));

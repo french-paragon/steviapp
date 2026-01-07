@@ -9,6 +9,7 @@
 #include "../costfunctors/imustepcost.h"
 #include "../costfunctors/gravityDecorators.h"
 #include "../costfunctors/posedecoratorfunctors.h"
+#include "../costfunctors/stochasticprocessaggregator.h"
 
 namespace StereoVisionApp {
 
@@ -127,6 +128,7 @@ protected:
     StatusOptionalReturn<void> addGyroObs(
         ModularSBASolver::TrajectoryNode* trajNode,
         Trajectory* traj,
+        int trajIdx,
         int gyroId,
         int i,
         double time,
@@ -141,6 +143,7 @@ protected:
     StatusOptionalReturn<void> addAccObs(
         ModularSBASolver::TrajectoryNode* trajNode,
         Trajectory* traj,
+        int trajIdx,
         int gyroId,
         int accId,
         int i,
@@ -258,6 +261,9 @@ protected:
 
     }
 
+    static constexpr bool notDynamic = false; //the underlying functor is not dynamic
+    static constexpr int insParamsDim = 3;
+
     template <template<class, int...> class CostT, class AccCost, int flags>
     using AccTemplateParametrizedCost =
         std::conditional_t<nAccCostParams<flags>() == 5,
@@ -345,6 +351,9 @@ protected:
 
         template <typename T>
         using Decorator = GravityReoriented<T, refPosParamPos, gravityParamPos>;
+
+        template <typename T>
+        using StochasticProcessEnabledDecorator = StochasticProcessAggregator<Decorator<T>, notDynamic, insParamsDim, T::nParams>;
     };
 
     template <int flags>
@@ -368,6 +377,9 @@ protected:
                 ,0,2, insLeverArmPoseDefinition>
             ,0,4, insLeverArmPoseDefinition>
         ,0,6, insLeverArmPoseDefinition>;
+
+        template <typename T>
+        using StochasticProcessEnabledDecorator = StochasticProcessAggregator<Decorator<T>, notDynamic, insParamsDim, T::nParams+4>;
     };
 
     template <template<class, int...> class CostT, class GyroCost, bool WBias, bool WScale>
@@ -431,10 +443,19 @@ protected:
             ,0,1, insLeverArmPoseDefinition>
         ,0,2, insLeverArmPoseDefinition>;
 
+
+    template <typename D_T>
+    using StochasticProcessBoresightGyroCostDecorator =
+        StochasticProcessAggregator<BoresightGyroCostDecorator<D_T>, notDynamic, insParamsDim, D_T::nParams+1>;
+    template <typename D_T>
+    using StochasticProcessGyroCostDecorator =
+        StochasticProcessAggregator<D_T, notDynamic, insParamsDim, D_T::nParams>;
+
     template<bool WBias, bool WScale>
     StatusOptionalReturn<void> addTempltGyroObs(
         ModularSBASolver::TrajectoryNode* trajNode,
         Trajectory* traj,
+        int trajIdx,
         int gyroId,
         int i,
         double time,
@@ -443,6 +464,9 @@ protected:
         ceres::Problem & problem,
         ModularSBASolver* solver,
         bool addLogger) {
+
+        constexpr int nRes = 3;
+        constexpr int paramBlockSize = 3;
 
         double dt = trajNode->nodes[i].time - trajNode->nodes[i-1].time;
         Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
@@ -453,6 +477,20 @@ protected:
         weigthMat(1,1) = 1/poseUncertainty;
         weigthMat(2,2) = 1/poseUncertainty;
 
+        bool hasStochasticProcess = false;
+
+        if (WBias) {
+            if (!_gyrosBiasesStochasticProcesses[trajIdx].empty()) {
+                hasStochasticProcess = true;
+            }
+        }
+
+        if (WScale) {
+            if (!_gyrosScalesStochasticProcesses[trajIdx].empty()) {
+                hasStochasticProcess = true;
+            }
+        }
+
         int insMountingId = traj->insMountingId();
 
         ModularSBASolver::PoseNode* insMountingNode = solver->getNodeForMounting(insMountingId, false);
@@ -461,89 +499,248 @@ protected:
 
             using CostF = BoresightGyroCostDecorator<GyroStepCost<WBias, WScale>>;
             using AutoDiffCostFuncT = BoresightGyroTemplateParametrizedCost<ceres::AutoDiffCostFunction,CostF, WBias, WScale>;
-            using WeightedCostFuncT = BoresightGyroParametrizedCost<StereoVisionApp::WeightedCostFunction, WBias, WScale>;
+            using WeightedCostFuncT = BoresightGyroParametrizedCost<StereoVisionApp::WeightedSizedCostFunction, WBias, WScale>;
 
             static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
             static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
 
-            CostF* gyroStepCost =
-                GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale, BoresightGyroCostDecorator>(
-                    gyroSeq,
-                    trajNode->nodes[i-1].time,
-                    trajNode->nodes[i].time);
+            if (hasStochasticProcess) {
+                constexpr int stride = 4;
 
-            AutoDiffCostFuncT* gyroStepCostFunction =
-                new AutoDiffCostFuncT(gyroStepCost);
-
-            WeightedCostFuncT* weigthedGyroStepCost =
-                new WeightedCostFuncT(gyroStepCostFunction, weigthMat);
+                using DecoratedCostF = StochasticProcessBoresightGyroCostDecorator<GyroStepCost<WBias, WScale>>;
+                using DecoratedAutoDiffCostFuncT = ceres::DynamicAutoDiffCostFunction<DecoratedCostF, stride>;
+                using DecoratedWeigthedCostFunctT = StereoVisionApp::WeightedCostFunction<nRes>;
 
 
-            auto paramsInitial = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
-            std::array<double*,paramsInitial.size()+1> params;
+                DecoratedCostF* gyroStepCost =
+                    GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale, StochasticProcessBoresightGyroCostDecorator>(
+                        gyroSeq,
+                        trajNode->nodes[i-1].time,
+                        trajNode->nodes[i].time);
 
-            params[0] = insMountingNode->rAxis.data();
+                DecoratedAutoDiffCostFuncT* gyroStepCostFunction = new DecoratedAutoDiffCostFuncT(gyroStepCost);
 
-            for (int i = 0; i < paramsInitial.size(); i++) {
-                params[i+1] = paramsInitial[i];
-            }
-
-            static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
-                          "non compatible numbers of parameters in parameters array and cost function");
-
-            static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
-                              WeightedCostFuncT::nParamsBlocks,
-                          "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+                DecoratedWeigthedCostFunctT* weigthedGyroStepCost =
+                    new DecoratedWeigthedCostFunctT(gyroStepCostFunction, weigthMat);
 
 
-            problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
-                                     params.data(),
-                                     params.size());
+                auto paramsInitial = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
 
-            if (addLogger) {
-                QString loggerName = QString("Gyro trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
-                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nGyroCostParams<WBias, WScale>()+1,3>(gyroStepCostFunction, params));
+                std::vector<StochasticProcessParam> biasParams = collectParameterSet(time, _gyrosBiasesStochasticProcesses[trajIdx]);
+                std::vector<StochasticProcessParam> scaleParams = collectParameterSet(time, _gyrosScalesStochasticProcesses[trajIdx]);
+
+                std::vector<double*> params;
+                params.reserve(paramsInitial.size() + biasParams.size() + scaleParams.size() + 1);
+
+                params.push_back(insMountingNode->rAxis.data());
+
+                for (double* p : paramsInitial) {
+                    params.push_back(p);
+                }
+
+                for (StochasticProcessParam & p : biasParams) {
+                    params.push_back(p.parameter);
+                }
+
+                for (StochasticProcessParam & p : scaleParams) {
+                    params.push_back(p.parameter);
+                }
+
+                gyroStepCost->setNParams(params.size());
+
+                std::vector<int> paramsMap;
+                std::vector<double> weights;
+
+                paramsMap.reserve(biasParams.size() + scaleParams.size());
+                weights.reserve(biasParams.size() + scaleParams.size());
+
+                constexpr int biasParamPos = GyroStepCost<WBias, WScale>::biasParamPos+1;
+                constexpr int scaleParamPos = GyroStepCost<WBias, WScale>::scaleParamPos+1;
+
+
+                for (StochasticProcessParam & p : biasParams) {
+                    paramsMap.push_back(biasParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                for (StochasticProcessParam & p : scaleParams) {
+                    paramsMap.push_back(scaleParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                gyroStepCost->setAccumulationWeights(paramsMap, weights);
+
+                for (size_t i = 0; i < params.size(); i++) {
+                    gyroStepCostFunction->AddParameterBlock(paramBlockSize);
+                }
+                gyroStepCostFunction->SetNumResiduals(nRes);
+
+                weigthedGyroStepCost->syncParametersSizes();
+
+                problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
+                                         params.data(),
+                                         params.size());
+
+            } else {
+
+                CostF* gyroStepCost =
+                    GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale, BoresightGyroCostDecorator>(
+                        gyroSeq,
+                        trajNode->nodes[i-1].time,
+                        trajNode->nodes[i].time);
+
+                AutoDiffCostFuncT* gyroStepCostFunction =
+                    new AutoDiffCostFuncT(gyroStepCost);
+
+                WeightedCostFuncT* weigthedGyroStepCost =
+                    new WeightedCostFuncT(gyroStepCostFunction, weigthMat);
+
+
+                auto paramsInitial = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
+
+                std::array<double*,paramsInitial.size()+1> params;
+
+                params[0] = insMountingNode->rAxis.data();
+
+                for (int i = 0; i < paramsInitial.size(); i++) {
+                    params[i+1] = paramsInitial[i];
+                }
+
+                static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
+                              "non compatible numbers of parameters in parameters array and cost function");
+
+                static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
+                                  WeightedCostFuncT::nParamsBlocks,
+                              "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+
+
+                problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
+                                         params.data(),
+                                         params.size());
+
+                if (addLogger) {
+                    QString loggerName = QString("Gyro trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                    solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nGyroCostParams<WBias, WScale>()+1,3>(gyroStepCostFunction, params));
+                }
+
             }
 
         } else {
 
             using CostF = GyroStepCost<WBias, WScale>;
             using AutoDiffCostFuncT = GyroTemplateParametrizedCost<ceres::AutoDiffCostFunction,CostF, WBias, WScale>;
-            using WeightedCostFuncT = GyroParametrizedCost<StereoVisionApp::WeightedCostFunction, WBias, WScale>;
+            using WeightedCostFuncT = GyroParametrizedCost<StereoVisionApp::WeightedSizedCostFunction, WBias, WScale>;
 
             static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
             static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
 
-            CostF* gyroStepCost =
-                GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale>(
-                    gyroSeq,
-                    trajNode->nodes[i-1].time,
-                    trajNode->nodes[i].time);
+            if (hasStochasticProcess) {
+                constexpr int stride = 4;
 
-            AutoDiffCostFuncT* gyroStepCostFunction =
-                new AutoDiffCostFuncT(gyroStepCost);
+                using DecoratedCostF = StochasticProcessGyroCostDecorator<GyroStepCost<WBias, WScale>>;
+                using DecoratedAutoDiffCostFuncT = ceres::DynamicAutoDiffCostFunction<DecoratedCostF, stride>;
+                using DecoratedWeigthedCostFunctT = StereoVisionApp::WeightedCostFunction<nRes>;
 
-            WeightedCostFuncT* weigthedGyroStepCost =
-                new WeightedCostFuncT(gyroStepCostFunction, weigthMat);
+                DecoratedCostF* gyroStepCost =
+                    GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale, StochasticProcessGyroCostDecorator>(
+                        gyroSeq,
+                        trajNode->nodes[i-1].time,
+                        trajNode->nodes[i].time);
 
+                DecoratedAutoDiffCostFuncT* gyroStepCostFunction = new DecoratedAutoDiffCostFuncT(gyroStepCost);
 
-            auto params = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
-
-            static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
-                          "non compatible numbers of parameters in parameters array and cost function");
-
-            static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
-                              WeightedCostFuncT::nParamsBlocks,
-                          "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+                DecoratedWeigthedCostFunctT* weigthedGyroStepCost =
+                    new DecoratedWeigthedCostFunctT(gyroStepCostFunction, weigthMat);
 
 
-            problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
-                                     params.data(),
-                                     params.size());
+                auto paramsInitial = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
 
-            if (addLogger) {
-                QString loggerName = QString("Gyro trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
-                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nGyroCostParams<WBias, WScale>(),3>(gyroStepCostFunction, params));
+                std::vector<StochasticProcessParam> biasParams = collectParameterSet(time, _gyrosBiasesStochasticProcesses[trajIdx]);
+                std::vector<StochasticProcessParam> scaleParams = collectParameterSet(time, _gyrosScalesStochasticProcesses[trajIdx]);
+
+                std::vector<double*> params;
+                params.reserve(paramsInitial.size() + biasParams.size() + scaleParams.size());
+
+                for (double* p : paramsInitial) {
+                    params.push_back(p);
+                }
+
+                for (StochasticProcessParam & p : biasParams) {
+                    params.push_back(p.parameter);
+                }
+
+                for (StochasticProcessParam & p : scaleParams) {
+                    params.push_back(p.parameter);
+                }
+
+                gyroStepCost->setNParams(params.size());
+
+                std::vector<int> paramsMap;
+                std::vector<double> weights;
+
+                paramsMap.reserve(biasParams.size() + scaleParams.size());
+                weights.reserve(biasParams.size() + scaleParams.size());
+
+                constexpr int biasParamPos = GyroStepCost<WBias, WScale>::biasParamPos;
+                constexpr int scaleParamPos = GyroStepCost<WBias, WScale>::scaleParamPos;
+
+                for (StochasticProcessParam & p : biasParams) {
+                    paramsMap.push_back(biasParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                for (StochasticProcessParam & p : scaleParams) {
+                    paramsMap.push_back(scaleParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                gyroStepCost->setAccumulationWeights(paramsMap, weights);
+
+                for (size_t i = 0; i < params.size(); i++) {
+                    gyroStepCostFunction->AddParameterBlock(paramBlockSize);
+                }
+                gyroStepCostFunction->SetNumResiduals(nRes);
+
+                weigthedGyroStepCost->syncParametersSizes();
+
+                problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
+                                         params.data(),
+                                         params.size());
+
+
+            } else {
+
+                CostF* gyroStepCost =
+                    GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale>(
+                        gyroSeq,
+                        trajNode->nodes[i-1].time,
+                        trajNode->nodes[i].time);
+
+                AutoDiffCostFuncT* gyroStepCostFunction =
+                    new AutoDiffCostFuncT(gyroStepCost);
+
+                WeightedCostFuncT* weigthedGyroStepCost =
+                    new WeightedCostFuncT(gyroStepCostFunction, weigthMat);
+
+
+                auto params = getParametersForGyroCostFunc<WBias, WScale>(trajNode,gyroId,i);
+
+                static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
+                              "non compatible numbers of parameters in parameters array and cost function");
+
+                static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
+                                  WeightedCostFuncT::nParamsBlocks,
+                              "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+
+
+                problem.AddResidualBlock(weigthedGyroStepCost, nullptr,
+                                         params.data(),
+                                         params.size());
+
+                if (addLogger) {
+                    QString loggerName = QString("Gyro trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                    solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nGyroCostParams<WBias, WScale>(),3>(gyroStepCostFunction, params));
+                }
             }
         }
 
@@ -554,6 +751,7 @@ protected:
     StatusOptionalReturn<void> addTempltAccObs(
         ModularSBASolver::TrajectoryNode* trajNode,
         Trajectory* traj,
+        int trajIdx,
         int gyroId,
         int accId,
         int i,
@@ -565,6 +763,11 @@ protected:
         ModularSBASolver* solver,
         bool addLogger) {
 
+        using Traits = AccelerometerStepCostTraits<flags>;
+
+        constexpr int nRes = 3;
+        constexpr int paramBlockSize = 3;
+
         double dt = (trajNode->nodes[i].time - trajNode->nodes[i-2].time)/2;
 
         Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
@@ -575,6 +778,32 @@ protected:
         weigthMat(1,1) = 1/speedUncertainty;
         weigthMat(2,2) = 1/speedUncertainty;
 
+        bool hasStochasticProcess = false;
+
+        if (Traits::WABias) {
+            if (!_accelerometersBiasesStochasticProcesses[trajIdx].empty()) {
+                hasStochasticProcess = true;
+            }
+        }
+
+        if (Traits::WAScale) {
+            if (!_accelerometersScalesStochasticProcesses[trajIdx].empty()) {
+                hasStochasticProcess = true;
+            }
+        }
+
+        if (Traits::WGBias) {
+            if (!_gyrosBiasesStochasticProcesses[trajIdx].empty()) {
+                hasStochasticProcess = true;
+            }
+        }
+
+        if (Traits::WGScale) {
+            if (!_gyrosScalesStochasticProcesses[trajIdx].empty()) {
+                hasStochasticProcess = true;
+            }
+        }
+
         int insMountingId = traj->insMountingId();
 
         ModularSBASolver::PoseNode* insMountingNode = solver->getNodeForMounting(insMountingId, false);
@@ -582,94 +811,326 @@ protected:
         if (insMountingNode != nullptr) {
             using AccCost = typename AccelerometerStepCostLeverArmGravity<flags>::template Decorator<AccelerometerStepCost<flags>>;
             using AutoDiffCostFuncT = LeverArmAccTemplateParametrizedCost<ceres::AutoDiffCostFunction,AccCost, flags>;
-            using WeightedCostFuncT = LeverArmAccParametrizedCost<StereoVisionApp::WeightedCostFunction, flags>;
+            using WeightedCostFuncT = LeverArmAccParametrizedCost<StereoVisionApp::WeightedSizedCostFunction, flags>;
 
             static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
             static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
 
-            AccCost* accStepCost =
-                AccelerometerStepCostBase::getIntegratedIMUDiff<flags, AccelerometerStepCostLeverArmGravity<flags>::template Decorator>
-                (gyroSeq,
-                 imuSeq,
-                 trajNode->nodes[i-2].time,
-                 trajNode->nodes[i-1].time,
-                 trajNode->nodes[i].time,
-                 _earth_center_pos);
+            if (hasStochasticProcess) {
 
-            AutoDiffCostFuncT* accStepCostFunction =
-                new AutoDiffCostFuncT(accStepCost);
+                constexpr int stride = 4;
 
-            WeightedCostFuncT* weigthedAccStepCost =
-                new WeightedCostFuncT(accStepCostFunction, weigthMat);
+                using DecoratedAccCost = typename AccelerometerStepCostLeverArmGravity<flags>::template StochasticProcessEnabledDecorator<AccelerometerStepCost<flags>>;
+                using DecoratedAutoDiffCostFuncT = ceres::DynamicAutoDiffCostFunction<DecoratedAccCost, stride>;
+                using DecoratedWeightedCostFuncT = StereoVisionApp::WeightedCostFunction<nRes>;
 
-            auto paramsInitial = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+                DecoratedAccCost* accStepCost =
+                    AccelerometerStepCostBase::getIntegratedIMUDiff<flags, AccelerometerStepCostLeverArmGravity<flags>::template StochasticProcessEnabledDecorator>
+                    (gyroSeq,
+                     imuSeq,
+                     trajNode->nodes[i-2].time,
+                     trajNode->nodes[i-1].time,
+                     trajNode->nodes[i].time,
+                     _earth_center_pos);
 
-            std::array<double*, paramsInitial.size()+4> params;
+                DecoratedAutoDiffCostFuncT* accStepCostFunction = new DecoratedAutoDiffCostFuncT(accStepCost);
 
-            params[0] = insMountingNode->rAxis.data();
-            params[1] = insMountingNode->t.data();
-            params[2] = trajNode->nodes[i-2].rAxis.data();
-            params[6] = trajNode->nodes[i].rAxis.data();
+                DecoratedWeightedCostFuncT* weigthedAccStepCost =
+                    new DecoratedWeightedCostFuncT(accStepCostFunction, weigthMat);
 
-            for (int i = 0; i < paramsInitial.size(); i++) {
-                int delta = 3;
-                if (i >= 3) {
-                    delta = 4;
+
+                auto paramsInitial = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+
+                std::vector<StochasticProcessParam> gyroBiasParams = collectParameterSet(time, _gyrosBiasesStochasticProcesses[trajIdx]);
+                std::vector<StochasticProcessParam> gyroScaleParams = collectParameterSet(time, _gyrosScalesStochasticProcesses[trajIdx]);
+                std::vector<StochasticProcessParam> accBiasParams = collectParameterSet(time, _accelerometersBiasesStochasticProcesses[trajIdx]);
+                std::vector<StochasticProcessParam> accScaleParams = collectParameterSet(time, _accelerometersScalesStochasticProcesses[trajIdx]);
+
+                std::vector<double*> params;
+                params.reserve(paramsInitial.size() + gyroBiasParams.size() + gyroScaleParams.size() + accBiasParams.size() + accScaleParams.size() + 4);
+
+                params[0] = insMountingNode->rAxis.data();
+                params[1] = insMountingNode->t.data();
+                params[2] = trajNode->nodes[i-2].rAxis.data();
+                params[6] = trajNode->nodes[i].rAxis.data();
+
+                //positions 0, 1, 2
+                params.push_back(insMountingNode->rAxis.data());
+                params.push_back(insMountingNode->t.data());
+                params.push_back(trajNode->nodes[i-2].rAxis.data());
+
+                //positions, 3, 4, 5
+                for (int i = 0; i < 3; i++) {
+                    params.push_back(paramsInitial[i]);
                 }
-                params[i+delta] = paramsInitial[i];
-            }
 
-            static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
-                          "non compatible numbers of parameters in parameters array and cost function");
+                //postions 6
+                params.push_back(trajNode->nodes[i].rAxis.data());
 
-            static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
-                              WeightedCostFuncT::nParamsBlocks,
-                          "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+                for (int i = 3; i < paramsInitial.size(); i++) {
+                    params.push_back(paramsInitial[i]);
+                }
 
-            problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+                for (StochasticProcessParam & p : gyroBiasParams) {
+                    params.push_back(p.parameter);
+                }
 
-            if (addLogger) {
-                QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
-                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>()+4,3>(accStepCostFunction, params));
+                for (StochasticProcessParam & p : gyroScaleParams) {
+                    params.push_back(p.parameter);
+                }
+
+                for (StochasticProcessParam & p : accBiasParams) {
+                    params.push_back(p.parameter);
+                }
+
+                for (StochasticProcessParam & p : accScaleParams) {
+                    params.push_back(p.parameter);
+                }
+
+                accStepCost->setNParams(params.size());
+
+                std::vector<int> paramsMap;
+                std::vector<double> weights;
+
+                paramsMap.reserve(gyroBiasParams.size() + gyroScaleParams.size() + accBiasParams.size() + accScaleParams.size());
+                weights.reserve(gyroBiasParams.size() + gyroScaleParams.size() + accBiasParams.size() + accScaleParams.size());
+
+                constexpr int gyroBiasParamPos = AccelerometerStepCost<flags>::gyroBiasPos+4;
+                constexpr int gyroScaleParamPos = AccelerometerStepCost<flags>::gyroScalePos+4;
+                constexpr int accBiasParamPos = AccelerometerStepCost<flags>::accBiasPos+4;
+                constexpr int accScaleParamPos = AccelerometerStepCost<flags>::accScalePos+4;
+
+
+                for (StochasticProcessParam & p : gyroBiasParams) {
+                    paramsMap.push_back(gyroBiasParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                for (StochasticProcessParam & p : gyroScaleParams) {
+                    paramsMap.push_back(gyroScaleParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                for (StochasticProcessParam & p : accBiasParams) {
+                    paramsMap.push_back(accBiasParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                for (StochasticProcessParam & p : accScaleParams) {
+                    paramsMap.push_back(accScaleParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                accStepCost->setAccumulationWeights(paramsMap, weights);
+
+                for (size_t i = 0; i < params.size(); i++) {
+                    accStepCostFunction->AddParameterBlock(paramBlockSize);
+                }
+                accStepCostFunction->SetNumResiduals(nRes);
+
+                weigthedAccStepCost->syncParametersSizes();
+
+                problem.AddResidualBlock(weigthedAccStepCost, nullptr,
+                                         params.data(),
+                                         params.size());
+
+            } else {
+
+                AccCost* accStepCost =
+                    AccelerometerStepCostBase::getIntegratedIMUDiff<flags, AccelerometerStepCostLeverArmGravity<flags>::template Decorator>
+                    (gyroSeq,
+                     imuSeq,
+                     trajNode->nodes[i-2].time,
+                     trajNode->nodes[i-1].time,
+                     trajNode->nodes[i].time,
+                     _earth_center_pos);
+
+                AutoDiffCostFuncT* accStepCostFunction =
+                    new AutoDiffCostFuncT(accStepCost);
+
+                WeightedCostFuncT* weigthedAccStepCost =
+                    new WeightedCostFuncT(accStepCostFunction, weigthMat);
+
+                auto paramsInitial = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+
+                std::array<double*, paramsInitial.size()+4> params;
+
+                params[0] = insMountingNode->rAxis.data();
+                params[1] = insMountingNode->t.data();
+                params[2] = trajNode->nodes[i-2].rAxis.data();
+                params[6] = trajNode->nodes[i].rAxis.data();
+
+                for (int i = 0; i < paramsInitial.size(); i++) {
+                    int delta = 3;
+                    if (i >= 3) {
+                        delta = 4;
+                    }
+                    params[i+delta] = paramsInitial[i];
+                }
+
+                static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
+                              "non compatible numbers of parameters in parameters array and cost function");
+
+                static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
+                                  WeightedCostFuncT::nParamsBlocks,
+                              "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+
+                problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                if (addLogger) {
+                    QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                    solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>()+4,3>(accStepCostFunction, params));
+                }
+
             }
         } else {
 
             using AccCost = typename AccelerometerStepCostGravity<flags>::template Decorator<AccelerometerStepCost<flags>>;
             using AutoDiffCostFuncT = AccTemplateParametrizedCost<ceres::AutoDiffCostFunction,AccCost, flags>;
-            using WeightedCostFuncT = AccParametrizedCost<StereoVisionApp::WeightedCostFunction, flags>;
+            using WeightedCostFuncT = AccParametrizedCost<StereoVisionApp::WeightedSizedCostFunction, flags>;
 
             static_assert(!std::is_same_v<AutoDiffCostFuncT, void>, "Unable to build autodiff cost function type");
             static_assert(!std::is_same_v<WeightedCostFuncT, void>, "Unable to build weighted cost function type");
 
-            AccCost* accStepCost =
-                AccelerometerStepCostBase::getIntegratedIMUDiff<flags, AccelerometerStepCostGravity<flags>::template Decorator>
-                (gyroSeq,
-                 imuSeq,
-                 trajNode->nodes[i-2].time,
-                 trajNode->nodes[i-1].time,
-                 trajNode->nodes[i].time,
-                 _earth_center_pos);
 
-            AutoDiffCostFuncT* accStepCostFunction =
-                new AutoDiffCostFuncT(accStepCost);
+            if (hasStochasticProcess) {
 
-            WeightedCostFuncT* weigthedAccStepCost =
-                new WeightedCostFuncT(accStepCostFunction, weigthMat);
+                constexpr int stride = 4;
 
-            auto params = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+                using DecoratedAccCost = typename AccelerometerStepCostGravity<flags>::template StochasticProcessEnabledDecorator<AccelerometerStepCost<flags>>;
+                using DecoratedAutoDiffCostFuncT = ceres::DynamicAutoDiffCostFunction<DecoratedAccCost, stride>;
+                using DecoratedWeightedCostFuncT = StereoVisionApp::WeightedCostFunction<nRes>;
 
-            static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
-                          "non compatible numbers of parameters in parameters array and cost function");
+                DecoratedAccCost* accStepCost =
+                    AccelerometerStepCostBase::getIntegratedIMUDiff<flags, AccelerometerStepCostGravity<flags>::template StochasticProcessEnabledDecorator>
+                    (gyroSeq,
+                     imuSeq,
+                     trajNode->nodes[i-2].time,
+                     trajNode->nodes[i-1].time,
+                     trajNode->nodes[i].time,
+                     _earth_center_pos);
 
-            static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
-                              WeightedCostFuncT::nParamsBlocks,
-                          "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+                DecoratedAutoDiffCostFuncT* accStepCostFunction = new DecoratedAutoDiffCostFuncT(accStepCost);
 
-            problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+                DecoratedWeightedCostFuncT* weigthedAccStepCost =
+                    new DecoratedWeightedCostFuncT(accStepCostFunction, weigthMat);
 
-            if (addLogger) {
-                QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
-                solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>(),3>(accStepCostFunction, params));
+
+                auto paramsInitial = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+
+                std::vector<StochasticProcessParam> gyroBiasParams = collectParameterSet(time, _gyrosBiasesStochasticProcesses[trajIdx]);
+                std::vector<StochasticProcessParam> gyroScaleParams = collectParameterSet(time, _gyrosScalesStochasticProcesses[trajIdx]);
+                std::vector<StochasticProcessParam> accBiasParams = collectParameterSet(time, _accelerometersBiasesStochasticProcesses[trajIdx]);
+                std::vector<StochasticProcessParam> accScaleParams = collectParameterSet(time, _accelerometersScalesStochasticProcesses[trajIdx]);
+
+                std::vector<double*> params;
+                params.reserve(paramsInitial.size() + gyroBiasParams.size() + gyroScaleParams.size() + accBiasParams.size() + accScaleParams.size());
+
+                params[0] = insMountingNode->rAxis.data();
+                params[1] = insMountingNode->t.data();
+                params[2] = trajNode->nodes[i-2].rAxis.data();
+                params[6] = trajNode->nodes[i].rAxis.data();
+
+                for (int i = 0; i < paramsInitial.size(); i++) {
+                    params.push_back(paramsInitial[i]);
+                }
+
+                for (StochasticProcessParam & p : gyroBiasParams) {
+                    params.push_back(p.parameter);
+                }
+
+                for (StochasticProcessParam & p : gyroScaleParams) {
+                    params.push_back(p.parameter);
+                }
+
+                for (StochasticProcessParam & p : accBiasParams) {
+                    params.push_back(p.parameter);
+                }
+
+                for (StochasticProcessParam & p : accScaleParams) {
+                    params.push_back(p.parameter);
+                }
+
+                accStepCost->setNParams(params.size());
+
+                std::vector<int> paramsMap;
+                std::vector<double> weights;
+
+                paramsMap.reserve(gyroBiasParams.size() + gyroScaleParams.size() + accBiasParams.size() + accScaleParams.size());
+                weights.reserve(gyroBiasParams.size() + gyroScaleParams.size() + accBiasParams.size() + accScaleParams.size());
+
+                constexpr int gyroBiasParamPos = AccelerometerStepCost<flags>::gyroBiasPos;
+                constexpr int gyroScaleParamPos = AccelerometerStepCost<flags>::gyroScalePos;
+                constexpr int accBiasParamPos = AccelerometerStepCost<flags>::accBiasPos;
+                constexpr int accScaleParamPos = AccelerometerStepCost<flags>::accScalePos;
+
+
+                for (StochasticProcessParam & p : gyroBiasParams) {
+                    paramsMap.push_back(gyroBiasParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                for (StochasticProcessParam & p : gyroScaleParams) {
+                    paramsMap.push_back(gyroScaleParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                for (StochasticProcessParam & p : accBiasParams) {
+                    paramsMap.push_back(accBiasParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                for (StochasticProcessParam & p : accScaleParams) {
+                    paramsMap.push_back(accScaleParamPos);
+                    weights.push_back(p.weight);
+                }
+
+                accStepCost->setAccumulationWeights(paramsMap, weights);
+
+                for (size_t i = 0; i < params.size(); i++) {
+                    accStepCostFunction->AddParameterBlock(paramBlockSize);
+                }
+                accStepCostFunction->SetNumResiduals(nRes);
+
+                weigthedAccStepCost->syncParametersSizes();
+
+                problem.AddResidualBlock(weigthedAccStepCost, nullptr,
+                                         params.data(),
+                                         params.size());
+
+            } else {
+
+                AccCost* accStepCost =
+                    AccelerometerStepCostBase::getIntegratedIMUDiff<flags, AccelerometerStepCostGravity<flags>::template Decorator>
+                    (gyroSeq,
+                     imuSeq,
+                     trajNode->nodes[i-2].time,
+                     trajNode->nodes[i-1].time,
+                     trajNode->nodes[i].time,
+                     _earth_center_pos);
+
+                AutoDiffCostFuncT* accStepCostFunction =
+                    new AutoDiffCostFuncT(accStepCost);
+
+                WeightedCostFuncT* weigthedAccStepCost =
+                    new WeightedCostFuncT(accStepCostFunction, weigthMat);
+
+                auto params = getParametersForAccCostFunc<flags>(trajNode, accId, gyroId, i);
+
+                static_assert(params.size() == WeightedCostFuncT::nParamsBlocks,
+                              "non compatible numbers of parameters in parameters array and cost function");
+
+                static_assert(AutoDiffCostFuncT::ParameterDims::kNumParameterBlocks ==
+                                  WeightedCostFuncT::nParamsBlocks,
+                              "non compatible numbers of parameters in autodiff cost and weigthed cost function");
+
+                problem.AddResidualBlock(weigthedAccStepCost, nullptr, params.data(), params.size());
+
+                if (addLogger) {
+                    QString loggerName = QString("Accelerometer trajectory \"%1\" step time %2").arg(traj->objectName()).arg(time, 0, 'f', 2);
+                    solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<nAccCostParams<flags>(),3>(accStepCostFunction, params));
+                }
+
             }
         }
 
@@ -685,6 +1146,73 @@ protected:
 
     std::vector<std::array<double,3>> _gyrosBiases;
     std::vector<std::array<double,3>> _gyrosScales;
+
+    struct INSStochasticProcessOptParams {
+        std::vector<std::array<double,3>> vals;
+        std::vector<double> times;
+    };
+
+    std::vector<std::vector<INSStochasticProcessOptParams>> _accelerometersBiasesStochasticProcesses;
+    std::vector<std::vector<INSStochasticProcessOptParams>> _accelerometersScalesStochasticProcesses;
+
+    std::vector<std::vector<INSStochasticProcessOptParams>> _gyrosBiasesStochasticProcesses;
+    std::vector<std::vector<INSStochasticProcessOptParams>> _gyrosScalesStochasticProcesses;
+
+    void setupStochasticProcesses(
+        std::vector<INSStochasticProcessOptParams> & paramSet,
+        Trajectory* traj,
+        double t0,
+        double tf,
+        ceres::Problem & problem,
+        QVector<Trajectory::InsStochasticProcessDef> const& processesParams);
+
+    struct StochasticProcessParam {
+
+        StochasticProcessParam(double w, double* p) :
+            weight(w),
+            parameter(p) {
+
+        }
+
+        double weight;
+        double* parameter;
+    };
+
+    inline std::vector<StochasticProcessParam> collectParameterSet(double time, std::vector<INSStochasticProcessOptParams> & params) {
+        std::vector<StochasticProcessParam> biasParams;
+
+        for (size_t i = 0; i < params.size(); i++) {
+            double startT = params[i].times.front();
+            double endT = params[i].times.back();
+
+            double pos = (time - startT)/(endT - startT) * (params[i].times.size()-1);
+
+            int sI = std::floor(pos);
+            int nI = std::ceil(pos);
+
+            if (sI == nI) {
+                if (sI == 0) {
+                    nI = 1;
+                } else {
+                    sI = nI-1;
+                }
+            }
+
+            double sW = (params[i].times[nI] - time)/(params[i].times[nI] - params[i].times[sI]);
+            double nW = (time - params[i].times[sI])/(params[i].times[nI] - params[i].times[sI]);
+
+            assert(sI >= 0);
+            assert(static_cast<size_t>(sI) < params[i].vals.size());
+            assert(nI >= 0);
+            assert(static_cast<size_t>(nI) < params[i].vals.size());
+            assert(nI > sI);
+
+            biasParams.emplace_back(sW, params[i].vals[sI].data());
+            biasParams.emplace_back(nW, params[i].vals[nI].data());
+        }
+
+        return biasParams;
+    }
 
     QMap<int, int> _accelerometerParametersIndex;
     QMap<int, int> _gyroParametersIndex;

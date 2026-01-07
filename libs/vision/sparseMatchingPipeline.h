@@ -19,6 +19,8 @@
 
 #include <StereoVision/geometry/alignement.h>
 
+#include <StereoVision/interpolation/downsampling.h>
+
 #include "../datablocks/genericcorrespondences.h"
 
 namespace StereoVisionApp {
@@ -39,9 +41,35 @@ public:
 
     }
 
-    void setupPipeline(Multidim::Array<T,2> const& img1Data, Multidim::Array<T,2> const& img2Data) {
+    /*!
+     * \brief setupPipeline setup the matching pipeline
+     * \param img1Data the data for the first image
+     * \param img2Data the data for the second image
+     * \param img1Scales the scaling levels for the first image
+     * \param img2Scales the scaling levels for the second image
+     *
+     * Setup the pipeline with the image data and expecting scaling comparisons.
+     * The scaling are expressed with levels, with level 0 is full resolution, level 1 1/2 resolution, level 2 is 1/4 resolution and level n is 1/2^n resolution.
+     * The scaling factors are the desired scaling to compared against, i.e. img1Scales and img2Scales
+     * should have the same number of elements and resolutions at the same index are compared against one another.
+     * As an example, giving scales {1, 1, 2} and {1, 2, 2} will compare image 1 at full resolution against image 2 at full resolution,
+     * image 1 at full resolution against image 2 at half resolution and image 1 at half resolution against image 2 at half resolution.
+     */
+    template <int nDim>
+    bool setupPipeline(Multidim::Array<T,nDim> const& img1Data, Multidim::Array<T,nDim> const& img2Data,
+                       std::vector<int> const& img1Scales = {0}, std::vector<int> const& img2Scales = {0}) {
+
+        static_assert(nDim == 2 or nDim == 3, "only grayscale or colored images are supported");
+
         _lastErrorMessage.clear();
         _currentStep = Initialized;
+
+        _scaleComparisons.clear();
+        _cornersIm1PerScales.clear();
+        _cornersIm2PerScales.clear();
+
+        _img1Views.clear();
+        _img2Views.clear();
 
         _corners1.clear();
         _corners2.clear();
@@ -49,22 +77,99 @@ public:
         _assignements.clear();
         _inliers.clear();
 
-        typename Multidim::Array<T,3, Multidim::ConstView>::ShapeBlock img1Shape{img1Data.shape()[0], img1Data.shape()[1], 1};
-        typename Multidim::Array<T,3, Multidim::ConstView>::ShapeBlock img1Strides{img1Data.strides()[0], img1Data.strides()[1], 1};
-        _img1View = img1Data.template buildReshapedView<3>(img1Shape, img1Strides);
+        if (img1Data.empty() or img2Data.empty()) {
+            _lastErrorMessage = "Misconfigured images, empty data";
+            return false;
+        }
 
-        typename Multidim::Array<T,3, Multidim::ConstView>::ShapeBlock img2Shape{img2Data.shape()[0], img2Data.shape()[1], 1};
-        typename Multidim::Array<T,3, Multidim::ConstView>::ShapeBlock img2Strides{img2Data.strides()[0], img2Data.strides()[1], 1};
-        _img2View = img2Data.template buildReshapedView<3>(img2Shape, img2Strides);
-    }
-    void setupPipeline(Multidim::Array<T,3> const& img1Data, Multidim::Array<T,3> const& img2Data) {
-        _lastErrorMessage.clear();
-        _currentStep = Initialized;
+        if (img1Scales.empty() or img2Scales.empty()) {
+            _lastErrorMessage = "Misconfigured images scales";
+            return false;
+        }
 
-        _img1View = img1Data.template buildReshapedView<3>(img1Data.shape(), img1Data.strides());
+        if (img1Scales.size() != img2Scales.size()) {
+            _lastErrorMessage = "Misconfigured images scales";
+            return false;
+        }
 
-        _img2View = img2Data.template buildReshapedView<3>(img2Data.shape(), img2Data.strides());
+        int nScalesLevel1 = 1;
+        int nScalesLevel2 = 1;
 
+        for (int level : img1Scales) {
+            nScalesLevel1 = std::max(level+1,nScalesLevel1);
+        }
+
+        for (int level : img2Scales) {
+            nScalesLevel2 = std::max(level+2,nScalesLevel2);
+        }
+
+        _img1Views.resize(nScalesLevel1);
+        _img2Views.resize(nScalesLevel2);
+
+        std::set<std::array<int,2>> scalesPairs;
+        for (int i = 0; i < img1Scales.size(); i++) {
+            if (img1Scales[i] < 0 or img2Scales[i] < 0) {
+                _lastErrorMessage = "Misconfigured images scales";
+                return false;
+            }
+            scalesPairs.insert({img1Scales[i],img2Scales[i]});
+        }
+
+        for (std::array<int,2> const& pair : scalesPairs) {
+            _scaleComparisons.push_back(pair);
+        }
+
+        _cornersIm1PerScales = std::vector<int>(_scaleComparisons.size());
+        _cornersIm2PerScales = std::vector<int>(_scaleComparisons.size());
+
+        for (int & nCorner: _cornersIm1PerScales) {
+            nCorner = 0;
+        }
+
+        for (int & nCorner: _cornersIm2PerScales) {
+            nCorner = 0;
+        }
+
+        constexpr bool manageMemory = false;
+
+        _img1Views = std::vector<Multidim::Array<T,3>>(nScalesLevel1);
+        _img2Views = std::vector<Multidim::Array<T,3>>(nScalesLevel2);
+
+        if constexpr (nDim == 2) {
+            typename Multidim::Array<T,3, Multidim::ConstView>::ShapeBlock img1Shape{img1Data.shape()[0], img1Data.shape()[1], 1};
+            typename Multidim::Array<T,3, Multidim::ConstView>::ShapeBlock img1Strides{img1Data.strides()[0], img1Data.strides()[1], 1};
+
+            T* dataPtr1 = &(const_cast<Multidim::Array<T,2>*>(&img1Data)->atUnchecked(0,0));
+            _img1Views[0] = Multidim::Array<T,3>(dataPtr1, img1Shape, img1Strides, manageMemory);
+
+            typename Multidim::Array<T,3, Multidim::ConstView>::ShapeBlock img2Shape{img2Data.shape()[0], img2Data.shape()[1], 1};
+            typename Multidim::Array<T,3, Multidim::ConstView>::ShapeBlock img2Strides{img2Data.strides()[0], img2Data.strides()[1], 1};
+
+            T* dataPtr2 = &(const_cast<Multidim::Array<T,2>*>(&img2Data)->atUnchecked(0,0));
+            _img2Views[0] = Multidim::Array<T,3>(dataPtr2, img2Shape, img2Strides, manageMemory);
+        }
+
+        if constexpr (nDim == 3) {
+
+            T* dataPtr1 = &(const_cast<Multidim::Array<T,3>*>(&img1Data)->atUnchecked(0,0,0));
+            _img1Views[0] = Multidim::Array<T,3>(dataPtr1, img1Data.shape(), img1Data.strides(), manageMemory);
+
+            T* dataPtr2 = &(const_cast<Multidim::Array<T,3>*>(&img2Data)->atUnchecked(0,0,0));
+            _img2Views[0] = Multidim::Array<T,3>(dataPtr2, img2Data.shape(), img2Data.strides(), manageMemory);
+        }
+
+        //build the multi scale view
+        StereoVision::Interpolation::DownSampleWindows downSamplingWindow(2);
+
+        for (int i = 1; i < nScalesLevel1; i++) {
+            _img1Views[i] = StereoVision::Interpolation::averagePoolingDownsample(_img1Views[i-1], downSamplingWindow);
+        }
+
+        for (int i = 1; i < nScalesLevel2; i++) {
+            _img2Views[i] = StereoVision::Interpolation::averagePoolingDownsample(_img2Views[i-1], downSamplingWindow);
+        }
+
+        return true;
     }
 
     bool detectCorners() {
@@ -312,6 +417,14 @@ protected:
     virtual bool refineMatchedCornersImpl() = 0;
     virtual bool filterInliersImpl() = 0;
 
+    inline static int scalingFromLevel(int level) {
+        return 1 << level;
+    }
+
+    std::vector<std::array<int, 2>> _scaleComparisons;
+    std::vector<int> _cornersIm1PerScales;
+    std::vector<int> _cornersIm2PerScales;
+
     std::vector<std::array<float, 2>> _corners1;
     std::vector<std::array<float, 2>> _corners2;
 
@@ -322,8 +435,8 @@ protected:
 
     QString _lastErrorMessage;
 
-    Multidim::Array<T,3, Multidim::ConstView> _img1View;
-    Multidim::Array<T,3, Multidim::ConstView> _img2View;
+    std::vector<Multidim::Array<T,3>> _img1Views;
+    std::vector<Multidim::Array<T,3>> _img2Views;
 
 };
 
@@ -452,17 +565,66 @@ public:
 protected:
 
     bool detectCornersImpl() override {
-        SparseMatchingPipeline<T>::_corners1 = _cornerModule->detectCorners(SparseMatchingPipeline<T>::_img1View);
-        SparseMatchingPipeline<T>::_corners2 = _cornerModule->detectCorners(SparseMatchingPipeline<T>::_img2View);
+
+        SparseMatchingPipeline<T>::_corners1 = std::vector<std::array<float, 2>>();
+        SparseMatchingPipeline<T>::_corners2 = std::vector<std::array<float, 2>>();
+
+        for (int i = 0; i < SparseMatchingPipeline<T>::_scaleComparisons.size(); i++) {
+
+            std::array<int,2> const& scaleLevel = SparseMatchingPipeline<T>::_scaleComparisons[i];
+
+            int scale1 = SparseMatchingPipeline<T>::scalingFromLevel(scaleLevel[0]);
+            int scale2 = SparseMatchingPipeline<T>::scalingFromLevel(scaleLevel[1]);
+
+            std::vector<std::array<float, 2>> corners1 = _cornerModule->detectCorners(SparseMatchingPipeline<T>::_img1Views[scaleLevel[0]]);
+            std::vector<std::array<float, 2>> corners2 = _cornerModule->detectCorners(SparseMatchingPipeline<T>::_img2Views[scaleLevel[1]]);
+
+            SparseMatchingPipeline<T>::_cornersIm1PerScales[i] = corners1.size();
+            SparseMatchingPipeline<T>::_cornersIm2PerScales[i] = corners2.size();
+
+            for (int i = 0; i < corners1.size(); i++) {
+                std::array<float, 2> corner = corners1[i];
+                corner[0] *= scale1;
+                corner[1] *= scale1;
+                SparseMatchingPipeline<T>::_corners1.push_back(corner);
+            }
+
+            for (int i = 0; i < corners2.size(); i++) {
+                std::array<float, 2> corner = corners2[i];
+                corner[0] *= scale2;
+                corner[1] *= scale2;
+                SparseMatchingPipeline<T>::_corners2.push_back(corner);
+            }
+        }
+
         return true;
     }
     bool matchCornersImpl() override {
-        SparseMatchingPipeline<T>::_assignements =
-            _matcherModule->matchCorners(
-                SparseMatchingPipeline<T>::_img1View,
+
+        SparseMatchingPipeline<T>::_assignements = std::vector<std::array<int,2>>();
+
+        for (int i = 0; i < SparseMatchingPipeline<T>::_scaleComparisons.size(); i++) {
+
+            std::array<int,2> const& scaleLevel = SparseMatchingPipeline<T>::_scaleComparisons[i];
+
+            std::vector<std::array<int,2>> assignements =
+                _matcherModule->matchCorners(
+                SparseMatchingPipeline<T>::_img1Views[scaleLevel[0]],
                 SparseMatchingPipeline<T>::_corners1,
-                SparseMatchingPipeline<T>::_img2View,
+                SparseMatchingPipeline<T>::_img2Views[scaleLevel[1]],
                 SparseMatchingPipeline<T>::_corners2);
+
+            int idxDelta = SparseMatchingPipeline<T>::_assignements.size(); //original size
+
+            for (int i = 0; i < assignements.size(); i++) {
+                std::array<int,2> assignement = assignements[i];
+                assignement[0] += idxDelta;
+                assignement[1] += idxDelta;
+                SparseMatchingPipeline<T>::_assignements.push_back(assignement);
+            }
+
+        }
+
         return true;
     }
     bool refineMatchedCornersImpl() override {
@@ -471,22 +633,26 @@ protected:
         }
         bool ok =
             _refineModule->refineMatchedPositions(
-                SparseMatchingPipeline<T>::_assignements,
-                SparseMatchingPipeline<T>::_img1View,
-                SparseMatchingPipeline<T>::_corners1,
-                SparseMatchingPipeline<T>::_img2View,
-                SparseMatchingPipeline<T>::_corners2);
+            SparseMatchingPipeline<T>::_assignements,
+            SparseMatchingPipeline<T>::_img1Views,
+            SparseMatchingPipeline<T>::_cornersIm1PerScales,
+            SparseMatchingPipeline<T>::_corners1,
+            SparseMatchingPipeline<T>::_img2Views,
+            SparseMatchingPipeline<T>::_cornersIm1PerScales,
+            SparseMatchingPipeline<T>::_corners2);
 
         return ok;
     }
     bool filterInliersImpl() override {
         SparseMatchingPipeline<T>::_inliers =
             _inlierModule->getInliers(
-                SparseMatchingPipeline<T>::_assignements,
-                SparseMatchingPipeline<T>::_img1View,
-                SparseMatchingPipeline<T>::_corners1,
-                SparseMatchingPipeline<T>::_img2View,
-                SparseMatchingPipeline<T>::_corners2);
+            SparseMatchingPipeline<T>::_assignements,
+            SparseMatchingPipeline<T>::_img1Views,
+            SparseMatchingPipeline<T>::_cornersIm1PerScales,
+            SparseMatchingPipeline<T>::_corners1,
+            SparseMatchingPipeline<T>::_img2Views,
+            SparseMatchingPipeline<T>::_cornersIm1PerScales,
+            SparseMatchingPipeline<T>::_corners2);
         return true;
     }
 
@@ -563,9 +729,9 @@ public:
 
         std::vector<std::array<float, 2>> corners =
             StereoVision::SparseMatching::nonLocalMaximumPointSelection(Multidim::Array<float, 2, Multidim::ConstView>(scoreData),
-                                                  _nonMaxSupprRadius,
-                                                  threshold,
-                                                  _maxNCorners);
+                                                      _nonMaxSupprRadius,
+                                                      threshold,
+                                                      _maxNCorners);
 
         return corners;
     }
@@ -760,11 +926,14 @@ public:
     virtual ~GenericTiePointsRenfinementModule() {
 
     }
+
     virtual bool refineMatchedPositions(std::vector<std::array<int,2>> const& assignement,
-                                Multidim::Array<T,3, Multidim::ConstView> const& imgData1,
-                                std::vector<std::array<float, 2>> & corners1,
-                                Multidim::Array<T,3, Multidim::ConstView> const& imgData2,
-                                std::vector<std::array<float, 2>> & corners2) = 0;
+                                        std::vector<Multidim::Array<T,3>> const& imgsData1,
+                                        std::vector<int> const& cornersPerScalesIm1,
+                                        std::vector<std::array<float, 2>> & corners1,
+                                        std::vector<Multidim::Array<T,3>> const& imgsData2,
+                                        std::vector<int> const& cornersPerScalesIm2,
+                                        std::vector<std::array<float, 2>> & corners2) = 0;
 
 };
 
@@ -777,10 +946,12 @@ public:
     }
 
     virtual std::vector<int> getInliers(std::vector<std::array<int,2>> const& assignement,
-                                Multidim::Array<T,3, Multidim::ConstView> const& imgData1,
-                                std::vector<std::array<float, 2>> & corners1,
-                                Multidim::Array<T,3, Multidim::ConstView> const& imgData2,
-                                std::vector<std::array<float, 2>> & corners2) = 0;
+                                        std::vector<Multidim::Array<T,3>> const& imgsData1,
+                                        std::vector<int> const& cornersPerScalesIm1,
+                                        std::vector<std::array<float, 2>> & corners1,
+                                        std::vector<Multidim::Array<T,3>> const& imgsData2,
+                                        std::vector<int> const& cornersPerScalesIm2,
+                                        std::vector<std::array<float, 2>> & corners2) = 0;
 };
 
 template<typename T>
@@ -795,13 +966,23 @@ public:
     }
 
     std::vector<int> getInliers(std::vector<std::array<int,2>> const& assignement,
-                                Multidim::Array<T,3, Multidim::ConstView> const& imgData1,
+                                std::vector<Multidim::Array<T,3>> const& imgsData1,
+                                std::vector<int> const& cornersPerScalesIm1,
                                 std::vector<std::array<float, 2>> & corners1,
-                                Multidim::Array<T,3, Multidim::ConstView> const& imgData2,
+                                std::vector<Multidim::Array<T,3>> const& imgsData2,
+                                std::vector<int> const& cornersPerScalesIm2,
                                 std::vector<std::array<float, 2>> & corners2) {
 
-        int s1 = std::min(imgData1.shape()[0], imgData1.shape()[1]);
-        int s2 = std::min(imgData2.shape()[0], imgData2.shape()[1]);
+        if (imgsData1.empty()) {
+            return std::vector<int>();
+        }
+
+        if (imgsData2.empty()) {
+            return std::vector<int>();
+        }
+
+        int s1 = std::min(imgsData1[0].shape()[0], imgsData1[0].shape()[1]);
+        int s2 = std::min(imgsData2[0].shape()[0], imgsData2[0].shape()[1]);
 
         if (assignement.size() < 8) { //too small to run ransac
             std::vector<int> ret(assignement.size());
@@ -938,10 +1119,20 @@ public:
     }
 
     std::vector<int> getInliers(std::vector<std::array<int,2>> const& assignement,
-                                Multidim::Array<T,3, Multidim::ConstView> const& imgData1,
+                                std::vector<Multidim::Array<T,3>> const& imgsData1,
+                                std::vector<int> const& cornersPerScalesIm1,
                                 std::vector<std::array<float, 2>> & corners1,
-                                Multidim::Array<T,3, Multidim::ConstView> const& imgData2,
+                                std::vector<Multidim::Array<T,3>> const& imgsData2,
+                                std::vector<int> const& cornersPerScalesIm2,
                                 std::vector<std::array<float, 2>> & corners2) {
+
+        if (imgsData1.empty()) {
+            return std::vector<int>();
+        }
+
+        if (imgsData2.empty()) {
+            return std::vector<int>();
+        }
 
         if (assignement.size() < 4) { //too small to run ransac
             std::vector<int> ret(assignement.size());
@@ -1047,7 +1238,7 @@ public:
 
         if (_multiThresholdingEnabled) {
 
-            constexpr int nNearest = minObs+1;
+            constexpr int nNearest = minObs+3;
 
             std::vector<int> prev = std::move(ret);
             ret = std::vector<int>();

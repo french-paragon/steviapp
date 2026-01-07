@@ -22,6 +22,8 @@
 
 #include "../../libs/testutils/datablocks/generatedtrajectory.h"
 
+#include <QDebug>
+
 
 class TestSBASolver : public QObject
 {
@@ -40,6 +42,7 @@ private Q_SLOTS:
     void image2RigidBody();
     void rigidBody2RigidBody();
 
+    void basicTrajectory_data();
     void basicTrajectory();
     void movingBody2MovingBody();
 
@@ -761,7 +764,19 @@ void TestSBASolver::rigidBody2RigidBody() {
 
 }
 
+
+void TestSBASolver::basicTrajectory_data() {
+
+    QTest::addColumn<bool>("withStochasticProcesses");
+
+    QTest::addRow("Without stochastic processes") << false;
+    QTest::addRow("With stochastic processes") << true;
+
+}
+
 void TestSBASolver::basicTrajectory() {
+
+    QFETCH(bool, withStochasticProcesses);
 
     StereoVisionApp::ProjectFactory& pF = StereoVisionApp::ProjectFactory::defaultProjectFactory();
 
@@ -778,6 +793,25 @@ void TestSBASolver::basicTrajectory() {
     QVERIFY(traj != nullptr);
 
     configureStandardTrajectory(traj, ":/trajectories/zero_acc/sbet.csv", ":/trajectories/zero_acc/ins.csv");
+
+    if (withStochasticProcesses) {
+
+        constexpr double timeScale = 0.5;
+
+        StereoVisionApp::Trajectory::InsStochasticProcessDef testProcess{.timeScale=timeScale,
+                                                                         .betas=std::array<double,3>{0.5,0.5,0.5},
+                                                                         .sigmas=std::array<double,3>{0.5,0.5,0.5}};
+
+        traj->setGyroBiasStochasticProcesses({testProcess});
+        traj->setGyroScaleStochasticProcesses({testProcess});
+        traj->setAccBiasStochasticProcesses({testProcess});
+        traj->setAccScaleStochasticProcesses({testProcess});
+
+        traj->setEstAccelerometerScale(true);
+        traj->setEstAccelerometerBias(true);
+        traj->setEstGyroScale(true);
+        traj->setEstGyroBias(true);
+    }
 
     StereoVisionApp::StatusOptionalReturn<StereoVisionApp::Trajectory::TimeTrajectorySequence> optTrajData =
         traj->loadTrajectorySequence(); //time sequence of trajectory, corresponding to body to mapping
@@ -814,6 +848,7 @@ void TestSBASolver::basicTrajectory() {
 
     QVERIFY(evaluateOk);
 
+    qInfo() << "Cost = " << cost;
     QVERIFY(std::abs(cost) < 1e-6); //the problem should be initialized with a perfect solution
 
 }

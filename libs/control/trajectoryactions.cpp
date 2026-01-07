@@ -27,6 +27,13 @@
 #include <QComboBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QTreeView>
+#include <QStandardItemModel>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QVBoxLayout>
+#include <QAction>
+#include <QMenu>
 
 namespace StereoVisionApp {
 
@@ -865,6 +872,202 @@ void exportTrajectoryGeographic(Trajectory* traj,
     }
 
     out.flush();
+
+}
+
+
+void editTrajectoryINSStochasticProcesses(Trajectory* traj, TrajectoryInsStochasticProcessType type) {
+
+    if (traj == nullptr) {
+        return;
+    }
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (mw == nullptr) {
+        return;
+    }
+
+    QString windowTitle;
+    QVector<Trajectory::InsStochasticProcessDef> definitions;
+
+    switch(type) {
+    case GyroScale :
+        windowTitle = Trajectory::tr("Edit gyro scale stochastic processes");
+        definitions = traj->gyroScaleStochasticProcesses();
+        break;
+    case GyroBias :
+        windowTitle = Trajectory::tr("Edit gyro bias stochastic processes");
+        definitions = traj->gyroBiasStochasticProcesses();
+        break;
+    case AccScale :
+        windowTitle = Trajectory::tr("Edit accelerometer scale stochastic processes");
+        definitions = traj->accBiasStochasticProcesses();
+        break;
+    case AccBias :
+        windowTitle = Trajectory::tr("Edit accelerometer bias stochastic processes");
+        definitions = traj->accScaleStochasticProcesses();
+        break;
+    }
+
+    QStandardItemModel itemModel;
+
+    constexpr int timeCol = 0;
+
+    constexpr int betaXCol = 1;
+    constexpr int betaYCol = 2;
+    constexpr int betaZCol = 3;
+
+    constexpr int sigmaXCol = 4;
+    constexpr int sigmaYCol = 5;
+    constexpr int sigmaZCol = 6;
+
+    itemModel.setHorizontalHeaderItem(timeCol, new QStandardItem(Trajectory::tr("Sample interval", "stochastic process")));
+
+    itemModel.setHorizontalHeaderItem(betaXCol, new QStandardItem(Trajectory::tr("Beta X", "stochastic process")));
+    itemModel.setHorizontalHeaderItem(betaYCol, new QStandardItem(Trajectory::tr("Beta Y", "stochastic process")));
+    itemModel.setHorizontalHeaderItem(betaZCol, new QStandardItem(Trajectory::tr("Beta Z", "stochastic process")));
+
+    itemModel.setHorizontalHeaderItem(sigmaXCol, new QStandardItem(Trajectory::tr("Sigma X", "stochastic process")));
+    itemModel.setHorizontalHeaderItem(sigmaYCol, new QStandardItem(Trajectory::tr("Sigma Y", "stochastic process")));
+    itemModel.setHorizontalHeaderItem(sigmaZCol, new QStandardItem(Trajectory::tr("Sigma Z", "stochastic process")));
+
+    for (Trajectory::InsStochasticProcessDef const& def : qAsConst(definitions)) {
+
+        QStandardItem* timeItem = new QStandardItem();
+        timeItem->setData(def.timeScale, Qt::EditRole);
+
+        QStandardItem* betaXItem = new QStandardItem();
+        betaXItem->setData(def.betas[0], Qt::EditRole);
+        QStandardItem* betaYItem = new QStandardItem();
+        betaYItem->setData(def.betas[1], Qt::EditRole);
+        QStandardItem* betaZItem = new QStandardItem();
+        betaZItem->setData(def.betas[2], Qt::EditRole);
+
+        QStandardItem* sigmaXItem = new QStandardItem();
+        sigmaXItem->setData(def.sigmas[0], Qt::EditRole);
+        QStandardItem* sigmaYItem = new QStandardItem();
+        sigmaYItem->setData(def.sigmas[1], Qt::EditRole);
+        QStandardItem* sigmaZItem = new QStandardItem();
+        sigmaZItem->setData(def.sigmas[2], Qt::EditRole);
+
+        itemModel.appendRow({timeItem, betaXItem, betaYItem, betaZItem, sigmaXItem, sigmaYItem, sigmaZItem});
+
+    }
+
+    QDialog dialog(mw);
+    dialog.setWindowTitle(windowTitle);
+
+    QVBoxLayout layout(&dialog);
+
+    QTreeView view(&dialog);
+    view.setModel(&itemModel);
+
+    view.setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
+
+    QObject::connect(&view, &QWidget::customContextMenuRequested, &view, [&view, &itemModel] (QPoint const& pos) {
+
+        QAction addRow(Trajectory::tr("Add process"), &view);
+        QAction removeRow(Trajectory::tr("Remove process"), &view);
+
+        QModelIndex clickedIdx = view.indexAt(pos);
+
+        QObject::connect(&addRow, &QAction::triggered, &itemModel, [&itemModel, &clickedIdx] () {
+            int row = itemModel.rowCount();
+
+            if (clickedIdx.isValid()) {
+                row = clickedIdx.row()+1;
+            }
+
+            QStandardItem* timeItem = new QStandardItem();
+            timeItem->setData(1.0, Qt::EditRole);
+
+            QStandardItem* betaXItem = new QStandardItem();
+            betaXItem->setData(1.0, Qt::EditRole);
+            QStandardItem* betaYItem = new QStandardItem();
+            betaYItem->setData(1.0, Qt::EditRole);
+            QStandardItem* betaZItem = new QStandardItem();
+            betaZItem->setData(1.0, Qt::EditRole);
+
+            QStandardItem* sigmaXItem = new QStandardItem();
+            sigmaXItem->setData(1.0, Qt::EditRole);
+            QStandardItem* sigmaYItem = new QStandardItem();
+            sigmaYItem->setData(1.0, Qt::EditRole);
+            QStandardItem* sigmaZItem = new QStandardItem();
+            sigmaZItem->setData(1.0, Qt::EditRole);
+
+            itemModel.insertRow(row,{timeItem, betaXItem, betaYItem, betaZItem, sigmaXItem, sigmaYItem, sigmaZItem});
+        });
+
+        QObject::connect(&removeRow, &QAction::triggered, &itemModel, [&itemModel, &clickedIdx] () {
+
+            if (!clickedIdx.isValid()) {
+                return;
+            }
+
+            int row = clickedIdx.row();
+
+            if (row >= 0 and row < itemModel.rowCount()) {
+                itemModel.removeRow(row);
+            }
+        });
+
+        QMenu menu;
+        menu.addAction(&addRow);
+        if (clickedIdx.isValid()) {
+            menu.addAction(&removeRow);
+        }
+
+        menu.exec(view.mapToGlobal(pos));
+    });
+
+    layout.addWidget(&view);
+
+    QDialogButtonBox buttonBox(QDialogButtonBox::StandardButton::Save|QDialogButtonBox::StandardButton::Cancel,
+                               mw);
+
+    QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    layout.addWidget(&buttonBox);
+
+    dialog.resize(QSize(800,400));
+
+    int code = dialog.exec();
+
+    if (code != QDialog::Accepted) {
+        return;
+    }
+
+    QVector<Trajectory::InsStochasticProcessDef> edited(itemModel.rowCount());
+
+    for (int i = 0; i < itemModel.rowCount(); i++) {
+        edited[i].timeScale = itemModel.data(itemModel.index(i,timeCol)).toDouble();
+
+        edited[i].betas[0] = itemModel.data(itemModel.index(i,betaXCol)).toDouble();
+        edited[i].betas[1] = itemModel.data(itemModel.index(i,betaYCol)).toDouble();
+        edited[i].betas[2] = itemModel.data(itemModel.index(i,betaZCol)).toDouble();
+
+        edited[i].sigmas[0] = itemModel.data(itemModel.index(i,sigmaXCol)).toDouble();
+        edited[i].sigmas[1] = itemModel.data(itemModel.index(i,sigmaYCol)).toDouble();
+        edited[i].sigmas[2] = itemModel.data(itemModel.index(i,sigmaZCol)).toDouble();
+    }
+
+
+    switch(type) {
+    case GyroScale :
+        traj->setGyroScaleStochasticProcesses(edited);
+        break;
+    case GyroBias :
+        traj->setGyroBiasStochasticProcesses(edited);
+        break;
+    case AccScale :
+        traj->setAccBiasStochasticProcesses(edited);
+        break;
+    case AccBias :
+        traj->setAccScaleStochasticProcesses(edited);
+        break;
+    }
 
 }
 

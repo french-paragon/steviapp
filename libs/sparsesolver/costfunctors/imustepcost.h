@@ -12,6 +12,7 @@
 #ifndef NDEBUG
 #include <iostream>
 #include <ceres/jet.h>
+#include <QDebug>
 #endif
 
 namespace StereoVisionApp {
@@ -134,6 +135,10 @@ public:
 
     }
 
+    static constexpr int nParams = 2;
+    static constexpr int scaleParamPos = -1;
+    static constexpr int biasParamPos = -1;
+
     template <typename T>
     bool operator()(const T* const r0,
                     const T* const r1,
@@ -156,6 +161,10 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 3;
+    static constexpr int scaleParamPos = 2;
+    static constexpr int biasParamPos = -1;
 
     template <typename T>
     bool operator()(const T* const r0,
@@ -184,6 +193,10 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 3;
+    static constexpr int scaleParamPos = -1;
+    static constexpr int biasParamPos = 2;
 
     template <typename T>
     bool operator()(const T* const r0,
@@ -214,6 +227,10 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 4;
+    static constexpr int scaleParamPos = 2;
+    static constexpr int biasParamPos = 3;
 
     template <typename T>
     bool operator()(const T* const r0,
@@ -765,6 +782,12 @@ public:
 
     }
 
+    static constexpr int nParams = 5;
+    static constexpr int accBiasPos = -1;
+    static constexpr int accScalePos = -1;
+    static constexpr int gyroBiasPos = -1;
+    static constexpr int gyroScalePos = -1;
+
     template <typename T>
     bool operator()(const T* const t0,
                     const T* const r1,
@@ -795,6 +818,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 6;
+    static constexpr int accBiasPos = -1;
+    static constexpr int accScalePos = 4;
+    static constexpr int gyroBiasPos = -1;
+    static constexpr int gyroScalePos = -1;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -829,6 +858,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 6;
+    static constexpr int accBiasPos = 4;
+    static constexpr int accScalePos = -1;
+    static constexpr int gyroBiasPos = -1;
+    static constexpr int gyroScalePos = -1;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -866,6 +901,12 @@ public:
 
     }
 
+    static constexpr int nParams = 7;
+    static constexpr int accBiasPos = 5;
+    static constexpr int accScalePos = 4;
+    static constexpr int gyroBiasPos = -1;
+    static constexpr int gyroScalePos = -1;
+
     template <typename T>
     bool operator()(const T* const t0,
                     const T* const r1,
@@ -902,6 +943,12 @@ public:
 
     }
 
+    static constexpr int nParams = 6;
+    static constexpr int accBiasPos = -1;
+    static constexpr int accScalePos = -1;
+    static constexpr int gyroBiasPos = -1;
+    static constexpr int gyroScalePos = 4;
+
     template <typename T>
     bool operator()(const T* const t0,
                     const T* const r1,
@@ -937,6 +984,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 7;
+    static constexpr int accBiasPos = 5;
+    static constexpr int accScalePos = -1;
+    static constexpr int gyroBiasPos = -1;
+    static constexpr int gyroScalePos = 4;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -975,6 +1028,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 7;
+    static constexpr int accBiasPos = -1;
+    static constexpr int accScalePos = 5;
+    static constexpr int gyroBiasPos = -1;
+    static constexpr int gyroScalePos = 4;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -1018,6 +1077,12 @@ public:
 
     }
 
+    static constexpr int nParams = 8;
+    static constexpr int accBiasPos = 6;
+    static constexpr int accScalePos = 5;
+    static constexpr int gyroBiasPos = -1;
+    static constexpr int gyroScalePos = 4;
+
     template <typename T>
     bool operator()(const T* const t0,
                     const T* const r1,
@@ -1057,6 +1122,12 @@ public:
 
     }
 
+    static constexpr int nParams = 6;
+    static constexpr int accBiasPos = -1;
+    static constexpr int accScalePos = -1;
+    static constexpr int gyroBiasPos = 4;
+    static constexpr int gyroScalePos = -1;
+
     template <typename T>
     bool operator()(const T* const t0,
                     const T* const r1,
@@ -1092,6 +1163,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 7;
+    static constexpr int accBiasPos = 5;
+    static constexpr int accScalePos = -1;
+    static constexpr int gyroBiasPos = 4;
+    static constexpr int gyroScalePos = -1;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -1130,6 +1207,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 7;
+    static constexpr int accBiasPos = -1;
+    static constexpr int accScalePos = 5;
+    static constexpr int gyroBiasPos = 4;
+    static constexpr int gyroScalePos = -1;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -1173,6 +1256,12 @@ public:
 
     }
 
+    static constexpr int nParams = 8;
+    static constexpr int accBiasPos = 6;
+    static constexpr int accScalePos = 5;
+    static constexpr int gyroBiasPos = 4;
+    static constexpr int gyroScalePos = -1;
+
     template <typename T>
     bool operator()(const T* const t0,
                     const T* const r1,
@@ -1212,6 +1301,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 7;
+    static constexpr int accBiasPos = -1;
+    static constexpr int accScalePos = -1;
+    static constexpr int gyroBiasPos = 5;
+    static constexpr int gyroScalePos = 4;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -1254,6 +1349,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 8;
+    static constexpr int accBiasPos = 6;
+    static constexpr int accScalePos = -1;
+    static constexpr int gyroBiasPos = 5;
+    static constexpr int gyroScalePos = 4;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -1298,6 +1399,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 8;
+    static constexpr int accBiasPos = -1;
+    static constexpr int accScalePos = 6;
+    static constexpr int gyroBiasPos = 5;
+    static constexpr int gyroScalePos = 4;
 
     template <typename T>
     bool operator()(const T* const t0,
@@ -1345,6 +1452,12 @@ public:
     {
 
     }
+
+    static constexpr int nParams = 9;
+    static constexpr int accBiasPos = 7;
+    static constexpr int accScalePos = 6;
+    static constexpr int gyroBiasPos = 5;
+    static constexpr int gyroScalePos = 4;
 
     template <typename T>
     bool operator()(const T* const t0,

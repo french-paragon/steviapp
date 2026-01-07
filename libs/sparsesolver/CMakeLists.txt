@@ -110,6 +110,7 @@ set(LIB_HEADERS_COST_FUNCTORS
     costfunctors/localpointprojectioncost.h
     costfunctors/fixedsizenormalprior.h
     costfunctors/gravityDecorators.h
+    costfunctors/stochasticprocessaggregator.h
 )
 
 set(LIB_HEADERS_SBA_MODULES
@@ -130,6 +131,7 @@ add_library(
     #${LIB_HEADERS_VERTICES}
     ${LIB_HEADERS_COST_FUNCTORS}
     ${LIB_HEADERS_SBA_MODULES}
+    costfunctors/stochasticprocessaggregator.h
 )
 
 target_link_libraries(${SOLVING_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)

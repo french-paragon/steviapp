@@ -111,6 +111,36 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
     });
     actions.append(gyroMountingAction);
 
+    QAction* configureInsStochasticProcesses = new QAction(tr("configure stochastic processes"), parent);
+    QMenu* configureInsStochasticProcessesMenu = new QMenu();
+
+    configureInsStochasticProcesses->setMenu(configureInsStochasticProcessesMenu);
+
+    QAction* gyroBiasProcesses = new QAction(tr("gyro bias"), parent);
+    connect(gyroBiasProcesses, &QAction::triggered, traj, [traj] () {
+        editTrajectoryINSStochasticProcesses(traj, TrajectoryInsStochasticProcessType::GyroBias);
+    });
+    configureInsStochasticProcessesMenu->addAction(gyroBiasProcesses);
+
+    QAction* gyroScaleProcesses = new QAction(tr("gyro scale"), parent);
+    connect(gyroScaleProcesses, &QAction::triggered, traj, [traj] () {
+        editTrajectoryINSStochasticProcesses(traj, TrajectoryInsStochasticProcessType::GyroScale);
+    });
+    configureInsStochasticProcessesMenu->addAction(gyroScaleProcesses);
+
+    QAction* accBiasProcesses = new QAction(tr("acc bias"), parent);
+    connect(accBiasProcesses, &QAction::triggered, traj, [traj] () {
+        editTrajectoryINSStochasticProcesses(traj, TrajectoryInsStochasticProcessType::AccBias);
+    });
+    configureInsStochasticProcessesMenu->addAction(accBiasProcesses);
+
+    QAction* accScaleProcesses = new QAction(tr("acc scale"), parent);
+    connect(accScaleProcesses, &QAction::triggered, traj, [traj] () {
+        editTrajectoryINSStochasticProcesses(traj, TrajectoryInsStochasticProcessType::AccScale);
+    });
+    configureInsStochasticProcessesMenu->addAction(accScaleProcesses);
+
+    actions.append(configureInsStochasticProcesses);
 
     QAction* assignGpsMounting = createAssignToMountingAction(parent, traj->getProject(), {traj}, AssignMountMode::GPS);
     QAction* assignInsMounting = createAssignToMountingAction(parent, traj->getProject(), {traj}, AssignMountMode::INS);
