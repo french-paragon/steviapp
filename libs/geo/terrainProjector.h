@@ -12,6 +12,7 @@
 #include <StereoVision/geometry/rotations.h>
 
 #include <proj.h>
+#include <optional>
 
 namespace StereoVisionApp {
 namespace Geo {
@@ -125,8 +126,8 @@ public:
                 _maxTerrainHeight = std::max(terrainVal, _maxTerrainHeight);
 
                 if (std::isfinite(_ecefTerrain.atUnchecked(i,j,0)) and
-                        std::isfinite(_ecefTerrain.atUnchecked(i,j,1)) and
-                        std::isfinite(_ecefTerrain.atUnchecked(i,j,2))) {
+                    std::isfinite(_ecefTerrain.atUnchecked(i,j,1)) and
+                    std::isfinite(_ecefTerrain.atUnchecked(i,j,2))) {
 
                     _ecefOffset[0] += _ecefTerrain.atUnchecked(i,j,0);
                     _ecefOffset[1] += _ecefTerrain.atUnchecked(i,j,1);
@@ -176,6 +177,70 @@ public:
         }
 
         return _reprojector != nullptr and _projector != nullptr;
+    }
+
+    /*!
+     * \brief fullStateCheck check the state of the projector, is mostly meant to be used in debug mode.
+     * \return nullopt if no issue is found, otherwise a string describing the issues.
+     */
+    std::optional<std::string> fullStateCheck() const {
+
+        std::stringstream ret;
+
+        if (_terrain.raster.empty()) {
+            ret << "empty input raster!" << "\n";
+        }
+
+        std::vector<std::array<int,2>> nonFiniteCoords;
+
+        for (int i = 0; i < _terrain.raster.shape()[0]; i++) {
+            for (int j = 0; j < _terrain.raster.shape()[1]; j++) {
+                if (!std::isfinite(_terrain.raster.valueUnchecked(i,j))) {
+                    nonFiniteCoords.push_back({i,j});
+                }
+            }
+        }
+
+        constexpr size_t maxListedCoords = 15;
+        if (!nonFiniteCoords.empty()) {
+            ret << nonFiniteCoords.size() << "non finite coords detected in terrain raster: ";
+            for (int i = 0; i < std::min(maxListedCoords, nonFiniteCoords.size()); i++) {
+                ret << ' ' << '{' << nonFiniteCoords[i][0] << ',' << nonFiniteCoords[i][1] << '}';
+            }
+
+            ret << '\n';
+        }
+
+        std::vector<std::array<int,3>> nonFiniteEcefCoords;
+
+        for (int i = 0; i < _ecefTerrain.shape()[0]; i++) {
+            for (int j = 0; j < _ecefTerrain.shape()[1]; j++) {
+                for (int k = 0; k < _ecefTerrain.shape()[2]; k++) {
+
+                    if (!std::isfinite(_ecefTerrain.valueUnchecked(i,j,k))) {
+                        nonFiniteEcefCoords.push_back({i,j,k});
+                    }
+                }
+            }
+        }
+
+        if (!nonFiniteEcefCoords.empty()) {
+            ret << nonFiniteEcefCoords.size() << "non finite coords detected in ecef terrain grid: ";
+            for (int i = 0; i < std::min(maxListedCoords, nonFiniteEcefCoords.size()); i++) {
+                ret << ' ' << '{' << nonFiniteEcefCoords[i][0] << ',' << nonFiniteEcefCoords[i][1] << ',' << nonFiniteEcefCoords[i][2] << '}';
+            }
+
+            ret << '\n';
+        }
+
+        std::string str = ret.str();
+
+        if (str.empty()) {
+            return std::nullopt;
+        }
+
+        return str;
+
     }
 
     /*!
@@ -288,7 +353,7 @@ public:
             currentProjectionDirection = {directions[i][0],directions[i][1], directions[i][2]};
 
             std::optional<std::array<float,2>> projected = projectPoints(ecefOrigin,
-                                                                         currentProjectionDirection);
+                                                                          currentProjectionDirection);
 
             if (projected.has_value()) {
                 ret.projectedPoints[i] = projected.value();
@@ -342,7 +407,7 @@ protected:
      * \return the projected coordinates of the point on the terrain, in image space. or std::nullopt if the view direction does not intersect the terrain
      */
     inline std::optional<std::array<float,2>> projectPoints(std::array<double,3> const& ecefOrigin,
-                                                            std::array<double,3> const& direction) {
+                                                             std::array<double,3> const& direction) {
 
         Eigen::Vector3d origin;
         for (int i = 0; i < 3; i++) {
@@ -596,8 +661,8 @@ protected:
             float dist = (origin - projectedPoint).norm();
 
             Eigen::Vector3d geoProj(projectedPoint[0] + _ecefOffset[0],
-                    projectedPoint[1] + _ecefOffset[1],
-                    projectedPoint[2] + _ecefOffset[2]);
+                                    projectedPoint[1] + _ecefOffset[1],
+                                    projectedPoint[2] + _ecefOffset[2]);
 
             proj_trans_generic(_projector, PJ_FWD,
                                &geoProj[0], sizeof(double), 1,
