@@ -70,9 +70,11 @@ public:
         }
 
         virtual std::vector<int> getInliers(std::vector<std::array<int,2>> const& assignement,
-                                            Multidim::Array<ComputeType,3, Multidim::ConstView> const& imgData1,
+                                            std::vector<Multidim::Array<ComputeType,3>> const& imgsData1,
+                                            std::vector<int> const& cornersPerScalesIm1,
                                             std::vector<std::array<float, 2>> & corners1,
-                                            Multidim::Array<ComputeType,3, Multidim::ConstView> const& imgData2,
+                                            std::vector<Multidim::Array<ComputeType,3>> const& imgsData2,
+                                            std::vector<int> const& cornersPerScalesIm2,
                                             std::vector<std::array<float, 2>> & corners2) = 0;
         virtual QWidget* getConfigurationWidget(QWidget* parent) = 0;
     };
@@ -87,11 +89,15 @@ public:
 
         }
         virtual std::vector<int> getInliers(std::vector<std::array<int,2>> const& assignement,
-                                            Multidim::Array<ComputeType,3, Multidim::ConstView> const& imgData1,
+                                            std::vector<Multidim::Array<ComputeType,3>> const& imgsData1,
+                                            std::vector<int> const& cornersPerScalesIm1,
                                             std::vector<std::array<float, 2>> & corners1,
-                                            Multidim::Array<ComputeType,3, Multidim::ConstView> const& imgData2,
+                                            std::vector<Multidim::Array<ComputeType,3>> const& imgsData2,
+                                            std::vector<int> const& cornersPerScalesIm2,
                                             std::vector<std::array<float, 2>> & corners2) {
-            return BaseSelector::getInliers(assignement, imgData1, corners1, imgData2, corners2);
+            return BaseSelector::getInliers(assignement,
+                                            imgsData1, cornersPerScalesIm1, corners1,
+                                            imgsData2, cornersPerScalesIm2, corners2);
         }
     };
 
