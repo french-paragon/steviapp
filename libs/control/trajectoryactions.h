@@ -60,7 +60,7 @@ void exportTrajectoryGeographic(Trajectory* traj,
                                 TrajectoryExportOrientationConvention const& orientationConvention = TrajectoryExportOrientationConvention::EulerZYX,
                                 StereoVision::Geometry::RigidBodyTransform<double> const& sensor2body = StereoVision::Geometry::RigidBodyTransform<double>());
 
-enum TrajectoryInsStochasticProcessType {
+enum class TrajectoryInsStochasticProcessType {
     GyroScale,
     GyroBias,
     AccScale,

@@ -892,19 +892,19 @@ void editTrajectoryINSStochasticProcesses(Trajectory* traj, TrajectoryInsStochas
     QVector<Trajectory::InsStochasticProcessDef> definitions;
 
     switch(type) {
-    case GyroScale :
+    case TrajectoryInsStochasticProcessType::GyroScale :
         windowTitle = Trajectory::tr("Edit gyro scale stochastic processes");
         definitions = traj->gyroScaleStochasticProcesses();
         break;
-    case GyroBias :
+    case TrajectoryInsStochasticProcessType::GyroBias :
         windowTitle = Trajectory::tr("Edit gyro bias stochastic processes");
         definitions = traj->gyroBiasStochasticProcesses();
         break;
-    case AccScale :
+    case TrajectoryInsStochasticProcessType::AccScale :
         windowTitle = Trajectory::tr("Edit accelerometer scale stochastic processes");
         definitions = traj->accBiasStochasticProcesses();
         break;
-    case AccBias :
+    case TrajectoryInsStochasticProcessType::AccBias :
         windowTitle = Trajectory::tr("Edit accelerometer bias stochastic processes");
         definitions = traj->accScaleStochasticProcesses();
         break;
@@ -1055,16 +1055,16 @@ void editTrajectoryINSStochasticProcesses(Trajectory* traj, TrajectoryInsStochas
 
 
     switch(type) {
-    case GyroScale :
+    case TrajectoryInsStochasticProcessType::GyroScale :
         traj->setGyroScaleStochasticProcesses(edited);
         break;
-    case GyroBias :
+    case TrajectoryInsStochasticProcessType::GyroBias :
         traj->setGyroBiasStochasticProcesses(edited);
         break;
-    case AccScale :
+    case TrajectoryInsStochasticProcessType::AccScale :
         traj->setAccBiasStochasticProcesses(edited);
         break;
-    case AccBias :
+    case TrajectoryInsStochasticProcessType::AccBias :
         traj->setAccScaleStochasticProcesses(edited);
         break;
     }
