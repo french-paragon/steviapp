@@ -93,7 +93,7 @@ public:
                 coord.v[3] = 0;
 
                 //invalid node in the terrain
-                if (terrainVal < -1e4 or !std::isfinite(terrainVal)) {
+                if (terrainVal < -9000 or !std::isfinite(terrainVal)) {
 
                     _ecefTerrain.atUnchecked(i,j,0) = std::nan("");
                     _ecefTerrain.atUnchecked(i,j,1) = std::nan("");
@@ -110,7 +110,7 @@ public:
                     _ecefTerrain.atUnchecked(i,j,1) = reproject.v[1];
                     _ecefTerrain.atUnchecked(i,j,2) = reproject.v[2];
 
-                    if (terrainVal < -1e-3 or !std::isfinite(terrainVal)) { // some DTM uses large negative values to indicate invalid pixels.
+                    if (terrainVal < -9000 or !std::isfinite(terrainVal)) { // some DTM uses large negative values to indicate invalid pixels.
                         continue;
                     }
 
@@ -488,12 +488,12 @@ protected:
                         double zCandMin = _ecefTerrain.valueOrAlt({ti,tj,2}, zMin);
                         double zCandMax = _ecefTerrain.valueOrAlt({ti,tj,2}, zMax);
 
-                        xMin = std::min(xMin, xCandMin);
-                        xMax = std::max(xMax, xCandMax);
-                        yMin = std::min(yMin, yCandMin);
-                        yMax = std::max(yMax, yCandMax);
-                        zMin = std::min(zMin, zCandMin);
-                        zMax = std::max(zMax, zCandMax);
+                        xMin = (std::isfinite(xCandMin)) ? std::min(xMin, xCandMin) : xMin;
+                        xMax = (std::isfinite(xCandMax)) ? std::max(xMax, xCandMax) : xMax;
+                        yMin = (std::isfinite(yCandMin)) ? std::min(yMin, yCandMin) : yMin;
+                        yMax = (std::isfinite(yCandMax)) ? std::max(yMax, yCandMax) : yMax;
+                        zMin = (std::isfinite(zCandMin)) ? std::min(zMin, zCandMin) : zMin;
+                        zMax = (std::isfinite(zCandMax)) ? std::max(zMax, zCandMax) : zMax;
                     }
                 }
 
