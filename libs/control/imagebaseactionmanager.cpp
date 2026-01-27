@@ -293,7 +293,7 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 
 
 void ImageBaseActionManager::registerAppHeadlessActions(StereoVisionApplication* application) const {
-    constexpr char* ImageNamespace = "Image";
+    const char* ImageNamespace = "Image";
 
     application->registerHeadlessAction(ImageNamespace,"autoDetectTiePoints", autoDetectImagesTiePointsHeadless);
 }
