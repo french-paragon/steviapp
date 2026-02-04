@@ -16,6 +16,10 @@
 #include <QPdfWriter>
 #include <QPainter>
 #include <QFile>
+#include <QBuffer>
+
+#include "application.h"
+#include "vision/type_conversions.h"
 
 namespace StereoVisionApp {
 
@@ -438,6 +442,281 @@ void addImages2MatchCornersEditor(Project* proj, QVector<qint64> const& imgs) {
         cmte->addImageData(img_block->objectName(), img_data, new Image::ImageMatchBuilder(img_block));
 
     }
+
+}
+
+
+HeadlessSparseMatchingPipelineInterface* getAppHeadlessSparseMatchingInterface() {
+
+    StereoVisionApplication* app = StereoVisionApplication::GetAppInstance();
+
+    if (app == nullptr) {
+        return nullptr;
+    }
+
+    HeadlessSparseMatchingPipelineInterface* interface =
+        qobject_cast<HeadlessSparseMatchingPipelineInterface*>(
+        app->getAdditionalInterface(HeadlessSparseMatchingPipelineInterface::INTERFACE_NAME));
+
+    if (interface == nullptr) {
+        interface = new HeadlessSparseMatchingPipelineInterface(app);
+        bool ok = app->registerAdditionalInterface(HeadlessSparseMatchingPipelineInterface::INTERFACE_NAME, interface);
+
+        if (!ok) {
+            delete interface;
+            return nullptr;
+        }
+    }
+
+    return interface;
+}
+
+StatusOptionalReturn<void> configureModularHeadlessSparseMatchingPipeline() {
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    if (interface->hasModularPipelineConfigured()) {
+        return StatusOptionalReturn<void>();
+    }
+
+    interface->setPipeline(new GenericModularSparseMatchingPipeline<float>(nullptr, nullptr, nullptr, nullptr));
+
+    return StatusOptionalReturn<void>();
+}
+
+StatusOptionalReturn<void> setupHeadlessHarrisCornerDetectorModule(int lowPassRadius,
+                                                                          int nonMaximumSuppressionRadius,
+                                                                          int maxNCorners) {
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<float>()) {
+        interface->setCornerModule(new HarrisCornerDetectorModule<float>(lowPassRadius, nonMaximumSuppressionRadius, maxNCorners));
+        return StatusOptionalReturn<void>();
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<double>()) {
+        interface->setCornerModule(new HarrisCornerDetectorModule<double>(lowPassRadius, nonMaximumSuppressionRadius, maxNCorners));
+        return StatusOptionalReturn<void>();
+    }
+
+    return StatusOptionalReturn<void>::error("Unexpected pipeline type!");
+
+}
+
+StatusOptionalReturn<void> setupHeadlessHungarianCornerMatchModule(int patchRadius, int nSamples) {
+
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<float>()) {
+        interface->setMatcherModule(new HungarianCornerMatchModule<float>(patchRadius, nSamples));
+        return StatusOptionalReturn<void>();
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<double>()) {
+        interface->setMatcherModule(new HungarianCornerMatchModule<double>(patchRadius, nSamples));
+        return StatusOptionalReturn<void>();
+    }
+
+    return StatusOptionalReturn<void>::error("Unexpected pipeline type!");
+
+}
+
+StatusOptionalReturn<void> setupHeadlessBestNCornerMatchModule(int nMatches, float maxRatio2Best) {
+
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<float>()) {
+        interface->setMatcherModule(new BestNCornerMatchModule<float>(nMatches, maxRatio2Best));
+        return StatusOptionalReturn<void>();
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<double>()) {
+        interface->setMatcherModule(new BestNCornerMatchModule<double>(nMatches, maxRatio2Best));
+        return StatusOptionalReturn<void>();
+    }
+
+    return StatusOptionalReturn<void>::error("Unexpected pipeline type!");
+}
+
+StatusOptionalReturn<void> setupHeadlessRansacEpipolarInlinerSelectionModule(int nRansacIterations,
+                                                                                    float threshold) {
+
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<float>()) {
+        interface->setInlierModule(new RansacEpipolarInlinerSelectionModule<float>(nRansacIterations, threshold));
+        return StatusOptionalReturn<void>();
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<double>()) {
+        interface->setInlierModule(new RansacEpipolarInlinerSelectionModule<double>(nRansacIterations, threshold));
+        return StatusOptionalReturn<void>();
+    }
+
+    return StatusOptionalReturn<void>::error("Unexpected pipeline type!");
+}
+StatusOptionalReturn<void> setupHeadlessRansacPerspectiveInlinerSelectionModule(int nRansacIterations,
+                                                                                       bool enableMultiThresholding,
+                                                                                       float threshold,
+                                                                                       float subthreshold) {
+
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<float>()) {
+        interface->setInlierModule(new RansacPerspectiveInlinerSelectionModule<float>(nRansacIterations,
+                                                                                      enableMultiThresholding,
+                                                                                      threshold,
+                                                                                      subthreshold));
+        return StatusOptionalReturn<void>();
+    }
+
+    if (interface->hasTypedModularPipelineConfigured<double>()) {
+        interface->setInlierModule(new RansacPerspectiveInlinerSelectionModule<double>(nRansacIterations,
+                                                                                       enableMultiThresholding,
+                                                                                       threshold,
+                                                                                       subthreshold));
+        return StatusOptionalReturn<void>();
+    }
+
+    return StatusOptionalReturn<void>::error("Unexpected pipeline type!");
+}
+
+StatusOptionalReturn<void>  addImageToHeadlessSparseMatching(Project* proj, qint64 imgId) {
+
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    Image* img_block = proj->getDataBlock<Image>(imgId);
+
+    if (img_block == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load image data block!");
+    }
+
+    QString img_path = img_block->getImageFile();
+
+    Multidim::Array<float,3> img_data = StereoVision::IO::readImage<float>(img_path.toStdString());
+
+    if (img_data.empty()) {
+        return StatusOptionalReturn<void>::error("Empty image data!");
+    }
+
+    interface->configureImageData(img_block->objectName(), std::move(img_data), new Image::ImageMatchBuilder(img_block));
+
+    return StatusOptionalReturn<void>();
+}
+
+StatusOptionalReturn<void> runHeadlessMatching() {
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    bool verbose = true;
+
+    return interface->runAll(verbose);
+}
+
+StatusOptionalReturn<void> printHeadlessSparseMatchingResults(QString const& filePath) {
+
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    QFile out(filePath);
+
+    if (!out.open(QFile::WriteOnly|QFile::Append)) {
+        return StatusOptionalReturn<void>::error("Impossible to open output file!");
+    }
+
+    QTextStream outStream(&out);
+
+    return interface->writeMatchingResultsToStream(outStream);
+}
+
+StatusOptionalReturn<std::string> getHeadlessSparseMatchingResults() {
+
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<std::string>::error("Impossible to load headless matching interface!");
+    }
+
+    QBuffer buffer;
+    buffer.open(QBuffer::WriteOnly);
+
+    QTextStream outStream(&buffer);
+
+    auto status = interface->writeMatchingResultsToStream(outStream);
+
+    if (!status.isValid()) {
+        return StatusOptionalReturn<std::string>::error(status.errorMessage());
+    }
+
+    return buffer.buffer().toStdString();
+}
+
+StatusOptionalReturn<void> exportHeadlessSparseMatchingResultsView(QString const& outFilePath) {
+
+    HeadlessSparseMatchingPipelineInterface* interface = getAppHeadlessSparseMatchingInterface();
+
+    if (interface == nullptr) {
+        return StatusOptionalReturn<void>::error("Impossible to load headless matching interface!");
+    }
+
+    auto[uvs1, uvs2] = interface->filteredCorners();
+
+    QString img1_name = interface->getImageName(0);
+    QString img2_name = interface->getImageName(1);
+
+    Multidim::Array<float,3> img1_data = interface->getImageData(0);
+    Multidim::Array<float,3> img2_data = interface->getImageData(1);
+
+    QPixmap img1_pixmap = pixmapFromImgdata(img1_data);
+    QPixmap img2_pixmap = pixmapFromImgdata(img2_data);
+
+    QVector<QPointF> coords1(uvs1.size());
+    QVector<QPointF> coords2(uvs2.size());
+
+    for (int i = 0; i < coords1.size(); i++) {
+        coords1[i] = QPointF(uvs1[i][1], uvs1[i][0]);
+    }
+
+    for (int i = 0; i < coords2.size(); i++) {
+        coords2[i] = QPointF(uvs2[i][1], uvs2[i][0]);
+    }
+
+    return exportCorrespondancesFromImages(outFilePath, img1_name, img2_name,
+                                           img1_pixmap, img2_pixmap,
+                                           coords1, coords2);
 
 }
 

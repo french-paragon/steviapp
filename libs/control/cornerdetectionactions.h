@@ -10,6 +10,7 @@
 namespace StereoVisionApp {
 
 class Project;
+class HeadlessSparseMatchingPipelineInterface;
 
 void detectCornerInTestImage();
 void detectCornerInImage(Project* proj, qint64 imgId);
@@ -30,6 +31,33 @@ inline StatusOptionalReturn<void> exportCorrespondancesFromImages(QString const&
 }
 
 void addImages2MatchCornersEditor(Project* proj, QVector<qint64> const& imgs);
+
+HeadlessSparseMatchingPipelineInterface* getAppHeadlessSparseMatchingInterface();
+
+StatusOptionalReturn<void> configureModularHeadlessSparseMatchingPipeline();
+
+StatusOptionalReturn<void> setupHeadlessHarrisCornerDetectorModule(int lowPassRadius,
+                                                                          int nonMaximumSuppressionRadius,
+                                                                          int maxNCorners);
+
+StatusOptionalReturn<void> setupHeadlessHungarianCornerMatchModule(int patchRadius, int nSamples);
+
+StatusOptionalReturn<void> setupHeadlessBestNCornerMatchModule(int nMatches, float maxRatio2Best);
+
+StatusOptionalReturn<void> setupHeadlessRansacEpipolarInlinerSelectionModule(int nRansacIterations, float threshold);
+StatusOptionalReturn<void> setupHeadlessRansacPerspectiveInlinerSelectionModule(int nRansacIterations,
+                                                                                       bool enableMultiThresholding,
+                                                                                       float threshold,
+                                                                                       float subthreshold);
+
+StatusOptionalReturn<void>  addImageToHeadlessSparseMatching(Project* proj, qint64 imgId);
+
+StatusOptionalReturn<void> runHeadlessMatching();
+
+StatusOptionalReturn<void> printHeadlessSparseMatchingResults(QString const& filePath);
+StatusOptionalReturn<std::string> getHeadlessSparseMatchingResults();
+
+StatusOptionalReturn<void> exportHeadlessSparseMatchingResultsView(QString const& outFilePath);
 
 } // namespace StereoVisionApp
 

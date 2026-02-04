@@ -6,6 +6,8 @@
 #include <QString>
 #include <QTextStream>
 #include <vector>
+#include <algorithm>
+#include <variant>
 
 #include <StereoVision/sparseMatching/cornerDetectors.h>
 #include <StereoVision/sparseMatching/nonLocalMaximumPointSelection.h>
@@ -23,11 +25,15 @@
 
 #include "../datablocks/genericcorrespondences.h"
 
+#include "../utils/statusoptionalreturn.h"
+
 namespace StereoVisionApp {
 
 template<typename T>
 class SparseMatchingPipeline {
 public:
+
+    using ComputeT = T;
 
     enum Steps {
         Initialized = 0, //ready to run, nothing has been processed yet
@@ -100,7 +106,7 @@ public:
         }
 
         for (int level : img2Scales) {
-            nScalesLevel2 = std::max(level+2,nScalesLevel2);
+            nScalesLevel2 = std::max(level+1,nScalesLevel2);
         }
 
         _img1Views.resize(nScalesLevel1);
@@ -161,12 +167,15 @@ public:
         //build the multi scale view
         StereoVision::Interpolation::DownSampleWindows downSamplingWindow(2);
 
+        using Tin = T;
+        using Tout = T;
+
         for (int i = 1; i < nScalesLevel1; i++) {
-            _img1Views[i] = StereoVision::Interpolation::averagePoolingDownsample(_img1Views[i-1], downSamplingWindow);
+            _img1Views[i] = StereoVision::Interpolation::averagePoolingDownsample<Tin,Tout>(_img1Views[i-1], downSamplingWindow);
         }
 
         for (int i = 1; i < nScalesLevel2; i++) {
-            _img2Views[i] = StereoVision::Interpolation::averagePoolingDownsample(_img2Views[i-1], downSamplingWindow);
+            _img2Views[i] = StereoVision::Interpolation::averagePoolingDownsample<Tin,Tout>(_img2Views[i-1], downSamplingWindow);
         }
 
         return true;
@@ -380,7 +389,7 @@ public:
 
         for (int i = 0; i < _inliers.size(); i++) {
 
-            std::array<int,2> const& assignement = _assignements[i];
+            std::array<int,2> const& assignement = _assignements[_inliers[i]];
 
             int f1_idx = assignement[0];
             int f2_idx = assignement[1];
@@ -408,6 +417,32 @@ public:
         }
 
         return std::make_pair(uvs1, uvs2);
+    }
+
+    template<typename OStreamT>
+    OStreamT& writeMatchingResultsToStream(OStreamT & stream) {
+        std::set<int> inliersFilter(_inliers.begin(), _inliers.end());
+        std::vector<int> matchIdCorners1(_corners1.size());
+        std::vector<int> matchIdCorners2(_corners2.size());
+
+        std::fill(matchIdCorners1.begin(), matchIdCorners1.end(), -1);
+        std::fill(matchIdCorners2.begin(), matchIdCorners2.end(), -1);
+
+        for (int i = 0; i < _assignements.size(); i++) {
+            std::array<int,2> const& assignement = _assignements[i];
+            matchIdCorners1[assignement[0]] = i;
+            matchIdCorners2[assignement[1]] = i;
+        }
+
+        for (int i = 0; i < _corners1.size(); i++) {
+            stream << '1' <<  _corners1[i][0] << ' ' << _corners1[i][1] << ' ' << matchIdCorners1[i] << (inliersFilter.count(matchIdCorners1[i]) > 0 ? 1 : 0) << '\n';
+        }
+
+        for (int i = 0; i < _corners2.size(); i++) {
+            stream << '2' << _corners2[i][0] << ' ' << _corners2[i][1] << ' ' << matchIdCorners1[i] << (inliersFilter.count(matchIdCorners1[i]) > 0 ? 1 : 0);
+        }
+
+        return stream;
     }
 
 protected:
@@ -723,12 +758,12 @@ public:
 
     std::vector<std::array<float, 2>> detectCorners(Multidim::Array<T,3, Multidim::ConstView> const& img) override {
 
-        Multidim::Array<float, 2> scoreData = StereoVision::SparseMatching::windowedHarrisCornerScore(img, _lpRadius, 0, batchDim);
+        Multidim::Array<T, 2> scoreData = StereoVision::SparseMatching::windowedHarrisCornerScore(img, _lpRadius, 0, batchDim);
 
-        float threshold = 0;
+        T threshold = 0;
 
         std::vector<std::array<float, 2>> corners =
-            StereoVision::SparseMatching::nonLocalMaximumPointSelection(Multidim::Array<float, 2, Multidim::ConstView>(scoreData),
+            StereoVision::SparseMatching::nonLocalMaximumPointSelection(Multidim::Array<T, 2, Multidim::ConstView>(scoreData),
                                                       _nonMaxSupprRadius,
                                                       threshold,
                                                       _maxNCorners);
@@ -771,15 +806,29 @@ public:
 };
 
 template<typename T>
-class HungarianCornerMatchModule : public GenericCornerMatchModule<T> {
+struct CircularFFTAmplitudeDescriptor {
+    using FFTDescr = StereoVision::SparseMatching::CircularFFTFeatureInfos<8,16,32>;
+
+    template<int nDims, Multidim::ArrayDataAccessConstness constNess>
+    inline static std::vector<StereoVision::SparseMatching::pointFeatures<2, std::vector<float>>> buildFeatures
+        (
+        std::vector<StereoVision::SparseMatching::orientedCoordinate<2>> const& coords,
+        Multidim::Array<T, nDims, constNess> const& img,
+        int featureAxis = 2) {
+
+        std::vector<float> radiuses = {2,4,8};
+        return StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(coords, img, radiuses, featureAxis);
+    }
+};
+
+template<typename T, typename FeatureT = CircularFFTAmplitudeDescriptor<T>>
+class TemplatedCostCornerMatchModule : public GenericCornerMatchModule<T> {
+
 public:
 
     static constexpr int batchDim = 2;
 
-    HungarianCornerMatchModule(int patchRadius, int nSamples) :
-        _patchRadius(patchRadius),
-        _nSamples(nSamples)
-    {
+    TemplatedCostCornerMatchModule() {
 
     }
 
@@ -798,14 +847,26 @@ public:
         std::vector<StereoVision::SparseMatching::orientedCoordinate<2>> oriented2 =
             {StereoVision::SparseMatching::orientedCoordinate<2>{integralCorner2,dummy}};
 
-        using FFTDescr = StereoVision::SparseMatching::CircularFFTFeatureInfos<8,16,32>;
-
-        std::vector<float> radiuses= {2,4,8};
-
-        auto features1 = StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(oriented1, img1, radiuses, batchDim);
-        auto features2 = StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(oriented2, img2, radiuses, batchDim);
+        auto features1 = FeatureT::buildFeatures(oriented1, img1, batchDim);
+        auto features2 = FeatureT::buildFeatures(oriented2, img2, batchDim);
 
         return StereoVision::Correlation::SumAbsDiff(features1[0].features, features2[0].features);
+    }
+
+};
+
+/*!
+ * \brief The HungarianCornerMatchModule class match the corners using an optimal assignement algorithm, trying to minimze cost, while never matching a corner more than once.
+ */
+template<typename T, typename FeatureT = CircularFFTAmplitudeDescriptor<T>>
+class HungarianCornerMatchModule : public TemplatedCostCornerMatchModule<T, FeatureT> {
+public:
+
+    HungarianCornerMatchModule(int patchRadius, int nSamples) :
+        _patchRadius(patchRadius),
+        _nSamples(nSamples)
+    {
+
     }
 
     virtual std::vector<std::array<int,2>> matchCorners(
@@ -830,25 +891,19 @@ public:
         }
 
         std::vector<StereoVision::SparseMatching::orientedCoordinate<2>> oriented1 =
-            StereoVision::SparseMatching::intensityOrientedCoordinates<true>(integral_corners1, img1, _patchRadius, batchDim);
+            StereoVision::SparseMatching::intensityOrientedCoordinates<true>(integral_corners1, img1, _patchRadius, TemplatedCostCornerMatchModule<T, FeatureT>::batchDim);
         std::vector<StereoVision::SparseMatching::orientedCoordinate<2>> oriented2 =
-            StereoVision::SparseMatching::intensityOrientedCoordinates<true>(integral_corners2, img2, _patchRadius, batchDim);
+            StereoVision::SparseMatching::intensityOrientedCoordinates<true>(integral_corners2, img2, _patchRadius, TemplatedCostCornerMatchModule<T, FeatureT>::batchDim);
 
         constexpr int nDim = 3;
-
-        std::array<int,nDim> shape = img1.shape();
 
         /*auto patchCoords = StereoVision::SparseMatching::generateUniformRadialSampleCoordinatesWithFeaturesDim<nDim,batchDim>(_patchRadius, _nSamples, shape[batchDim]);
 
         auto features1 = StereoVision::SparseMatching::OrientedWhitenedPixelsDescriptor(oriented1, img1, patchCoords, batchDim);
         auto features2 = StereoVision::SparseMatching::OrientedWhitenedPixelsDescriptor(oriented2, img2, patchCoords, batchDim);*/
 
-        using FFTDescr = StereoVision::SparseMatching::CircularFFTFeatureInfos<8,16,32>;
-
-        std::vector<float> radiuses= {2,4,8};
-
-        auto features1 = StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(oriented1, img1, radiuses, batchDim);
-        auto features2 = StereoVision::SparseMatching::CircularFFTAmplitudeDescriptors<FFTDescr>(oriented2, img2, radiuses, batchDim);
+        auto features1 = FeatureT::buildFeatures(oriented1, img1, TemplatedCostCornerMatchModule<T, FeatureT>::batchDim);
+        auto features2 = FeatureT::buildFeatures(oriented2, img2, TemplatedCostCornerMatchModule<T, FeatureT>::batchDim);
 
         int n = features1.size();
         int m = features2.size();
@@ -917,6 +972,148 @@ protected:
 
     int _patchRadius;
     int _nSamples;
+};
+
+
+/*!
+ * \brief The BestNCornerMatchModule class match the best N candidate match to a point x, if x is also in the N best match of the candidate.
+ */
+template<typename T, typename FeatureT = CircularFFTAmplitudeDescriptor<T>>
+class BestNCornerMatchModule : public TemplatedCostCornerMatchModule<T, FeatureT> {
+public:
+
+    BestNCornerMatchModule(int nMatches,
+                           float maxRatio2Best = 1.1) :
+        _nMatches(nMatches),
+        _maxRatio2Best(maxRatio2Best)
+    {
+        _patchRadius = 3;
+    }
+
+    virtual std::vector<std::array<int,2>> matchCorners(
+        Multidim::Array<T,3, Multidim::ConstView> const& img1,
+        std::vector<std::array<float, 2>> const& corners1,
+        Multidim::Array<T,3, Multidim::ConstView> const& img2,
+        std::vector<std::array<float, 2>> const& corners2) override {
+
+
+
+        std::vector<std::array<int, 2>> integral_corners1(corners1.size());
+        std::vector<std::array<int, 2>> integral_corners2(corners2.size());
+
+        for (size_t i = 0; i < corners1.size(); i++) {
+            std::array<float, 2> pt = corners1[i];
+            integral_corners1[i] = std::array<int, 2>{static_cast<int>(std::round(pt[0])), static_cast<int>(std::round(pt[1]))};
+        }
+
+        for (size_t i = 0; i < corners2.size(); i++) {
+            std::array<float, 2> pt = corners2[i];
+            integral_corners2[i] = std::array<int, 2>{static_cast<int>(std::round(pt[0])), static_cast<int>(std::round(pt[1]))};
+        }
+
+        std::vector<StereoVision::SparseMatching::orientedCoordinate<2>> oriented1 =
+            StereoVision::SparseMatching::intensityOrientedCoordinates<true>(integral_corners1, img1, _patchRadius, TemplatedCostCornerMatchModule<T, FeatureT>::batchDim);
+        std::vector<StereoVision::SparseMatching::orientedCoordinate<2>> oriented2 =
+            StereoVision::SparseMatching::intensityOrientedCoordinates<true>(integral_corners2, img2, _patchRadius, TemplatedCostCornerMatchModule<T, FeatureT>::batchDim);
+
+        auto features1 = FeatureT::buildFeatures(oriented1, img1, TemplatedCostCornerMatchModule<T, FeatureT>::batchDim);
+        auto features2 = FeatureT::buildFeatures(oriented2, img2, TemplatedCostCornerMatchModule<T, FeatureT>::batchDim);
+
+        int n = features1.size();
+        int m = features2.size();
+
+        Eigen::MatrixXf costs;
+        costs.resize(n, m);
+
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < m; j++) {
+                costs(i,j) = StereoVision::Correlation::SumAbsDiff(features1[i].features, features2[j].features);
+            }
+        }
+
+        std::vector<std::vector<int>> bestsInRow(n);
+        std::vector<std::set<int>> bestsInCol(m);
+
+        for (int i = 0; i < n; i++) {
+            std::vector<int> idxs(m);
+            for (int k = 0; k < m; k++) {
+                idxs[k] = k;
+            }
+
+            std::sort(idxs.begin(), idxs.end(), [&costs, i] (int j1, int j2) {
+                return costs(i,j1) < costs(i,j2);
+            });
+
+            int lastAcceptable = 0;
+
+            int maxIdx = std::min<int>(idxs.size(), _nMatches);
+
+            float bestCost = costs(i,idxs[0]);
+
+            for (int k = 1; k < maxIdx; k++) {
+                if (costs(i,idxs[k]) > _maxRatio2Best*bestCost) {
+                    break;
+                }
+                lastAcceptable = k;
+            }
+
+            bestsInRow[i] = std::vector<int>(&idxs[0],&idxs[lastAcceptable+1]);
+        }
+
+        for (int j = 0; j < m; j++) {
+            std::vector<int> idxs(n);
+            for (int k = 0; k < n; k++) {
+                idxs[k] = k;
+            }
+
+            std::sort(idxs.begin(), idxs.end(), [&costs, j] (int i1, int i2) {
+                return costs(i1,j) < costs(i2,j);
+            });
+
+            int lastAcceptable = 0;
+
+            int maxIdx = std::min<int>(idxs.size(), _nMatches);
+
+            float bestCost = costs(idxs[0],j);
+
+            for (int k = 1; k < maxIdx; k++) {
+                if (costs(idxs[k],j) > _maxRatio2Best*bestCost) {
+                    break;
+                }
+                lastAcceptable = k;
+            }
+
+            bestsInCol[j] = std::set<int>(&idxs[0],&idxs[lastAcceptable+1]);
+        }
+
+        std::vector<std::array<int,2>> ret;
+        ret.reserve(std::min(n*_nMatches,m*_nMatches));
+
+        for (int i = 0; i < n; i++) {
+            for (int j : bestsInRow[i]) { //for the j in the best cost set for the current i
+                if (bestsInCol[j].count(i) > 0) { //if the current i is also in the se of best costs for the j
+                    ret.push_back({i,j}); //add the pair as a match.
+                }
+            }
+        }
+
+        //sort the matches from best to worse
+        std::sort(ret.begin(), ret.end(), [&costs] (std::array<int,2> const& match1, std::array<int,2> const& match2) {
+            return costs(match1[0],match1[1]) < costs(match2[0],match2[1]);
+        });
+
+        return ret;
+    }
+
+    void setNMatches(int n) {
+        _nMatches = n;
+    }
+
+protected:
+
+    int _patchRadius;
+    int _nMatches;
+    float _maxRatio2Best;
 };
 
 template<typename T>
@@ -1351,6 +1548,177 @@ protected:
     bool _multiThresholdingEnabled;
     float _threshold;
     float _sub_threshold;
+};
+
+template<typename T>
+using GenericModularSparseMatchingPipeline =
+    ModularSparseMatchingPipeline<T, GenericCornerDetectorModule<T>, GenericCornerMatchModule<T>, GenericTiePointsRenfinementModule<T>, GenericInlinerSelectionModule<T>>;
+
+class HeadlessSparseMatchingPipelineInterface : public QObject {
+    Q_OBJECT
+public:
+
+    static const char* INTERFACE_NAME;
+
+    explicit HeadlessSparseMatchingPipelineInterface(QObject* parent);
+    ~HeadlessSparseMatchingPipelineInterface();
+
+    struct ImageDataHolder {
+        ~ImageDataHolder();
+        QString name;
+        Multidim::Array<float, 3> imgData;
+        Correspondences::UVMatchBuilder* matchBuilder;
+    };
+
+    using GenericPipeleinePtr = std::variant<GenericModularSparseMatchingPipeline<float>*,
+                                             GenericModularSparseMatchingPipeline<double>*,
+                                             SparseMatchingPipeline<float>*,
+                                             SparseMatchingPipeline<double>*>;
+
+    template<typename PipelineT>
+    void setPipeline(PipelineT* pipeline) {
+        std::visit([] (auto* ptr) {
+            if (ptr != nullptr) {
+                delete ptr;
+            }
+        }, _current_pipeline);
+        _current_pipeline = pipeline;
+    }
+
+    /*!
+     * \brief configureImageData configure image data for the matching pipeline.
+     * \param name the name to register the image with.
+     * \param data The image data.
+     * \param matchBuilder a match builder to use to write correspondances sets to the project, the interface will take ownership of them and take care to delete them.
+     *
+     * Call this function twice to configure both images, if you call it more than twice, the oldest image will be replaced.
+     */
+    void configureImageData(QString const& name, Multidim::Array<float, 3> && data, Correspondences::UVMatchBuilder* matchBuilder);
+
+    StatusOptionalReturn<void> runAll(bool verbose);
+    StatusOptionalReturn<void> writeCorrespondanceSet(bool verbose);
+
+    template<typename T>
+    StatusOptionalReturn<void> setCornerModule(GenericCornerDetectorModule<T>* newCornerModule) {
+        if (!std::holds_alternative<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)) {
+            return StatusOptionalReturn<void>::error("No generic pipeline matching expected module type!");
+        }
+
+        std::get<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)->setCornerModule(newCornerModule);
+        return StatusOptionalReturn<void>();
+    }
+
+    template<typename T>
+    StatusOptionalReturn<void> setMatcherModule(GenericCornerMatchModule<T>* newMatcherModule) {
+        if (!std::holds_alternative<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)) {
+            return StatusOptionalReturn<void>::error("No generic pipeline matching expected module type!");
+        }
+
+        std::get<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)->setMatcherModule(newMatcherModule);
+        return StatusOptionalReturn<void>();
+    }
+
+    template<typename T>
+    StatusOptionalReturn<void> setRefineModule(GenericTiePointsRenfinementModule<T>* newRefineModule) {
+        if (!std::holds_alternative<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)) {
+            return StatusOptionalReturn<void>::error("No generic pipeline matching expected module type!");
+        }
+
+        std::get<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)->setRefineModule(newRefineModule);
+        return StatusOptionalReturn<void>();
+    }
+
+    template<typename T>
+    StatusOptionalReturn<void> setInlierModule(GenericInlinerSelectionModule<T>* newInlierModule) {
+        if (!std::holds_alternative<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)) {
+            return StatusOptionalReturn<void>::error("No generic pipeline matching expected module type!");
+        }
+
+        std::get<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)->setInlierModule(newInlierModule);
+        return StatusOptionalReturn<void>();
+    }
+
+    inline bool hasModularPipelineConfigured() const {
+
+        return std::visit([] (auto* ptr) {
+            if (ptr != nullptr) {
+                return GenericPipelineInfos::isModular(ptr);
+            }
+            return false;
+        }, _current_pipeline);
+    }
+
+    template<typename T>
+    inline bool hasTypedModularPipelineConfigured() const {
+        if (!std::holds_alternative<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline)) {
+            return false;
+        }
+        if (std::get<GenericModularSparseMatchingPipeline<T>*>(_current_pipeline) == nullptr) {
+            return false;
+        }
+        return true;
+    }
+
+    template<typename OStreamT>
+    StatusOptionalReturn<void> writeMatchingResultsToStream(OStreamT & stream) {
+        return std::visit([this, &stream] (auto* ptr) {
+            if (ptr == nullptr) {
+                return StatusOptionalReturn<void>::error("Matching pipeline not set");
+            }
+
+            stream << "Set " << qPrintable(_img_1_holder.name) << ' ' << qPrintable(_img_2_holder.name) << '\n';
+            ptr->writeMatchingResultsToStream(stream);
+            stream << "\n\n";
+
+            return StatusOptionalReturn<void>();
+
+        }, _current_pipeline);
+    }
+
+    inline QString const& getImageName(int idx) {
+        if (idx % 2 == 0) {
+            return _img_1_holder.name;
+        } else {
+            return _img_2_holder.name;
+        }
+    }
+
+    inline Multidim::Array<float, 3> const& getImageData(int idx) {
+        if (idx % 2 == 0) {
+            return _img_1_holder.imgData;
+        } else {
+            return _img_2_holder.imgData;
+        }
+    }
+
+    inline std::pair<std::vector<std::array<float, 2>>, std::vector<std::array<float, 2>>> filteredCorners() {
+        return std::visit([] (auto* ptr) {
+            if (ptr == nullptr) {
+                return std::pair<std::vector<std::array<float, 2>>, std::vector<std::array<float, 2>>>();
+            }
+            return ptr->filteredCorners();
+        }, _current_pipeline);
+    }
+
+protected:
+
+    struct GenericPipelineInfos {
+        template<typename T>
+        static bool isModular(T* pipeline) {
+            return false;
+        }
+        template<typename T>
+        static bool isModular(GenericModularSparseMatchingPipeline<T>* pipeline) {
+            return true;
+        }
+    };
+
+    ImageDataHolder* _nextFrame;
+
+    ImageDataHolder _img_1_holder;
+    ImageDataHolder _img_2_holder;
+
+    GenericPipeleinePtr _current_pipeline;
 };
 
 } // namespace StereoVisionApp

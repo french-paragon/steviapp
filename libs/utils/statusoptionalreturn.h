@@ -10,6 +10,9 @@ template<typename R_T>
 class StatusOptionalReturn {
 
 public:
+
+    using ReturnType = R_T;
+
     static StatusOptionalReturn<R_T> error(const char* msg) {
         StatusOptionalReturn<R_T> ret;
         ret._val = std::nullopt;
@@ -61,6 +64,9 @@ template<>
 class StatusOptionalReturn<void> {
 
 public:
+
+    using ReturnType = void;
+
     static StatusOptionalReturn<void> error(const char* msg) {
         StatusOptionalReturn<void> ret;
         ret._valid = false;
@@ -80,7 +86,7 @@ public:
         return _valid;
     }
 
-    inline const char* error() const {
+    inline const char* errorMessage() const {
         return _error_msg.c_str();
     }
 

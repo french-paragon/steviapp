@@ -7,6 +7,9 @@
 #include <QStringList>
 
 #include <functional>
+#include <variant>
+
+#include <MultidimArrays/MultidimArrays.h>
 
 #include "../utils/statusoptionalreturn.h"
 
@@ -21,7 +24,27 @@ class StereoVisionApplication : public QObject
 {
 	Q_OBJECT
 public:
-    using HeadlessAction = std::function<StatusOptionalReturn<void>(QMap<QString,QString> const& kwargs, QStringList const& argv)>;
+
+    using SilentHeadlessAction = std::function<StatusOptionalReturn<void>(QMap<QString,QString> const& kwargs, QStringList const& argv)>;
+    using CodeHeadlessAction = std::function<StatusOptionalReturn<int>(QMap<QString,QString> const& kwargs, QStringList const& argv)>;
+    using InfoHeadlessAction = std::function<StatusOptionalReturn<std::string>(QMap<QString,QString> const& kwargs, QStringList const& argv)>;
+    using GridHeadlessAction = std::function<StatusOptionalReturn<Multidim::Array<int,2>>(QMap<QString,QString> const& kwargs, QStringList const& argv)>;
+    using DataGridHeadlessAction = std::function<StatusOptionalReturn<Multidim::Array<float,2>>(QMap<QString,QString> const& kwargs, QStringList const& argv)>;
+    using ImageHeadlessAction = std::function<StatusOptionalReturn<Multidim::Array<float,3>>(QMap<QString,QString> const& kwargs, QStringList const& argv)>;
+
+    using HeadlessActionRType = std::variant<SilentHeadlessAction::result_type,
+                                             CodeHeadlessAction::result_type,
+                                             InfoHeadlessAction::result_type,
+                                             GridHeadlessAction::result_type,
+                                             DataGridHeadlessAction::result_type,
+                                             ImageHeadlessAction::result_type>;
+
+    using HeadlessAction = std::variant<SilentHeadlessAction,
+                                        CodeHeadlessAction,
+                                        InfoHeadlessAction,
+                                        GridHeadlessAction,
+                                        DataGridHeadlessAction,
+                                        ImageHeadlessAction>;
 
 	static StereoVisionApplication* GetAppInstance();
     static const char* appName();
@@ -83,7 +106,7 @@ public:
         _registeredHeadlessActions[namespaceName][actionName] = action;
     }
 
-    inline StatusOptionalReturn<void> callHeadlessAction(QString const& namespaceName,
+    inline HeadlessActionRType callHeadlessAction(QString const& namespaceName,
                                                          QString const& actionName,
                                                          QMap<QString,QString> const& kwargs,
                                                          QStringList const& argv) {
@@ -95,7 +118,9 @@ public:
             return StatusOptionalReturn<void>::error(qPrintable(QString("Action %1 is not registered in namespace %2").arg(actionName, namespaceName)));
         }
 
-        return _registeredHeadlessActions[namespaceName][actionName](kwargs, argv);
+        return std::visit([&kwargs, &argv] (auto & functor) -> HeadlessActionRType {
+            return functor(kwargs, argv);
+        }, _registeredHeadlessActions[namespaceName][actionName]);
     }
 
 Q_SIGNALS:

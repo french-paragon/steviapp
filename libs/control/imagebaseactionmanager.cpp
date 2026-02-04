@@ -296,6 +296,259 @@ void ImageBaseActionManager::registerAppHeadlessActions(StereoVisionApplication*
     const char* ImageNamespace = "Image";
 
     application->registerHeadlessAction(ImageNamespace,"autoDetectTiePoints", autoDetectImagesTiePointsHeadless);
+
+    const char* SparseMatchingNamespace = "SparseMatching";
+
+    application->registerHeadlessAction(SparseMatchingNamespace,
+                                        "configureModularHeadlessSparseMatchingPipeline",
+                                        [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(kwargs);
+                                            Q_UNUSED(argv);
+                                            return configureModularHeadlessSparseMatchingPipeline();
+                                        });
+
+    application->registerHeadlessAction(SparseMatchingNamespace,
+                                        "setupHeadlessHarrisCornerDetectorModule",
+                                        [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(argv);
+
+                                            int lowPassRadius = 3;
+                                            int nonMaximumSuppressionRadius = 3;
+                                            int maxNCorners = 100;
+
+                                            if (kwargs.contains("lowPassRadius")) {
+                                                bool ok = true;
+                                                lowPassRadius = kwargs["lowPassRadius"].toInt(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument lowPassRadius has invalid value (must be convertible to int)");
+                                                }
+                                            }
+
+                                            if (kwargs.contains("nonMaxSupprRadius")) {
+                                                bool ok = true;
+                                                nonMaximumSuppressionRadius = kwargs["nonMaxSupprRadius"].toInt(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument nonMaxSupprRadius has invalid value (must be convertible to int)");
+                                                }
+                                            }
+
+                                            if (kwargs.contains("maxNCorners")) {
+                                                bool ok = true;
+                                                maxNCorners = kwargs["maxNCorners"].toInt(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument maxNCorners has invalid value (must be convertible to int)");
+                                                }
+                                            }
+
+                                            return setupHeadlessHarrisCornerDetectorModule(lowPassRadius,
+                                                                                           nonMaximumSuppressionRadius,
+                                                                                           maxNCorners);
+                                        });
+
+    application->registerHeadlessAction(SparseMatchingNamespace,
+                                        "setupHeadlessHungarianCornerMatchModule",
+                                        [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(argv);
+
+                                            int patchRadius = 3;
+                                            int nSamples = 3;
+
+                                            if (kwargs.contains("patchRadius")) {
+                                                bool ok = true;
+                                                patchRadius = kwargs["patchRadius"].toInt(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument patchRadius has invalid value (must be convertible to int)");
+                                                }
+                                            }
+
+                                            if (kwargs.contains("nSamples")) {
+                                                bool ok = true;
+                                                nSamples = kwargs["nSamples"].toInt(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument nSamples has invalid value (must be convertible to int)");
+                                                }
+                                            }
+
+                                            return setupHeadlessHungarianCornerMatchModule(patchRadius, nSamples);
+                                        });
+
+    application->registerHeadlessAction(SparseMatchingNamespace,
+                                        "setupHeadlessBestNCornerMatchModule",
+                                        [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(argv);
+
+                                            int nMatches = 5;
+                                            float maxRatio2Best = 1.2;
+
+                                            if (kwargs.contains("nMatches")) {
+                                                bool ok = true;
+                                                nMatches = kwargs["nMatches"].toInt(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument nMatches has invalid value (must be convertible to int)");
+                                                }
+                                            }
+
+                                            if (kwargs.contains("maxRatio2Best")) {
+                                                bool ok = true;
+                                                maxRatio2Best = kwargs["maxRatio2Best"].toFloat(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument maxRatio2Best has invalid value (must be convertible to float)");
+                                                }
+                                            }
+
+                                            return setupHeadlessBestNCornerMatchModule(nMatches, maxRatio2Best);
+                                        });
+
+    application->registerHeadlessAction(SparseMatchingNamespace,
+                                        "setupHeadlessRansacEpipolarInlinerSelectionModule",
+                                        [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(argv);
+
+                                            int nRansacIterations = 500;
+                                            float threshold = 0.01;
+
+                                            if (kwargs.contains("nRansacIterations")) {
+                                                bool ok = true;
+                                                nRansacIterations = kwargs["nRansacIterations"].toInt(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument nRansacIterations has invalid value (must be convertible to int)");
+                                                }
+                                            }
+
+                                            if (kwargs.contains("threshold")) {
+                                                bool ok = true;
+                                                threshold = kwargs["threshold"].toFloat(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument threshold has invalid value (must be convertible to float)");
+                                                }
+                                            }
+
+                                            return setupHeadlessRansacEpipolarInlinerSelectionModule(nRansacIterations, threshold);
+                                        });
+
+
+    application->registerHeadlessAction(SparseMatchingNamespace,
+                                        "setupHeadlessRansacPerspectiveInlinerSelectionModule",
+                                        [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(argv);
+
+                                            int nRansacIterations = 500;
+                                            bool enableMultiThresholding = false;
+                                            float threshold = 50;
+                                            float subthreshold = 5;
+
+                                            if (kwargs.contains("nRansacIterations")) {
+                                                bool ok = true;
+                                                nRansacIterations = kwargs["nRansacIterations"].toInt(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument nRansacIterations has invalid value (must be convertible to int)");
+                                                }
+                                            }
+
+                                            if (kwargs.contains("enableMultiThresholding")) {
+                                                enableMultiThresholding = QVariant(kwargs["enableMultiThresholding"]).toBool();
+                                            }
+
+                                            if (kwargs.contains("threshold")) {
+                                                bool ok = true;
+                                                threshold = kwargs["threshold"].toFloat(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument threshold has invalid value (must be convertible to float)");
+                                                }
+                                            }
+
+                                            if (kwargs.contains("subthreshold")) {
+                                                bool ok = true;
+                                                subthreshold = kwargs["subthreshold"].toFloat(&ok);
+
+                                                if (!ok) {
+                                                    return StatusOptionalReturn<void>::error("argument subthreshold has invalid value (must be convertible to float)");
+                                                }
+                                            }
+
+                                            return setupHeadlessRansacPerspectiveInlinerSelectionModule(nRansacIterations, enableMultiThresholding, threshold, subthreshold);
+                                        });
+
+    application->registerHeadlessAction(SparseMatchingNamespace,
+                                        "addImageToHeadlessSparseMatching",
+                                        [application] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(kwargs);
+
+                                            if (argv.isEmpty()) {
+                                                return StatusOptionalReturn<void>::error("missing image id, needed as one positional argument!)");
+                                            }
+
+                                            bool ok = true;
+                                            qint64 imgId = argv[0].toInt(&ok);
+
+                                            if (!ok) {
+                                                return StatusOptionalReturn<void>::error("Invalid image id provided!)");
+                                            }
+
+                                            Project* proj = application->getCurrentProject();
+
+                                            if (proj == nullptr) {
+                                                return StatusOptionalReturn<void>::error("Missing current project in application!)");
+                                            }
+
+                                            return addImageToHeadlessSparseMatching(proj, imgId);
+                                        });
+
+        application->registerHeadlessAction(SparseMatchingNamespace,
+                                            "writeHeadlessMatchingResultsToFile",
+                                            [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(kwargs);
+
+                                                if (argv.isEmpty()) {
+                                                    return StatusOptionalReturn<void>::error("missing output file path argument, needed as one positional argument!)");
+                                                }
+
+                                                QString filePath = argv[0];
+
+                                                return printHeadlessSparseMatchingResults(filePath);
+                                            });
+
+    application->registerHeadlessAction(SparseMatchingNamespace,
+                                        "getHeadlessSparseMatchingResults",
+                                        [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                                Q_UNUSED(kwargs);
+                                                Q_UNUSED(argv);
+                                            return getHeadlessSparseMatchingResults();
+                                        });
+
+        application->registerHeadlessAction(SparseMatchingNamespace,
+                                            "runHeadlessMatching",
+                                            [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                            Q_UNUSED(kwargs);
+                                            Q_UNUSED(argv);
+                                                return runHeadlessMatching();
+                                            });
+
+        application->registerHeadlessAction(SparseMatchingNamespace,
+                                            "exportHeadlessSparseMatchingResultsView",
+                                            [] (QMap<QString,QString> const& kwargs, QStringList const& argv) {
+                                                Q_UNUSED(kwargs);
+                                                if (argv.isEmpty()) {
+                                                    return StatusOptionalReturn<void>::error("missing output file path argument, needed as one positional argument!)");
+                                                }
+
+                                                QString outFilePath = argv[0];
+
+                                                return exportHeadlessSparseMatchingResultsView(outFilePath);
+                                            });
+
+
 }
 
 QAction* ImageBaseActionManager::createAssignToCameraAction(QObject* parent, Project* p, QVector<Image*> const& ims) const {

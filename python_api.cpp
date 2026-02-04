@@ -27,6 +27,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include <MultidimArrays/MultidimArrays.h>
+
 namespace py = pybind11;
 
 class Watcher : public QObject {
@@ -967,10 +969,10 @@ public:
     void printAvailableActions();
     void printAvailableActionsInNamespace(std::string const& namespaceName);
 
-    void callAction(std::string const& namespaceName,
-                    std::string const& actionName,
-                    std::vector<std::string> const& args,
-                    std::map<std::string, std::string> const& kwargs);
+    py::object callAction(std::string const& namespaceName,
+                                std::string const& actionName,
+                                std::vector<std::string> const& args,
+                                std::map<std::string, std::string> const& kwargs);
 
 private:
 
@@ -1128,7 +1130,7 @@ void PythonStereoVisionApp::printAvailableActionsInNamespace(std::string const& 
 
 }
 
-void PythonStereoVisionApp::callAction(std::string const& namespaceName,
+py::object PythonStereoVisionApp::callAction(std::string const& namespaceName,
                                        std::string const& actionName,
                                        std::vector<std::string> const& args,
                                        std::map<std::string, std::string> const& kwargs) {
@@ -1137,7 +1139,7 @@ void PythonStereoVisionApp::callAction(std::string const& namespaceName,
 
     if (app == nullptr) {
         py::print("No app instance available");
-        return;
+        return py::none();
     }
 
     QMap<QString,QString> convertedKwargs;
@@ -1153,14 +1155,65 @@ void PythonStereoVisionApp::callAction(std::string const& namespaceName,
     }
 
     auto status = app->callHeadlessAction(QString::fromStdString(namespaceName),
-                                                    QString::fromStdString(actionName),
-                                                    convertedKwargs,
-                                                    convertedArgs);
+                                          QString::fromStdString(actionName),
+                                          convertedKwargs,
+                                          convertedArgs);
 
-    if (!status.isValid()) {
-        py::print("Error occured: ", status.error());
+
+    std::string error = std::visit([] (auto const& result) {
+        return result.errorMessage();
+    }, status);
+    bool isValid = std::visit([] (auto const& result) {
+        return result.isValid();
+    }, status);
+
+    if (!isValid) {
+        py::print("Error occured: ", error);
+        return py::none();
     }
 
+    if (std::holds_alternative<StereoVisionApp::StatusOptionalReturn<void>>(status)) {
+        return py::none();
+    }
+
+    return std::visit([] (auto & val) -> py::object {
+        if constexpr(std::is_same_v<typename std::remove_reference_t<decltype(val)>::ReturnType, void>) {
+            return py::none();
+        } else {
+            return py::cast(val.value());
+        }
+    }, status);
+}
+
+template<typename T, size_t nDim>
+inline void defineMultidimArrayBuffer(py::module & module) {
+
+    std::string format = py::format_descriptor<T>::format();
+    std::string typeName = "MultidimArray" + format + std::to_string(sizeof(T)) + "_" + std::to_string(nDim);
+
+    py::class_<Multidim::Array<T,nDim>>(module, typeName.c_str(), py::buffer_protocol())
+        .def_buffer([](Multidim::Array<T,nDim> &m) -> py::buffer_info {
+
+            std::vector<size_t> shapes(nDim);
+            std::vector<size_t> strides(nDim);
+
+            std::array<int,nDim> idx0;
+
+            for (int i = 0; i < nDim; i++) {
+                shapes[i] = m.shape()[i];
+                strides[i] = sizeof(T) * m.strides()[i];
+                idx0[i] = 0;
+            }
+
+            return py::buffer_info(
+                &m.at(idx0),
+                sizeof(T),
+                py::format_descriptor<float>::format(),
+                nDim,
+                shapes,
+                strides
+                );
+        });
 }
 
 PYBIND11_MODULE(pysteviapp, m) {
@@ -1171,6 +1224,28 @@ PYBIND11_MODULE(pysteviapp, m) {
         .def_property("fixed", &DataBlockReference::isFixed, &DataBlockReference::setFixed)
         .def_property("name", &DataBlockReference::name, &DataBlockReference::setObjectName)
         .def_property_readonly("reference", &DataBlockReference::reference);
+
+    defineMultidimArrayBuffer<int8_t,2>(m);
+    defineMultidimArrayBuffer<uint8_t,2>(m);
+    defineMultidimArrayBuffer<int16_t,2>(m);
+    defineMultidimArrayBuffer<uint16_t,2>(m);
+    defineMultidimArrayBuffer<int32_t,2>(m);
+    defineMultidimArrayBuffer<uint32_t,2>(m);
+    defineMultidimArrayBuffer<int64_t,2>(m);
+    defineMultidimArrayBuffer<uint64_t,2>(m);
+    defineMultidimArrayBuffer<float,2>(m);
+    defineMultidimArrayBuffer<double,2>(m);
+
+    defineMultidimArrayBuffer<int8_t,3>(m);
+    defineMultidimArrayBuffer<uint8_t,3>(m);
+    defineMultidimArrayBuffer<int16_t,3>(m);
+    defineMultidimArrayBuffer<uint16_t,3>(m);
+    defineMultidimArrayBuffer<int32_t,3>(m);
+    defineMultidimArrayBuffer<uint32_t,3>(m);
+    defineMultidimArrayBuffer<int64_t,3>(m);
+    defineMultidimArrayBuffer<uint64_t,3>(m);
+    defineMultidimArrayBuffer<float,3>(m);
+    defineMultidimArrayBuffer<double,3>(m);
 
 	py::class_<PythonStereoVisionApp>(m, "AppInstance")
 			.def(py::init<const std::string &, bool>(), py::arg("appLocation") = "", py::arg("headless") = true)
