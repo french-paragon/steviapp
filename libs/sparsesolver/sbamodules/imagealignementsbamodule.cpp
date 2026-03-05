@@ -2,6 +2,7 @@
 
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
+#include "datablocks/landmark.h"
 
 #include "../costfunctors/leverarmcostfunctor.h"
 
@@ -70,6 +71,17 @@ bool ImageAlignementSBAModule::addGraphReductorObservations(Project *currentProj
         QVector<qint64> connections = im->getAttachedLandmarksIds();
 
         for (qint64 lmId : connections) {
+
+            Landmark* lm = qobject_cast<Landmark*>(currentProject->getById(lmId));
+
+            if (lm == nullptr) {
+                continue;
+            }
+
+            if (!lm->isEnabled()) {
+                continue;
+            }
+
             graphReductor->insertObservation(id, lmId, 2);
         }
 
@@ -236,6 +248,16 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
             ImageLandmark* iml = im->getImageLandmark(imlmId);
 
             if (iml == nullptr) {
+                continue;
+            }
+
+            Landmark* lm = iml->attachedLandmark();
+
+            if (lm == nullptr) {
+                continue;
+            }
+
+            if (!lm->isEnabled()) {
                 continue;
             }
 

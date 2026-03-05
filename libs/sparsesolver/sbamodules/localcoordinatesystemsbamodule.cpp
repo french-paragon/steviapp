@@ -35,6 +35,17 @@ bool LocalCoordinateSystemSBAModule::addGraphReductorVariables(Project *currentP
     QVector<qint64> lcsIdxs = currentProject->getIdsByClass(LocalCoordinateSystem::staticMetaObject.className());
 
     for (qint64 lcsId : lcsIdxs) {
+
+        LocalCoordinateSystem* lcs = qobject_cast<LocalCoordinateSystem*>(currentProject->getById(lcsId));
+
+        if (lcs == nullptr) {
+            continue;
+        }
+
+        if (lcs->isEnabled() == false) {
+            continue;
+        }
+
         graphReductor->insertItem(lcsId, 6);
     }
 
@@ -85,6 +96,17 @@ bool LocalCoordinateSystemSBAModule::addGraphReductorObservations(Project *curre
         QVector<qint64> connections = lcs->getAttachedLandmarksIds();
 
         for (qint64 lmId : connections) {
+
+            Landmark* lm = qobject_cast<Landmark*>(currentProject->getById(lmId));
+
+            if (lm == nullptr) {
+                continue;
+            }
+
+            if (!lm->isEnabled()) {
+                continue;
+            }
+
             graphReductor->insertObservation(id, lmId, 3);
         }
     }
@@ -267,6 +289,16 @@ bool LocalCoordinateSystemSBAModule::init(ModularSBASolver* solver, ceres::Probl
             }
 
             if (!lmlc->xCoord().isSet() or !lmlc->yCoord().isSet() or !lmlc->zCoord().isSet()) {
+                continue;
+            }
+
+            Landmark* lm = qobject_cast<Landmark*>(currentProject->getById(lmlc->attachedLandmarkid()));
+
+            if (lm == nullptr) {
+                continue;
+            }
+
+            if (!lm->isEnabled()) {
                 continue;
             }
 

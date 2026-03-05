@@ -26,6 +26,17 @@ bool LandmarksSBAModule::addGraphReductorVariables(Project *currentProject, Gene
     QVector<qint64> lmks_v = currentProject->getIdsByClass(Landmark::staticMetaObject.className());
 
     for (qint64 id : lmks_v) {
+
+        Landmark* lm = qobject_cast<Landmark*>(currentProject->getById(id));
+
+        if (lm == nullptr) {
+            continue;
+        }
+
+        if (!lm->isEnabled()) {
+            continue;
+        }
+
         graphReductor->insertItem(id, 3);
     }
 
@@ -49,6 +60,10 @@ bool LandmarksSBAModule::addGraphReductorObservations(Project *currentProject, G
         }
 
         if (!lm->xCoord().isSet() or !lm->yCoord().isSet() or !lm->zCoord().isSet()) {
+            continue;
+        }
+
+        if (!lm->isEnabled()) {
             continue;
         }
 
@@ -113,7 +128,7 @@ bool LandmarksSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem
         }
 
         if (!lm->isEnabled()) {
-            return false;
+            continue;
         }
 
         ModularSBASolver::PositionNode* lmNode = solver->getNodeForLandmark(lmId, false);
