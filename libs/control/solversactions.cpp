@@ -8,25 +8,14 @@
 #include "gui/sparsesolverconfigdialog.h"
 #include "gui/sparsestereosolverconfigdialog.h"
 #include "gui/stepprocessmonitorbox.h"
-#include "gui/sparsealignementeditor.h"
 
-//#include "sparsesolver/graphroughbundleadjustementsolver.h"
-//#include "sparsesolver/graphsbasolver.h"
-#include "sparsesolver/ceressbasolver.h"
-//#include "sparsesolver/graphstereorigsolver.h"
-//#include "sparsesolver/sbagraphreductor.h"
-//#include "sparsesolver/sbainitializer.h"
 #include "sparsesolver/modularsbasolver.h"
 #include "sparsesolver/sbamodules/trajectorybasesbamodule.h"
 #include "sparsesolver/sbamodules/localcoordinatesystemsbamodule.h"
 #include "sparsesolver/sbamodules/imagealignementsbamodule.h"
 #include "sparsesolver/sbamodules/landmarkssbamodule.h"
 #include "sparsesolver/sbamodules/correspondencessetsbamodule.h"
-
-#include "datablocks/landmark.h"
-#include "datablocks/image.h"
-#include "datablocks/camera.h"
-#include "datablocks/stereorig.h"
+#include "sparsesolver/sbamodules/pinholecameraprojectormodule.h"
 
 #include <QThread>
 #include <QMessageBox>
@@ -465,6 +454,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
     //gui input
 
+    bool useRobustCameras = false;
     bool computeUncertainty = false;
 	bool useSparseOptimizer = true;
     bool verbose = true;
@@ -478,6 +468,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		d.setModal(true);
 		d.setWindowTitle(QObject::tr("Sparse optimizer options"));
         d.enableUseCurrentSolutionOption(false);
+        d.setUseRobustCameras(useRobustCameras);
         d.setComputeUncertainty(computeUncertainty);
         d.setUseSparseOptimizer(useSparseOptimizer);
 
@@ -489,6 +480,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 			return;
 		}
 
+        useRobustCameras = d.useRobustCameras();
 		computeUncertainty = d.computeUncertainty();
 		useSparseOptimizer = d.useSparseOptimizer();
 		nSteps = d.numberOfSteps();
@@ -501,6 +493,10 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 	}
 
     ModularSBASolver* solver = new ModularSBASolver(p, computeUncertainty, useSparseOptimizer, verbose);
+
+    if (useRobustCameras) {
+        solver->setProperty(PinholeCamProjModule::UseSphericalCostSolverParamName, true); //use the spherical projectors
+    }
 
 	solver->setOptimizationSteps(nSteps);
 	solver->setFixedParametersFlag(fixedParameters);

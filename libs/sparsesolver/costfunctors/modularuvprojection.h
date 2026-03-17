@@ -325,10 +325,24 @@ protected:
     int _nProjParams;
 };
 
-template<typename UVProjector, int ... uvProjParamsSizes>
+enum UVProjFlags {
+    PlaneCost = 0,
+    SphericalCost = 1
+};
+
+template<int Flags>
+struct UVProjTraits
+{
+    static constexpr inline bool useSphericalCost = bool(Flags & SphericalCost);
+    static constexpr inline bool usePlaneCost = !useSphericalCost;
+};
+
+template<typename UVProjector, int Flags, int ... uvProjParamsSizes>
 class UV2ParametrizedXYZCost
 {
 public:
+
+    using Traits = UVProjTraits<Flags>;
 
     static constexpr int nProjParameters = sizeof... (uvProjParamsSizes);
     static constexpr int uvProjParametersSizes[] = {uvProjParamsSizes...};
@@ -357,6 +371,8 @@ public:
                     const T* const lm,
                     P ... additionalParams) const {
 
+        using namespace ceres;
+
         static_assert(sizeof... (additionalParams) == nProjParameters+1, "wrong number of projection parameters provided");
 
         std::array<const T*,nProjParameters+1> additionalParamsArray = {additionalParams...};
@@ -376,8 +392,10 @@ public:
         world2sensor.t << t[0], t[1], t[2];
 
         V3T Pbar = world2sensor*lm_pos;
-        if (Pbar[2] < 0.0) {
-            return false;
+        if constexpr (Traits::usePlaneCost) {
+            if (Pbar[2] < 0.0) {
+                return false;
+            }
         }
 
         V2T proj = StereoVision::Geometry::projectPoints(Pbar);
@@ -392,10 +410,27 @@ public:
 
         V3T direction = _projector->dirFromUV(uv.data(), projParams.data());
 
-        proj *= direction.z();
-
         V2T error;
-        error << proj[0] - direction[0], proj[1] - direction[1];
+        if constexpr (Traits::usePlaneCost) {
+            proj *= direction.z();
+            error << proj[0] - direction[0], proj[1] - direction[1];
+        } else {
+            //direction1
+            T alpha1 = atan2(direction[0],direction[2]);
+            V2T d1_proj;
+            d1_proj << cos(alpha1)*Pbar[2] + sin(alpha1)*Pbar[0],
+                cos(alpha1)*Pbar[0] - sin(alpha1)*Pbar[2];
+            T alpha2 = atan2(d1_proj[1],d1_proj[0]); //rotate then compute angle, to avoid ambiguities when just taking a difference
+            error[0] = alpha2*sqrt(direction[0]*direction[0]+direction[2]*direction[2])/cos(alpha1);
+
+            //direction2
+            T beta1 = atan2(direction[1],direction[2]);
+            V2T d2_proj;
+            d2_proj << cos(beta1)*Pbar[2] + sin(beta1)*Pbar[1],
+                cos(beta1)*Pbar[1] - sin(beta1)*Pbar[2];
+            T beta2 = atan2(d2_proj[1],d2_proj[0]); //rotate then compute angle, to avoid ambiguities when just taking a difference
+            error[1] = beta2*sqrt(direction[1]*direction[1]+direction[2]*direction[2])/cos(beta1);
+        }
 
         T* residual = std::get<nProjParameters>(additionalParamsTuple);
 

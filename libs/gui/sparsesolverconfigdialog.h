@@ -25,11 +25,13 @@ public:
 	bool shouldRun() const;
 	bool computeUncertainty() const;
 	bool useSparseOptimizer() const;
+    bool useRobustCameras() const;
 	bool initWithCurrentSol() const;
 	int numberOfSteps() const;
 
     void setComputeUncertainty(bool compute);
     void setUseSparseOptimizer(bool useSparse);
+    void setUseRobustCameras(bool useRobust);
 
 	void setNumberOfSteps(int nSteps);
 

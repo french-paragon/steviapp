@@ -9,3 +9,4 @@ add_subdirectory(test_sba_solver)
 add_subdirectory(test_test_utils)
 
 add_subdirectory(demo_gyro_bias_preintegration)
+add_subdirectory(demo_spherical_pinhole_costs)

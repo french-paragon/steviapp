@@ -50,6 +50,9 @@ bool SparseSolverConfigDialog::useSparseOptimizer() const {
 bool SparseSolverConfigDialog::initWithCurrentSol() const {
 	return ui->initWithCurrentSolCheckBox->isChecked();
 }
+bool SparseSolverConfigDialog::useRobustCameras() const {
+    return ui->useRobustCameraCheckBox->isChecked();
+}
 
 int SparseSolverConfigDialog::numberOfSteps() const {
 	return ui->nStepSpinBoxpinBox->value();
@@ -60,6 +63,9 @@ void SparseSolverConfigDialog::setComputeUncertainty(bool compute) {
 }
 void SparseSolverConfigDialog::setUseSparseOptimizer(bool useSparse) {
     return ui->useSparseOptimizerCheckBox->setChecked(useSparse);
+}
+void SparseSolverConfigDialog::setUseRobustCameras(bool useRobust) {
+    return ui->useRobustCameraCheckBox->setChecked(useRobust);
 }
 
 void SparseSolverConfigDialog::setNumberOfSteps(int nSteps) {

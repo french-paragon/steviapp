@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>370</width>
-    <height>219</height>
+    <height>246</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -32,10 +32,10 @@
          <number>1</number>
         </property>
         <property name="maximum">
-         <number>999</number>
+         <number>9999</number>
         </property>
         <property name="value">
-         <number>5</number>
+         <number>500</number>
         </property>
        </widget>
       </item>
@@ -73,6 +73,16 @@
         </property>
         <property name="checked">
          <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="useRobustCameraCheckBox">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use robust cameras, e.g., replace pinhole cameras with a spherical approximation, biasing the error function but ensuring that the projection function is defined for any geometric configuration, even when the point is behind the camera.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="text">
+         <string>Use robust cameras</string>
         </property>
        </widget>
       </item>

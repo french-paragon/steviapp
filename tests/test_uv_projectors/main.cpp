@@ -22,6 +22,7 @@ private Q_SLOTS:
     void initTestCase();
 
     void testPinholeUVProjector();
+    void testSphericalPinholeUVProjector();
     void testPushBroomPinholeUVProjector();
     void testCrossUVProjector();
 
@@ -107,6 +108,83 @@ void TestUvProjector::testPinholeUVProjector() {
     QVERIFY(std::abs(cost) < 1e-6);
 
 }
+
+void TestUvProjector::testSphericalPinholeUVProjector() {
+
+    StereoVisionApp::Project project(nullptr);
+
+    StereoVisionApp::ModularSBASolver sbaSolver(&project);
+    sbaSolver.setProperty(StereoVisionApp::PinholeCamProjModule::UseSphericalCostSolverParamName, true); //use the spherical projector
+
+    ceres::Problem problem;
+
+    StereoVisionApp::Camera camera(&project);
+
+    camera.setImHeight(480);
+    camera.setImWidth(640);
+
+    StereoVisionApp::floatParameter fLen(35);
+    StereoVisionApp::floatParameter ppX(pFloatType(camera.imWidth())/2);
+    StereoVisionApp::floatParameter ppY(pFloatType(camera.imHeight())/2);
+
+    StereoVisionApp::floatParameter zero(0);
+
+    camera.setFLen(fLen);
+    camera.setOpticalCenterX(ppX);
+    camera.setOpticalCenterY(ppY);
+
+    camera.setB1(zero);
+    camera.setB2(zero);
+
+    camera.setP1(zero);
+    camera.setP2(zero);
+
+    camera.setK1(zero);
+    camera.setK2(zero);
+    camera.setK3(zero);
+    camera.setK4(zero);
+    camera.setK5(zero);
+    camera.setK6(zero);
+
+    StereoVisionApp::PinholeCamProjModule projectorModule(&camera);
+
+    projectorModule.setVerbose(false);
+    projectorModule.setup(&sbaSolver, problem);
+
+    bool initOk = projectorModule.init();
+
+    QVERIFY(initOk);
+
+    std::array<double, 3> pointPos = {42,33,fLen.value()};
+    std::array<double, 3> camRot = {0,0,0};
+    std::array<double, 3> camPos = {0,0,0};
+
+    Eigen::Vector2d ptPos;
+    ptPos << pointPos[0] + ppX.value(), pointPos[1] + ppY.value();
+    ptPos /= pointPos[2];
+    ptPos *= fLen.value();
+
+    Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
+
+    bool addingOk = projectorModule.addProjectionCostFunction(pointPos.data(), camRot.data(), camPos.data(), ptPos, stiffness);
+
+    QVERIFY(addingOk);
+
+    //check the cost was effectively added
+    QVERIFY(problem.NumResidualBlocks() >= 1);
+
+    double cost;
+
+    ceres::Problem::EvaluateOptions options;
+
+    bool evaluateOk = problem.Evaluate(options, &cost, nullptr, nullptr, nullptr);
+
+    QVERIFY(evaluateOk);
+
+    QVERIFY(std::abs(cost) < 1e-6);
+
+}
+
 void TestUvProjector::testPushBroomPinholeUVProjector() {
 
     StereoVisionApp::Project project(nullptr);

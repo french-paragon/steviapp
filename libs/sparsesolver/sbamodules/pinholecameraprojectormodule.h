@@ -120,6 +120,9 @@ class PinholeCamProjModule : public ModularSBASolver::ProjectorModule
 
 public:
 
+    //! \brief parameter that can be set in the sba solver to request the use of spherical constraints when using pinhole projection costs
+    static const char* UseSphericalCostSolverParamName;
+
     PinholeCamProjModule(Camera* associatedCamera);
     ~PinholeCamProjModule();
 
@@ -143,6 +146,17 @@ public:
     virtual void cleanup() override;
 
 protected:
+
+    template<bool useSpherical>
+    bool addProjectionCostFunctionImpl(double* pointData,
+                                       double* poseOrientation,
+                                       double* posePosition,
+                                       Eigen::Vector2d const& ptProjPos,
+                                       Eigen::Matrix2d const& ptProjStiffness,
+                                       const StereoVision::Geometry::RigidBodyTransform<double> &offset,
+                                       double *leverArmOrientation,
+                                       double *leverArmPosition,
+                                       const QString &logLabel);
 
     Camera* _associatedCamera;
 
@@ -183,6 +197,17 @@ public:
     virtual void cleanup() override;
 
 protected:
+
+    template<bool useSpherical>
+    bool addProjectionCostFunctionImpl(double* pointData,
+                                           double* poseOrientation,
+                                           double* posePosition,
+                                           Eigen::Vector2d const& ptProjPos,
+                                           Eigen::Matrix2d const& ptProjStiffness,
+                                           StereoVision::Geometry::RigidBodyTransform<double> const& offset = StereoVision::Geometry::RigidBodyTransform<double>(Eigen::Vector3d::Zero(),Eigen::Vector3d::Zero()),
+                                           double* leverArmOrientation = nullptr,
+                                           double* leverArmPosition = nullptr,
+                                           QString const& logLabel = "");
 
     PushBroomPinholeCamera* _associatedCamera;
 

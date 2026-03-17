@@ -12,12 +12,20 @@
 
 namespace StereoVisionApp {
 
-using UVCostPB = InvertPose<UV2ParametrizedXYZCost<PinholePushbroomUVProjector,1,1,6,6>,0>;
+template<int UvCostFlags>
+using UVCostPB = InvertPose<UV2ParametrizedXYZCost<PinholePushbroomUVProjector,UvCostFlags, 1,1,6,6>,0>;
 
-using UVCost = InvertPose<UV2ParametrizedXYZCost<PinholeUVProjector,1,2,3,2,2>,0>;
-using LeverArmCost = LeverArm<UVCost,Body2World|Body2Sensor,0>;
-using PoseTransformCost = PoseTransform<UVCost,PoseTransformDirection::SourceToInitial,0>;
-using PoseTransformLeverArmCost = PoseTransform<LeverArmCost,PoseTransformDirection::SourceToInitial,0>;
+template<int UvCostFlags>
+using UVCost = InvertPose<UV2ParametrizedXYZCost<PinholeUVProjector,UvCostFlags,1,2,3,2,2>,0>;
+template<int UvCostFlags>
+using LeverArmCost = LeverArm<UVCost<UvCostFlags>,Body2World|Body2Sensor,0>;
+template<int UvCostFlags>
+using PoseTransformCost = PoseTransform<UVCost<UvCostFlags>,PoseTransformDirection::SourceToInitial,0>;
+template<int UvCostFlags>
+using PoseTransformLeverArmCost = PoseTransform<LeverArmCost<UvCostFlags>,PoseTransformDirection::SourceToInitial,0>;
+
+
+const char* PinholeCamProjModule::UseSphericalCostSolverParamName = "useSphericalCostPinholeCamProjCost";
 
 PinholeCamProjModule::PinholeCamProjModule(Camera* associatedCamera) :
     _associatedCamera(associatedCamera)
@@ -33,26 +41,26 @@ QString PinholeCamProjModule::moduleName() const {
     return "PinholeCamProjModule";
 }
 
-bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
-                                                      double* poseOrientation,
-                                                      double* posePosition,
-                                                      Eigen::Vector2d const& ptProjPos,
-                                                      Eigen::Matrix2d const& ptProjStiffness,
-                                                      const StereoVision::Geometry::RigidBodyTransform<double> &offset,
-                                                      double *leverArmOrientation,
-                                                      double *leverArmPosition,
-                                                      const QString &logLabel) {
 
 
-    if (!isSetup()) {
-        return false;
-    }
+template<bool useSpherical>
+bool PinholeCamProjModule::addProjectionCostFunctionImpl(double* pointData,
+                                   double* poseOrientation,
+                                   double* posePosition,
+                                   Eigen::Vector2d const& ptProjPos,
+                                   Eigen::Matrix2d const& ptProjStiffness,
+                                   const StereoVision::Geometry::RigidBodyTransform<double> &offset,
+                                   double *leverArmOrientation,
+                                   double *leverArmPosition,
+                                   const QString &logLabel) {
+
+    constexpr int Flags = (useSpherical) ? UVProjFlags::SphericalCost : UVProjFlags::PlaneCost;
 
     if (offset.r.norm() < 1e-6 and offset.t.norm() < 1e-6) {
 
         if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
 
-            LeverArmCost* projCost = new LeverArmCost(
+            LeverArmCost<Flags>* projCost = new LeverArmCost<Flags>(
                 new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
                 ptProjPos,
                 ptProjStiffness);
@@ -70,20 +78,20 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
                                                   _tangentialDistortion.data(),
                                                   _skewDistortion.data()};
 
-            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<LeverArmCost, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<LeverArmCost<Flags>, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
                                        params.data(), nArgs);
 
             if (isVerbose() and !logLabel.isEmpty()) {
 
                 QString loggerName = logLabel;
-                LeverArmCost* projCostLog = new LeverArmCost(
+                LeverArmCost<Flags>* projCostLog = new LeverArmCost<Flags>(
                     new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
                     ptProjPos,
                     Eigen::Matrix2d::Identity());
 
                 ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
-                        new ceres::AutoDiffCostFunction<LeverArmCost, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+                    new ceres::AutoDiffCostFunction<LeverArmCost<Flags>, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
                         params,
                         true);
 
@@ -94,7 +102,7 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
             return true;
 
         } else {
-            UVCost* projCost = new UVCost(
+            UVCost<Flags>* projCost = new UVCost<Flags>(
                 new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
                 ptProjPos,
                 ptProjStiffness);
@@ -110,20 +118,20 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
                                                   _tangentialDistortion.data(),
                                                   _skewDistortion.data()};
 
-            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<UVCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<UVCost<Flags>, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
                                        params.data(), nArgs);
 
             if (isVerbose() and !logLabel.isEmpty()) {
 
                 QString loggerName = logLabel;
-                UVCost* projCostLog = new UVCost(
+                UVCost<Flags>* projCostLog = new UVCost<Flags>(
                     new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
                     ptProjPos,
                     Eigen::Matrix2d::Identity());
 
                 ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
-                        new ceres::AutoDiffCostFunction<UVCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+                    new ceres::AutoDiffCostFunction<UVCost<Flags>, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
                         params,
                         true);
 
@@ -138,8 +146,8 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
 
         if (leverArmOrientation != nullptr and leverArmPosition != nullptr) {
 
-            PoseTransformLeverArmCost* projCost =
-                new PoseTransformLeverArmCost(
+            PoseTransformLeverArmCost<Flags>* projCost =
+                new PoseTransformLeverArmCost<Flags>(
                     offset,new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
                     ptProjPos,
                     ptProjStiffness);
@@ -157,15 +165,15 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
                                                   _tangentialDistortion.data(),
                                                   _skewDistortion.data()};
 
-            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<PoseTransformLeverArmCost, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<PoseTransformLeverArmCost<Flags>, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
                                        params.data(), nArgs);
 
 
             if (isVerbose() and !logLabel.isEmpty()) {
 
                 QString loggerName = logLabel;
-                PoseTransformLeverArmCost* projCostLog =
-                    new PoseTransformLeverArmCost(
+                PoseTransformLeverArmCost<Flags>* projCostLog =
+                    new PoseTransformLeverArmCost<Flags>(
                         offset,
                         new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
                         ptProjPos,
@@ -173,7 +181,7 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
 
                 ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
-                        new ceres::AutoDiffCostFunction<PoseTransformLeverArmCost, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+                    new ceres::AutoDiffCostFunction<PoseTransformLeverArmCost<Flags>, 2, 3, 3, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
                         params,
                         true);
 
@@ -186,7 +194,7 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
 
         } else {
 
-            PoseTransformCost* projCost = new PoseTransformCost(offset,
+            PoseTransformCost<Flags>* projCost = new PoseTransformCost<Flags>(offset,
                                                                 new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
                                                                 ptProjPos,
                                                                 ptProjStiffness);
@@ -202,13 +210,13 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
                                                   _tangentialDistortion.data(),
                                                   _skewDistortion.data()};
 
-            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<PoseTransformCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
+            problem().AddResidualBlock(new ceres::AutoDiffCostFunction<PoseTransformCost<Flags>, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCost), nullptr,
                                        params.data(), nArgs);
 
             if (isVerbose() and !logLabel.isEmpty()) {
 
                 QString loggerName = logLabel;
-                PoseTransformCost* projCostLog = new PoseTransformCost(
+                PoseTransformCost<Flags>* projCostLog = new PoseTransformCost<Flags>(
                     offset,
                     new PinholeUVProjector(_associatedCamera->imHeight(), _associatedCamera->imWidth()),
                     ptProjPos,
@@ -216,7 +224,7 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
 
                 ModularSBASolver::AutoErrorBlockLogger<nArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<nArgs,2>(
-                        new ceres::AutoDiffCostFunction<PoseTransformCost, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
+                    new ceres::AutoDiffCostFunction<PoseTransformCost<Flags>, 2, 3, 3, 3, 1, 2, 3, 2, 2>(projCostLog),
                         params,
                         true);
 
@@ -230,6 +238,37 @@ bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
     }
 
     return false;
+}
+
+bool PinholeCamProjModule::addProjectionCostFunction(double* pointData,
+                                                      double* poseOrientation,
+                                                      double* posePosition,
+                                                      Eigen::Vector2d const& ptProjPos,
+                                                      Eigen::Matrix2d const& ptProjStiffness,
+                                                      const StereoVision::Geometry::RigidBodyTransform<double> &offset,
+                                                      double *leverArmOrientation,
+                                                      double *leverArmPosition,
+                                                      const QString &logLabel) {
+
+    if (!isSetup()) {
+        return false;
+    }
+
+    ModularSBASolver& s = solver();
+    bool useSphericalFunc = s.property(PinholeCamProjModule::UseSphericalCostSolverParamName).toBool();
+
+    if (useSphericalFunc) {
+        return addProjectionCostFunctionImpl<true>(pointData, poseOrientation, posePosition,
+                                                   ptProjPos, ptProjStiffness,
+                                                   offset,
+                                                   leverArmOrientation, leverArmPosition,
+                                                   logLabel);
+    }
+    return addProjectionCostFunctionImpl<false>(pointData, poseOrientation, posePosition,
+                                                ptProjPos, ptProjStiffness,
+                                                offset,
+                                                leverArmOrientation, leverArmPosition,
+                                                logLabel);
 }
 
 ModularSBASolver::ProjectorModule::ProjectionInfos PinholeCamProjModule::getProjectionInfos() {
@@ -449,19 +488,20 @@ QString PinholePushBroomCamProjectorModule::moduleName() const {
     return "PinholePushBroomCamProjectorModule";
 }
 
-bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* pointData,
-                                                                   double* poseOrientation,
-                                                                   double* posePosition,
-                                                                   Eigen::Vector2d const& ptProjPos,
-                                                                   Eigen::Matrix2d const& ptProjStiffness,
-                                                                   const StereoVision::Geometry::RigidBodyTransform<double> &offset,
-                                                                   double *leverArmOrientation,
-                                                                   double *leverArmPosition,
-                                                                   const QString &logLabel) {
 
-    if (!isSetup()) {
-        return false;
-    }
+
+template<bool useSpherical>
+bool PinholePushBroomCamProjectorModule::addProjectionCostFunctionImpl(double* pointData,
+                                   double* poseOrientation,
+                                   double* posePosition,
+                                   Eigen::Vector2d const& ptProjPos,
+                                   Eigen::Matrix2d const& ptProjStiffness,
+                                   StereoVision::Geometry::RigidBodyTransform<double> const& offset,
+                                   double* leverArmOrientation,
+                                   double* leverArmPosition,
+                                   QString const& logLabel) {
+
+    constexpr int Flags = (useSpherical) ? UVProjFlags::SphericalCost : UVProjFlags::PlaneCost;
 
     constexpr int LeverArmConfiguration = Body2World|Body2Sensor;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
@@ -471,7 +511,7 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
     using PoseTransformLeverArmCostPB = PoseTransform<LeverArmCostPB,PoseTransformDirection::SourceToInitial,0>;*/
 
     using PoseCostFunctionBuilder =
-        ModifiedPoseCostFunctionBuilderHelper<UVCostPB, poseTransformDirection, LeverArmConfiguration, poseParamIdx, 2, 3, 3, 3, 1, 1, 6, 6>;
+        ModifiedPoseCostFunctionBuilderHelper<UVCostPB<Flags>, poseTransformDirection, LeverArmConfiguration, poseParamIdx, 2, 3, 3, 3, 1, 1, 6, 6>;
 
     constexpr int baseNArgs = 7;
 
@@ -523,9 +563,9 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
 
                 ModularSBASolver::AutoErrorBlockLogger<baseNArgs,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<baseNArgs,2>(
-                    logCostFuncInfos.costFunction,
-                    paramsArray,
-                    true);
+                        logCostFuncInfos.costFunction,
+                        paramsArray,
+                        true);
 
                 solver().addLogger(loggerName, projErrorLogger);
 
@@ -539,9 +579,9 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
 
                 ModularSBASolver::AutoErrorBlockLogger<baseNArgs+2,2>* projErrorLogger =
                     new ModularSBASolver::AutoErrorBlockLogger<baseNArgs+2,2>(
-                    logCostFuncInfos.costFunction,
-                    paramsArray,
-                    true);
+                        logCostFuncInfos.costFunction,
+                        paramsArray,
+                        true);
                 solver().addLogger(loggerName, projErrorLogger);
             }
         }
@@ -550,6 +590,37 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* point
 
     return true;
 
+}
+
+bool PinholePushBroomCamProjectorModule::addProjectionCostFunction(double* pointData,
+                                                                   double* poseOrientation,
+                                                                   double* posePosition,
+                                                                   Eigen::Vector2d const& ptProjPos,
+                                                                   Eigen::Matrix2d const& ptProjStiffness,
+                                                                   const StereoVision::Geometry::RigidBodyTransform<double> &offset,
+                                                                   double *leverArmOrientation,
+                                                                   double *leverArmPosition,
+                                                                   const QString &logLabel) {
+
+    if (!isSetup()) {
+        return false;
+    }
+
+    ModularSBASolver& s = solver();
+    bool useSphericalFunc = s.property(PinholeCamProjModule::UseSphericalCostSolverParamName).toBool();
+
+    if (useSphericalFunc) {
+        return addProjectionCostFunctionImpl<true>(pointData, poseOrientation, posePosition,
+                                                   ptProjPos, ptProjStiffness,
+                                                   offset,
+                                                   leverArmOrientation, leverArmPosition,
+                                                   logLabel);
+    }
+    return addProjectionCostFunctionImpl<false>(pointData, poseOrientation, posePosition,
+                                                ptProjPos, ptProjStiffness,
+                                                offset,
+                                                leverArmOrientation, leverArmPosition,
+                                                logLabel);
 }
 
 ModularSBASolver::ProjectorModule::ProjectionInfos PinholePushBroomCamProjectorModule::getProjectionInfos() {
