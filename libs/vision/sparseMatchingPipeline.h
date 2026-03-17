@@ -435,11 +435,11 @@ public:
         }
 
         for (int i = 0; i < _corners1.size(); i++) {
-            stream << '1' <<  _corners1[i][0] << ' ' << _corners1[i][1] << ' ' << matchIdCorners1[i] << (inliersFilter.count(matchIdCorners1[i]) > 0 ? 1 : 0) << '\n';
+            stream << "1 " <<  _corners1[i][0] << ' ' << _corners1[i][1] << ' ' << matchIdCorners1[i] << ' ' << (inliersFilter.count(matchIdCorners1[i]) > 0 ? 1 : 0) << '\n';
         }
 
         for (int i = 0; i < _corners2.size(); i++) {
-            stream << '2' << _corners2[i][0] << ' ' << _corners2[i][1] << ' ' << matchIdCorners1[i] << (inliersFilter.count(matchIdCorners1[i]) > 0 ? 1 : 0);
+            stream << "2 " << _corners2[i][0] << ' ' << _corners2[i][1] << ' ' << matchIdCorners2[i] << ' ' << (inliersFilter.count(matchIdCorners1[i]) > 0 ? 1 : 0) << '\n';
         }
 
         return stream;

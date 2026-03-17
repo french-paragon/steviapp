@@ -385,8 +385,15 @@ StatusOptionalReturn<void> exportCorrespondancesFromImages(QString const& outFil
         pen.setWidthF(0.3);
         pen.setStyle(Qt::PenStyle::SolidLine);
 
+        QBrush brush(linkColors[i]);
+
         painter.setPen(pen);
         painter.drawLine(ptImg1, ptImg2);
+
+        painter.setBrush(brush);
+        constexpr int r = 2;
+        painter.drawEllipse(ptImg1,r,r);
+        painter.drawEllipse(ptImg2,r,r);
     }
 
     return StatusOptionalReturn<void>();
