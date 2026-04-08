@@ -471,7 +471,8 @@ protected:
         double dt = trajNode->nodes[i].time - trajNode->nodes[i-1].time;
         Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
-        double poseUncertainty = gyroAccuracy*dt;
+        double gyroVar = gyroAccuracy*gyroAccuracy;
+        double poseUncertainty = sqrt(gyroVar*dt);
 
         weigthMat(0,0) = 1/poseUncertainty;
         weigthMat(1,1) = 1/poseUncertainty;
@@ -772,7 +773,8 @@ protected:
 
         Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
-        double speedUncertainty = accAccuracy*dt;
+        double varAcc = accAccuracy*accAccuracy;
+        double speedUncertainty = sqrt(varAcc/2*dt);
 
         weigthMat(0,0) = 1/speedUncertainty;
         weigthMat(1,1) = 1/speedUncertainty;
