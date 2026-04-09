@@ -3588,14 +3588,14 @@ void Trajectory::extendDataModel() {
                                                                                                           &Trajectory::setGyroAccuracy,
                                                                                                           &Trajectory::gyroAccuracyChanged);
 
-    gyroAccProp->setNumericPrecision(4);
+    gyroAccProp->setNumericPrecision(8);
 
     auto* accAccProp = optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("accelerometer accuracy"),
                                                                                                           &Trajectory::getAccAccuracy,
                                                                                                           &Trajectory::setAccAccuracy,
                                                                                                           &Trajectory::accAccuracyChanged);
 
-    accAccProp->setNumericPrecision(4);
+    accAccProp->setNumericPrecision(8);
 
     optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate acc bias"),
                                                                                                           &Trajectory::estAccelerometerBias,
