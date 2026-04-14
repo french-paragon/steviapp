@@ -34,6 +34,8 @@ Trajectory::Trajectory(Project* parent) :
     _gyroAccuracy(0.1),
     _accAccuracy(0.5),
     _opt_preintegration_time(0.5),
+    _processing_start_time(std::nullopt),
+    _processing_end_time(std::nullopt),
     _optimizedTrajectoryData(nullptr)
 {
     _plateformDefinition.boresight.setConstant(0);
@@ -2801,6 +2803,14 @@ QJsonObject Trajectory::encodeJson() const {
 
     obj.insert("preIntegrationTime", _opt_preintegration_time);
 
+    if (_processing_start_time.has_value()) {
+        obj.insert("optStartTime", _processing_start_time.value());
+    }
+
+    if (_processing_end_time.has_value()) {
+        obj.insert("optEndTime", _processing_end_time.value());
+    }
+
     QJsonArray separatorsStrings;
 
     for (int i = 0; i < _separators.size(); i++) {
@@ -3336,6 +3346,17 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         _opt_preintegration_time = 0.5; //default is half a second
     }
 
+    if (data.contains("optStartTime")) {
+        _processing_start_time = data.value("optStartTime").toDouble();
+    } else {
+        _processing_start_time = std::nullopt; //default is half a second
+    }
+    if (data.contains("optEndTime")) {
+        _processing_end_time = data.value("optEndTime").toDouble();
+    } else {
+        _processing_end_time = std::nullopt; //default is half a second
+    }
+
     if (data.contains("inputDataSeparators")) {
         QJsonArray seps = data.value("inputDataSeparators").toArray();
 
@@ -3575,6 +3596,18 @@ void Trajectory::extendDataModel() {
                                                                                                           &Trajectory::setPreIntegrationTime,
                                                                                                           &Trajectory::preIntegrationTimeChanged);
     preIntegrationTimeProp->setNumericPrecision(4);
+
+    auto* optStartTimeProp = optCat->addCatProperty<std::optional<double>, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("processing start time"),
+                                                                                                                                            &Trajectory::processingStartTime,
+                                                                                                                                            &Trajectory::setProcessingStartTime,
+                                                                                                                                            &Trajectory::processingStartTimeChanged);
+    optStartTimeProp->setNumericPrecision(2);
+
+    auto* optEndTimeProp = optCat->addCatProperty<std::optional<double>, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("processing end time"),
+                                                                                                                                            &Trajectory::processingEndTime,
+                                                                                                                                            &Trajectory::setProcessingEndTime,
+                                                                                                                                            &Trajectory::processingEndTimeChanged);
+    optEndTimeProp->setNumericPrecision(2);
 
     auto* gpsAccProp = optCat->addCatProperty<double, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("gps accuracy"),
                                                                                                           &Trajectory::getGpsAccuracy,

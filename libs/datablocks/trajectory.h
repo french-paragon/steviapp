@@ -694,6 +694,30 @@ public:
         return _gyroScaleStochasticProcesses;
     }
 
+    inline std::optional<double> processingStartTime() const {
+        return _processing_start_time;
+    }
+
+    inline std::optional<double> processingEndTime() const {
+        return _processing_end_time;
+    }
+
+    inline void setProcessingStartTime(std::optional<double> time) {
+        if (_processing_start_time != time) {
+            _processing_start_time = time;
+            Q_EMIT processingStartTimeChanged();
+            isChanged();
+        }
+    }
+
+    inline void setProcessingEndTime(std::optional<double> time) {
+        if (_processing_end_time != time) {
+            _processing_end_time = time;
+            Q_EMIT processingEndTimeChanged();
+            isChanged();
+        }
+    }
+
 Q_SIGNALS:
     void trajectoryDataChanged();
     void optimizedTrajectoryDataChanged();
@@ -732,6 +756,9 @@ Q_SIGNALS:
     void gyroIdChanged();
 
     void preIntegrationTimeChanged();
+
+    void processingStartTimeChanged();
+    void processingEndTimeChanged();
 
     void gpsMountingChanged();
     void insMountingChanged();
@@ -982,6 +1009,9 @@ protected:
      * _opt_integration_time < 0 imply to use the app global pre-integration time
      */
     double _opt_preintegration_time;
+
+    std::optional<double> _processing_start_time;
+    std::optional<double> _processing_end_time;
 
     DataTable* _optimizedTrajectoryData;
 

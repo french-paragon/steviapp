@@ -403,6 +403,17 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         }
 
+        std::optional<double> trajMinTime = traj->processingStartTime();
+        std::optional<double> trajMaxTime = traj->processingEndTime();
+
+        if (trajMinTime.has_value()) {
+            minTime = std::max(minTime, trajMinTime.value());
+        }
+
+        if (trajMaxTime.has_value()) {
+            maxTime = std::min(maxTime, trajMaxTime.value());
+        }
+
         double duration = maxTime - minTime;
 
         if (duration <= 0) {
