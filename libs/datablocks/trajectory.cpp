@@ -2652,6 +2652,20 @@ QJsonObject Trajectory::encodeJson() const {
     accelerationDefinition.insert("mounting", accMountingObj);
 
     obj.insert("accelerationDefinition", accelerationDefinition);
+
+    QJsonObject accParameters;
+
+    accParameters.insert("estBias", _accelerometerParameters._estimates_bias);
+    accParameters.insert("estGain", _accelerometerParameters._estimates_gain);
+    accParameters.insert("bx", floatParameter::toJson(_accelerometerParameters._o_biasX));
+    accParameters.insert("by", floatParameter::toJson(_accelerometerParameters._o_biasY));
+    accParameters.insert("bz", floatParameter::toJson(_accelerometerParameters._o_biasZ));
+    accParameters.insert("gx", floatParameter::toJson(_accelerometerParameters._o_scaleX));
+    accParameters.insert("gy", floatParameter::toJson(_accelerometerParameters._o_scaleY));
+    accParameters.insert("gz", floatParameter::toJson(_accelerometerParameters._o_scaleZ));
+
+    obj.insert("accelerationParameters", accParameters);
+
     QString accFile = _accelerationFile;
     if (proj != nullptr) {
         accFile = proj->relativePath(accFile, onlyIfNested);
@@ -2683,6 +2697,19 @@ QJsonObject Trajectory::encodeJson() const {
     angularSpeedDefinition.insert("mounting", gyroMountingObj);
 
     obj.insert("angularSpeedDefinition", angularSpeedDefinition);
+
+    QJsonObject angularSpeedParameters;
+
+    angularSpeedParameters.insert("estBias", _angularSpeedParameters._estimates_bias);
+    angularSpeedParameters.insert("estGain", _angularSpeedParameters._estimates_gain);
+    angularSpeedParameters.insert("bx", floatParameter::toJson(_angularSpeedParameters._o_biasX));
+    angularSpeedParameters.insert("by", floatParameter::toJson(_angularSpeedParameters._o_biasY));
+    angularSpeedParameters.insert("bz", floatParameter::toJson(_angularSpeedParameters._o_biasZ));
+    angularSpeedParameters.insert("gx", floatParameter::toJson(_angularSpeedParameters._o_scaleX));
+    angularSpeedParameters.insert("gy", floatParameter::toJson(_angularSpeedParameters._o_scaleY));
+    angularSpeedParameters.insert("gz", floatParameter::toJson(_angularSpeedParameters._o_scaleZ));
+
+    obj.insert("angularSpeedParameters", angularSpeedParameters);
 
     QString gyroFile = _angularSpeedFile;
     if (proj != nullptr) {
@@ -2883,6 +2910,59 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
 
     }
 
+    if (data.contains("accelerationParameters")) {
+
+        QJsonObject accelerationParameters = data.value("accelerationParameters").toObject();
+
+        if (accelerationParameters.contains("estBias")) {
+            _accelerometerParameters._estimates_bias = accelerationParameters.value("estBias").toBool(false);
+        } else {
+            _accelerometerParameters._estimates_bias = false;
+        }
+
+        if (accelerationParameters.contains("estGain")) {
+            _accelerometerParameters._estimates_gain = accelerationParameters.value("estGain").toBool(false);
+        } else {
+            _accelerometerParameters._estimates_gain = false;
+        }
+
+        if (accelerationParameters.contains("bx")) {
+            _accelerometerParameters._o_biasX = floatParameter::fromJson(accelerationParameters.value("bx").toObject());
+        } else {
+            _accelerometerParameters._o_biasX.clear();
+        }
+
+        if (accelerationParameters.contains("by")) {
+            _accelerometerParameters._o_biasY = floatParameter::fromJson(accelerationParameters.value("by").toObject());
+        } else {
+            _accelerometerParameters._o_biasY.clear();
+        }
+
+        if (accelerationParameters.contains("bz")) {
+            _accelerometerParameters._o_biasZ = floatParameter::fromJson(accelerationParameters.value("bz").toObject());
+        } else {
+            _accelerometerParameters._o_biasZ.clear();
+        }
+
+        if (accelerationParameters.contains("gx")) {
+            _accelerometerParameters._o_scaleX = floatParameter::fromJson(accelerationParameters.value("gx").toObject());
+        } else {
+            _accelerometerParameters._o_scaleX.clear();
+        }
+
+        if (accelerationParameters.contains("gy")) {
+            _accelerometerParameters._o_scaleY = floatParameter::fromJson(accelerationParameters.value("gy").toObject());
+        } else {
+            _accelerometerParameters._o_scaleY.clear();
+        }
+
+        if (accelerationParameters.contains("gz")) {
+            _accelerometerParameters._o_scaleZ = floatParameter::fromJson(accelerationParameters.value("gz").toObject());
+        } else {
+            _accelerometerParameters._o_scaleZ.clear();
+        }
+    }
+
     if (data.contains("accelerationFile")) {
         _accelerationFile = data.value("accelerationFile").toString();
     }
@@ -2964,6 +3044,59 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
             }
         }
 
+    }
+
+    if (data.contains("angularSpeedParameters")) {
+
+        QJsonObject angularSpeedParameters = data.value("angularSpeedParameters").toObject();
+
+        if (angularSpeedParameters.contains("estBias")) {
+            _angularSpeedParameters._estimates_bias = angularSpeedParameters.value("estBias").toBool(false);
+        } else {
+            _angularSpeedParameters._estimates_bias = false;
+        }
+
+        if (angularSpeedParameters.contains("estGain")) {
+            _angularSpeedParameters._estimates_gain = angularSpeedParameters.value("estGain").toBool(false);
+        } else {
+            _angularSpeedParameters._estimates_gain = false;
+        }
+
+        if (angularSpeedParameters.contains("bx")) {
+            _angularSpeedParameters._o_biasX = floatParameter::fromJson(angularSpeedParameters.value("bx").toObject());
+        } else {
+            _angularSpeedParameters._o_biasX.clear();
+        }
+
+        if (angularSpeedParameters.contains("by")) {
+            _angularSpeedParameters._o_biasY = floatParameter::fromJson(angularSpeedParameters.value("by").toObject());
+        } else {
+            _angularSpeedParameters._o_biasY.clear();
+        }
+
+        if (angularSpeedParameters.contains("bz")) {
+            _angularSpeedParameters._o_biasZ = floatParameter::fromJson(angularSpeedParameters.value("bz").toObject());
+        } else {
+            _angularSpeedParameters._o_biasZ.clear();
+        }
+
+        if (angularSpeedParameters.contains("gx")) {
+            _angularSpeedParameters._o_scaleX = floatParameter::fromJson(angularSpeedParameters.value("gx").toObject());
+        } else {
+            _angularSpeedParameters._o_scaleX.clear();
+        }
+
+        if (angularSpeedParameters.contains("gy")) {
+            _angularSpeedParameters._o_scaleY = floatParameter::fromJson(angularSpeedParameters.value("gy").toObject());
+        } else {
+            _angularSpeedParameters._o_scaleY.clear();
+        }
+
+        if (angularSpeedParameters.contains("gz")) {
+            _angularSpeedParameters._o_scaleZ = floatParameter::fromJson(angularSpeedParameters.value("gz").toObject());
+        } else {
+            _angularSpeedParameters._o_scaleZ.clear();
+        }
     }
 
     if (data.contains("angularSpeedFile")) {
