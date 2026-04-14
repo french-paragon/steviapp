@@ -465,6 +465,17 @@ void MainWindow::datablockContextMenu(QPoint const& pt) {
 
 	}
 
+    if (id.data(ItemDataModel::IsResetableRole).toBool()) {
+        QAction* clear = new QAction("clear");
+        connect(clear, &QAction::triggered, [perId, model] () {
+            if (perId.isValid()) {
+                model->setData(perId, QVariant());
+            }
+        });
+        acts.push_back(clear);
+
+    }
+
 	for (QAction* a : acts) {
 		m.addAction(a);
 	}

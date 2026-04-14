@@ -70,6 +70,10 @@ void ItemDataModel::ItemPropertyDescription::setOptions(const QStringList &optio
 	_options = options;
 }
 
+bool ItemDataModel::ItemPropertyDescription::isClearable() const {
+    return false;
+}
+
 bool ItemDataModel::ItemPropertyDescription::hasSecondValue() const {
 	return false;
 }
@@ -621,6 +625,14 @@ QVariant ItemDataModel::data(const QModelIndex &index, int role) const {
 	}
 	case HasDeleterRole :
 		return pNode->hasDeleter();
+    case IsResetableRole :
+        if (node == nullptr) { // leaf item, this is a property
+            ItemPropertyDescription* descr = propDescrFromIndex(index);
+            if (descr != nullptr) {
+                return descr->isClearable();
+            }
+        }
+        return false;
 	}
 
 	return QVariant();

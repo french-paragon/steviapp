@@ -17,7 +17,8 @@ class ItemDataModel : public QAbstractItemModel
 public:
 
 	enum CustomRoles {
-		HasDeleterRole = Qt::UserRole+1
+        HasDeleterRole = Qt::UserRole+1,
+        IsResetableRole = Qt::UserRole+2 //indicate that the property can be reseted by setting a null variant as data
 	};
 
 	class Category;
@@ -56,6 +57,7 @@ public:
 
 		virtual QVariant data(int role = Qt::DisplayRole) const = 0;
 		virtual bool setData(QVariant const& d) = 0;
+        virtual bool isClearable() const;
 
 		virtual bool hasSecondValue() const;
 		virtual QVariant secondValue() const;
@@ -289,6 +291,114 @@ protected:
             (block->*_setter)(d);
             return true;
         }
+        virtual bool isClearable() const override {
+            return true;
+        }
+
+        D* castedBlock() const {
+            DataBlock* b = block();
+            return qobject_cast<D*>(b);
+        }
+
+    protected:
+        SetterType _setter;
+        GetterType _getter;
+    };
+
+    template<class T, class D, bool refS, ItemPropertyDescription::SignalType signalT>
+    class TypedItemPropertyDescr<std::optional<T>, D, refS, signalT> : public ItemPropertyDescription
+    {
+    public:
+        typedef void(D::*SetterType)(typename std::conditional<refS, std::optional<T> const&, std::optional<T>>::type);
+        typedef typename std::conditional<signalT==NoValueSignal,
+                                          void(D::*)(),
+                                          typename std::conditional<signalT==PassByRefSignal,
+                                                                    void(D::*)(std::optional<T> const&),
+                                                                    void(D::*)(std::optional<T>)>::type>::type SignalType;
+        typedef std::optional<T> (D::*GetterType)() const;
+
+        TypedItemPropertyDescr(Category* cat,
+                               QString descrName,
+                               GetterType getter,
+                               SetterType setter,
+                               SignalType signal) :
+            ItemPropertyDescription(cat, descrName),
+            _setter(setter),
+            _getter(getter)
+        {
+            D* d = castedBlock();
+            vChangedConnection = QObject::connect(d, signal, [this] () {
+                valueChanged();
+            });
+        }
+
+        TypedItemPropertyDescr(SubItemCollectionManager* subItemsManager,
+                               DataBlock* block,
+                               QString descrName,
+                               GetterType getter,
+                               SetterType setter,
+                               SignalType signal) :
+            ItemPropertyDescription(subItemsManager, block, descrName),
+            _setter(setter),
+            _getter(getter)
+        {
+            D* d = castedBlock();
+            vChangedConnection = QObject::connect(d, signal, [this] () {
+                valueChanged();
+            });
+        }
+
+        bool isWritable() const override {
+            return _setter != nullptr;
+        }
+        bool isClearable() const override {
+            return true;
+        }
+
+        PropertyEditor editor() const override {
+            return ValueEditor;
+        }
+
+        QVariant data(int role = Qt::DisplayRole) const override {
+
+            if (role != Qt::DisplayRole and role != Qt::EditRole) {
+                return QVariant();
+            }
+
+            D* block = castedBlock();
+
+            if (block == nullptr) {
+                return QVariant();
+            }
+
+            std::optional<T> val = (block->*_getter)();
+
+            if (!val.has_value()) {
+                return QVariant();
+            }
+
+            return val.value();
+        }
+        bool setData(QVariant const& d) override {
+
+            D* block = castedBlock();
+            if (block == nullptr) {
+                return false;
+            }
+
+            if (d.isNull()) {
+                (block->*_setter)(std::nullopt);
+                return true;
+            }
+
+            if (!d.canConvert(qMetaTypeId<T>())) {
+                return false;
+            }
+
+            T v = qvariant_cast<T>(d);
+            (block->*_setter)(v);
+            return true;
+        }
 
         D* castedBlock() const {
             DataBlock* b = block();
@@ -346,6 +456,9 @@ protected:
 		bool isWritable() const override {
 			return _setter != nullptr;
 		}
+        bool isClearable() const override {
+            return true;
+        }
 
 		PropertyEditor editor() const override {
 			return ValueEditor;
@@ -381,7 +494,7 @@ protected:
 				return false;
 			}
 
-			if (d.toString().isEmpty()) {
+            if (d.isNull() or d.toString().isEmpty()) {
 				floatParameter p = (block->*_getter)();
 				p.clearIsSet();
 				(block->*_setter)(p);
