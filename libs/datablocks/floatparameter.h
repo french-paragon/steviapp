@@ -48,6 +48,11 @@ public:
 	floatParameter& operator*= (pFloatType const& other);
 	floatParameter& operator/= (pFloatType const& other);
 
+    inline void clear() {
+        clearIsSet();
+        clearUncertainty();
+    }
+
 	bool isSet() const;
 	void setIsSet();
 	void setIsSet(pFloatType value);
