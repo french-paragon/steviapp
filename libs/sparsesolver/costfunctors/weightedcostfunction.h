@@ -6,9 +6,9 @@
 #include <stdint.h>
 
 #include <Eigen/Core>
+#include <iostream>
 
 #ifndef NDEBUG
-#include <iostream>
 #include <ceres/jet.h>
 #endif
 
@@ -33,6 +33,9 @@ public:
         _unweigthedCostFunction(unweigthedFunction),
         _sqrtWeight(sqrtWeight)
     {
+        if (!sqrtWeight.allFinite()) {
+            std::cerr << "Error in weight cost initialization, invalid weights, not finite!" << std::endl;
+        }
 
     }
 
@@ -124,8 +127,9 @@ public:
         _unweigthedCostFunction(unweigthedFunction),
         _sqrtWeight(sqrtWeight)
     {
-
-
+        if (!sqrtWeight.allFinite()) {
+            std::cerr << "Error in weight cost initialization, invalid weights, not finite!" << std::endl;
+        }
 
     }
 

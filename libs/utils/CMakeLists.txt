@@ -11,6 +11,7 @@ set(LIB_HEADERS
     inplace_vector.h
     editablefloatingpointblock.h
     optionlistvalue.h
+    types_infos.h
 )
 
 add_library(

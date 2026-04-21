@@ -5,7 +5,8 @@ set(LIB_SRC)
 set(LIB_HEADERS
     geoRaster.h
     terrainProjector.h
-    localframes.h)
+    localframes.h
+    wgs84.h)
 
 add_library(
     ${GEO_LIB}

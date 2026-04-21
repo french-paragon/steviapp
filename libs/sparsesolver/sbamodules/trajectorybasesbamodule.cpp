@@ -13,6 +13,10 @@
 
 #include "../sbagraphreductor.h"
 
+#include "../geo/wgs84.h"
+
+#include "../utils/types_infos.h"
+
 #include "utils/statusoptionalreturn.h"
 
 namespace StereoVisionApp {
@@ -78,38 +82,24 @@ bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
     }
 
     _gravity = {0,0,-9.81};
+    _localFrameRotationRate = Eigen::Vector3d::Zero();
 
     if (currentProject->hasLocalCoordinateFrame()) {
         StereoVision::Geometry::AffineTransform<double> ecef2local = currentProject->ecef2local();
         Eigen::Vector3d ecefPos = -ecef2local.R.transpose()*ecef2local.t;
 
-        PJ_CONTEXT* ctx = proj_context_create();
+        std::array<double,3> ecefOrigin{ecefPos.x(), ecefPos.y(), ecefPos.z()};
+        std::array<double,3> gArray = Geo::WGS84Ellipsoid::gravityEcefModel(ecefOrigin);
 
-        if (ctx != nullptr) {
-            const char* ecefCartesian = "EPSG:4978";
-            const char* wgs84Ellipsoid = "EPSG:4979";
-            PJ* projection = proj_create_crs_to_crs(
-                ctx, ecefCartesian, wgs84Ellipsoid,
-                nullptr);
+        Eigen::Vector3d g;
+        g << gArray[0],gArray[1],gArray[2];
+        g = ecef2local.R*g;
 
-            if (projection != nullptr) {
+        _gravity = {-g[0], -g[1], -g[2]};
 
-                PJ_COORD localFrameOriginECEF = proj_coord(ecefPos.x(), ecefPos.y(), ecefPos.z(), 0);
-                PJ_COORD localFrameOriginWGS84 = proj_trans(projection, PJ_FWD, localFrameOriginECEF);
-                PJ_COORD localFrameUpWGS84 = localFrameOriginWGS84;
-                localFrameUpWGS84.lpz.z += 9.81;
-                PJ_COORD localFrameUpECEF = proj_trans(projection, PJ_INV, localFrameUpWGS84);
+        double earthRotationRate = 2*M_PI/(24*60*60);
 
-                Eigen::Vector3d upEcef(localFrameUpECEF.xyz.x, localFrameUpECEF.xyz.y, localFrameUpECEF.xyz.z);
-                Eigen::Vector3d gravityLocal = ecef2local*upEcef;
-
-                _gravity = {-gravityLocal.x(), -gravityLocal.y(), -gravityLocal.z()};
-
-                proj_destroy(projection);
-            }
-
-            proj_context_destroy(ctx);
-        }
+        _localFrameRotationRate = -ecef2local.R*Eigen::Vector3d(0, 0, earthRotationRate);
     }
 
     QVector<qint64> trajectoriesIdxs = currentProject->getIdsByClass(Trajectory::staticMetaObject.className());
@@ -258,8 +248,12 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
     gVec << _gravity[0], _gravity[1], _gravity[2];
 
     if (currentProject->hasLocalCoordinateFrame()) { //georeferenced optimization disabled.
+        auto ecef2local = currentProject->ecef2local();
+        _local2ecef = StereoVision::Geometry::AffineTransform<double>(ecef2local.R.transpose(), -ecef2local.R.transpose()*ecef2local.t);
         _earth_center_pos = currentProject->ecef2local().t;
     } else {
+        _local2ecef.R.setConstant(std::nan(""));
+        _local2ecef.t.setConstant(std::nan(""));
         _earth_center_pos << std::nan(""), std::nan(""), std::nan("");
     }
 
@@ -311,10 +305,16 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         if (accelerometerBias) {
             problem.AddParameterBlock(_accelerometersBiases[accId].data(), _accelerometersBiases[accId].size());
+            constexpr int nParams = std::tuple_size_v<IndexableInfos<decltype (_accelerometersBiases)>::ScalarT>;
+            ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(_accelerometersBiases[accId].data());
+            solver->addLogger(QString("Accelerometer bias trajectory %1").arg(traj->objectName()), logger);
         }
 
         if (accelerometerScale) {
             problem.AddParameterBlock(_accelerometersScales[accId].data(), _accelerometersScales[accId].size());
+            constexpr int nParams = std::tuple_size_v<IndexableInfos<decltype (_accelerometersScales)>::ScalarT>;
+            ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(_accelerometersScales[accId].data());
+            solver->addLogger(QString("Accelerometer scales trajectory %1").arg(traj->objectName()), logger);
         }
 
         int gyroId = traj->gyroId();
@@ -327,10 +327,16 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         if (gyroBias) {
             problem.AddParameterBlock(_gyrosBiases[gyroId].data(), _gyrosBiases[gyroId].size());
+            constexpr int nParams = std::tuple_size_v<IndexableInfos<decltype (_gyrosBiases)>::ScalarT>;
+            ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(_gyrosBiases[gyroId].data());
+            solver->addLogger(QString("Gyro bias trajectory %1").arg(traj->objectName()), logger);
         }
 
         if ( gyroScale) {
             problem.AddParameterBlock(_gyrosScales[gyroId].data(), _gyrosScales[gyroId].size());
+            constexpr int nParams = std::tuple_size_v<IndexableInfos<decltype (_gyrosScales)>::ScalarT>;
+            ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(_gyrosScales[gyroId].data());
+            solver->addLogger(QString("Gyro scales trajectory %1").arg(traj->objectName()), logger);
         }
 
         //loading the trajectory data is really slow, so we setup the nodes at the same time we add them to the problem.
@@ -357,6 +363,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
         }
 
         if (!optGps.isValid()) {
+            solver->logMessage(QString("No GPS data for trajectory %1, fallback on reference trajectory!").arg(traj->objectName()));
             optGps = traj->loadPositionSequence(); //load in ecef
         }
 
@@ -364,7 +371,8 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         //TODO: make initialization possible from just GPS + gyro
 
-        if (!optGps.isValid() and !optPose.isValid()) { //Canot initialize without GPS and orientation //TODO: investigate if we can initialize with
+        if (!optGps.isValid() and !optPose.isValid()) { //Canot initialize without GPS and orientation
+            solver->logMessage(QString("Missing reference data to initialize trajectory %1, skipping!").arg(traj->objectName()));
             continue;
         }
 
@@ -417,12 +425,14 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
         double duration = maxTime - minTime;
 
         if (duration <= 0) {
+            solver->logMessage(QString("Duration span empty for trajectory %1, skipping!").arg(traj->objectName()));
             continue;
         }
 
         int nGPSNode = optGps.value().nPoints();
 
         if (nGPSNode <= 0) {
+            solver->logMessage(QString("No GPS node for trajectory %1, skipping!").arg(traj->objectName()));
             continue;
         }
 
@@ -449,33 +459,41 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         if (accelerometerBias) {
             stochasticProcesses = traj->accBiasStochasticProcesses();
+            QString baseLabel = QString("Accelerometer Bias Traj %1").arg(traj->objectName());
             if (!stochasticProcesses.isEmpty()) {
-                setupStochasticProcesses(_accelerometersBiasesStochasticProcesses[i],
-                                         traj, minTime, maxTime, problem, stochasticProcesses);
+                setupStochasticProcesses(solver,_accelerometersBiasesStochasticProcesses[i],
+                                         traj, minTime, maxTime, problem, stochasticProcesses,
+                                        baseLabel);
             }
         }
 
         if (accelerometerScale) {
             stochasticProcesses = traj->accScaleStochasticProcesses();
+            QString baseLabel = QString("Accelerometer Scale Traj %1").arg(traj->objectName());
             if (!stochasticProcesses.isEmpty()) {
-                setupStochasticProcesses(_accelerometersScalesStochasticProcesses[i],
-                                         traj, minTime, maxTime, problem, stochasticProcesses);
+                setupStochasticProcesses(solver,_accelerometersScalesStochasticProcesses[i],
+                                         traj, minTime, maxTime, problem, stochasticProcesses,
+                                         baseLabel);
             }
         }
 
         if (gyroBias) {
             stochasticProcesses = traj->gyroBiasStochasticProcesses();
+            QString baseLabel = QString("Gyro Bias Traj %1").arg(traj->objectName());
             if (!stochasticProcesses.isEmpty()) {
-                setupStochasticProcesses(_gyrosBiasesStochasticProcesses[i],
-                                         traj, minTime, maxTime, problem, stochasticProcesses);
+                setupStochasticProcesses(solver,_gyrosBiasesStochasticProcesses[i],
+                                         traj, minTime, maxTime, problem, stochasticProcesses,
+                                         baseLabel);
             }
         }
 
         if (gyroScale) {
             stochasticProcesses = traj->gyroScaleStochasticProcesses();
+            QString baseLabel = QString("Gyro Scale Traj %1").arg(traj->objectName());
             if (!stochasticProcesses.isEmpty()) {
-                setupStochasticProcesses(_gyrosScalesStochasticProcesses[i],
-                                         traj, minTime, maxTime, problem, stochasticProcesses);
+                setupStochasticProcesses(solver,_gyrosScalesStochasticProcesses[i],
+                                         traj, minTime, maxTime, problem, stochasticProcesses,
+                                         baseLabel);
             }
         }
 
@@ -1240,12 +1258,14 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addAccObs(ModularSBASolver::
 }
 
 void TrajectoryBaseSBAModule::setupStochasticProcesses(
+    ModularSBASolver* solver,
     std::vector<TrajectoryBaseSBAModule::INSStochasticProcessOptParams> & paramSet,
     Trajectory* traj,
     double t0,
     double tf,
     ceres::Problem & problem,
-    QVector<Trajectory::InsStochasticProcessDef> const& processesParams) {
+    QVector<Trajectory::InsStochasticProcessDef> const& processesParams,
+    QString const& loggerBaseLabel) {
 
     paramSet = std::vector<TrajectoryBaseSBAModule::INSStochasticProcessOptParams>();
 
@@ -1277,6 +1297,10 @@ void TrajectoryBaseSBAModule::setupStochasticProcesses(
         for (int j = 0; j < nSteps; j++) {
             paramSet[i].times[j] = t0 + j*dt;
             problem.AddParameterBlock(paramSet[i].vals[j].data(), paramSet[i].vals[j].size());
+
+            constexpr int nParams = std::tuple_size<IndexableInfos<decltype(paramSet[i].vals)>::ScalarT>::value;
+            ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(paramSet[i].vals[j].data());
+            solver->addLogger(loggerBaseLabel + QString(" offsets %1").arg(j), logger);
         }
 
         StationaryGaussMarkovProcessCost<3>* cost = new StationaryGaussMarkovProcessCost<3>(def.betas, def.sigmas, dt);

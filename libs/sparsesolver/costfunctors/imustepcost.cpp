@@ -7,7 +7,16 @@ GyroStepCostBase::GyroStepCostBase(Eigen::Matrix3d const& attitudeDelta,
     _attitudeDelta(attitudeDelta),
     _delta_t(delta_t)
 {
+    _FrameRotation = Eigen::Matrix3d::Identity();
+}
 
+GyroStepCostBase::GyroStepCostBase(Eigen::Matrix3d const& attitudeDelta,
+                 Eigen::Vector3d const& FrameRotationRate,
+                 double delta_t) :
+    _attitudeDelta(attitudeDelta),
+    _delta_t(delta_t)
+{
+    _FrameRotation = StereoVision::Geometry::rodriguezFormula<double>(FrameRotationRate*delta_t);
 }
 
 

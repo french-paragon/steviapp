@@ -347,10 +347,12 @@ protected:
     {
 
         static constexpr int refPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        static constexpr int initialPrevPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        static constexpr int initialNextPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
         static constexpr int gravityParamPos = AccelerometerStepCostTraits<flags>::gravityParamIdx();
 
         template <typename T>
-        using Decorator = GravityReoriented<T, refPosParamPos, gravityParamPos>;
+        using Decorator = CoriolisAccCorrection<GravityReoriented<T, refPosParamPos, gravityParamPos>, initialPrevPosParamPos, initialNextPosParamPos, gravityParamPos>;
 
         template <typename T>
         using StochasticProcessEnabledDecorator = StochasticProcessAggregator<Decorator<T>, notDynamic, insParamsDim, T::nParams>;
@@ -361,6 +363,8 @@ protected:
     {
 
         static constexpr int refPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        static constexpr int initialPrevPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        static constexpr int initialNextPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
         static constexpr int gravityParamPos = AccelerometerStepCostTraits<flags>::gravityParamIdx();
 
         template <typename T>
@@ -370,7 +374,7 @@ protected:
                     AddPose< //add a pose for the lever arm
                         AddOrientation< //add orientation for the t0 pose
                             AddOrientation< //add orientation for the t2 pose
-                                GravityReoriented<T, refPosParamPos, gravityParamPos>, 3
+                                CoriolisAccCorrection<GravityReoriented<T, refPosParamPos, gravityParamPos>, initialPrevPosParamPos, initialNextPosParamPos, gravityParamPos>, 3
                             >, 0
                         >
                     ,0>
@@ -517,7 +521,8 @@ protected:
                     GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale, StochasticProcessBoresightGyroCostDecorator>(
                         gyroSeq,
                         trajNode->nodes[i-1].time,
-                        trajNode->nodes[i].time);
+                        trajNode->nodes[i].time,
+                    _localFrameRotationRate);
 
                 DecoratedAutoDiffCostFuncT* gyroStepCostFunction = new DecoratedAutoDiffCostFuncT(gyroStepCost);
 
@@ -588,7 +593,8 @@ protected:
                     GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale, BoresightGyroCostDecorator>(
                         gyroSeq,
                         trajNode->nodes[i-1].time,
-                        trajNode->nodes[i].time);
+                        trajNode->nodes[i].time,
+                    _localFrameRotationRate);
 
                 AutoDiffCostFuncT* gyroStepCostFunction =
                     new AutoDiffCostFuncT(gyroStepCost);
@@ -646,7 +652,8 @@ protected:
                     GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale, StochasticProcessGyroCostDecorator>(
                         gyroSeq,
                         trajNode->nodes[i-1].time,
-                        trajNode->nodes[i].time);
+                        trajNode->nodes[i].time,
+                    _localFrameRotationRate);
 
                 DecoratedAutoDiffCostFuncT* gyroStepCostFunction = new DecoratedAutoDiffCostFuncT(gyroStepCost);
 
@@ -715,7 +722,8 @@ protected:
                     GyroStepCostBase::getIntegratedIMUDiff<WBias, WScale>(
                         gyroSeq,
                         trajNode->nodes[i-1].time,
-                        trajNode->nodes[i].time);
+                        trajNode->nodes[i].time,
+                    _localFrameRotationRate);
 
                 AutoDiffCostFuncT* gyroStepCostFunction =
                     new AutoDiffCostFuncT(gyroStepCost);
@@ -833,7 +841,9 @@ protected:
                      trajNode->nodes[i-2].time,
                      trajNode->nodes[i-1].time,
                      trajNode->nodes[i].time,
-                     _earth_center_pos);
+                     _local2ecef.R.transpose(),
+                     2*dt,
+                     _local2ecef);
 
                 DecoratedAutoDiffCostFuncT* accStepCostFunction = new DecoratedAutoDiffCostFuncT(accStepCost);
 
@@ -850,11 +860,6 @@ protected:
 
                 std::vector<double*> params;
                 params.reserve(paramsInitial.size() + gyroBiasParams.size() + gyroScaleParams.size() + accBiasParams.size() + accScaleParams.size() + 4);
-
-                params[0] = insMountingNode->rAxis.data();
-                params[1] = insMountingNode->t.data();
-                params[2] = trajNode->nodes[i-2].rAxis.data();
-                params[6] = trajNode->nodes[i].rAxis.data();
 
                 //positions 0, 1, 2
                 params.push_back(insMountingNode->rAxis.data());
@@ -945,7 +950,9 @@ protected:
                      trajNode->nodes[i-2].time,
                      trajNode->nodes[i-1].time,
                      trajNode->nodes[i].time,
-                     _earth_center_pos);
+                     _local2ecef.R.transpose(),
+                     2*dt,
+                     _local2ecef);
 
                 AutoDiffCostFuncT* accStepCostFunction =
                     new AutoDiffCostFuncT(accStepCost);
@@ -1010,7 +1017,9 @@ protected:
                      trajNode->nodes[i-2].time,
                      trajNode->nodes[i-1].time,
                      trajNode->nodes[i].time,
-                     _earth_center_pos);
+                     _local2ecef.R.transpose(),
+                     2*dt,
+                     _local2ecef);
 
                 DecoratedAutoDiffCostFuncT* accStepCostFunction = new DecoratedAutoDiffCostFuncT(accStepCost);
 
@@ -1027,11 +1036,6 @@ protected:
 
                 std::vector<double*> params;
                 params.reserve(paramsInitial.size() + gyroBiasParams.size() + gyroScaleParams.size() + accBiasParams.size() + accScaleParams.size());
-
-                params[0] = insMountingNode->rAxis.data();
-                params[1] = insMountingNode->t.data();
-                params[2] = trajNode->nodes[i-2].rAxis.data();
-                params[6] = trajNode->nodes[i].rAxis.data();
 
                 for (int i = 0; i < paramsInitial.size(); i++) {
                     params.push_back(paramsInitial[i]);
@@ -1109,7 +1113,9 @@ protected:
                      trajNode->nodes[i-2].time,
                      trajNode->nodes[i-1].time,
                      trajNode->nodes[i].time,
-                     _earth_center_pos);
+                     _local2ecef.R.transpose(),
+                     2*dt,
+                     _local2ecef);
 
                 AutoDiffCostFuncT* accStepCostFunction =
                     new AutoDiffCostFuncT(accStepCost);
@@ -1161,12 +1167,14 @@ protected:
     std::vector<std::vector<INSStochasticProcessOptParams>> _gyrosScalesStochasticProcesses;
 
     void setupStochasticProcesses(
+        ModularSBASolver* solver,
         std::vector<INSStochasticProcessOptParams> & paramSet,
         Trajectory* traj,
         double t0,
         double tf,
         ceres::Problem & problem,
-        QVector<Trajectory::InsStochasticProcessDef> const& processesParams);
+        QVector<Trajectory::InsStochasticProcessDef> const& processesParams,
+        QString const& loggerBaseLabel);
 
     struct StochasticProcessParam {
 
@@ -1226,6 +1234,8 @@ protected:
     double _defaultGyroAccuracy;
 
     std::array<double,3> _gravity;
+    Eigen::Vector3d _localFrameRotationRate;
+    StereoVision::Geometry::AffineTransform<double> _local2ecef;
     Eigen::Vector3d _earth_center_pos;
 
 };

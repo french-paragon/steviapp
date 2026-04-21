@@ -36,17 +36,22 @@ public:
 
     template<bool WBias, bool WScale, typename Tgyro, typename TimeT>
     static IntegratedGyroSegment preIntegrateGyroSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-                                                  TimeT t0,
-                                                  TimeT t1);
+                                                         TimeT t0,
+                                                         TimeT t1);
 
     template<bool WBias, bool WScale, template <typename T> typename Decorator = IdentityDecorator, typename Tgyro, typename TimeT, typename ... DecoratorAdditionalArgT>
     static Decorator<GyroStepCost<WBias,WScale>>* getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
                                                                         TimeT t0,
                                                                         TimeT t1,
+                                                                        Eigen::Vector3d const& frameRotationRate,
                                                                         DecoratorAdditionalArgT ... additionalArgs);
 
     GyroStepCostBase(Eigen::Matrix3d const& attitudeDelta,
-                 double delta_t);
+                     double delta_t);
+
+    GyroStepCostBase(Eigen::Matrix3d const& attitudeDelta,
+                     Eigen::Vector3d const& FrameRotationRate,
+                     double delta_t);
 
     template <bool WBias, bool WScale, typename T>
     bool computeGyroCostGeneric(const T* const r0,
@@ -77,6 +82,9 @@ public:
         M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
         M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
 
+        M3T Rframes = _FrameRotation.cast<T>().transpose();
+        M3T attitudeDelta = _attitudeDelta.cast<T>();
+
         M3T closure;
 
         if constexpr (WScale and WBias) {
@@ -85,21 +93,21 @@ public:
 
             M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g + Jb*b);
 
-            closure = Rr1.transpose() * Rr0 * Rbg*_attitudeDelta;
+            closure = Rr1.transpose() * Rframes * Rr0 * Rbg * attitudeDelta;
         } else if constexpr (WScale) {
             M3T Jg = scaleJacobian.cast<T>();
 
             M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g);
 
-            closure = Rr1.transpose() * Rr0 * Rbg*_attitudeDelta;
+            closure = Rr1.transpose() * Rframes * Rr0 * Rbg * attitudeDelta;
         } else if constexpr (WBias) {
             M3T Jb = biasJacobian.cast<T>();
 
             M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jb*b);
 
-            closure = Rr1.transpose() * Rr0 * Rbg*_attitudeDelta;
+            closure = Rr1.transpose() * Rframes * Rr0 * Rbg * attitudeDelta;
         } else {
-            closure = Rr1.transpose() * Rr0 * _attitudeDelta;
+            closure = Rr1.transpose() * Rframes * Rr0 * attitudeDelta;
         }
 
         V3T res = StereoVision::Geometry::inverseRodriguezFormula<T>(closure);
@@ -121,6 +129,7 @@ public:
 protected:
 
     Eigen::Matrix3d _attitudeDelta; // R from final pose to initial pose
+    Eigen::Matrix3d _FrameRotation; //rotation of the mapping frame between the measurements
     double _delta_t;
 };
 
@@ -131,6 +140,14 @@ public:
     GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
                  double delta_t) :
         GyroStepCostBase(attitudeDelta, delta_t)
+    {
+
+    }
+
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 Eigen::Vector3d const& FrameRotationRate,
+                 double delta_t) :
+        GyroStepCostBase(attitudeDelta, FrameRotationRate, delta_t)
     {
 
     }
@@ -157,6 +174,16 @@ public:
                  Eigen::Matrix3d const& gainJacobian,
                  double delta_t) :
         GyroStepCostBase(attitudeDelta, delta_t),
+        _scaleJacobian(gainJacobian)
+    {
+
+    }
+
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 Eigen::Matrix3d const& gainJacobian,
+                 Eigen::Vector3d const& FrameRotationRate,
+                 double delta_t) :
+        GyroStepCostBase(attitudeDelta, FrameRotationRate, delta_t),
         _scaleJacobian(gainJacobian)
     {
 
@@ -189,6 +216,16 @@ public:
                  Eigen::Matrix3d const& biasJacobian,
                  double delta_t) :
         GyroStepCostBase(attitudeDelta, delta_t),
+        _biasJacobian(biasJacobian)
+    {
+
+    }
+
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 Eigen::Matrix3d const& biasJacobian,
+                 Eigen::Vector3d const& FrameRotationRate,
+                 double delta_t) :
+        GyroStepCostBase(attitudeDelta, FrameRotationRate, delta_t),
         _biasJacobian(biasJacobian)
     {
 
@@ -228,6 +265,18 @@ public:
 
     }
 
+    GyroStepCost(Eigen::Matrix3d const& attitudeDelta,
+                 Eigen::Matrix3d const& gainJacobian,
+                 Eigen::Matrix3d const& biasJacobian,
+                 Eigen::Vector3d const& FrameRotationRate,
+                 double delta_t) :
+        GyroStepCostBase(attitudeDelta, FrameRotationRate, delta_t),
+        _scaleJacobian(gainJacobian),
+        _biasJacobian(biasJacobian)
+    {
+
+    }
+
     static constexpr int nParams = 4;
     static constexpr int scaleParamPos = 2;
     static constexpr int biasParamPos = 3;
@@ -253,8 +302,8 @@ protected:
 
 template<bool WBias, bool WScale, typename Tgyro, typename TimeT>
 GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegment(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
-                                                                TimeT t0,
-                                                                TimeT t1) {
+                                                                                  TimeT t0,
+                                                                                  TimeT t1) {
 
     double delta_t = t1 - t0;
 
@@ -336,6 +385,7 @@ template<bool WBias, bool WScale, template <typename T> typename Decorator, type
     Decorator<GyroStepCost<WBias, WScale>> *GyroStepCostBase::getIntegratedIMUDiff(IndexedTimeSequence<Tgyro, TimeT> const& GyroData,
                                                                                TimeT t0,
                                                                                TimeT t1,
+                                                                               Eigen::Vector3d const& frameRotationRate,
                                                                                DecoratorAdditionalArgT ... additionalDecoratorArgs) {
 
     IntegratedGyroSegment pre_integrated = preIntegrateGyroSegment<WBias, WScale, Tgyro, TimeT>(GyroData, t0, t1);
@@ -403,10 +453,39 @@ struct AccelerometerStepCostTraits{
         return n;
     }
 
+    /*!
+     * \brief prevPosParamIdx initial position of the t0 position parameter
+     * \return the index position of t0 parameter
+     */
+    static constexpr int prevPosParamIdx() {
+        return 0;
+    }
+    /*!
+     * \brief prevPosParamIdx initial position of the r1 orientation parameter
+     * \return the index position of r1 parameter
+     */
+    static constexpr int refRotParamIdx() {
+        return 1;
+    }
+    /*!
+     * \brief prevPosParamIdx initial position of the t1 position parameter
+     * \return the index position of t1 parameter
+     */
     static constexpr int refPosParamIdx() {
         return 2;
     }
+    /*!
+     * \brief prevPosParamIdx initial position of the t2 position parameter
+     * \return the index position of t2 parameter
+     */
+    static constexpr int nextPosParamIdx() {
+        return 3;
+    }
 
+    /*!
+     * \brief gravityParamIdx the initial position of the gravity parameter
+     * \return the index position of the gravity parameter
+     */
     static constexpr int gravityParamIdx() {
         return nAccCostParams()-1; //gravity is last parameter
     }

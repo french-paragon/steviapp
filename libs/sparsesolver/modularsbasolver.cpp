@@ -904,6 +904,16 @@ bool ModularSBASolver::opt_step() {
 
     ceres::Solver::Summary summary;
 
+    #ifndef NDEBUG
+
+    double cost;
+
+
+    ceres::Problem::EvaluateOptions eval_options;
+    bool evaluateOk = _problem->Evaluate(eval_options, &cost, nullptr, nullptr, nullptr);
+
+    #endif
+
     ceres::Solve(options, _problem, &summary);
 
     _not_first_step = true;
