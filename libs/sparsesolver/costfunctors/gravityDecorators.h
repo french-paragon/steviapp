@@ -151,7 +151,7 @@ public:
         V3T gVec;
         gVec << localG[0],localG[1],localG[2];
 
-        gVec = local2ecef.R.transpose()*gVec;
+        gVec = -transform.R.transpose()*gVec;
 
         return gVec + anomaly;
     }
@@ -164,7 +164,7 @@ public:
     {
         std::array<double,3> originEcefPos{local2ecef.t.x(), local2ecef.t.y(), local2ecef.t.z()};
         std::array<double,3> origin_reference_gravity = Geo::WGS84Ellipsoid::gravityEcefModel(originEcefPos);
-        _origin_reference_gravity = Eigen::Vector3d(origin_reference_gravity[0],origin_reference_gravity[1],origin_reference_gravity[2]);
+        _origin_reference_gravity = -_local2ecef.R.transpose()*Eigen::Vector3d(origin_reference_gravity[0],origin_reference_gravity[1],origin_reference_gravity[2]);
     }
 
     template <typename ... P>

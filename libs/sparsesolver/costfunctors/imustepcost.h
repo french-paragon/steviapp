@@ -82,7 +82,7 @@ public:
         M3T Rr0 = StereoVision::Geometry::rodriguezFormula<T>(vr0); //R body2world at time 0
         M3T Rr1 = StereoVision::Geometry::rodriguezFormula<T>(vr1); //R body2world at time 1
 
-        M3T Rframes = _FrameRotation.cast<T>().transpose();
+        M3T Rframes = _FrameRotation.cast<T>();
         M3T attitudeDelta = _attitudeDelta.cast<T>();
 
         M3T closure;
@@ -395,20 +395,24 @@ template<bool WBias, bool WScale, template <typename T> typename Decorator, type
                                                        pre_integrated.attitudeDelta,
                                                        pre_integrated.gainJacobian,
                                                        pre_integrated.biasJacobian,
+                                                       frameRotationRate,
                                                        pre_integrated.dt);
     } else if constexpr (WBias) {
         return new Decorator<GyroStepCost<true, false>>(additionalDecoratorArgs ...,
                                                         pre_integrated.attitudeDelta,
                                                         pre_integrated.biasJacobian,
+                                                        frameRotationRate,
                                                         pre_integrated.dt);
     } else if constexpr (WScale) {
         return new Decorator<GyroStepCost<false, true>>(additionalDecoratorArgs ...,
                                                         pre_integrated.attitudeDelta,
                                                         pre_integrated.gainJacobian,
+                                                        frameRotationRate,
                                                         pre_integrated.dt);
     } else {
         return new Decorator<GyroStepCost<false, false>>(additionalDecoratorArgs ...,
                                                          pre_integrated.attitudeDelta,
+                                                         frameRotationRate,
                                                          pre_integrated.dt);
     }
 

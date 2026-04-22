@@ -347,12 +347,12 @@ protected:
     {
 
         static constexpr int refPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
-        static constexpr int initialPrevPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
-        static constexpr int initialNextPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        static constexpr int initialPrevPosParamPos = AccelerometerStepCostTraits<flags>::prevPosParamIdx();
+        static constexpr int initialNextPosParamPos = AccelerometerStepCostTraits<flags>::nextPosParamIdx();
         static constexpr int gravityParamPos = AccelerometerStepCostTraits<flags>::gravityParamIdx();
 
         template <typename T>
-        using Decorator = CoriolisAccCorrection<GravityReoriented<T, refPosParamPos, gravityParamPos>, initialPrevPosParamPos, initialNextPosParamPos, gravityParamPos>;
+        using Decorator = CoriolisAccCorrection<Wgs84GravityCorrection<T, refPosParamPos, gravityParamPos>, initialPrevPosParamPos, initialNextPosParamPos, gravityParamPos>;
 
         template <typename T>
         using StochasticProcessEnabledDecorator = StochasticProcessAggregator<Decorator<T>, notDynamic, insParamsDim, T::nParams>;
@@ -363,8 +363,8 @@ protected:
     {
 
         static constexpr int refPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
-        static constexpr int initialPrevPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
-        static constexpr int initialNextPosParamPos = AccelerometerStepCostTraits<flags>::refPosParamIdx();
+        static constexpr int initialPrevPosParamPos = AccelerometerStepCostTraits<flags>::prevPosParamIdx();
+        static constexpr int initialNextPosParamPos = AccelerometerStepCostTraits<flags>::nextPosParamIdx();
         static constexpr int gravityParamPos = AccelerometerStepCostTraits<flags>::gravityParamIdx();
 
         template <typename T>
@@ -374,7 +374,7 @@ protected:
                     AddPose< //add a pose for the lever arm
                         AddOrientation< //add orientation for the t0 pose
                             AddOrientation< //add orientation for the t2 pose
-                                CoriolisAccCorrection<GravityReoriented<T, refPosParamPos, gravityParamPos>, initialPrevPosParamPos, initialNextPosParamPos, gravityParamPos>, 3
+                                CoriolisAccCorrection<Wgs84GravityCorrection<T, refPosParamPos, gravityParamPos>, initialPrevPosParamPos, initialNextPosParamPos, gravityParamPos>, 3
                             >, 0
                         >
                     ,0>
