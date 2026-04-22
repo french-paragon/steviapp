@@ -30,6 +30,7 @@ protected:
     Trajectory* _trajectory;
     Trajectory* _trajectory2;
     bool _useOptimizedInMulti;
+    bool _forwardComparison;
 
     QCustomPlot* _absolutePositionPlot;
     QCustomPlot* _positionDeltasPlot;

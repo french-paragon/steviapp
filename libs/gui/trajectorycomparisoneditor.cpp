@@ -7,6 +7,7 @@
 #include "datablocks/observationssummaryinterface.h"
 
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 
 namespace StereoVisionApp {
@@ -14,12 +15,30 @@ namespace StereoVisionApp {
 TrajectoryComparisonEditor::TrajectoryComparisonEditor(QWidget *parent) :
     Editor(parent),
     _trajectory(nullptr),
-    _trajectory2(nullptr)
+    _trajectory2(nullptr),
+    _forwardComparison(true)
 {
 
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setMargin(5);
     layout->setSpacing(0);
+
+    QHBoxLayout* toolsLayout = new QHBoxLayout();
+
+    toolsLayout->addStretch();
+
+    QComboBox* comparisonDirection = new QComboBox(this);
+    comparisonDirection->addItem(tr("Forward comparison"), true);
+    comparisonDirection->addItem(tr("Backward comparison"), false);
+
+    toolsLayout->addWidget(comparisonDirection);
+
+    layout->addLayout(toolsLayout);
+
+    connect(comparisonDirection, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, comparisonDirection] () {
+        _forwardComparison = comparisonDirection->currentData().toBool();
+        reconfigurePlots();
+    });
 
     QLabel* positionDeltasLabel = new QLabel(tr("Position residuals:"), this);
     _positionDeltasPlot = new QCustomPlot(this);
@@ -276,7 +295,13 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
                 StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
                     interpOptTraj.weigthLower, interpOptTraj.valLower, interpOptTraj.weigthUpper, interpOptTraj.valUpper);
 
-        StereoVision::Geometry::RigidBodyTransform<double> delta = initial*opt.inverse();
+        StereoVision::Geometry::RigidBodyTransform<double> delta;
+
+        if (_forwardComparison) {
+            delta = initial*opt.inverse();
+        } else {
+            delta = initial.inverse()*opt;
+        }
 
         posXerrors[i] = initial.t.x() - opt.t.x();
         posYerrors[i] = initial.t.y() - opt.t.y();
