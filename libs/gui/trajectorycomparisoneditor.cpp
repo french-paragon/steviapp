@@ -298,9 +298,9 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
         StereoVision::Geometry::RigidBodyTransform<double> delta;
 
         if (_forwardComparison) {
-            delta = initial*opt.inverse();
+            delta = opt.inverse()*initial;
         } else {
-            delta = initial.inverse()*opt;
+            delta = opt*initial.inverse();
         }
 
         posXerrors[i] = initial.t.x() - opt.t.x();

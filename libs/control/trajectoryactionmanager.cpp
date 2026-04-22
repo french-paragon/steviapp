@@ -27,6 +27,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QMenu>
+#include <QInputDialog>
 
 namespace StereoVisionApp {
 
@@ -250,6 +251,10 @@ QList<QAction*> TrajectoryActionManager::factorizeMultiItemsContextActions(QObje
 
             MainWindow* mw = MainWindow::getActiveMainWindow();
 
+            if (mw == nullptr) {
+                return;
+            }
+
             Editor* editor = mw->openEditor(TrajectoryComparisonEditor::staticMetaObject.className());
 
             TrajectoryComparisonEditor* toae = qobject_cast<TrajectoryComparisonEditor*>(editor);
@@ -258,7 +263,23 @@ QList<QAction*> TrajectoryActionManager::factorizeMultiItemsContextActions(QObje
                 return;
             }
 
-            toae->setTrajectories(trajs[0], trajs[1]);
+            bool compareOptimized = false;
+
+            QStringList options = {tr("Non-optimized"), tr("Optimized")};
+            int current = 0;
+            bool ok = true;
+            bool editable = false;
+            QString selected = QInputDialog::getItem(mw, tr("Use trajectory"), tr("Use trajectory:"), options, current, editable, &ok);
+
+            if (!ok) {
+                return;
+            }
+
+            if (selected == options[1]) {
+                compareOptimized = true;
+            }
+
+            toae->setTrajectories(trajs[0], trajs[1], compareOptimized);
 
         });
         lst.append(compareTrajectories);
