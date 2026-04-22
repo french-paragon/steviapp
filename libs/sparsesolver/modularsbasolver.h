@@ -877,6 +877,12 @@ public:
         _silent = silent;
     }
 
+    double funcTolerance() const;
+    void setFuncTolerance(double newFuncTolerance);
+
+    double paramsTolerance() const;
+    void setParamsTolerance(double newParamsTolerance);
+
 protected:
 
     bool initManagedParameters();
@@ -891,6 +897,8 @@ protected:
     bool _verbose;
     bool _compute_marginals;
     bool _not_first_step;
+    double _funcTolerance;
+    double _paramsTolerance;
 
     GenericSBAGraphReductor _observabilityGraph;
 

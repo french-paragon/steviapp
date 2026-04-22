@@ -63,7 +63,9 @@ ModularSBASolver::ModularSBASolver(Project *p, bool computeUncertainty, bool spa
     _verbose(verbose),
     _loggingDir(""),
     _problem(nullptr),
-    _covariance(nullptr)
+    _covariance(nullptr),
+    _funcTolerance(1e-8),
+    _paramsTolerance(1e-10)
 {
 
     setObjectName("ModularSBASolver");
@@ -899,6 +901,8 @@ bool ModularSBASolver::opt_step() {
     ModularSBASolverIterationCallback* iterationCallBack = new ModularSBASolverIterationCallback(this);
 
     options.max_num_iterations = optimizationSteps();
+    options.function_tolerance = _funcTolerance;
+    options.parameter_tolerance = _paramsTolerance;
 
     options.callbacks = {iterationCallBack}; //remember, the solver does not take ownership of these callbacks!
 
@@ -1123,6 +1127,26 @@ void ModularSBASolver::cleanup() {
 
 bool ModularSBASolver::splitOptSteps() const {
     return true;
+}
+
+double ModularSBASolver::paramsTolerance() const
+{
+    return _paramsTolerance;
+}
+
+void ModularSBASolver::setParamsTolerance(double newParamsTolerance)
+{
+    _paramsTolerance = newParamsTolerance;
+}
+
+double ModularSBASolver::funcTolerance() const
+{
+    return _funcTolerance;
+}
+
+void ModularSBASolver::setFuncTolerance(double newFuncTolerance)
+{
+    _funcTolerance = newFuncTolerance;
 }
 
 ModularSBASolver::SBAModule::SBAModule() {

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>370</width>
-    <height>246</height>
+    <width>383</width>
+    <height>333</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -83,6 +83,52 @@
         </property>
         <property name="text">
          <string>Use robust cameras</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QSpinBox" name="funcTolBox">
+        <property name="prefix">
+         <string>1e</string>
+        </property>
+        <property name="minimum">
+         <number>-12</number>
+        </property>
+        <property name="maximum">
+         <number>1</number>
+        </property>
+        <property name="value">
+         <number>-8</number>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QSpinBox" name="paramTolBox">
+        <property name="prefix">
+         <string>1e</string>
+        </property>
+        <property name="minimum">
+         <number>-14</number>
+        </property>
+        <property name="maximum">
+         <number>1</number>
+        </property>
+        <property name="value">
+         <number>-10</number>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Function tolerance (log10)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Parameters tolerance (log10)</string>
         </property>
        </widget>
       </item>

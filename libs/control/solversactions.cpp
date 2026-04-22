@@ -458,6 +458,8 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
     bool computeUncertainty = false;
 	bool useSparseOptimizer = true;
     bool verbose = true;
+    double funcTol = 1e-8;
+    double paramsTol = 1e-10;
 	int nSteps = pnStep;
 
     FixedParameters fixedParameters = NoFixedParameters;
@@ -486,6 +488,9 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		nSteps = d.numberOfSteps();
 
 		fixedParameters = d.getFixedParameters();
+
+        funcTol = d.functionTolerance();
+        paramsTol = d.parametersTolerance();
 	}
 
 	if (nSteps <= 0) {
@@ -500,6 +505,9 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
 	solver->setOptimizationSteps(nSteps);
 	solver->setFixedParametersFlag(fixedParameters);
+
+    solver->setFuncTolerance(funcTol);
+    solver->setParamsTolerance(paramsTol);
 
     QFileInfo projSourceInfos(project->source());
 

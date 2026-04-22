@@ -29,6 +29,9 @@ public:
 	bool initWithCurrentSol() const;
 	int numberOfSteps() const;
 
+    double functionTolerance() const;
+    double parametersTolerance() const;
+
     void setComputeUncertainty(bool compute);
     void setUseSparseOptimizer(bool useSparse);
     void setUseRobustCameras(bool useRobust);

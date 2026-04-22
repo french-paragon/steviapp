@@ -1,6 +1,8 @@
 #include "sparsesolverconfigdialog.h"
 #include "ui_sparsesolverconfigdialog.h"
 
+#include <cmath>
+
 namespace StereoVisionApp {
 
 SparseSolverConfigDialog::SparseSolverConfigDialog(QWidget *parent) :
@@ -56,6 +58,13 @@ bool SparseSolverConfigDialog::useRobustCameras() const {
 
 int SparseSolverConfigDialog::numberOfSteps() const {
 	return ui->nStepSpinBoxpinBox->value();
+}
+
+double SparseSolverConfigDialog::functionTolerance() const {
+    return std::pow(10,double(ui->funcTolBox->value()));
+}
+double SparseSolverConfigDialog::parametersTolerance() const {
+    return std::pow(10,double(ui->paramTolBox->value()));
 }
 
 void SparseSolverConfigDialog::setComputeUncertainty(bool compute) {
