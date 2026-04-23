@@ -85,39 +85,39 @@ struct WGS84Ellipsoid {
 
     template <typename T>
     static inline constexpr std::array<T,3> gravityEcefModel(std::array<T,3> const& ECEF) {
+        double scale = M_PI/180.0;
+
         std::array<T,3> latLonHeight = Ecef2LatLonHeight(ECEF);
         T lat = latLonHeight[0];
+        T lon = latLonHeight[1];
         T h = latLonHeight[2];
-        T sLat = sin(lat);
+        T sLat = sin(lat*T(scale));
+        T cLat = cos(lat*T(scale));
         T sLat2 = sLat*sLat;
-        T cLat2 = T(1) - sLat2;
-
-        T gScale = (T(a*EquatorNormalGravity)*cLat2 + T(b*PoleNormalGravity)*sLat2)/sqrt(T(a*a)*cLat2 + T(b*b)*sLat2);
+        T cLat2 = cLat*cLat;
+        T sLon = sin(lon*T(scale));
+        T cLon = cos(lon*T(scale));
 
         constexpr double f = (a-b)/a;
-        constexpr double G = 6.674e-11;
-        constexpr double Me = 5.9722e24;
+        constexpr double e2 = (a*a-b*b)/(a*a);
+        constexpr double k = b * PoleNormalGravity/(a*EquatorNormalGravity) - 1;
+
+        T gScale = T(EquatorNormalGravity)*(T(1) + T(k)*sLat2)/sqrt(T(1) - T(e2)*sLat2);
+        //T gScale = (T(a*EquatorNormalGravity)*cLat2 + T(b*PoleNormalGravity)*sLat2)/sqrt(T(a*a)*cLat2 + T(b*b)*sLat2);
+
+        constexpr double GMe = 3.986004418e14;
         constexpr double we = 2*M_PI/(24*60*60); //rotation rate of the earth
-        constexpr double m = we*we*a*a*b/(G*Me);
+        constexpr double m = we*we*a*a*b/GMe;
 
         T hCorr = T(1) - T(2/a)*(T(1 + f + m) - T(2*f)*sLat2)*h + T(3/(a*a))*h*h;
         gScale *= hCorr;
 
-        //shift to compute normal
-        latLonHeight[2] += T(10); //10 meters highers
-        std::array<T,3> ecefShifted = LatLonHeight2ECEF(latLonHeight);
+        //compute
 
         std::array<T,3> g;
-        T norm = T(0);
-        for (int i = 0; i < 3; i++) {
-            g[i] = ecefShifted[i] - ECEF[i];
-            norm += g[i]*g[i];
-        }
-        norm = sqrt(norm);
-        T scale = gScale/norm;
-        for (int i = 0; i < 3; i++) {
-            g[i] *= scale;
-        }
+        g[0] = cLat*cLon*gScale;
+        g[1] = cLat*sLon*gScale;
+        g[2] = sLat*gScale;
 
         return g;
     }

@@ -3,6 +3,8 @@
 #include "datablocks/project.h"
 #include "datablocks/georeferenceddatablockinterface.h"
 
+#include "geo/localframes.h"
+
 #include "mainwindow.h"
 
 #include <QInputDialog>
@@ -39,62 +41,6 @@ bool setDefaultProjectCRS(Project* p) {
 
     p->setDefaultProjectCRS(crs);
     return true;
-
-}
-
-StereoVision::Geometry::AffineTransform<float> getLocalFrameOnSphere(Eigen::Vector3f mean, float minDist) {
-
-    Eigen::Vector3f direction = mean.normalized();
-    Eigen::Vector3f origin = direction*minDist;
-
-    Eigen::Vector3f vertical = Eigen::Vector3f(0,0,1);
-
-    if (direction.z() < 0) {
-        vertical = -vertical;
-    }
-
-    float scaling = vertical.dot(direction);
-
-    if (scaling < 1e-3) {
-        Eigen::Vector3f toNorth = Eigen::Vector3f(0,0,1);
-        direction.z() = 0;
-        direction.normalize();
-        Eigen::Vector3f toEast = toNorth.cross(direction);
-
-        Eigen::Matrix<float,3,3> Rlocal2ecef;
-        Rlocal2ecef.block<3,1>(0,0) = toEast;
-        Rlocal2ecef.block<3,1>(0,1) = toNorth;
-        Rlocal2ecef.block<3,1>(0,2) = direction;
-
-        Eigen::Matrix<float,3,3> Recef2local = Rlocal2ecef.transpose();
-
-        StereoVision::Geometry::AffineTransform<float>(Recef2local, -Recef2local*origin);
-    }
-
-    vertical /= scaling; //scale to form a right triangle perpendicular to the sphere
-    Eigen::Vector3f toNorth = vertical - direction;
-
-    if (direction.z() < 0) {
-        toNorth = -toNorth;
-    }
-
-    if (toNorth.norm()*minDist < 1) {
-        //put a local system at the poles
-        return StereoVision::Geometry::AffineTransform<float>(Eigen::Matrix3f::Identity(), Eigen::Vector3f(0,0,-minDist));
-    }
-
-    toNorth.normalize();
-    Eigen::Vector3f toEast = toNorth.cross(direction);
-
-    Eigen::Matrix<float,3,3> Rlocal2ecef;
-
-    Rlocal2ecef.block<3,1>(0,0) = toEast;
-    Rlocal2ecef.block<3,1>(0,1) = toNorth;
-    Rlocal2ecef.block<3,1>(0,2) = direction;
-
-    Eigen::Matrix<float,3,3> Recef2local = Rlocal2ecef.transpose();
-
-    return StereoVision::Geometry::AffineTransform<float>(Recef2local, -Recef2local*origin);
 
 }
 
@@ -160,7 +106,7 @@ bool estimateLocalCoordinateSystem(Project* p) {
 
     mean /= count;
 
-    p->setLocalCoordinateFrame(getLocalFrameOnSphere(mean, minDist).cast<double>());
+    p->setLocalCoordinateFrame(Geo::getLocalCartesianFrameOnSphere<float>(mean, minDist).cast<double>());
 
     return true;
 }

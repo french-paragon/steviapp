@@ -7,6 +7,10 @@
 
 #include <StereoVision/geometry/rotations.h>
 
+#ifndef NDEBUG
+#include <iostream>
+#endif
+
 class QAction;
 
 namespace StereoVisionApp {
@@ -148,6 +152,24 @@ public:
     inline void setLocalCoordinateFrame(StereoVision::Geometry::AffineTransform<double> const& reference2local) {
         _hasLocalCoordinateFrame = true;
         _ecef2local = StereoVision::Geometry::RigidBodyTransform<double>(reference2local).toAffineTransform(); //enforce transform in SO(3)
+
+        #ifndef NDEBUG
+        Eigen::Matrix3d check = reference2local.R.transpose()*reference2local.R;
+        check -= Eigen::Matrix3d::Identity();
+        bool error = false;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (std::abs(check(i,j)) > 1e-6) {
+                    error = true;
+                }
+            }
+        }
+        if (error) {
+            std::cerr << "Error while, setting invalid reference2local project local frame!\n";
+            std::cerr << "R = " << reference2local.R << "\n";
+            std::cerr << "t = " << reference2local.t << std::endl;
+        }
+        #endif
 
         Q_EMIT projectDataChanged();
         Q_EMIT localCooordinateFrameChanged();

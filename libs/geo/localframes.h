@@ -20,6 +20,66 @@ enum TopocentricConvention {
     NWU = 2, //North West Up
 };
 
+template<typename T>
+StereoVision::Geometry::AffineTransform<T> getLocalCartesianFrameOnSphere(Eigen::Matrix<T,3,1> const& mean, T radius) {
+
+    using V3T = Eigen::Matrix<T,3,1>;
+    using M3T = Eigen::Matrix<T,3,3>;
+
+    V3T direction = mean.normalized();
+    V3T origin = direction*radius;
+
+    V3T vertical = V3T(0,0,1);
+
+    if (direction.z() < 0) {
+        vertical = -vertical;
+    }
+
+    T scaling = vertical.dot(direction);
+
+    if (scaling < 1e-3) {
+        V3T toNorth = V3T(0,0,1);
+        direction.z() = 0;
+        direction.normalize();
+        V3T toEast = toNorth.cross(direction);
+
+        M3T Rlocal2ecef;
+        Rlocal2ecef.template block<3,1>(0,0) = toEast;
+        Rlocal2ecef.template block<3,1>(0,1) = toNorth;
+        Rlocal2ecef.template block<3,1>(0,2) = direction;
+
+        M3T Recef2local = Rlocal2ecef.transpose();
+
+        return StereoVision::Geometry::AffineTransform<T>(Recef2local, -Recef2local*origin);
+    }
+
+    vertical /= scaling; //scale to form a right triangle perpendicular to the sphere
+    V3T toNorth = vertical - direction;
+
+    if (direction.z() < 0) {
+        toNorth = -toNorth;
+    }
+
+    if (toNorth.norm()*radius < 1) {
+        //put a local system at the poles
+        return StereoVision::Geometry::AffineTransform<T>(M3T::Identity(), V3T(0,0,-radius));
+    }
+
+    toNorth.normalize();
+    V3T toEast = toNorth.cross(direction);
+
+    M3T Rlocal2ecef;
+
+    Rlocal2ecef.template block<3,1>(0,0) = toEast;
+    Rlocal2ecef.template block<3,1>(0,1) = toNorth;
+    Rlocal2ecef.template block<3,1>(0,2) = direction;
+
+    M3T Recef2local = Rlocal2ecef.transpose();
+
+    return StereoVision::Geometry::AffineTransform<T>(Recef2local, -Recef2local*origin);
+
+}
+
 /*!
  * \brief getLTPC2ECEF gets a local frame of reference in a certain geographic coordinate system.
  * \return an affine transform, representing the transformation from the Local Tangent Plane Coordinates (LTPC) system to the ECEF frame

@@ -3,6 +3,7 @@
 #include <QMap>
 
 #include "geo/wgs84.h"
+#include "geo/localframes.h"
 
 #include <proj.h>
 
@@ -20,6 +21,7 @@ private Q_SLOTS:
     void initTestCase();
 
     void testWGS84();
+    void testLocalFrameOnSphere();
 
     void cleanupTestCase();
 
@@ -79,6 +81,43 @@ void testGeoFrames::testWGS84() {
     }
 
     proj_destroy(reprojector);
+}
+
+void testGeoFrames::testLocalFrameOnSphere() {
+
+    std::vector<std::array<double,3>> latLonHeightCoords =
+        {{45.576,12.98218,120.21},{89.12,0,2343.27},{0,-179.21,-219.2},{-21.89,119.21,3219.2}};
+
+    //test forward
+    for (size_t i = 0; i < latLonHeightCoords.size(); i++) {
+        std::array<double,3> ecefComputed = StereoVisionApp::Geo::WGS84Ellipsoid::LatLonHeight2ECEF(latLonHeightCoords[i]);
+
+        Eigen::Vector3d ecef(ecefComputed[0], ecefComputed[1], ecefComputed[2]);
+
+        StereoVision::Geometry::AffineTransform<double> ecef2local = Geo::getLocalCartesianFrameOnSphere(ecef, ecef.norm());
+
+        QVERIFY(ecef2local.isFinite());
+
+        Eigen::Matrix3d check = ecef2local.R.transpose()*ecef2local.R;
+
+        check -= Eigen::Matrix3d::Identity();
+
+        //check R is a rotation matrix
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                QVERIFY(std::abs(check(i,j)) < 1e-8);
+            }
+        }
+
+        QVERIFY(std::abs(ecef2local.t.norm() - ecef.norm()) < 1e-4);
+
+        Eigen::Vector3d posCheck = -ecef2local.R.transpose()*ecef2local.t;
+        //check the origin is the reference point
+        for (int i = 0; i < 3; i++) {
+            QVERIFY(std::abs(posCheck[i]-ecef[i]) < 1e-4);
+        }
+    }
+
 }
 
 void testGeoFrames::cleanupTestCase() {
