@@ -815,7 +815,7 @@ public:
         return _trajectoryParametersIndex.keys();
     }
 
-    void enableLogging(QString loggingDirPath);
+    void enableLogging(QString loggingDirPath, QString const& logs_prefix = "");
     /*!
      * \brief logDatas write all the data logger to a specific file
      * \param fileName the filename to log to (will be created in the logging dir).
@@ -909,6 +909,7 @@ protected:
 
     QMap<QString, ValueBlockLogger*> _loggers;
     QString _loggingDir;
+    QString _logsPrefix;
     QString _default_logging_file;
 
     QMap<qint64, int> _cameraProjectorsAssociations;

@@ -539,8 +539,9 @@ StereoVision::Geometry::AffineTransform<double> ModularSBASolver::getTransform2L
 
 }
 
-void ModularSBASolver::enableLogging(QString loggingDirPath) {
+void ModularSBASolver::enableLogging(QString loggingDirPath, const QString &logs_prefix) {
     _loggingDir = loggingDirPath;
+    _logsPrefix = logs_prefix;
     _default_logging_file = QDir(_loggingDir).absoluteFilePath("messages.log");
 }
 void ModularSBASolver::logDatas(QString fileName) {
@@ -559,7 +560,9 @@ void ModularSBASolver::logDatas(QString fileName) {
         }
     }
 
-    QString errorsFilePath = loggingDir.filePath(fileName);
+    QString fName = _logsPrefix + fileName;
+
+    QString errorsFilePath = loggingDir.filePath(fName);
 
     QFile errorsFile(errorsFilePath);
 

@@ -20,6 +20,7 @@ void solveSparseHeadless(Project* p,
 				 bool computeUncertainty = false,
 				 int nSteps = 50,
 				 FixedParameters fixed = FixedParameter::NoFixedParameters);
+
 //void solveSparseStereoRig(Project* p, MainWindow* w = nullptr, int nStep = 50);
 
 } //namespace StereoVisionApp

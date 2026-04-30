@@ -38,6 +38,12 @@ public:
 
 	void setNumberOfSteps(int nSteps);
 
+    QString logsDirectory() const;
+    void setLogsDirectory(QString const& directory);
+
+    QString logsPrefix() const;
+    void setLogsPrefix(QString const& prefix);
+
 	FixedParameters getFixedParameters() const;
 	void setFixedParameters(FixedParameters parameters);
 

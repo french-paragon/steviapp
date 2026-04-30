@@ -462,6 +462,12 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
     double paramsTol = 1e-10;
 	int nSteps = pnStep;
 
+    QFileInfo projSourceInfos(project->source());
+
+    QDir projDir = projSourceInfos.dir();
+    QString loggingDir = projDir.filePath("logging");
+    QString logsPrefix = "";
+
     FixedParameters fixedParameters = NoFixedParameters;
 
 	if (w != nullptr) {
@@ -473,6 +479,9 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
         d.setUseRobustCameras(useRobustCameras);
         d.setComputeUncertainty(computeUncertainty);
         d.setUseSparseOptimizer(useSparseOptimizer);
+
+        d.setLogsDirectory(loggingDir);
+        d.setLogsPrefix(logsPrefix);
 
 		d.setFixedParameters(fixedParameters);
 
@@ -487,7 +496,10 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		useSparseOptimizer = d.useSparseOptimizer();
 		nSteps = d.numberOfSteps();
 
+        loggingDir = d.logsDirectory();
+
 		fixedParameters = d.getFixedParameters();
+        logsPrefix = d.logsPrefix();
 
         funcTol = d.functionTolerance();
         paramsTol = d.parametersTolerance();
@@ -509,10 +521,9 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
     solver->setFuncTolerance(funcTol);
     solver->setParamsTolerance(paramsTol);
 
-    QFileInfo projSourceInfos(project->source());
-
-    QDir projDir = projSourceInfos.dir();
-    solver->enableLogging(projDir.filePath("logging")); //TODO: add option in the dialog to select logs locations
+    if (!loggingDir.isEmpty()) {
+        solver->enableLogging(loggingDir, logsPrefix);
+    }
 
     configureModularSBASolverInterfaces(sbamodulesinterface, solver);
 
@@ -680,5 +691,6 @@ void solveSparseStereoRig(Project* p, MainWindow* w, int pnStep) {
 	t->start();
     solver->run();*/
 }
+
 
 } //namespace StereoVisionApp

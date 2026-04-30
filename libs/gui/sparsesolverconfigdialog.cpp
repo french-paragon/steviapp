@@ -2,6 +2,9 @@
 #include "ui_sparsesolverconfigdialog.h"
 
 #include <cmath>
+#include <QFileInfo>
+#include <QAction>
+#include <QFileDialog>
 
 namespace StereoVisionApp {
 
@@ -14,6 +17,23 @@ SparseSolverConfigDialog::SparseSolverConfigDialog(QWidget *parent) :
 
 	connect(ui->RunButton, &QPushButton::clicked, this, &SparseSolverConfigDialog::onRunButtonPressed);
 	connect(ui->cancelButton, &QPushButton::clicked, this, &SparseSolverConfigDialog::onCancelButtonPressed);
+
+    QAction* clearLineAction = new QAction(QIcon::fromTheme("edit-clear"), tr("clear"), ui->logsPrefixLineEdit);
+    QAction* openFolderAction = new QAction(QIcon::fromTheme("folder-open"), tr("open"), ui->logsPrefixLineEdit);
+
+    ui->logsDirectoryLineEdit->addAction(openFolderAction, QLineEdit::ActionPosition::TrailingPosition);
+    ui->logsDirectoryLineEdit->addAction(clearLineAction, QLineEdit::ActionPosition::TrailingPosition);
+
+    connect(clearLineAction, &QAction::triggered, this, [this] () {
+        setLogsDirectory("");
+    });
+
+    connect(openFolderAction, &QAction::triggered, this, [this] () {
+        QString folderPath = QFileDialog::getExistingDirectory(this, tr("get logs directory"), logsDirectory());
+        if (!folderPath.isEmpty()) {
+            setLogsDirectory(folderPath);
+        }
+    });
 }
 
 SparseSolverConfigDialog::~SparseSolverConfigDialog()
@@ -79,6 +99,32 @@ void SparseSolverConfigDialog::setUseRobustCameras(bool useRobust) {
 
 void SparseSolverConfigDialog::setNumberOfSteps(int nSteps) {
 	ui->nStepSpinBoxpinBox->setValue(nSteps);
+}
+
+QString SparseSolverConfigDialog::logsDirectory() const {
+    return ui->logsDirectoryLineEdit->text();
+}
+void SparseSolverConfigDialog::setLogsDirectory(QString const& directory) {
+
+    if (directory.isEmpty()) {
+        ui->logsDirectoryLineEdit->setText(directory);
+        return;
+    }
+
+    QFileInfo infos(directory);
+
+    if (!infos.exists() or !infos.isDir()) {
+        return;
+    }
+
+    ui->logsDirectoryLineEdit->setText(directory);
+}
+
+QString SparseSolverConfigDialog::logsPrefix() const {
+    return ui->logsPrefixLineEdit->text();
+}
+void SparseSolverConfigDialog::setLogsPrefix(QString const& prefix) {
+    ui->logsPrefixLineEdit->setText(prefix);
 }
 
 FixedParameters SparseSolverConfigDialog::getFixedParameters() const {
