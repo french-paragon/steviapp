@@ -414,11 +414,11 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
         return RType::error("Empty trajectory positions!");
     }
 
-    if (_positionDefinition.crs_epsg.isEmpty()) {
+    const char* wgs84_ecef = "EPSG:4978";
+
+    if (_positionDefinition.crs_epsg.isEmpty() or _positionDefinition.crs_epsg == QString(wgs84_ecef)) {
         return ret; // no transformation required
     }
-
-    const char* wgs84_ecef = "EPSG:4978";
 
     PJ_CONTEXT* ctx = proj_context_create();
 

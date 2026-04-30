@@ -9,6 +9,10 @@
 #include <StereoVision/geometry/rotations.h>
 
 #include <proj.h>
+
+#include "../utils/types_infos.h"
+#include "./wgs84.h"
+
 #include <iostream>
 
 namespace StereoVisionApp {
@@ -80,6 +84,69 @@ StereoVision::Geometry::AffineTransform<T> getLocalCartesianFrameOnSphere(Eigen:
 
 }
 
+template <typename T>
+static inline constexpr Eigen::Matrix<T,3,3> localFrame2ECEFFromGeo(std::array<T,3> const& latLonHeight,
+                                                                      TopocentricConvention topocentricConventions) {
+    double scale = M_PI/180.0;
+    T lat = latLonHeight[0];
+    T lon = latLonHeight[1];
+    T h = latLonHeight[2];
+    T sLat = sin(lat*T(scale));
+    T cLat = cos(lat*T(scale));
+    T sLon = sin(lon*T(scale));
+    T cLon = cos(lon*T(scale));
+
+    using V3T = Eigen::Matrix<T,3,1>;
+
+    V3T North(-sLat*cLon, -sLat*sLon, cLat);
+    V3T East(-sLon, cLon, 0);
+    V3T Down(-cLat*cLon, -cLat*sLon, -sLat);
+
+    Eigen::Matrix<T,3,3> ret;
+
+    switch (topocentricConventions) {
+    case NED:
+        ret.col(0) = North;
+        ret.col(1) = East;
+        ret.col(2) = Down;
+        break;
+    case ENU:
+        ret.col(0) = East;
+        ret.col(1) = North;
+        ret.col(2) = -Down;
+        break;
+    case NWU:
+        ret.col(0) = North;
+        ret.col(1) = -East;
+        ret.col(2) = -Down;
+        break;
+    }
+
+    return ret;
+}
+
+template <typename T>
+static inline constexpr Eigen::Matrix<T,3,3> localFrame2ECEFFromECEF(std::array<T,3> const& ECEF,
+                                                                       TopocentricConvention topocentricConventions) {
+
+    std::array<T,3> latLonHeight = WGS84Ellipsoid::Ecef2LatLonHeight(ECEF);
+    return localFrame2ECEFFromGeo(latLonHeight, topocentricConventions);
+}
+
+template <typename C_T>
+static inline constexpr Eigen::Matrix<typename IndexableInfos<C_T>::ScalarT,3,3> localFrame2ECEFFromGeo(C_T const& latLonHeight,
+                                                                                                          TopocentricConvention topocentricConventions) {
+    using T = typename IndexableInfos<C_T>::ScalarT;
+    return localFrame2ECEFFromGeo(std::array<T,3>{latLonHeight[0],latLonHeight[1],latLonHeight[2]}, topocentricConventions);
+}
+template <typename C_T>
+static inline constexpr Eigen::Matrix<typename IndexableInfos<C_T>::ScalarT,3,3> localFrame2ECEFFromECEF(C_T const& ECEF,
+                                                                                                           TopocentricConvention topocentricConventions) {
+    using T = typename IndexableInfos<C_T>::ScalarT;
+    return localFrame2ECEFFromECEF(std::array<T,3>{ECEF[0],ECEF[1],ECEF[2]}, topocentricConventions);
+}
+
+
 /*!
  * \brief getLTPC2ECEF gets a local frame of reference in a certain geographic coordinate system.
  * \return an affine transform, representing the transformation from the Local Tangent Plane Coordinates (LTPC) system to the ECEF frame
@@ -89,7 +156,6 @@ std::optional<StereoVision::Geometry::AffineTransform<T>> getLTPC2ECEF(Eigen::Ma
                                                                        std::string const& crs,
                                                                        TopocentricConvention topocentricConventions) {
 
-    const char* wgs84_latlon = "EPSG:4979"; //lat lon, height above the ellipsoid
     const char* wgs84_ecef = "EPSG:4978";
 
     PJ_CONTEXT* ctx = proj_context_create();
@@ -101,9 +167,6 @@ std::optional<StereoVision::Geometry::AffineTransform<T>> getLTPC2ECEF(Eigen::Ma
         return std::nullopt;
     }
 
-    PJ* latLon2ecef = proj_create_crs_to_crs(ctx, wgs84_latlon, wgs84_ecef, nullptr);
-    PJ* ecef2latLon = proj_create_crs_to_crs(ctx, wgs84_ecef, wgs84_latlon, nullptr);
-
     std::optional<StereoVision::Geometry::AffineTransform<T>> ret = std::nullopt;
 
     PJ_COORD coordBase;
@@ -111,35 +174,10 @@ std::optional<StereoVision::Geometry::AffineTransform<T>> getLTPC2ECEF(Eigen::Ma
     coordBase.xyz.y = inputCoord[1];
     coordBase.xyz.z = inputCoord[2];
 
-    PJ_COORD ecefPos = proj_trans(toEcef, PJ_FWD, coordBase);
-    PJ_COORD geoPos = proj_trans(ecef2latLon, PJ_FWD, ecefPos);
-
-    PJ_COORD posUpN = geoPos;
-    posUpN.lpz.phi += 1e-5; //approximately 1m at sea level
-    PJ_COORD posUpNEcef = proj_trans(latLon2ecef, PJ_FWD, posUpN);
-
-    PJ_COORD posDownS = geoPos;
-    posDownS.lpz.phi -= 1e-5; //approximately 1m at sea level
-    PJ_COORD posDownSEcef = proj_trans(latLon2ecef, PJ_FWD, posDownS);
-
-    PJ_COORD posUp = geoPos;
-    posUp.lpz.z += 1;
-    PJ_COORD posUpEcef = proj_trans(latLon2ecef, PJ_FWD, posUp);
-
-    Eigen::Vector3d upVec(posUpEcef.xyz.x - ecefPos.xyz.x,
-                          posUpEcef.xyz.y - ecefPos.xyz.y,
-                          posUpEcef.xyz.z - ecefPos.xyz.z);
-    upVec.normalize();
-
-    Eigen::Vector3d northVec(posUpNEcef.xyz.x - posDownS.xyz.x,
-                             posUpNEcef.xyz.y - posDownS.xyz.y,
-                             posUpNEcef.xyz.z - posDownS.xyz.z);
-    double res = northVec.dot(upVec);
-    northVec -= res*upVec;
-
-    northVec.normalize();
-
-    Eigen::Vector3d eastVec = northVec.cross(upVec);
+    PJ_COORD ecefPos = coordBase;
+    if (wgs84_ecef != crs) {
+        ecefPos = proj_trans(toEcef, PJ_FWD, coordBase);
+    }
 
     StereoVision::Geometry::AffineTransform<T> transform;
 
@@ -147,34 +185,10 @@ std::optional<StereoVision::Geometry::AffineTransform<T>> getLTPC2ECEF(Eigen::Ma
     transform.t[1] = ecefPos.xyz.y;
     transform.t[2] = ecefPos.xyz.z;
 
-    Eigen::Matrix3d R;
-
-    switch (topocentricConventions) {
-    case TopocentricConvention::NED:
-        R.col(0) = northVec;
-        R.col(1) = eastVec;
-        R.col(2) = -upVec;
-        break;
-    case TopocentricConvention::ENU:
-        R.col(0) = eastVec;
-        R.col(1) = northVec;
-        R.col(2) = upVec;
-        break;
-    case TopocentricConvention::NWU:
-        R.col(0) = northVec;
-        R.col(1) = -eastVec;
-        R.col(2) = upVec;
-        break;
-    }
-
-    transform.R = R.cast<T>();
+    transform.R = localFrame2ECEFFromECEF(transform.t, topocentricConventions);
 
     ret = transform;
 
-    cleanup :
-
-    proj_destroy(latLon2ecef);
-    proj_destroy(ecef2latLon);
     proj_destroy(toEcef);
     proj_context_destroy(ctx);
 
@@ -187,25 +201,13 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
                                                                                     std::string const& crs,
                                                                                     TopocentricConvention topocentricConventions) {
 
-    const char* wgs84_latlon = "EPSG:4979"; //lat lon, height above the ellipsoid
     const char* wgs84_ecef = "EPSG:4978";
 
     PJ_CONTEXT* ctx = proj_context_create();
 
     PJ* toEcef = proj_create_crs_to_crs(ctx, crs.c_str(), wgs84_ecef, nullptr);
 
-    if (toEcef == 0) { //in case of error
-        proj_context_destroy(ctx);
-        return std::nullopt;
-    }
-
-    PJ* latLon2ecef = proj_create_crs_to_crs(ctx, wgs84_latlon, wgs84_ecef, nullptr);
-    PJ* ecef2latLon = proj_create_crs_to_crs(ctx, wgs84_ecef, wgs84_latlon, nullptr);
-
-    if (latLon2ecef == nullptr or ecef2latLon == nullptr) {
-        if (latLon2ecef != nullptr) proj_destroy(latLon2ecef);
-        if (ecef2latLon != nullptr) proj_destroy(ecef2latLon);
-        proj_destroy(toEcef);
+    if (toEcef == nullptr) { //in case of error
         proj_context_destroy(ctx);
         return std::nullopt;
     }
@@ -219,82 +221,22 @@ std::optional<std::vector<StereoVision::Geometry::AffineTransform<T>>> getLTPC2E
         coordBase.xyz.y = inputCoords(1,i);
         coordBase.xyz.z = inputCoords(2,i);
 
-        std::array<double, 3> ecefPosArray = {inputCoords(0,i), inputCoords(1,i), inputCoords(2,i)};
-
-        constexpr int stride = sizeof(double);
-
-        //proj can react strangely in release mode if we have the same input and output CRS
-        if (std::string(wgs84_ecef) != crs) {
-            proj_trans_generic(toEcef, PJ_FWD, &(ecefPosArray[0]), stride, 1, &(ecefPosArray[1]), stride, 1, &(ecefPosArray[2]), stride, 1, nullptr, 0, 0);
+        PJ_COORD ecefPos = coordBase;
+        if (wgs84_ecef != crs) {
+            ecefPos = proj_trans(toEcef, PJ_FWD, coordBase);
         }
-
-        std::array<double, 3> geoPos = ecefPosArray;
-        proj_trans_generic(ecef2latLon, PJ_FWD, &(geoPos[0]), stride, 1, &(geoPos[1]), stride, 1, &(geoPos[2]), stride, 1, nullptr, 0, 0);
-
-        std::array<double, 3> posUpN = geoPos;
-        posUpN[0] += 1e-5; //approximately 1m at sea level
-        proj_trans_generic(latLon2ecef, PJ_FWD, &(posUpN[0]), stride, 1, &(posUpN[1]), stride, 1, &(posUpN[2]), stride,1, nullptr, 0, 0);
-
-        std::array<double, 3> posDownS = geoPos;
-        posDownS[0] -= 1e-5; //approximately 1m at sea level
-        proj_trans_generic(latLon2ecef, PJ_FWD, &(posDownS[0]), stride, 1, &(posDownS[1]), stride, 1, &(posDownS[2]), stride, 1, nullptr, 0, 0);
-
-        std::array<double, 3> posUp = geoPos;
-        posUp[2] += 1;
-        proj_trans_generic(latLon2ecef, PJ_FWD, &(posUp[0]), stride, 1, &(posUp[1]), stride, 1, &(posUp[2]), stride, 1, nullptr, 0, 0);
-
-        Eigen::Vector3d upVec(posUp[0] - ecefPosArray[0],
-                              posUp[1] - ecefPosArray[1],
-                              posUp[2] - ecefPosArray[2]);
-        upVec.normalize();
-
-        Eigen::Vector3d northVec(posUpN[0] - posDownS[0],
-                                 posUpN[1] - posDownS[1],
-                                 posUpN[2] - posDownS[2]);
-
-        double res = northVec.dot(upVec);
-        northVec -= res*upVec;
-
-        northVec.normalize();
-
-        Eigen::Vector3d eastVec = northVec.cross(upVec);
 
         StereoVision::Geometry::AffineTransform<T> transform;
 
-        transform.t[0] = ecefPosArray[0];
-        transform.t[1] = ecefPosArray[1];
-        transform.t[2] = ecefPosArray[2];
+        transform.t[0] = ecefPos.xyz.x;
+        transform.t[1] = ecefPos.xyz.y;
+        transform.t[2] = ecefPos.xyz.z;
 
-        Eigen::Matrix3d R;
-
-        switch (topocentricConventions) {
-        case TopocentricConvention::NED:
-            R.col(0) = northVec;
-            R.col(1) = eastVec;
-            R.col(2) = -upVec;
-            break;
-        case TopocentricConvention::ENU:
-            R.col(0) = eastVec;
-            R.col(1) = northVec;
-            R.col(2) = upVec;
-            break;
-        case TopocentricConvention::NWU:
-            R.col(0) = northVec;
-            R.col(1) = -eastVec;
-            R.col(2) = upVec;
-            break;
-        default:
-            //without valid topocentric convention, we have to return nullopt
-            return std::nullopt;
-        }
-
-        transform.R = R.cast<T>();
+        transform.R = localFrame2ECEFFromECEF(transform.t, topocentricConventions);
 
         ret[i] = transform;
     }
 
-    proj_destroy(latLon2ecef);
-    proj_destroy(ecef2latLon);
     proj_destroy(toEcef);
     proj_context_destroy(ctx);
 

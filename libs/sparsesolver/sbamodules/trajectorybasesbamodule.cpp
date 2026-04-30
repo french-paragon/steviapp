@@ -97,7 +97,7 @@ bool TrajectoryBaseSBAModule::setupParameters(ModularSBASolver* solver) {
 
         _gravity = {-g[0], -g[1], -g[2]};
 
-        double earthRotationRate = 2*M_PI/(24*60*60);
+        double earthRotationRate = Geo::WGS84Ellipsoid::EarthRotationRate;
 
         _localFrameRotationRate = -ecef2local.R*Eigen::Vector3d(0, 0, earthRotationRate);
     }
@@ -371,7 +371,7 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         //TODO: make initialization possible from just GPS + gyro
 
-        if (!optGps.isValid() and !optPose.isValid()) { //Canot initialize without GPS and orientation
+        if (!optGps.isValid() or !optPose.isValid()) { //Canot initialize without GPS and orientation
             solver->logMessage(QString("Missing reference data to initialize trajectory %1, skipping!").arg(traj->objectName()));
             continue;
         }

@@ -18,6 +18,9 @@ struct WGS84Ellipsoid {
     static constexpr double EquatorNormalGravity = 9.7803253359;
     static constexpr double PoleNormalGravity = 9.8321849378;
 
+    static constexpr double we = 2*M_PI/(24*60*60) * (1.+1./365.2425); //rotation rate of the earth
+    static constexpr double EarthRotationRate = we;
+
     template <typename T>
     static inline constexpr std::array<T,3> Ecef2LatLonHeight(std::array<T,3> const& ECEF) {
 

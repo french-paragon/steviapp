@@ -22,6 +22,8 @@
 
 #include "../../libs/testutils/datablocks/generatedtrajectory.h"
 
+#include "../../libs/geo/wgs84.h"
+
 #include <QDebug>
 
 
@@ -1042,12 +1044,14 @@ void TestSBASolver::testWithEarthGravity() {
     QVERIFY(pPtr != nullptr);
 
     StereoVisionApp::Project& project = *pPtr;
+    const char* ecefCRS = "EPSG:4978";
 
-    project.setDefaultProjectCRS("EPSG:4978");
+    project.setDefaultProjectCRS(ecefCRS);
 
     constexpr double EarthRadius = 6357000;
 
-    StereoVision::Geometry::AffineTransform<double> ecef2Local(Eigen::Matrix3d::Identity(), Eigen::Vector3d(0,0,-EarthRadius));
+    StereoVision::Geometry::AffineTransform<double> ecef2Local(StereoVision::Geometry::rodriguezFormula(Eigen::Vector3d(0.27,-0.69,1.42)),
+                                                               Eigen::Vector3d(0,0,-EarthRadius-3342));
 
     project.setLocalCoordinateFrame(ecef2Local);
 
@@ -1061,6 +1065,8 @@ void TestSBASolver::testWithEarthGravity() {
 
     QVERIFY(genTraj != nullptr);
 
+    genTraj->setPositionEpsg(ecefCRS);
+
     using TrajGeneratorInfos = StereoVisionApp::GeneratedTrajectory::TrajGeneratorInfos;
 
     constexpr double t0 = 0;
@@ -1070,43 +1076,78 @@ void TestSBASolver::testWithEarthGravity() {
     constexpr double rotationRate = 2*M_PI/(tf-t0);
     constexpr double circleRadius = 1000;
 
-    constexpr double gAmpl = 9.81;
-
     double dtPos = 0.5;
     double dtAcc = 0.1;
 
     struct PositionCalculator {
+        //position ecef
         static Eigen::Vector3d pos(double t) {
             double x = circleRadius*std::cos(t/dt * 2*M_PI);
             double y = circleRadius*std::sin(t/dt * 2*M_PI);
             double z = EarthRadius;
             return Eigen::Vector3d(x,y,z);
         }
+        //speed ecef
+        static Eigen::Vector3d speed(double t) {
+            double x = -circleRadius*std::sin(t/dt * 2*M_PI)/dt * 2*M_PI;
+            double y = circleRadius*std::cos(t/dt * 2*M_PI)/dt * 2*M_PI;
+            double z = 0;
+            return Eigen::Vector3d(x,y,z);
+        }
+        //orientation local
+        static Eigen::Vector3d orientation(double t) {
+            double rz = t/dt * 2*M_PI - M_PI_2;
+            return Eigen::Vector3d(0,0,rz);
+        }
+
+        static Eigen::Vector3d coriolisEcefModel(Eigen::Vector3d const& ECEFPos, Eigen::Vector3d const& ECEFSpeed) {
+            return Eigen::Vector3d(-2*ECEFSpeed[1]*StereoVisionApp::Geo::WGS84Ellipsoid::EarthRotationRate,
+                                   2*ECEFSpeed[0]*StereoVisionApp::Geo::WGS84Ellipsoid::EarthRotationRate,
+                                   0);
+        }
     };
+
+    Eigen::Vector3d earthRotation(0,0,StereoVisionApp::Geo::WGS84Ellipsoid::EarthRotationRate);
+    Eigen::Vector3d earthRotationLocal = ecef2Local.R*earthRotation;
 
     genTraj->setInitialAndFinalTimes(t0,tf);
 
-    genTraj->setAngularSpeedGenerator(TrajGeneratorInfos{[] (double t) {
+    genTraj->setAngularSpeedGenerator(TrajGeneratorInfos{[&earthRotationLocal] (double t) {
                                                              double omega = rotationRate;
-                                                             (void) t; return Eigen::Vector3d(0,0,omega);
+                                                             (void) t; Eigen::Vector3d ret = earthRotationLocal+Eigen::Vector3d(0,0,omega);
+                                                             return ret;
                                                          }, dtAcc}); //constant rotation rate
-    genTraj->setAccelerationGenerator(TrajGeneratorInfos{[&ecef2Local, gAmpl] (double t) {
+    genTraj->setAccelerationGenerator(TrajGeneratorInfos{[&ecef2Local] (double t) {
                                                              double acc = -circleRadius*rotationRate*rotationRate;
-                                                             Eigen::Vector3d pos = ecef2Local*PositionCalculator::pos(t);
-                                                             Eigen::Vector3d g = ecef2Local.t - pos;
-                                                             g.normalize();
-                                                             g *= gAmpl; //g keep its amplitude and points toward center of the earth
-                                                             Eigen::Vector3d ret = Eigen::Vector3d(0,acc,0) - g;
+                                                             Eigen::Vector3d ecef = PositionCalculator::pos(t);
+                                                             Eigen::Vector3d speed = PositionCalculator::speed(t);
+                                                             std::array<double,3> g = StereoVisionApp::Geo::WGS84Ellipsoid::gravityEcefModel(ecef); //g keep its amplitude and points toward center of the earth
+                                                             Eigen::Vector3d coriolis = PositionCalculator::coriolisEcefModel(ecef, speed);
+                                                             double rz = t/dt * 2*M_PI - M_PI_2;
+                                                             Eigen::Matrix3d Rlocal2Body = StereoVision::Geometry::rodriguezFormula(Eigen::Vector3d(0,0,-rz));
+                                                             Eigen::Vector3d ret = Eigen::Vector3d(0,acc,0) +
+                                                                                   Rlocal2Body*ecef2Local.R*Eigen::Vector3d(coriolis[0]-g[0],coriolis[1]-g[1],coriolis[2]-g[2]) ;
                                                              return ret;
                                                          }, dtAcc});
 
-    genTraj->setPositionGenerator(TrajGeneratorInfos{[] (double t) {
-                                                         return PositionCalculator::pos(t);
+    genTraj->setPositionGenerator(TrajGeneratorInfos{[&ecef2Local] (double t) {
+                                                         Eigen::Vector3d vec = PositionCalculator::pos(t);
+                                                         Eigen::Vector3d moved = ecef2Local.R.transpose()*vec;
+                                                         return moved;
                                                      }, dtPos});
-    genTraj->setOrientationGenerator(TrajGeneratorInfos{[] (double t) {
-                                                            double rz = t/dt * 2*M_PI - M_PI_2;
-                                                            return Eigen::Vector3d(0,0,rz);
+
+    constexpr StereoVisionApp::Geo::TopocentricConvention topocentricConvention = StereoVisionApp::Geo::ENU;
+
+    genTraj->setOrientationGenerator(TrajGeneratorInfos{[&ecef2Local] (double t) {
+                                                            Eigen::Vector3d ecef = ecef2Local.R.transpose()*PositionCalculator::pos(t);
+                                                            Eigen::Matrix3d body2ecef = ecef2Local.R.transpose()*
+                                                                StereoVision::Geometry::rodriguezFormula<double>(PositionCalculator::orientation(t));
+                                                            Eigen::Matrix3d topocentric2ecef = StereoVisionApp::Geo::localFrame2ECEFFromECEF(ecef, topocentricConvention);
+                                                            return StereoVision::Geometry::inverseRodriguezFormula<double>(topocentric2ecef.transpose()*body2ecef); //body2topocentric
                                                         }, dtPos});
+    traj->setOrientationAngleRepresentation(StereoVisionApp::Trajectory::AxisAngle);
+    traj->setOrientationAngleUnits(StereoVisionApp::Trajectory::Radians);
+    traj->setOrientationTopocentricConvention(topocentricConvention);
 
 
 
@@ -1119,6 +1160,8 @@ void TestSBASolver::testWithEarthGravity() {
 
     StereoVisionApp::ModularSBASolver sbaSolver(&project);
     sbaSolver.setSilent(true);
+    sbaSolver.setFuncTolerance(1e-8);
+    sbaSolver.setParamsTolerance(1e-10);
 
     StereoVisionApp::TrajectoryBaseSBAModule* trajSBAModule =
         new StereoVisionApp::TrajectoryBaseSBAModule(traj->getPreIntegrationTime());
@@ -1166,13 +1209,30 @@ void TestSBASolver::testWithEarthGravity() {
 
     StereoVisionApp::Trajectory::TimeTrajectorySequence& optTraj = optoptTraj.value();
 
+    double worseDelta = 0;
+    double worseOrientationDelta = 0;
+    Eigen::Vector3d meanPosDelta = Eigen::Vector3d::Zero();
+    Eigen::Vector3d meanRotDelta = Eigen::Vector3d::Zero();
+
+    double threshold = 1e-8;
+    double thresholdOrientation = 1e-5;
+
     for (int i = 0; i < optTraj.nPoints(); i++) {
         auto& node = optTraj[i];
-        Eigen::Vector3d expected = ecef2Local*PositionCalculator::pos(optTraj[i].time);
+        Eigen::Vector3d expected = ecef2Local*(ecef2Local.R.transpose()*PositionCalculator::pos(optTraj[i].time));
 
-        double delta = (node.val.t - expected).norm() / expected.norm();
+        double rz = optTraj[i].time/dt * 2*M_PI - M_PI_2;
+        Eigen::Vector3d expectedOrientation = Eigen::Vector3d(0,0,rz);
 
-        double threshold = 1e-6;
+        Eigen::Vector3d dPos = node.val.t - expected;
+        meanPosDelta += dPos;
+        Eigen::Vector3d dRot = StereoVision::Geometry::inverseRodriguezFormula<double>(
+            StereoVision::Geometry::rodriguezFormula<double>(node.val.r)*
+            StereoVision::Geometry::rodriguezFormula<double>(-expectedOrientation));
+        meanRotDelta += dRot;
+
+        double delta = dPos.norm();
+        double deltaOrientation = dRot.norm();
 
         if (delta >= threshold) {
             qWarning() << "About to fail with delta = " << delta << " (t = " << node.time << " position = "
@@ -1180,8 +1240,31 @@ void TestSBASolver::testWithEarthGravity() {
                     << ", expected = " << expected.x() << " " << expected.y() << " " << expected.z() << ")";
         }
 
+        if (deltaOrientation >= thresholdOrientation) {
+            qWarning() << "About to fail with deltaOrientation = " << deltaOrientation << " (t = " << node.time << " orientation = "
+                       << node.val.r.x() << " " << node.val.r.y() << " " << node.val.r.z()
+                       << ", expected = " << expectedOrientation.x() << " " << expectedOrientation.y() << " " << expectedOrientation.z() << ")";
+        }
+
+        worseDelta = std::max(delta, worseDelta);
+        worseOrientationDelta = std::max(deltaOrientation, worseOrientationDelta);
         QVERIFY(delta < threshold);
+        QVERIFY(deltaOrientation < thresholdOrientation);
     }
+
+    meanPosDelta /= optTraj.nPoints();
+    meanRotDelta /= optTraj.nPoints();
+
+    double biasThresholdOrientation = 1e-8;
+
+    qInfo() << "Mean position alignement error: " << meanPosDelta.norm() << "m";
+    qInfo() << "Mean orientation alignement error: " << meanRotDelta.norm() << "rad";
+
+    qInfo() << "Worse position alignement error: " << worseDelta << "m";
+    qInfo() << "Worse orientation alignement error: " << worseOrientationDelta << "rad";
+
+    QVERIFY(meanPosDelta.norm() < biasThresholdOrientation);
+    QVERIFY(meanRotDelta.norm() < biasThresholdOrientation);
 
 }
 
