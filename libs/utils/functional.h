@@ -36,11 +36,7 @@ public:
     template <typename FunctorT, typename TupleT>
     static inline auto call (FunctorT const& functor, TupleT& args) {
 
-        constexpr int nParams = std::tuple_size_v<TupleT>;
-
-        using SubCallerT = std::conditional_t<nParams == 0, DirectCaller, RecursiveCaller>;
-
-        return SubCallerT::callImpl(functor, args);
+        return std::apply(functor, args);
 
     }
 
@@ -90,33 +86,6 @@ protected:
     struct TupleSlice<id,id,TupleT> {
         static inline auto val(TupleT const& initial) {
             return std::tuple<std::tuple_element_t<id, TupleT>>(std::get<id>(initial));
-        }
-    };
-
-    struct DirectCaller {
-        template <typename FunctorT, typename TupleT, typename ... ArgsT>
-        static inline auto callImpl (FunctorT const& functor, TupleT& unusedTuple, ArgsT& ... args) {
-            (void) unusedTuple;
-            return functor(args...);
-        }
-    };
-
-    struct RecursiveCaller {
-        template <typename FunctorT, typename TupleT, typename ... ArgsT>
-        static inline auto callImpl (FunctorT const& functor, TupleT& args, ArgsT& ... expandedArgs) {
-
-            constexpr int tupleSize = std::tuple_size_v<TupleT>;
-            constexpr int paramPackSize = sizeof... (expandedArgs);
-
-            constexpr int paramId = tupleSize - paramPackSize - 1;
-
-            using SubCallerT = std::conditional_t<tupleSize <= paramPackSize+1, DirectCaller, RecursiveCaller>;
-
-            return SubCallerT::template callImpl<FunctorT,TupleT, typename std::tuple_element<paramId, TupleT>::type&>(functor,
-                                                                  args,
-                                                                  std::get<paramId>(args),
-                                                                  expandedArgs...);
-
         }
     };
 
