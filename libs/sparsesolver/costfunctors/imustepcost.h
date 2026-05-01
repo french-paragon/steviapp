@@ -93,19 +93,19 @@ public:
 
             M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g + Jb*b);
 
-            closure = Rr1.transpose() * Rframes * Rr0 * Rbg * attitudeDelta;
+            closure = Rr1.transpose() * Rframes * Rr0 * attitudeDelta * Rbg;
         } else if constexpr (WScale) {
             M3T Jg = scaleJacobian.cast<T>();
 
             M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jg*g);
 
-            closure = Rr1.transpose() * Rframes * Rr0 * Rbg * attitudeDelta;
+            closure = Rr1.transpose() * Rframes * Rr0 * attitudeDelta * Rbg;
         } else if constexpr (WBias) {
             M3T Jb = biasJacobian.cast<T>();
 
             M3T Rbg = StereoVision::Geometry::rodriguezFormula<T>(Jb*b);
 
-            closure = Rr1.transpose() * Rframes * Rr0 * Rbg * attitudeDelta;
+            closure = Rr1.transpose() * Rframes * Rr0 * attitudeDelta * Rbg;
         } else {
             closure = Rr1.transpose() * Rframes * Rr0 * attitudeDelta;
         }
@@ -333,7 +333,7 @@ GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegmen
      * (2) Exp(w) R = R Exp(R^t w), which derive from the relation R Exp(w) R^t = e^(R [w]_x R^t) = Exp(Rw),
      * where [w]_x is the skew symmetric matrix derived from w.
      *
-     * First, we decompose each Exp((alpha*w - b)dt) as Exp(w dt)Exp(J_{wdt}((alpha-1)w - b)) using relation (1).
+     * First, we decompose each Exp((alpha*w - b)dt) as Exp(w dt)Exp(J_{wdt}((alpha-1)w - b)*dt) using relation (1).
      * Then, with relation (2), we invert the order of alternated rotations and increments to group all the increments as
      * one large products. Finally, we assume that, since the increments are small, their Jacobian of SO(3)
      * are close to the identity. Using relation (1), we transform the product into a sum.
@@ -353,13 +353,11 @@ GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegmen
 
         Eigen::Matrix3d newRcurrent2initial = ret.attitudeDelta*dR;
 
-        //re-constaint as R mat for numerical stability
+        //re-constraint as R mat for numerical stability
         Eigen::Vector3d logR = StereoVision::Geometry::inverseRodriguezFormula(newRcurrent2initial);
         ret.attitudeDelta = StereoVision::Geometry::rodriguezFormula(logR);
 
         Eigen::Matrix3d JacobianSO3 = StereoVision::Geometry::diffRodriguezLieAlgebra(dr);
-
-        Eigen::Matrix3d tmp = ret.attitudeDelta.transpose()*JacobianSO3;
 
         Eigen::Matrix3d diag = Eigen::Matrix3d::Zero();
         diag(0,0) = dr[0];
@@ -367,11 +365,13 @@ GyroStepCostBase::IntegratedGyroSegment GyroStepCostBase::preIntegrateGyroSegmen
         diag(2,2) = dr[2];
 
         if (WBias) {
-            ret.biasJacobian += tmp*dt;
+            ret.biasJacobian = dR.transpose()*ret.biasJacobian;
+            ret.biasJacobian += JacobianSO3*dt;
         }
 
         if (WScale) {
-            ret.gainJacobian += tmp*diag;
+            ret.gainJacobian = dR.transpose()*ret.gainJacobian;
+            ret.gainJacobian += JacobianSO3*diag;
         }
     }
 
@@ -676,19 +676,19 @@ public:
 
             Eigen::Matrix3d JacobianSO3 = StereoVision::Geometry::diffRodriguezLieAlgebra(dr);
 
-            Eigen::Matrix3d tmp = Rcurrent2initial.transpose()*JacobianSO3;
-
             Eigen::Matrix3d diagR = Eigen::Matrix3d::Zero();
             diagR(0,0) = dr[0];
             diagR(1,1) = dr[1];
             diagR(2,2) = dr[2];
 
-            gyroSO3BiasJacobian += tmp*dt;
+            gyroSO3BiasJacobian = dR.transpose()*gyroSO3BiasJacobian;
+            gyroSO3BiasJacobian += JacobianSO3*dt;
 
-            gyroSO3GainJacobian += tmp*diagR;
+            gyroSO3GainJacobian = dR.transpose()*gyroSO3GainJacobian;
+            gyroSO3GainJacobian += JacobianSO3*diagR;
 
             Eigen::Matrix3d Rcurrent2initialAvgSegment = Rcurrent2initial;
-            Rcurrent2initial = dR*Rcurrent2initial;
+            Rcurrent2initial = Rcurrent2initial*dR;
             Rcurrent2initialAvgSegment = 1*Rcurrent2initialAvgSegment + 1*Rcurrent2initial;
             Rcurrent2initialAvgSegment /= 2;
 
