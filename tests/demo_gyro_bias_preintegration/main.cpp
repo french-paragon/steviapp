@@ -9,10 +9,13 @@
 
 using Timeline = StereoVisionApp::IndexedTimeSequence<Eigen::Vector3d, double>;
 
+using TrajectoryFunction = std::function<Eigen::Vector3d(double)>; //vector as a function of time, allow to express orientation as axis angles and positions
+
 Q_DECLARE_METATYPE(Eigen::Vector3f)
 Q_DECLARE_METATYPE(Eigen::Vector2f)
 Q_DECLARE_METATYPE(Eigen::Vector3d)
 Q_DECLARE_METATYPE(Eigen::Vector2d)
+Q_DECLARE_METATYPE(TrajectoryFunction)
 
 void runGyroExperiment(
         Eigen::Vector3d const& totalAxisInitial,
@@ -449,13 +452,14 @@ void INSPreintegrationBenchmark::benchmarkLinearizeJacobianGyroExp() {
 
         Eigen::Matrix3d R = StereoVision::Geometry::rodriguezFormula<double>(r);
 
-        rightDeltaLinearized = StereoVision::Geometry::rodriguezFormula<double>(RAccumulated.transpose()*J*((gain-1)*r + biasVec))*rightDeltaLinearized;
+        rightDeltaLinearized = StereoVision::Geometry::rodriguezFormula<double>(R.transpose()*StereoVision::Geometry::inverseRodriguezFormula<double>(rightDeltaLinearized))*
+                               StereoVision::Geometry::rodriguezFormula<double>(J*((gain-1)*r + biasVec));
 
-        JGainSum += RAccumulated.transpose()*J*Eigen::DiagonalMatrix<double, 3>(r[0], r[1], r[2]);
-        JBiasSum += RAccumulated.transpose()*J;
+        JGainSum = R.transpose()*JGainSum + J*Eigen::DiagonalMatrix<double, 3>(r[0], r[1], r[2]);
+        JBiasSum = R.transpose()*JBiasSum + J;
 
-        RAccumulated = R*RAccumulated;
-        RAccumulatedBiased = StereoVision::Geometry::rodriguezFormula<double>(gain*r + biasVec)*RAccumulatedBiased;
+        RAccumulated = RAccumulated*R;
+        RAccumulatedBiased = RAccumulatedBiased*StereoVision::Geometry::rodriguezFormula<double>(gain*r + biasVec);
 
         rprev = r;
         for (int i = 0; i < 3; i++) {
@@ -632,8 +636,193 @@ void INSPreintegrationBenchmark::benchmarkGyro() {
 
 void INSPreintegrationBenchmark::benchmarkAcc_data() {
 
+    QTest::addColumn<TrajectoryFunction>("gyroTrajectory"); //ground truth gyro measurements functions
+    QTest::addColumn<TrajectoryFunction>("accTrajectory"); //grount truth accelerometer measurement functions
+    QTest::addColumn<double>("time"); //integration time
+    QTest::addColumn<int>("nSteps"); //number of integration steps
+    QTest::addColumn<Eigen::Vector3d>("axisSigmasGyro");
+    QTest::addColumn<Eigen::Vector3d>("gainsGyro");
+    QTest::addColumn<Eigen::Vector3d>("biasGyro");
+    QTest::addColumn<Eigen::Vector3d>("axisSigmasAcc");
+    QTest::addColumn<Eigen::Vector3d>("gainsAcc");
+    QTest::addColumn<Eigen::Vector3d>("biasAcc");
+
+    TrajectoryFunction constantAccelerationGyro = [] (double t) {
+        Q_UNUSED(t);
+        return Eigen::Vector3d(0,0,0);
+    };
+
+    TrajectoryFunction constantAccelerationAcc = [] (double t) {
+        Q_UNUSED(t);
+        return Eigen::Vector3d(0,0,9.81);
+    };
+
+    QTest::newRow("Constant acc, 10 steps, gyro gains 1e-4 only") << constantAccelerationGyro << constantAccelerationAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant acc, 10 steps, gyro bias 1e-4 only") << constantAccelerationGyro << constantAccelerationAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant acc, 10 steps, acc gains 1e-4 only") << constantAccelerationGyro << constantAccelerationAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant acc, 10 steps, acc bias 1e-4 only") << constantAccelerationGyro << constantAccelerationAcc << 1. << 10
+                                                                << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4); //acc sigma, gain, bias
+
+    /*QTest::newRow("Base template") << constantAccelerationGyro << constantAccelerationAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //acc sigma, gain, bias;*/
+
+    constexpr double const_w = 1;
+    constexpr double const_r = 1;
+
+    TrajectoryFunction constantRotationGyro = [const_w] (double t) {
+        Q_UNUSED(t);
+        return Eigen::Vector3d(0,0,const_w);
+    };
+
+    TrajectoryFunction constantRotationAcc = [const_w, const_r] (double t) {
+        Q_UNUSED(t);
+        return Eigen::Vector3d(-const_w*const_w*const_r,0,0);
+    };
+
+    QTest::newRow("Constant rot, 10 steps, gyro gains 1e-4 only") << constantRotationGyro << constantRotationAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant rot, 10 steps, gyro bias 1e-4 only") << constantRotationGyro << constantRotationAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant rot, 10 steps, acc gains 1e-4 only") << constantRotationGyro << constantRotationAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant rot, 10 steps, acc bias 1e-4 only") << constantRotationGyro << constantRotationAcc << 1. << 10
+                                                                << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4); //acc sigma, gain, bias
+
+    TrajectoryFunction constantSpinGyro = [const_w] (double t) {
+        Q_UNUSED(t);
+        return Eigen::Vector3d(0,0,const_w);
+    };
+
+    TrajectoryFunction constantSpinAcc = [const_w] (double t) {
+        return Eigen::Vector3d(std::cos(const_w*t),-std::sin(const_w*t),9.81);
+    };
+
+    QTest::newRow("Constant spin, 10 steps, gyro gains 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, gyro bias 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc gains 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc bias 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4); //acc sigma, gain, bias
+
 }
 void INSPreintegrationBenchmark::benchmarkAcc() {
+
+    QFETCH(TrajectoryFunction, gyroTrajectory);
+    QFETCH(TrajectoryFunction, accTrajectory);
+
+    QFETCH(double, time);
+    QFETCH(int, nSteps);
+
+    QFETCH(Eigen::Vector3d, axisSigmasGyro);
+    QFETCH(Eigen::Vector3d, gainsGyro);
+    QFETCH(Eigen::Vector3d, biasGyro);
+
+    QFETCH(Eigen::Vector3d, axisSigmasAcc);
+    QFETCH(Eigen::Vector3d, gainsAcc);
+    QFETCH(Eigen::Vector3d, biasAcc);
+
+    using TimeSeq = StereoVisionApp::IndexedTimeSequence<Eigen::Vector3d,double>;
+
+    std::vector<TimeSeq::TimedElement> elementsGyroGt;
+    std::vector<TimeSeq::TimedElement> elementsAccGt;
+
+    std::vector<TimeSeq::TimedElement> elementsGyroBiased;
+    std::vector<TimeSeq::TimedElement> elementsAccBiased;
+
+    std::uniform_real_distribution<double> noiseDistribution(-1,1);
+
+    elementsGyroGt.reserve(nSteps);
+    elementsAccGt.reserve(nSteps);
+    elementsGyroBiased.reserve(nSteps);
+    elementsAccBiased.reserve(nSteps);
+
+    for (int i = 0; i <= nSteps; i++) {
+        double t = i*time/(nSteps);
+
+        Eigen::Vector3d gyroGt = gyroTrajectory(t);
+        Eigen::Vector3d accGt = accTrajectory(t);
+
+        Eigen::Vector3d gyroNoise(axisSigmasGyro[0]*noiseDistribution(_re), axisSigmasGyro[1]*noiseDistribution(_re), axisSigmasGyro[2]*noiseDistribution(_re));
+        Eigen::Vector3d accNoise(axisSigmasAcc[0]*noiseDistribution(_re), axisSigmasAcc[1]*noiseDistribution(_re), axisSigmasAcc[2]*noiseDistribution(_re));
+
+        Eigen::Vector3d gyroBiased = (gainsGyro+Eigen::Vector3d::Ones()).cwiseProduct(gyroGt) + biasGyro + gyroNoise;
+        Eigen::Vector3d accBiased = (gainsAcc+Eigen::Vector3d::Ones()).cwiseProduct(accGt) + biasAcc + accNoise;
+
+        elementsGyroGt.push_back({t, gyroGt});
+        elementsAccGt.push_back({t, accGt});
+
+        elementsGyroBiased.push_back({t, gyroBiased});
+        elementsAccBiased.push_back({t, accBiased});
+    }
+
+    TimeSeq seqGyroGt(std::move(elementsGyroGt));
+    TimeSeq seqAccGt(std::move(elementsAccGt));
+
+    TimeSeq seqGyroBiased(std::move(elementsGyroBiased));
+    TimeSeq seqAccBiased(std::move(elementsAccBiased));
+
+    constexpr double t0 = 0;
+    double tm = time/2;
+    double tf = time;
+
+    auto integratedAccGt = StereoVisionApp::AccelerometerStepCostBase::preIntegrateAccSegment(seqGyroGt,seqAccGt,t0,tm,tf);
+    auto integratedAccBiased = StereoVisionApp::AccelerometerStepCostBase::preIntegrateAccSegment(seqGyroBiased,seqAccBiased,t0,tm,tf);
+
+    Eigen::Vector3d gainGyroInverse = (gainsGyro+Eigen::Vector3d::Ones()).cwiseInverse()-Eigen::Vector3d::Ones();
+    Eigen::Vector3d biasGyroInverse = -(gainsGyro+Eigen::Vector3d::Ones()).cwiseInverse().cwiseProduct(biasGyro);
+
+    Eigen::Vector3d gainAccInverse = (gainsAcc+Eigen::Vector3d::Ones()).cwiseInverse()-Eigen::Vector3d::Ones();
+    Eigen::Vector3d biasAccInverse = -(gainsAcc+Eigen::Vector3d::Ones()).cwiseInverse().cwiseProduct(biasAcc);
+
+    Eigen::Vector3d expected = integratedAccGt.speedDelta;
+    Eigen::Vector3d biased = integratedAccBiased.speedDelta;
+
+    Eigen::Vector3d gyroGainCorrection = integratedAccBiased.gyroGainJacobian*gainGyroInverse;
+    Eigen::Vector3d gyroBiasCorrection = integratedAccBiased.gyroBiasJacobian*biasGyroInverse;
+
+    Eigen::Vector3d accGainCorrection = integratedAccBiased.accGainJacobian*gainAccInverse;
+    Eigen::Vector3d accBiasCorrection = integratedAccBiased.accBiasJacobian*biasAccInverse;
+
+    Eigen::Vector3d corrected = integratedAccBiased.speedDelta
+                                + gyroGainCorrection
+                                + gyroBiasCorrection
+                                + accGainCorrection
+                                + accBiasCorrection;
+    Eigen::Vector3d error_biased = expected - biased;
+    Eigen::Vector3d error = expected - corrected;
+
+    qInfo() << "expected = " << expected[0] << " " << expected[1] << " " << expected[2];
+    qInfo() << " biased = " << biased[0] << " " << biased[1] << " " << biased[2];
+    qInfo() << " Error biased = " << error_biased[0] << " " << error_biased[1] << " " << error_biased[2];
+    qInfo() << " corrected = " << corrected[0] << " " << corrected[1] << " " << corrected[2];
+    qInfo() << " Error w.r.t no bias = " << error[0] << " " << error[1] << " " << error[2];
 
 }
 

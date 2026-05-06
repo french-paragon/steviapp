@@ -655,42 +655,12 @@ public:
 
             //compute the current rotation from the refence and associated jacobians
             Eigen::Matrix3d dR = StereoVision::Geometry::rodriguezFormula(dr);
-
-            Eigen::Matrix3d rodriguezJac = Eigen::Matrix3d::Zero();
-
-            rodriguezJac.block<3,1>(0,0) =
-                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
-                                                                    acceleration_local,
-                                                                    StereoVision::Geometry::Axis::X);
-            rodriguezJac.block<3,1>(0,1) =
-                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
-                                                                    acceleration_local,
-                                                                    StereoVision::Geometry::Axis::Y);
-            rodriguezJac.block<3,1>(0,2) =
-                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
-                                                                    acceleration_local,
-                                                                    StereoVision::Geometry::Axis::Z);
-
-            gyroBiasJacobian += rodriguezJac*gyroSO3BiasJacobian*dt;
-            gyroGainJacobian += rodriguezJac*gyroSO3GainJacobian*dt;
-
-            Eigen::Matrix3d JacobianSO3 = StereoVision::Geometry::diffRodriguezLieAlgebra(dr);
-
-            Eigen::Matrix3d diagR = Eigen::Matrix3d::Zero();
-            diagR(0,0) = dr[0];
-            diagR(1,1) = dr[1];
-            diagR(2,2) = dr[2];
-
-            gyroSO3BiasJacobian = dR.transpose()*gyroSO3BiasJacobian;
-            gyroSO3BiasJacobian += JacobianSO3*dt;
-
-            gyroSO3GainJacobian = dR.transpose()*gyroSO3GainJacobian;
-            gyroSO3GainJacobian += JacobianSO3*diagR;
+            Eigen::Matrix3d dR_half = StereoVision::Geometry::rodriguezFormula<double>(dr);
 
             Eigen::Matrix3d Rcurrent2initialAvgSegment = Rcurrent2initial;
             Rcurrent2initial = Rcurrent2initial*dR;
-            Rcurrent2initialAvgSegment = 1*Rcurrent2initialAvgSegment + 1*Rcurrent2initial;
-            Rcurrent2initialAvgSegment /= 2;
+
+            Rcurrent2initialAvgSegment = Rcurrent2initial*dR_half;
 
             //increment the accelerometers jacobians
             accBiasJacobian += Rcurrent2initialAvgSegment*dt;
@@ -699,6 +669,37 @@ public:
             //increment current inner integrant value
             Eigen::Vector3d currentOld = current;
             current += Rcurrent2initialAvgSegment*df;
+
+            Eigen::Matrix3d axisRotateJac = Eigen::Matrix3d::Zero();
+
+            axisRotateJac.block<3,1>(0,0) =
+                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+                                                                    df,
+                                                                    StereoVision::Geometry::Axis::X);
+            axisRotateJac.block<3,1>(0,1) =
+                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+                                                                    df,
+                                                                    StereoVision::Geometry::Axis::Y);
+            axisRotateJac.block<3,1>(0,2) =
+                StereoVision::Geometry::diffAngleAxisRotate<double>(Eigen::Vector3d::Zero(),
+                                                                    df,
+                                                                    StereoVision::Geometry::Axis::Z);
+
+            Eigen::Matrix3d diagR = Eigen::Matrix3d::Zero();
+            diagR(0,0) = dr[0];
+            diagR(1,1) = dr[1];
+            diagR(2,2) = dr[2];
+
+            gyroBiasJacobian += Rcurrent2initialAvgSegment*axisRotateJac*gyroSO3BiasJacobian;
+            gyroGainJacobian += Rcurrent2initialAvgSegment*axisRotateJac*gyroSO3GainJacobian;
+
+            Eigen::Matrix3d JacobianSO3 = StereoVision::Geometry::diffRodriguezLieAlgebra(dr);
+
+            gyroSO3BiasJacobian = dR.transpose()*gyroSO3BiasJacobian;
+            gyroSO3BiasJacobian += JacobianSO3*dt;
+
+            gyroSO3GainJacobian = dR.transpose()*gyroSO3GainJacobian;
+            gyroSO3GainJacobian += JacobianSO3*diagR;
 
             //outer integration loop
             ret.speedDelta += (currentOld + current)/2 * dt; //use trapezoidal rule for the outer integration loop
