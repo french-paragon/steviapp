@@ -230,6 +230,14 @@ QJsonObject LocalCoordinateSystem::encodeJson() const {
 
 	obj.insert("Landmarks", arr);
 
+    if (_assignedTrajectory >= 0) {
+        obj.insert("assignedTrajectory", _assignedTrajectory);
+    }
+
+    if (_assignedMounting >= 0) {
+        obj.insert("assignedMounting", _assignedMounting);
+    }
+
 	return obj;
 
 }
@@ -250,7 +258,19 @@ void LocalCoordinateSystem::configureFromJson(QJsonObject const& data) {
 				insertSubItem(iml);
 			}
 		}
-	}
+    }
+
+    if (data.contains("assignedTrajectory")) {
+        _assignedTrajectory = data.value("assignedTrajectory").toInt(-1);
+    } else {
+        _assignedTrajectory = -1;
+    }
+
+    if (data.contains("assignedMounting")) {
+        _assignedMounting = data.value("assignedMounting").toInt(-1);
+    } else {
+        _assignedMounting = -1;
+    }
 
 }
 
