@@ -1053,6 +1053,8 @@ void TestSBASolver::testWithEarthGravity() {
     StereoVision::Geometry::AffineTransform<double> ecef2Local(StereoVision::Geometry::rodriguezFormula(Eigen::Vector3d(0.27,-0.69,1.42)),
                                                                Eigen::Vector3d(0,0,-EarthRadius-3342));
 
+    StereoVision::Geometry::AffineTransform<double> local2Ecef(ecef2Local.R.transpose(), -ecef2Local.R.transpose()*ecef2Local.t);
+
     project.setLocalCoordinateFrame(ecef2Local);
 
     qint64 trajectoryId = project.createDataBlock(StereoVisionApp::Trajectory::staticMetaObject.className());
@@ -1080,14 +1082,14 @@ void TestSBASolver::testWithEarthGravity() {
     double dtAcc = 0.1;
 
     struct PositionCalculator {
-        //position ecef
+        //position local
         static Eigen::Vector3d pos(double t) {
             double x = circleRadius*std::cos(t/dt * 2*M_PI);
             double y = circleRadius*std::sin(t/dt * 2*M_PI);
-            double z = EarthRadius;
+            double z = 0;
             return Eigen::Vector3d(x,y,z);
         }
-        //speed ecef
+        //speed local
         static Eigen::Vector3d speed(double t) {
             double x = -circleRadius*std::sin(t/dt * 2*M_PI)/dt * 2*M_PI;
             double y = circleRadius*std::cos(t/dt * 2*M_PI)/dt * 2*M_PI;
@@ -1117,30 +1119,30 @@ void TestSBASolver::testWithEarthGravity() {
                                                              (void) t; Eigen::Vector3d ret = earthRotationLocal+Eigen::Vector3d(0,0,omega);
                                                              return ret;
                                                          }, dtAcc}); //constant rotation rate
-    genTraj->setAccelerationGenerator(TrajGeneratorInfos{[&ecef2Local] (double t) {
+    genTraj->setAccelerationGenerator(TrajGeneratorInfos{[&local2Ecef] (double t) {
                                                              double acc = -circleRadius*rotationRate*rotationRate;
-                                                             Eigen::Vector3d ecef = PositionCalculator::pos(t);
+                                                             Eigen::Vector3d ecef = local2Ecef*PositionCalculator::pos(t);
                                                              Eigen::Vector3d speed = PositionCalculator::speed(t);
                                                              std::array<double,3> g = StereoVisionApp::Geo::WGS84Ellipsoid::gravityEcefModel(ecef); //g keep its amplitude and points toward center of the earth
                                                              Eigen::Vector3d coriolis = PositionCalculator::coriolisEcefModel(ecef, speed);
                                                              double rz = t/dt * 2*M_PI - M_PI_2;
                                                              Eigen::Matrix3d Rlocal2Body = StereoVision::Geometry::rodriguezFormula(Eigen::Vector3d(0,0,-rz));
+                                                             Eigen::Vector3d reorientedGravity = Rlocal2Body*local2Ecef.R.transpose()*Eigen::Vector3d(coriolis[0]+g[0],coriolis[1]+g[1],coriolis[2]+g[2]);
                                                              Eigen::Vector3d ret = Eigen::Vector3d(0,acc,0) +
-                                                                                   Rlocal2Body*ecef2Local.R*Eigen::Vector3d(coriolis[0]-g[0],coriolis[1]-g[1],coriolis[2]-g[2]) ;
+                                                                                    reorientedGravity;
                                                              return ret;
                                                          }, dtAcc});
 
-    genTraj->setPositionGenerator(TrajGeneratorInfos{[&ecef2Local] (double t) {
-                                                         Eigen::Vector3d vec = PositionCalculator::pos(t);
-                                                         Eigen::Vector3d moved = ecef2Local.R.transpose()*vec;
-                                                         return moved;
+    genTraj->setPositionGenerator(TrajGeneratorInfos{[&local2Ecef] (double t) {
+                                                         Eigen::Vector3d vec = local2Ecef*PositionCalculator::pos(t);
+                                                         return vec;
                                                      }, dtPos});
 
     constexpr StereoVisionApp::Geo::TopocentricConvention topocentricConvention = StereoVisionApp::Geo::ENU;
 
-    genTraj->setOrientationGenerator(TrajGeneratorInfos{[&ecef2Local] (double t) {
-                                                            Eigen::Vector3d ecef = ecef2Local.R.transpose()*PositionCalculator::pos(t);
-                                                            Eigen::Matrix3d body2ecef = ecef2Local.R.transpose()*
+    genTraj->setOrientationGenerator(TrajGeneratorInfos{[&local2Ecef] (double t) {
+                                                            Eigen::Vector3d ecef = local2Ecef*PositionCalculator::pos(t);
+                                                            Eigen::Matrix3d body2ecef = local2Ecef.R *
                                                                 StereoVision::Geometry::rodriguezFormula<double>(PositionCalculator::orientation(t));
                                                             Eigen::Matrix3d topocentric2ecef = StereoVisionApp::Geo::localFrame2ECEFFromECEF(ecef, topocentricConvention);
                                                             return StereoVision::Geometry::inverseRodriguezFormula<double>(topocentric2ecef.transpose()*body2ecef); //body2topocentric
@@ -1219,7 +1221,7 @@ void TestSBASolver::testWithEarthGravity() {
 
     for (int i = 0; i < optTraj.nPoints(); i++) {
         auto& node = optTraj[i];
-        Eigen::Vector3d expected = ecef2Local*(ecef2Local.R.transpose()*PositionCalculator::pos(optTraj[i].time));
+        Eigen::Vector3d expected = PositionCalculator::pos(optTraj[i].time);
 
         double rz = optTraj[i].time/dt * 2*M_PI - M_PI_2;
         Eigen::Vector3d expectedOrientation = Eigen::Vector3d(0,0,rz);
