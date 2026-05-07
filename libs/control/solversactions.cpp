@@ -456,11 +456,29 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
     bool useRobustCameras = false;
     bool computeUncertainty = false;
-	bool useSparseOptimizer = true;
     bool verbose = true;
     double funcTol = 1e-8;
     double paramsTol = 1e-10;
 	int nSteps = pnStep;
+
+    int optimizerType = ceres::SPARSE_SCHUR;
+
+    QList<SparseSolverConfigDialog::OptimizerTypeInfos> optimizersTypes = {
+        {"Sparse Schur", "Sparse Schur uses sparse Schur decomposition for efficient solving of large bundle adjustement-like problem, this should be your default option.",
+         ceres::SPARSE_SCHUR},
+        {"Sparse Cholesky", "Sparse Cholesky uses sparse Cholesky decomposition for efficient solving of large general problem.",
+         ceres::SPARSE_NORMAL_CHOLESKY},
+        {"Dense QR", "Dense QR is a numerically robust dense solver applicable to small problems.",
+         ceres::DENSE_QR},
+        {"Dense Cholesky", "Dense Cholesky is a faster dense solver applicable to small problems.",
+         ceres::DENSE_NORMAL_CHOLESKY},
+        {"Dense Schur", "Dense Schur is a dense solver applicable to small bundle adjustement problems.",
+         ceres::DENSE_SCHUR},
+        {"Conjugate gradient", "Conjugate gradient is a very large solver for very large problems, or problem where sparse decompositions are inefficient.",
+         ceres::CGNR},
+        {"Iterative Schur", "Iterative Schur is a conjugate gradient solver using Schur decomposition to reduce the size of the problem and increase the condition number.",
+         ceres::ITERATIVE_SCHUR}
+    };
 
     QFileInfo projSourceInfos(project->source());
 
@@ -478,7 +496,8 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
         d.enableUseCurrentSolutionOption(false);
         d.setUseRobustCameras(useRobustCameras);
         d.setComputeUncertainty(computeUncertainty);
-        d.setUseSparseOptimizer(useSparseOptimizer);
+
+        d.setOptimizerTypeList(optimizersTypes);
 
         d.setLogsDirectory(loggingDir);
         d.setLogsPrefix(logsPrefix);
@@ -493,7 +512,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 
         useRobustCameras = d.useRobustCameras();
 		computeUncertainty = d.computeUncertainty();
-		useSparseOptimizer = d.useSparseOptimizer();
+        optimizerType = d.selectedOptimizerTypeId();
 		nSteps = d.numberOfSteps();
 
         loggingDir = d.logsDirectory();
@@ -509,7 +528,7 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
 		return;
 	}
 
-    ModularSBASolver* solver = new ModularSBASolver(p, computeUncertainty, useSparseOptimizer, verbose);
+    ModularSBASolver* solver = new ModularSBASolver(p, computeUncertainty, optimizerType, verbose);
 
     if (useRobustCameras) {
         solver->setProperty(PinholeCamProjModule::UseSphericalCostSolverParamName, true); //use the spherical projectors

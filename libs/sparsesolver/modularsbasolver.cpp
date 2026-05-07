@@ -55,10 +55,10 @@ protected:
     ModularSBASolver* _solver;
 };
 
-ModularSBASolver::ModularSBASolver(Project *p, bool computeUncertainty, bool sparse, bool verbose, QObject *parent) :
+ModularSBASolver::ModularSBASolver(Project *p, bool computeUncertainty, int solver_type, bool verbose, QObject *parent) :
     SparseSolverBase(p, parent),
     _compute_marginals(computeUncertainty),
-    _sparse(sparse),
+    _solver_type(solver_type),
     _silent(false),
     _verbose(verbose),
     _loggingDir(""),
@@ -889,10 +889,10 @@ bool ModularSBASolver::opt_step() {
     }
 
     ceres::Solver::Options options;
-    options.linear_solver_type = (_sparse) ? ceres::SPARSE_SCHUR : ceres::DENSE_QR;
+    options.linear_solver_type = static_cast<ceres::LinearSolverType>(_solver_type);
 
     if (!_silent) {
-        std::cout << "Using linear solver type: " << ((options.linear_solver_type == ceres::DENSE_QR) ? "dense QR" : "sparse schur") << std::endl;
+        std::cout << "Using linear solver type: " << ceresSolverTypeToString(_solver_type) << std::endl;
     }
     options.minimizer_progress_to_stdout = _verbose;
 
@@ -1130,6 +1130,29 @@ void ModularSBASolver::cleanup() {
 
 bool ModularSBASolver::splitOptSteps() const {
     return true;
+}
+
+std::string ModularSBASolver::ceresSolverTypeToString(int solver_type) {
+    switch (solver_type) {
+    case ceres::SPARSE_SCHUR:
+        return "Sparse Schur";
+    case ceres::SPARSE_NORMAL_CHOLESKY:
+        return "Sparse Cholesky";
+    case ceres::DENSE_QR:
+        return "Dense QR";
+    case ceres::DENSE_NORMAL_CHOLESKY:
+        return "Dense Cholesky";
+    case ceres::DENSE_SCHUR:
+        return "Dense Schur";
+    case ceres::ITERATIVE_SCHUR:
+        return "Iterative Schur";
+    case ceres::CGNR:
+        return "Conjugate gradient";
+    default:
+        break;
+    }
+
+    return "Unknown or invalid";
 }
 
 double ModularSBASolver::paramsTolerance() const

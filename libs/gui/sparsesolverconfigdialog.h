@@ -16,6 +16,13 @@ class SparseSolverConfigDialog : public QDialog
 	Q_OBJECT
 
 public:
+
+    struct OptimizerTypeInfos {
+        QString name;
+        QString toolTip;
+        int id;
+    };
+
 	explicit SparseSolverConfigDialog(QWidget *parent = nullptr);
 	~SparseSolverConfigDialog();
 
@@ -23,17 +30,18 @@ public:
 	void enableUseCurrentSolutionOption(bool enable);
 
 	bool shouldRun() const;
-	bool computeUncertainty() const;
-	bool useSparseOptimizer() const;
+    bool computeUncertainty() const;
     bool useRobustCameras() const;
 	bool initWithCurrentSol() const;
 	int numberOfSteps() const;
+
+    void setOptimizerTypeList(QList<OptimizerTypeInfos> const& optTypes);
+    int selectedOptimizerTypeId() const;
 
     double functionTolerance() const;
     double parametersTolerance() const;
 
     void setComputeUncertainty(bool compute);
-    void setUseSparseOptimizer(bool useSparse);
     void setUseRobustCameras(bool useRobust);
 
 	void setNumberOfSteps(int nSteps);

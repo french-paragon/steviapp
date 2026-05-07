@@ -26,6 +26,43 @@
       <string>options</string>
      </property>
      <layout class="QFormLayout" name="formLayout">
+      <item row="0" column="0" colspan="2">
+       <widget class="QCheckBox" name="predictUncertaintyCheckBox">
+        <property name="text">
+         <string>Predict uncertainty</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="useRobustCameraCheckBox">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use robust cameras, e.g., replace pinhole cameras with a spherical approximation, biasing the error function but ensuring that the projection function is defined for any geometric configuration, even when the point is behind the camera.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="text">
+         <string>Use robust cameras</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="initWithCurrentSolCheckBox">
+        <property name="text">
+         <string>Use current solution as start</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Number of steps</string>
+        </property>
+       </widget>
+      </item>
       <item row="4" column="1">
        <widget class="QSpinBox" name="nStepSpinBoxpinBox">
         <property name="minimum">
@@ -39,50 +76,10 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label">
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_2">
         <property name="text">
-         <string>Number of steps</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0" colspan="2">
-       <widget class="QCheckBox" name="useSparseOptimizerCheckBox">
-        <property name="text">
-         <string>Use sparse optimizer</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0" colspan="2">
-       <widget class="QCheckBox" name="predictUncertaintyCheckBox">
-        <property name="text">
-         <string>Predict uncertainty</string>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QCheckBox" name="initWithCurrentSolCheckBox">
-        <property name="text">
-         <string>Use current solution as start</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="useRobustCameraCheckBox">
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use robust cameras, e.g., replace pinhole cameras with a spherical approximation, biasing the error function but ensuring that the projection function is defined for any geometric configuration, even when the point is behind the camera.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="text">
-         <string>Use robust cameras</string>
+         <string>Function tolerance (log10)</string>
         </property>
        </widget>
       </item>
@@ -102,6 +99,13 @@
         </property>
        </widget>
       </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Parameters tolerance (log10)</string>
+        </property>
+       </widget>
+      </item>
       <item row="6" column="1">
        <widget class="QSpinBox" name="paramTolBox">
         <property name="prefix">
@@ -118,19 +122,15 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="label_2">
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_6">
         <property name="text">
-         <string>Function tolerance (log10)</string>
+         <string>Optimizer type:</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Parameters tolerance (log10)</string>
-        </property>
-       </widget>
+      <item row="3" column="1">
+       <widget class="QComboBox" name="optimizerTypeBox"/>
       </item>
      </layout>
     </widget>
@@ -218,22 +218,5 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections>
-  <connection>
-   <sender>useSparseOptimizerCheckBox</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>predictUncertaintyCheckBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>128</x>
-     <y>73</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>128</x>
-     <y>47</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

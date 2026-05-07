@@ -669,7 +669,7 @@ public:
         }
     };
 
-    ModularSBASolver(Project* p, bool computeUncertainty = true, bool sparse = true, bool verbose = false, QObject *parent = nullptr);
+    ModularSBASolver(Project* p, bool computeUncertainty = true, int solverType = ceres::SPARSE_SCHUR, bool verbose = false, QObject *parent = nullptr);
     ~ModularSBASolver();
 
     int uncertaintySteps() const override;
@@ -892,13 +892,16 @@ protected:
 
     bool splitOptSteps() const override;
 
-    bool _sparse;
+    static std::string ceresSolverTypeToString(int solver_type);
+
     bool _silent;
     bool _verbose;
     bool _compute_marginals;
     bool _not_first_step;
     double _funcTolerance;
     double _paramsTolerance;
+
+    int _solver_type;
 
     GenericSBAGraphReductor _observabilityGraph;
 

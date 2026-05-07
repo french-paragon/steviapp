@@ -64,10 +64,7 @@ bool SparseSolverConfigDialog::shouldRun() const
 }
 
 bool SparseSolverConfigDialog::computeUncertainty() const {
-	return ui->predictUncertaintyCheckBox->isChecked() and useSparseOptimizer();
-}
-bool SparseSolverConfigDialog::useSparseOptimizer() const {
-	return ui->useSparseOptimizerCheckBox->isChecked();
+    return ui->predictUncertaintyCheckBox->isChecked();
 }
 bool SparseSolverConfigDialog::initWithCurrentSol() const {
 	return ui->initWithCurrentSolCheckBox->isChecked();
@@ -80,6 +77,31 @@ int SparseSolverConfigDialog::numberOfSteps() const {
 	return ui->nStepSpinBoxpinBox->value();
 }
 
+void SparseSolverConfigDialog::setOptimizerTypeList(QList<OptimizerTypeInfos> const& optTypes) {
+    ui->optimizerTypeBox->clear();
+
+    for (OptimizerTypeInfos const& infos : optTypes) {
+        int idx = ui->optimizerTypeBox->count();
+        ui->optimizerTypeBox->addItem(infos.name);
+        ui->optimizerTypeBox->setItemData(idx, infos.id, Qt::UserRole);
+        ui->optimizerTypeBox->setItemData(idx, infos.toolTip, Qt::ToolTipRole);
+    }
+}
+int SparseSolverConfigDialog::selectedOptimizerTypeId() const {
+    if (ui->optimizerTypeBox->count() == 0) {
+        return -1;
+    }
+
+    bool ok = true;
+    int id = ui->optimizerTypeBox->currentData().toInt(&ok);
+
+    if (!ok) {
+        return -1;
+    }
+
+    return id;
+}
+
 double SparseSolverConfigDialog::functionTolerance() const {
     return std::pow(10,double(ui->funcTolBox->value()));
 }
@@ -89,9 +111,6 @@ double SparseSolverConfigDialog::parametersTolerance() const {
 
 void SparseSolverConfigDialog::setComputeUncertainty(bool compute) {
     return ui->predictUncertaintyCheckBox->setChecked(compute);
-}
-void SparseSolverConfigDialog::setUseSparseOptimizer(bool useSparse) {
-    return ui->useSparseOptimizerCheckBox->setChecked(useSparse);
 }
 void SparseSolverConfigDialog::setUseRobustCameras(bool useRobust) {
     return ui->useRobustCameraCheckBox->setChecked(useRobust);
