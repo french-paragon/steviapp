@@ -14,8 +14,12 @@ namespace StereoVisionApp {
 
 const char* ImageAlignementSBAModule::ModuleName = "SBAModule::ImageAlignement";
 
-ImageAlignementSBAModule::ImageAlignementSBAModule()
+ImageAlignementSBAModule::ImageAlignementSBAModule() :
+    _trajectoryAttachementScaleLoss(nullptr)
 {
+
+}
+ImageAlignementSBAModule::~ImageAlignementSBAModule() {
 
 }
 
@@ -56,17 +60,27 @@ bool ImageAlignementSBAModule::addGraphReductorObservations(Project *currentProj
             continue;
         }
 
-        int nSelfObs = 0;
+        Trajectory* trajectory = im->getAssignedTrajectory();
+        Mounting* mounting = im->getAssignedMounting();
 
-        if (im->xCoord().isSet() and im->yCoord().isSet() and im->zCoord().isSet()) {
-            nSelfObs += 3;
+        if (trajectory != nullptr and mounting != nullptr) { //image is attached to a trajectory
+
+            graphReductor->insertObservation(id, im->assignedTrajectory(), 6); // the image is constrained to the trajectory
+
+        } else {
+
+            int nSelfObs = 0;
+
+            if (im->xCoord().isSet() and im->yCoord().isSet() and im->zCoord().isSet()) {
+                nSelfObs += 3;
+            }
+
+            if(im->xRot().isSet() and im->yRot().isSet() and im->zRot().isSet()) {
+                nSelfObs += 3;
+            }
+
+            graphReductor->insertSelfObservation(id, nSelfObs);
         }
-
-        if(im->xRot().isSet() and im->yRot().isSet() and im->zRot().isSet()) {
-            nSelfObs += 3;
-        }
-
-        graphReductor->insertSelfObservation(id, nSelfObs);
 
         QVector<qint64> connections = im->getAttachedLandmarksIds();
 
@@ -122,6 +136,42 @@ bool ImageAlignementSBAModule::setupParameters(ModularSBASolver* solver) {
 
         if (imNode == nullptr) {
             continue;
+        }
+
+        Trajectory* trajectory = im->getAssignedTrajectory();
+        Mounting* mounting = im->getAssignedMounting();
+        std::optional<double> time = im->getImageTimestamp();
+
+        if (trajectory != nullptr and mounting != nullptr and time.has_value()) { //lcs is attached to a trajectory
+
+            qint64 trajId = im->assignedTrajectory();
+
+            StereoVisionApp::ModularSBASolver::TrajectoryNode* trajNode = solver->getNodeForTrajectory(trajId, false);
+
+            //no trajectory node
+            if (trajNode == nullptr) {
+                continue;
+            }
+
+            qint64 mountingId = im->assignedMounting();
+
+            StereoVisionApp::ModularSBASolver::PoseNode* mountingNode = solver->getNodeForMounting(mountingId, true);
+
+            //no mounting node
+            if (mountingNode == nullptr) {
+                continue;
+            }
+
+            ModularSBASolver::ItemTrajectoryInfos trajectoryInfos{
+                .datablockId = imId,
+                .TrajId = trajId,
+                .ExternalLeverArmId = mountingId
+            };
+
+            solver->registerItemTrajectoryInfos(trajectoryInfos);
+            imNode->trajectoryId = trajId;
+            imNode->time = time;
+
         }
 
         //check if a previous module assigned a projection module already to the frame.
@@ -295,10 +345,13 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
 
         //stick to trajectory
         qint64 trajId = imNode->trajectoryId.value_or(-1);
+        auto trajectoryInfos = solver->getItemTrajectoryInfos(imNode->datablockId);
+        qint64 mountId = trajectoryInfos.ExternalLeverArmId;
+
         std::optional<double>& imTime = imNode->time;
 
         ModularSBASolver::TrajectoryNode* tNode = solver->getNodeForTrajectory(trajId, false);
-        ModularSBASolver::LeverArmNode* lvNode = solver->getNodeForLeverArm(QPair<qint64,qint64>(im->assignedCamera(),trajId), false);
+        ModularSBASolver::PoseNode* lvNode = solver->getNodeForMounting(mountId, false);
 
         if (tNode != nullptr and lvNode != nullptr and imTime.has_value()) {
 
@@ -315,6 +368,11 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
                 double wP = (nTime - time)/(nTime-pTime);
                 double wN = (time - pTime)/(nTime-pTime);
 
+                if (_trajectoryAttachementScaleLoss == nullptr) {
+                    constexpr double rigidScale = 1e5;
+                    _trajectoryAttachementScaleLoss = new ceres::ScaledLoss(nullptr, rigidScale, ceres::Ownership::DO_NOT_TAKE_OWNERSHIP);
+                }
+
                 if (std::abs(wP-1) < 1e-3 or !std::isfinite(wP)) {
 
                     ParametrizedLeverArmCostFunctor* cost =
@@ -323,7 +381,7 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
                     using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
                     ceresFunc* costFunc = new ceresFunc(cost);
 
-                    problem.AddResidualBlock(costFunc, nullptr,
+                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
                                              lvNode->rAxis.data(), lvNode->t.data(),
                                              previous.rAxis.data(), previous.t.data(),
                                              imNode->rAxis.data(), imNode->t.data());
@@ -336,7 +394,7 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
                     using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
                     ceresFunc* costFunc = new ceresFunc(cost);
 
-                    problem.AddResidualBlock(costFunc, nullptr,
+                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
                                              lvNode->rAxis.data(), lvNode->t.data(),
                                              next.rAxis.data(), next.t.data(),
                                              imNode->rAxis.data(), imNode->t.data());
@@ -349,12 +407,33 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
                     using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedInterpolatedLeverArmCostFunctor,6,3,3,3,3,3,3,3,3>;
                     ceresFunc* costFunc = new ceresFunc(cost);
 
-                    problem.AddResidualBlock(costFunc, nullptr,
+                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
                                              lvNode->rAxis.data(), lvNode->t.data(),
                                              previous.rAxis.data(), previous.t.data(),
                                              next.rAxis.data(), next.t.data(),
                                              imNode->rAxis.data(), imNode->t.data());
                 }
+
+                StereoVision::Geometry::RigidBodyTransform<double> img2body(Eigen::Vector3d(lvNode->rAxis[0],lvNode->rAxis[1],lvNode->rAxis[2]),
+                                                                            Eigen::Vector3d(lvNode->t[0],lvNode->t[1],lvNode->t[2]));
+
+                StereoVision::Geometry::RigidBodyTransform<double> body2mapping(Eigen::Vector3d(previous.rAxis[0],previous.rAxis[1],previous.rAxis[2]),
+                                                                            Eigen::Vector3d(previous.t[0],previous.t[1],previous.t[2]));
+
+                StereoVision::Geometry::RigidBodyTransform<double> img2mapping = body2mapping*img2body;
+
+                //setup position from trajectory if it has not been set yet.
+                if (!im->hasOptimizedParameters() and !im->xCoord().isSet() and !im->yCoord().isSet() and !im->zCoord().isSet()) {
+                    imNode->t[0] = img2mapping.t[0];
+                    imNode->t[1] = img2mapping.t[1];
+                    imNode->t[2] = img2mapping.t[2];
+                }
+                if (!im->hasOptimizedParameters() and !im->xRot().isSet() and !im->yRot().isSet() and !im->zRot().isSet()) {
+                    imNode->rAxis[0] = img2mapping.r[0];
+                    imNode->rAxis[1] = img2mapping.r[1];
+                    imNode->rAxis[2] = img2mapping.r[2];
+                }
+
             }
 
         }

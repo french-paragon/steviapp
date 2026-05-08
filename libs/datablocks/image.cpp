@@ -10,6 +10,7 @@
 #include "datablocks/landmark.h"
 #include "datablocks/camera.h"
 #include "datablocks/trajectory.h"
+#include "datablocks/mounting.h"
 #include "datablocks/dataexception.h"
 
 #include "./itemdatamodel.h"
@@ -47,6 +48,13 @@ qint64 Image::assignedCamera() const {
 Camera* Image::getAssignedCamera() const {
     return getProject()->getDataBlock<Camera>(_assignedCamera);
 }
+QString Image::getAssignedCameraName() const {
+    Camera* cam = getAssignedCamera();
+    if (cam == nullptr) {
+        return tr("No camera");
+    }
+    return cam->objectName();
+}
 void Image::assignCamera(qint64 camId) {
 
 	if (camId == _assignedCamera) {
@@ -56,7 +64,7 @@ void Image::assignCamera(qint64 camId) {
 	if (_assignedCamera >= 0) removeRefered({_assignedCamera});
 	_assignedCamera = camId;
 	if (_assignedCamera >= 0) addRefered({_assignedCamera});
-    Q_EMIT assignedCameraChanged(_assignedCamera);
+    Q_EMIT assignedCameraChanged();
 	return;
 }
 
@@ -66,6 +74,13 @@ qint64 Image::assignedTrajectory() const {
 
 Trajectory* Image::getAssignedTrajectory() const {
     return getProject()->getDataBlock<Trajectory>(_assignedTrajectory);
+}
+QString Image::getAssignedTrajectoryName() const {
+    Trajectory* traj = getAssignedTrajectory();
+    if (traj == nullptr) {
+        return tr("Attached trajectory");
+    }
+    return traj->objectName();
 }
 
 void Image::assignTrajectory(qint64 trajId) {
@@ -77,9 +92,34 @@ void Image::assignTrajectory(qint64 trajId) {
     if (_assignedTrajectory >= 0) removeRefered({_assignedTrajectory});
     _assignedTrajectory = trajId;
     if (_assignedTrajectory >= 0) addRefered({_assignedTrajectory});
-    emit assignedTrajectoryChanged(_assignedTrajectory);
+    emit assignedTrajectoryChanged();
     return;
 
+}
+
+qint64 Image::assignedMounting() const {
+    return _assignedMounting;
+}
+Mounting* Image::getAssignedMounting() const {
+    return getProject()->getDataBlock<Mounting>(_assignedMounting);
+}
+QString Image::getAssignedMountingName() const {
+    Mounting* mounting = getAssignedMounting();
+    if (mounting == nullptr) {
+        return tr("Attached trajectory");
+    }
+    return mounting->objectName();
+}
+void Image::assignMounting(qint64 mountingId) {
+    if (mountingId == _assignedMounting) {
+        return;
+    }
+
+    if (_assignedMounting >= 0) removeRefered({_assignedMounting});
+    _assignedMounting = mountingId;
+    if (_assignedMounting >= 0) addRefered({_assignedMounting});
+    emit assignedMountingChanged();
+    return;
 }
 
 QString Image::getImageFile() const
@@ -341,7 +381,12 @@ QJsonObject Image::encodeJson() const {
     obj.insert("imFile", imgFile);
 
 	obj.insert("assignedCamera", assignedCamera());
+    obj.insert("assignedMounting", assignedMounting());
     obj.insert("assignedTrajectory", assignedTrajectory());
+
+    if (_imageTime.has_value()) {
+        obj.insert("timestamp", _imageTime.value());
+    }
 
 	QJsonArray arr;
 
@@ -367,8 +412,22 @@ void Image::configureFromJson(QJsonObject const& data) {
 		_assignedCamera = data.value("assignedCamera").toInt();
 	}
 
+    if (data.contains("assignedMounting")) {
+        _assignedMounting = data.value("assignedMounting").toInt();
+    }
+
     if (data.contains("assignedTrajectory")) {
         _assignedTrajectory = data.value("assignedTrajectory").toInt();
+    }
+
+    if (data.contains("timestamp")) {
+        if (data.value("timestamp").isDouble()) {
+            _imageTime = data.value("timestamp").toDouble();
+        } else {
+            _imageTime = std::nullopt;
+        }
+    } else {
+        _imageTime = std::nullopt;
     }
 
 	if (data.contains("Landmarks")) {
@@ -471,6 +530,33 @@ void Image::extendDataModel() {
 																										  &Image::isFixed,
 																										  &Image::setFixed,
 																										  &Image::isFixedChanged);
+
+
+
+    ItemDataModel::Category* attachementCat = _dataModel->addCategory(tr("Linked datablocks"));
+
+    attachementCat->addCatProperty<QString, Image, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Attached camera"),
+                                                                                                                 &Image::getAssignedCameraName,
+                                                                                                                 nullptr,
+                                                                                                                 &Image::assignedCameraChanged);
+
+    attachementCat->addCatProperty<QString, Image, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Attached trajectory"),
+                                                                                                                 &Image::getAssignedTrajectoryName,
+                                                                                                                 nullptr,
+                                                                                                                 &Image::assignedTrajectoryChanged);
+
+    attachementCat->addCatProperty<std::optional<double>, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Time"),
+                                                                                                                 &Image::getImageTimestamp,
+                                                                                                                 &Image::setImageTimeStamp,
+                                                                                                                 &Image::imageTimeChanged);
+
+    auto* mountingProp = attachementCat->addCatProperty<QString, Image, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Mounting"),
+                                                                                                                 &Image::getAssignedMountingName,
+                                                                                                                 nullptr,
+                                                                                                                 &Image::assignedMountingChanged);
+
+    mountingProp->setTooltipText(tr("Mounting represent the relative offset between camera and attached trajectory, "
+                                    "expressed as sensor frame to trajectory frame transformation."));
 
 	ItemDataModel::SubItemCollectionManager* im_lm = _dataModel->addCollectionManager(tr("Image landmarks"),
 																					  ImageLandmark::ImageLandmarkClassName,

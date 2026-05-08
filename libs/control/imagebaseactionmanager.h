@@ -25,6 +25,8 @@ public:
 protected:
 
 	QAction* createAssignToCameraAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
+    QAction* createAssignToTrajectoryAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
+    QAction* createAssignToMountingAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
 	QAction* createAddToCalibrationAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
 	QAction* createAssignToStereoRigAction(QObject* parent, Project* p, const QVector<Image *> &ims) const;
     QAction* createOpenInCornerMatchingEditor(QObject* parent, Project* p, const QVector<qint64> &imIds) const;

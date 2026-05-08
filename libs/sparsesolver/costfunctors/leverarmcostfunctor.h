@@ -50,7 +50,7 @@ public:
         MatType MR2 = StereoVision::Geometry::rodriguezFormula(vr2);
 
         VecType vt2;
-        vt1 << t2[0], t2[1], t2[2];
+        vt2 << t2[0], t2[1], t2[2];
 
         PoseType Pose1toWorld(MR1, vt1);
         PoseType WorldtoPose2(MR2.transpose(), -MR2.transpose()*vt2);
@@ -134,7 +134,7 @@ public:
         MatType MR2 = StereoVision::Geometry::rodriguezFormula(vr2);
 
         VecType vt2;
-        vt1 << t2[0], t2[1], t2[2];
+        vt2 << t2[0], t2[1], t2[2];
 
         PoseType Pose1toWorld(MR1, vt1);
         PoseType WorldtoPose2(MR2.transpose(), -MR2.transpose()*vt2);
@@ -301,7 +301,7 @@ public:
         vr2 << r2[0], r2[1], r2[2];
 
         VecType vt2;
-        vt1 << t2[0], t2[1], t2[2];
+        vt2 << t2[0], t2[1], t2[2];
 
         VecType vti = T(_w1)*vt1 + T(_w2)*vt2;
 

@@ -325,6 +325,28 @@ bool PinholeCamProjModule::init() {
 
     problem().AddParameterBlock(_principalPoint.data(), _principalPoint.size());
 
+    if (c->opticalCenterX().isSet() and
+        c->opticalCenterY().isSet() and
+        c->opticalCenterX().isUncertain() and
+        c->opticalCenterY().isUncertain()) {
+
+        float sigmaX = c->opticalCenterX().stddev();
+        float sigmaY = c->opticalCenterY().stddev();
+
+        Eigen::Matrix2d A = Eigen::Matrix2d::Identity();
+        A(0,0) = 1/sigmaX;
+        A(1,1) = 1/sigmaY;
+
+        Eigen::Vector2d b;
+        b.x() = c->opticalCenterX().value();
+        b.y() = c->opticalCenterY().value();
+
+        FixedSizeNormalPrior<2,2>* prior = new FixedSizeNormalPrior<2,2>(A, b);
+
+        problem().AddResidualBlock(prior, nullptr, _principalPoint.data());
+
+    }
+
     if (c->optimizedFLen().isSet()) {
         _fLen = c->optimizedFLen().value();
     } else {
@@ -334,9 +356,27 @@ bool PinholeCamProjModule::init() {
     problem().AddParameterBlock(&_fLen, 1);
 
     if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+
         problem().SetParameterBlockConstant(&_fLen);
         problem().SetParameterBlockConstant(_principalPoint.data());
+
+    } else if (c->fLen().isSet() and
+        c->fLen().isUncertain()) {
+
+        float sigma = c->fLen().stddev();
+
+        Eigen::Matrix<double,1,1> A = Eigen::Matrix<double,1,1>::Identity();
+        A(0,0) = 1/sigma;
+
+        Eigen::Matrix<double,1,1> b;
+        b.x() = c->fLen().value();
+
+        FixedSizeNormalPrior<1,1>* prior = new FixedSizeNormalPrior<1,1>(A, b);
+
+        problem().AddResidualBlock(prior, nullptr, &_fLen);
+
     }
+
 
 
     if (c->optimizedK1().isSet() and
@@ -362,11 +402,38 @@ bool PinholeCamProjModule::init() {
         _radialDistortion[2] = 0;
 
         problem().SetParameterBlockConstant(_radialDistortion.data());
+
+    } else if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+
+        problem().SetParameterBlockConstant(_radialDistortion.data());
+
+    } else if (c->k1().isSet() and
+               c->k2().isSet() and
+               c->k3().isSet() and
+               c->k1().isUncertain() and
+               c->k2().isUncertain() and
+               c->k3().isUncertain()) {
+
+        float sigma1 = c->k1().stddev();
+        float sigma2 = c->k2().stddev();
+        float sigma3 = c->k3().stddev();
+
+        Eigen::Matrix3d A = Eigen::Matrix3d::Identity();
+        A(0,0) = 1/sigma1;
+        A(1,1) = 1/sigma2;
+        A(2,2) = 1/sigma3;
+
+        Eigen::Vector3d b;
+        b.x() = c->k1().value();
+        b.y() = c->k2().value();
+        b.z() = c->k3().value();
+
+        FixedSizeNormalPrior<3,3>* prior = new FixedSizeNormalPrior<3,3>(A, b);
+
+        problem().AddResidualBlock(prior, nullptr, _radialDistortion.data());
+
     }
 
-    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
-        problem().SetParameterBlockConstant(_radialDistortion.data());
-    }
 
     if (c->optimizedP1().isSet() and
         c->optimizedP2().isSet()) {
@@ -387,10 +454,31 @@ bool PinholeCamProjModule::init() {
         _tangentialDistortion[1] = 0;
 
         problem().SetParameterBlockConstant(_tangentialDistortion.data());
-    }
 
-    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+    } else if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+
         problem().SetParameterBlockConstant(_tangentialDistortion.data());
+
+    } else if (c->p1().isSet() and
+                 c->p2().isSet() and
+                 c->p1().isUncertain() and
+                 c->p2().isUncertain()) {
+
+        float sigma1 = c->p1().stddev();
+        float sigma2 = c->p2().stddev();
+
+        Eigen::Matrix2d A = Eigen::Matrix2d::Identity();
+        A(0,0) = 1/sigma1;
+        A(1,1) = 1/sigma2;
+
+        Eigen::Vector2d b;
+        b.x() = c->p1().value();
+        b.y() = c->p2().value();
+
+        FixedSizeNormalPrior<2,2>* prior = new FixedSizeNormalPrior<2,2>(A, b);
+
+        problem().AddResidualBlock(prior, nullptr, _tangentialDistortion.data());
+
     }
 
     if (c->optimizedB1().isSet() and
@@ -408,15 +496,36 @@ bool PinholeCamProjModule::init() {
     problem().AddParameterBlock(_skewDistortion.data(), _skewDistortion.size());
 
     if (!c->useSkewDistortionModel()) {
+
         _skewDistortion[0] = 0;
         _skewDistortion[1] = 0;
 
         problem().SetParameterBlockConstant(_skewDistortion.data());
-    }
 
-    if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
+    } else if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
 
         problem().SetParameterBlockConstant(_skewDistortion.data());
+
+    } else if (c->B1().isSet() and
+               c->B2().isSet() and
+               c->B1().isUncertain() and
+               c->B2().isUncertain()) {
+
+        float sigma1 = c->B1().stddev();
+        float sigma2 = c->B2().stddev();
+
+        Eigen::Matrix2d A = Eigen::Matrix2d::Identity();
+        A(0,0) = 1/sigma1;
+        A(1,1) = 1/sigma2;
+
+        Eigen::Vector2d b;
+        b.x() = c->B1().value();
+        b.y() = c->B2().value();
+
+        FixedSizeNormalPrior<2,2>* prior = new FixedSizeNormalPrior<2,2>(A, b);
+
+        problem().AddResidualBlock(prior, nullptr, _skewDistortion.data());
+
     }
 
     return true;

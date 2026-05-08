@@ -17,6 +17,7 @@ class Landmark;
 class ImageLandmark;
 class Camera;
 class Trajectory;
+class Mounting;
 
 class Image : public RigidBody
 {
@@ -37,11 +38,18 @@ public:
 
     qint64 assignedCamera() const;
     Camera* getAssignedCamera() const;
+    QString getAssignedCameraName() const;
     void assignCamera(qint64 camId);
 
     qint64 assignedTrajectory() const;
     Trajectory* getAssignedTrajectory() const;
+    QString getAssignedTrajectoryName() const;
     void assignTrajectory(qint64 trajId);
+
+    qint64 assignedMounting() const;
+    Mounting* getAssignedMounting() const;
+    QString getAssignedMountingName() const;
+    void assignMounting(qint64 mountingId);
 
 	QString getImageFile() const;
 	void setImageFile(const QString &imageFile);
@@ -70,8 +78,9 @@ public:
 
 Q_SIGNALS:
 
-	void assignedCameraChanged(qint64 id);
-    void assignedTrajectoryChanged(qint64 id);
+    void assignedCameraChanged();
+    void assignedMountingChanged();
+    void assignedTrajectoryChanged();
 
 	void pointAdded(qint64 pt);
 	void pointRemoved(qint64 pt);
@@ -89,6 +98,7 @@ protected:
 
 	qint64 _assignedCamera;
     qint64 _assignedTrajectory; //the trajectory the image has been taken from.
+    qint64 _assignedMounting;
 
 	QString _imageFile;
     std::optional<double> _imageTime;

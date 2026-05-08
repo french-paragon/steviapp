@@ -21,6 +21,7 @@ public:
     }
 
     ImageAlignementSBAModule();
+    ~ImageAlignementSBAModule();
 
     virtual QString moduleName() const override;
 
@@ -37,6 +38,7 @@ protected:
 
     //match camera internal id to a projector module for the images
     QMap<qint64, ModularSBASolver::ProjectorModule*> _cameraProjectors;
+    ceres::ScaledLoss* _trajectoryAttachementScaleLoss;
 
 };
 

@@ -8,6 +8,8 @@
 
 #include "datablocks/image.h"
 #include "datablocks/camera.h"
+#include "datablocks/trajectory.h"
+#include "datablocks/mounting.h"
 #include "datablocks/stereorig.h"
 #include "datablocks/cameracalibration.h"
 
@@ -144,9 +146,23 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 	});
 	lst.append(remove);
 
-	QAction* assignToCamera = createAssignToCameraAction(parent, im->getProject(), {im});
+    Project* p = im->getProject();
+
+    QAction* assignToCamera = createAssignToCameraAction(parent, p, {im});
 
     lst.append(assignToCamera);
+
+    QAction* assignToTrajectory = createAssignToTrajectoryAction(parent, p, {im});
+
+    if (assignToTrajectory != nullptr) {
+        lst.append(assignToTrajectory);
+    }
+
+    QAction* assignToMounting = createAssignToMountingAction(parent, p, {im});
+
+    if (assignToMounting != nullptr) {
+        lst.append(assignToMounting);
+    }
 
     QAction* exportRectified = new QAction(tr("Export rectified image"), parent);
     connect(exportRectified, &QAction::triggered, [mw, im] () {
@@ -232,6 +248,18 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 	QAction* assignToCamera = createAssignToCameraAction(parent, p, ims);
 
 	lst.append(assignToCamera);
+
+    QAction* assignToTrajectory = createAssignToTrajectoryAction(parent, p, ims);
+
+    if (assignToTrajectory != nullptr) {
+        lst.append(assignToTrajectory);
+    }
+
+    QAction* assignToMounting = createAssignToMountingAction(parent, p, ims);
+
+    if (assignToMounting != nullptr) {
+        lst.append(assignToMounting);
+    }
 
 	QAction* assignToStereoRig = createAssignToStereoRigAction(parent, p, ims);
 
@@ -577,6 +605,57 @@ QAction* ImageBaseActionManager::createAssignToCameraAction(QObject* parent, Pro
 
 	return assignToCamera;
 
+}
+QAction* ImageBaseActionManager::createAssignToTrajectoryAction(QObject* parent, Project* p, const QVector<Image *> &ims) const {
+
+    QAction* assignToTrajectory = new QAction(tr("Assign to trajectory"), parent);
+    QMenu* trajMenu = new QMenu();
+    connect(assignToTrajectory, &QObject::destroyed, trajMenu, &QObject::deleteLater);
+
+    QVector<qint64> trajsIds = p->getIdsByClass(Trajectory::staticMetaObject.className());
+
+    for(qint64 trajId : trajsIds) {
+
+        Trajectory* c = qobject_cast<Trajectory*>(p->getById(trajId));
+
+        if (c != nullptr) {
+            QAction* toTraj = new QAction(c->objectName(), assignToTrajectory);
+            connect(toTraj, &QAction::triggered, [trajId, ims] () {
+                for (Image* im : ims) {
+                    im->assignTrajectory(trajId);
+                }
+            });
+            trajMenu->addAction(toTraj);
+        }
+    }
+    assignToTrajectory->setMenu(trajMenu);
+
+    return assignToTrajectory;
+}
+QAction* ImageBaseActionManager::createAssignToMountingAction(QObject* parent, Project* p, const QVector<Image *> &ims) const {
+    QAction* assignToMounting = new QAction(tr("Assign to mounting"), parent);
+    QMenu* mountingMenu = new QMenu();
+    connect(assignToMounting, &QObject::destroyed, mountingMenu, &QObject::deleteLater);
+
+    QVector<qint64> mountsIds = p->getIdsByClass(Mounting::staticMetaObject.className());
+
+    for(qint64 mountId : mountsIds) {
+
+        Mounting* m = qobject_cast<Mounting*>(p->getById(mountId));
+
+        if (m != nullptr) {
+            QAction* toMounting = new QAction(m->objectName(), assignToMounting);
+            connect(toMounting, &QAction::triggered, [mountId, ims] () {
+                for (Image* im : ims) {
+                    im->assignMounting(mountId);
+                }
+            });
+            mountingMenu->addAction(toMounting);
+        }
+    }
+    assignToMounting->setMenu(mountingMenu);
+
+    return assignToMounting;
 }
 QAction* ImageBaseActionManager::createAddToCalibrationAction(QObject* parent, Project* p, const QVector<Image *> &ims) const {
 
