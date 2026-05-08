@@ -309,7 +309,8 @@ public:
         V3T gVec;
         gVec << g[0], g[1], g[2];
 
-        V3T alignGVec = gVec + coriolisEffect<T>(_Recef2local, speedVec);
+        V3T delta = coriolisEffect<T>(_Recef2local, speedVec);
+        V3T alignGVec = gVec + delta;
 
         processed_g[0] = alignGVec[0];
         processed_g[1] = alignGVec[1];
