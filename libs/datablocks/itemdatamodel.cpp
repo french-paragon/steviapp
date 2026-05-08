@@ -633,6 +633,20 @@ QVariant ItemDataModel::data(const QModelIndex &index, int role) const {
             }
         }
         return false;
+    case Qt::ToolTipRole:
+        if (node == nullptr) { // leaf item, this is a property
+            ItemPropertyDescription* descr = propDescrFromIndex(index);
+
+            if (descr == nullptr) {
+                return QVariant();
+            } else {
+                QString text = descr->toolTipText();
+                if (!text.isEmpty()) {
+                    return text;
+                }
+            }
+        }
+        break;
 	}
 
 	return QVariant();

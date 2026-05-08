@@ -895,7 +895,7 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Corres
 
     constexpr int paramId = 0;
     constexpr int nRes = 3;
-    constexpr int leverArmConfig = Body2World|Body2Sensor;
+    constexpr int leverArmConfig = Body2World|Sensor2Body;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
 
     using CostFuncBuilder = ModifiedPoseCostFunctionBuilderHelper
@@ -1114,7 +1114,7 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Corre
 
     constexpr int paramId = 0;
     constexpr int nRes = 3;
-    constexpr int leverArmConfig = Body2World|Body2Sensor;
+    constexpr int leverArmConfig = Body2World|Sensor2Body;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
 
     using PoseIdxs = std::index_sequence<0,2>;
@@ -1509,7 +1509,7 @@ bool CorrespondencesSetSBAModule::addUV2XYZTMatch(Correspondences::Typed<Corresp
     using DecoratedFunctor = InvertPoseDynamic<LocalFrame2MappedPointDynamic<Functor, poseOrder, Functor::lmPosParamId>>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
     constexpr int stride = 4;
 
-    constexpr int LeverArmConfiguration = Body2World|Body2Sensor;
+    constexpr int LeverArmConfiguration = Body2World|Sensor2Body;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
     constexpr int poseParamIdx = 2;
 
@@ -1949,7 +1949,7 @@ bool CorrespondencesSetSBAModule::addUVT2XYZMatch(Correspondences::Typed<Corresp
     using DecoratedFunctor = InvertPoseDynamic<LocalFrame2MappedPointDynamic<Functor, poseOrder, Functor::lmPosParamId>>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
     constexpr int stride = 4;
 
-    constexpr int LeverArmConfiguration = Body2World|Body2Sensor;
+    constexpr int LeverArmConfiguration = Body2World|Sensor2Body;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
     constexpr int poseParamIdx = Functor::poseRParamId;
     constexpr int nResiduals = Functor::nResiduals;
@@ -2121,7 +2121,7 @@ bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Corr
     using DecoratedFunctor = InvertPoseDynamic<Functor>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
     constexpr int stride = 4;
 
-    constexpr int LeverArmConfiguration = Body2World|Body2Sensor;
+    constexpr int LeverArmConfiguration = Body2World|Sensor2Body;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
     constexpr int poseParamIdx = Functor::poseRParamId;
     constexpr int nResiduals = Functor::nResiduals;
@@ -2346,7 +2346,7 @@ bool CorrespondencesSetSBAModule::addUVT2XYZTMatch(Correspondences::Typed<Corres
     using DecoratedFunctor = InvertPoseDynamic<LocalFrame2MappedPointDynamic<Functor, poseOrder, Functor::lmPosParamId>>; //ensure the pose are given as world2sensor (the parameters are as sensor2world)
     constexpr int stride = 4;
 
-    constexpr int LeverArmConfiguration = Body2World|Body2Sensor;
+    constexpr int LeverArmConfiguration = Body2World|Sensor2Body;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
     using poseParamIdxs = std::index_sequence<Functor::poseRParamId, Functor::lmPosParamId>;
 

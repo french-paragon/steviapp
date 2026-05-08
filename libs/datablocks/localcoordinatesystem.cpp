@@ -289,7 +289,7 @@ void LocalCoordinateSystem::extendDataModel() {
         &LocalCoordinateSystem::assignedTrajectoryChanged
         );
 
-    ldbp->addCatProperty<QString,
+    auto* mounting_prop = ldbp->addCatProperty<QString,
                          LocalCoordinateSystem,
                          false,
                          StereoVisionApp::ItemDataModel::ItemPropertyDescription::NoValueSignal> (
@@ -298,6 +298,8 @@ void LocalCoordinateSystem::extendDataModel() {
         nullptr,
         &LocalCoordinateSystem::assignedMountingChanged
         );
+
+    mounting_prop->setTooltipText(tr("Mounting represent sensor frame to trajectory frame transform"));
 
 	ItemDataModel::Category* g = _dataModel->addCategory(tr("Geometric properties"));
 

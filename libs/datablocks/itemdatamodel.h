@@ -101,6 +101,13 @@ public:
 
 		SubItemCollectionManager *collectionManager() const;
 
+        inline QString toolTipText() const {
+            return _tooltip;
+        }
+        inline void setTooltipText(QString const& tooltip) {
+            _tooltip = tooltip;
+        }
+
 	protected:
 
 		ItemPropertyDescription(Category* cat, QString descrName);
@@ -120,6 +127,8 @@ public:
         double _num_min;
         double _num_max;
         QString _suffix; //suffix for numbers
+
+        QString _tooltip;
 
 		QMetaObject::Connection vChangedConnection;
 	};

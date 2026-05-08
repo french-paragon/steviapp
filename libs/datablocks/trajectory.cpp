@@ -3690,7 +3690,7 @@ void Trajectory::extendDataModel() {
                 &Trajectory::setGyroId,
                 &Trajectory::gyroIdChanged);
 
-    sensorsIdsCat->addCatProperty<QString,
+    auto* gpsMountingProp = sensorsIdsCat->addCatProperty<QString,
                          Trajectory,
                          false,
                          StereoVisionApp::ItemDataModel::ItemPropertyDescription::NoValueSignal> (
@@ -3700,7 +3700,9 @@ void Trajectory::extendDataModel() {
         &Trajectory::gpsMountingChanged
         );
 
-    sensorsIdsCat->addCatProperty<QString,
+    gpsMountingProp->setTooltipText(tr("Mounting is the gps frame to trajectory frame transform."));
+
+    auto* insMountingProp = sensorsIdsCat->addCatProperty<QString,
                          Trajectory,
                          false,
                          StereoVisionApp::ItemDataModel::ItemPropertyDescription::NoValueSignal> (
@@ -3709,6 +3711,8 @@ void Trajectory::extendDataModel() {
         nullptr,
         &Trajectory::insMountingChanged
         );
+
+    insMountingProp->setTooltipText(tr("Mounting is the ins frame to trajectory frame transform."));
 
 
 

@@ -18,7 +18,7 @@ using UVCostPB = InvertPose<UV2ParametrizedXYZCost<PinholePushbroomUVProjector,U
 template<int UvCostFlags>
 using UVCost = InvertPose<UV2ParametrizedXYZCost<PinholeUVProjector,UvCostFlags,1,2,3,2,2>,0>;
 template<int UvCostFlags>
-using LeverArmCost = LeverArm<UVCost<UvCostFlags>,Body2World|Body2Sensor,0>;
+using LeverArmCost = LeverArm<UVCost<UvCostFlags>,Body2World|Sensor2Body,0>;
 template<int UvCostFlags>
 using PoseTransformCost = PoseTransform<UVCost<UvCostFlags>,PoseTransformDirection::SourceToInitial,0>;
 template<int UvCostFlags>
@@ -503,12 +503,9 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunctionImpl(double* p
 
     constexpr int Flags = (useSpherical) ? UVProjFlags::SphericalCost : UVProjFlags::PlaneCost;
 
-    constexpr int LeverArmConfiguration = Body2World|Body2Sensor;
+    constexpr int LeverArmConfiguration = Body2World|Sensor2Body;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
     constexpr int poseParamIdx = 0;
-    /*using LeverArmCostPB = LeverArm<UVCostPB,Body2World|Body2Sensor,0>;
-    using PoseTransformCostPB = PoseTransform<UVCostPB,PoseTransformDirection::SourceToInitial,0>;
-    using PoseTransformLeverArmCostPB = PoseTransform<LeverArmCostPB,PoseTransformDirection::SourceToInitial,0>;*/
 
     using PoseCostFunctionBuilder =
         ModifiedPoseCostFunctionBuilderHelper<UVCostPB<Flags>, poseTransformDirection, LeverArmConfiguration, poseParamIdx, 2, 3, 3, 3, 1, 1, 6, 6>;

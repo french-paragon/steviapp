@@ -23,6 +23,13 @@ public:
     void assignTrajectory(qint64 trajId);
     QString getAssignedTrajectoryName() const;
 
+    /*!
+     * \brief assignedMounting get the id of the assigned mounting
+     * \return the id of the assigned mounting, or -1 is none is present.
+     *
+     * The assigned mounting represent the boresight/lever are of the local coordinate system when it is attached to a trajectory,
+     * expressed as the transform from the local coordinate system to the body frame of the trajectory
+     */
     qint64 assignedMounting() const;
     Mounting* getAssignedMounting() const;
     void assignMounting(qint64 mountId);

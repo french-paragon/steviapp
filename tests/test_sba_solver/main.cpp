@@ -909,10 +909,8 @@ void TestSBASolver::movingBody2MovingBody() {
 
     QVERIFY(optMountingTransform.has_value());
 
-    StereoVision::Geometry::RigidBodyTransform<double> body2sensor =
+    StereoVision::Geometry::RigidBodyTransform<double> sensor2body =
         StereoVision::Geometry::RigidBodyTransform<double>(optMountingTransform.value().cast<double>());
-
-    StereoVision::Geometry::RigidBodyTransform<double> sensor2body = body2sensor.inverse();
 
     //setup correspondences
 

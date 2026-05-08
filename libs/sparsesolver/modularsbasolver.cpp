@@ -1540,7 +1540,7 @@ bool addCrossProjectionCostFunctionHelper(std::array<double*, 8> const& posePara
 
         if (leverArmOrientation2 != nullptr and leverArmPosition2 != nullptr) {
 
-            using DecoratedFunctor = LeverArmDynamic<PoseInvertedFunctor, Body2World|Body2Sensor, pose2Pos>;
+            using DecoratedFunctor = LeverArmDynamic<PoseInvertedFunctor, Body2World|Sensor2Body, pose2Pos>;
 
             return addCrossProjectionCostFunctionHelperLvl2<DecoratedFunctor, offset1IsLarge, offset2IsLarge>
                 (
@@ -1570,7 +1570,7 @@ bool addCrossProjectionCostFunctionHelper(std::array<double*, 8> const& posePara
 
         if (leverArmOrientation2 != nullptr and leverArmPosition2 != nullptr) {
 
-            using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<PoseInvertedFunctor,PoseTransformDirection::SourceToInitial,pose2Pos>, Body2World|Body2Sensor, pose2Pos>;
+            using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<PoseInvertedFunctor,PoseTransformDirection::SourceToInitial,pose2Pos>, Body2World|Sensor2Body, pose2Pos>;
 
             return addCrossProjectionCostFunctionHelperLvl2<DecoratedFunctor, offset1IsLarge, offset2IsLarge>
                 (
@@ -1664,7 +1664,7 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
 
         if (leverArmOrientation1 != nullptr and leverArmPosition1 != nullptr) {
 
-            using DecoratedFunctor = LeverArmDynamic<PoseInvertedFunctor, Body2World|Body2Sensor, pose1Pos>;
+            using DecoratedFunctor = LeverArmDynamic<PoseInvertedFunctor, Body2World|Sensor2Body, pose1Pos>;
 
             return addCrossProjectionCostFunctionHelper<DecoratedFunctor, offset1IsLarge, pose2BasePos+2>
                 (
@@ -1694,7 +1694,7 @@ bool ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(Projector
 
         if (leverArmOrientation1 != nullptr and leverArmPosition1 != nullptr) {
 
-            using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<PoseInvertedFunctor,PoseTransformDirection::SourceToInitial,pose1Pos>, Body2World|Body2Sensor, pose1Pos>;
+            using DecoratedFunctor = LeverArmDynamic<PoseTransformDynamic<PoseInvertedFunctor,PoseTransformDirection::SourceToInitial,pose1Pos>, Body2World|Sensor2Body, pose1Pos>;
 
             return addCrossProjectionCostFunctionHelper<DecoratedFunctor, offset1IsLarge, pose2BasePos+2>
                 (
