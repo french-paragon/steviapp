@@ -172,14 +172,17 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
         accelerometerOpt = _trajectory->loadAccelerationSequence();
 
         if (!trajOptional.isValid()) {
+            QMessageBox::warning(this, tr("Invalid trajectory"), tr("Could not load trajectory: %1").arg(trajOptional.errorMessage()));
             valid_trajectory = false;
         }
 
         if (!angularSpeedOpt.isValid()) {
+            QMessageBox::warning(this, tr("Invalid trajectory"), tr("Could not load gyro data: %1").arg(angularSpeedOpt.errorMessage()));
             valid_trajectory = false;
         }
 
         if (!accelerometerOpt.isValid()) {
+            QMessageBox::warning(this, tr("Invalid trajectory"), tr("Could not load accelerometer data: %1").arg(accelerometerOpt.errorMessage()));
             valid_trajectory = false;
         }
 
@@ -408,6 +411,10 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
 
     _speedDeltasPlot->replot();
 
+    if (timesAccelerometer.isEmpty()) {
+        QMessageBox::warning(this, tr("Ploting error"), tr("No accelerometer data, is the accelerometer data configured correctly?"));
+    }
+
     _orientationDeltasPlot->graph(0)->setData(timesGyro, rotXdeltaGyro);
     _orientationDeltasPlot->graph(1)->setData(timesGyro, rotYdeltaGyro);
     _orientationDeltasPlot->graph(2)->setData(timesGyro, rotZdeltaGyro);
@@ -420,6 +427,9 @@ void TrajectoryAlignementAnalysisEditor::reconfigurePlots() {
 
     _orientationDeltasPlot->replot();
 
+    if (timesGyro.isEmpty()) {
+        QMessageBox::warning(this, tr("Ploting error"), tr("No gyro data, is the gyro data configured correctly?"));
+    }
 
 
 }
