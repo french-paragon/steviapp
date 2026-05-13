@@ -615,9 +615,11 @@ bool PinholePushBroomCamProjectorModule::addProjectionCostFunctionImpl(double* p
     constexpr int LeverArmConfiguration = Body2World|Sensor2Body;
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
     constexpr int poseParamIdx = 0;
+    constexpr int nResidual = 2;
 
     using PoseCostFunctionBuilder =
-        ModifiedPoseCostFunctionBuilderHelper<UVCostPB<Flags>, poseTransformDirection, LeverArmConfiguration, poseParamIdx, 2, 3, 3, 3, 1, 1, 6, 6>;
+        ModifiedPoseCostFunctionBuilderHelper<UVCostPB<Flags>, poseTransformDirection, LeverArmConfiguration, poseParamIdx, nResidual, 3, 3, 3, 1, 1, 6, 6>;
+    //params are r[3], t[3] lm[3] f[1], pp[1] as[6], bs[6]
 
     constexpr int baseNArgs = 7;
 
