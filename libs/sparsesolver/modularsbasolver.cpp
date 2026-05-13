@@ -46,7 +46,7 @@ public:
             return ceres::SOLVER_CONTINUE;
         }
 
-        return ceres::SOLVER_ABORT;
+        return ceres::SOLVER_CONTINUE;
 
     }
 
