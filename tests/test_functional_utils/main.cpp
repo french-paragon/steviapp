@@ -56,6 +56,28 @@ struct DynamicIdentityArgFunctor {
 
 };
 
+template<int copyArgId>
+struct TwoPosesIdentityArgFunctor {
+    TwoPosesIdentityArgFunctor() {
+
+    }
+
+    template <typename T>
+    bool operator()(T const* r1, T const* t1, T const* r2, T const* t2, T* residuals) const {
+
+        std::array<T const*, 4> args = {r1,t1,r2,t2};
+
+        T const* src = args[copyArgId];
+
+        for (int i = 0; i < 3; i++) {
+            residuals[i] = src[i];
+        }
+
+        return true;
+    }
+
+};
+
 template<int argSize>
 struct IdentityArgFunctor {
     IdentityArgFunctor() {
@@ -594,6 +616,12 @@ void TestFunctionalUtils::testPoseBuilderHelpers() {
     using MultiPoseRot2CopyFunc = DynamicIdentityArgFunctor<4, 2, 3>;
     using MultiPosePos2CopyFunc = DynamicIdentityArgFunctor<4, 3, 3>;
 
+    using MultiPoseRot1CopyStaticFunc = TwoPosesIdentityArgFunctor<0>;
+    using MultiPosePos1CopyStaticFunc = TwoPosesIdentityArgFunctor<1>;
+
+    using MultiPoseRot2CopyStaticFunc = TwoPosesIdentityArgFunctor<2>;
+    using MultiPosePos2CopyStaticFunc = TwoPosesIdentityArgFunctor<3>;
+
     for (int i = 0; i < nRuns; i++) {
 
         StereoVision::Geometry::RigidBodyTransform<double> identity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
@@ -664,13 +692,29 @@ void TestFunctionalUtils::testPoseBuilderHelpers() {
         using MultiPos2BuildHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
             <MultiPosePos2CopyFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals>;
 
+        using MultiRot1BuildStaticHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
+            <MultiPoseRot1CopyStaticFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals,
+                                                                                                       3, 3, 3, 3>;
+
+        using MultiPos1BuildStaticHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
+            <MultiPosePos1CopyStaticFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals,
+                                                                                                       3, 3, 3, 3>;
+
+        using MultiRot2BuildStaticHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
+            <MultiPoseRot2CopyStaticFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals,
+                                                                                                       3, 3, 3, 3>;
+
+        using MultiPos2BuildStaticHelper = StereoVisionApp::ModifiedMultiPoseCostFunctionBuilderHelper
+            <MultiPosePos2CopyStaticFunc, poseTransformDirection, LeverArmConfiguration, poseParamIdxs, nResiduals,
+                                                                                                       3, 3, 3, 3>;
+
         struct PoseInfosData {
             const StereoVision::Geometry::RigidBodyTransform<double> offset; //fixed offset applied on top of the parametrized pose.
             double *leverArmOrientation; //parameter for the lever arm orientation
             double *leverArmPosition; //parameter for the lever arm orientation
         };
 
-        auto evaluateMulti = [&] (PoseInfosData const& pose1Infos,
+        auto evaluateDynamicMulti = [&] (PoseInfosData const& pose1Infos,
                                  PoseInfosData const& pose2Infos,
                                  StereoVision::Geometry::RigidBodyTransform<double> const& expectedOut1,
                                  StereoVision::Geometry::RigidBodyTransform<double> const& expectedOut2) {
@@ -758,17 +802,105 @@ void TestFunctionalUtils::testPoseBuilderHelpers() {
 
         };
 
+        auto evaluateStaticMulti = [&] (PoseInfosData const& pose1Infos,
+                                        PoseInfosData const& pose2Infos,
+                                        StereoVision::Geometry::RigidBodyTransform<double> const& expectedOut1,
+                                        StereoVision::Geometry::RigidBodyTransform<double> const& expectedOut2) {
+
+            auto multiRot1FunctionData = MultiRot1BuildStaticHelper::buildPoseShiftedCostFunction
+                (
+                    parameters.data(),
+                    MultiRot1BuildStaticHelper::PoseDataContainer{
+                                                            MultiRot1BuildStaticHelper::PoseModificationData{pose1Infos.offset, pose1Infos.leverArmOrientation, pose1Infos.leverArmPosition},
+                                                            MultiRot1BuildStaticHelper::PoseModificationData{pose2Infos.offset, pose2Infos.leverArmOrientation, pose2Infos.leverArmPosition}}
+                    );
+
+            auto multiPos1FunctionData = MultiPos1BuildStaticHelper::buildPoseShiftedCostFunction
+                (
+                    parameters.data(),
+                    MultiPos1BuildStaticHelper::PoseDataContainer{
+                                                            MultiPos1BuildStaticHelper::PoseModificationData{pose1Infos.offset, pose1Infos.leverArmOrientation, pose1Infos.leverArmPosition},
+                                                            MultiPos1BuildStaticHelper::PoseModificationData{pose2Infos.offset, pose2Infos.leverArmOrientation, pose2Infos.leverArmPosition}});
+
+            auto multiRot2FunctionData = MultiRot2BuildStaticHelper::buildPoseShiftedCostFunction
+                (
+                    parameters.data(),
+                    MultiRot2BuildStaticHelper::PoseDataContainer{
+                                                            MultiRot2BuildStaticHelper::PoseModificationData{pose1Infos.offset, pose1Infos.leverArmOrientation, pose1Infos.leverArmPosition},
+                                                            MultiRot2BuildStaticHelper::PoseModificationData{pose2Infos.offset, pose2Infos.leverArmOrientation, pose2Infos.leverArmPosition}}
+                    );
+
+            auto multiPos2FunctionData = MultiPos2BuildStaticHelper::buildPoseShiftedCostFunction
+                (
+                    parameters.data(),
+                    MultiPos2BuildStaticHelper::PoseDataContainer{
+                                                            MultiPos2BuildStaticHelper::PoseModificationData{pose1Infos.offset, pose1Infos.leverArmOrientation, pose1Infos.leverArmPosition},
+                                                            MultiPos2BuildStaticHelper::PoseModificationData{pose2Infos.offset, pose2Infos.leverArmOrientation, pose2Infos.leverArmPosition}});
+
+            QVERIFY(multiRot1FunctionData.costFunction != nullptr);
+            QVERIFY(multiPos1FunctionData.costFunction != nullptr);
+            QVERIFY(multiRot2FunctionData.costFunction != nullptr);
+            QVERIFY(multiPos2FunctionData.costFunction != nullptr);
+
+            int expectedSize = baseParametersSizeInfos.size();
+
+            if (pose1Infos.leverArmOrientation != nullptr and pose1Infos.leverArmPosition != nullptr) {
+                expectedSize += 2;
+            }
+
+            if (pose2Infos.leverArmOrientation != nullptr and pose2Infos.leverArmPosition != nullptr) {
+                expectedSize += 2;
+            }
+
+            QCOMPARE(multiRot1FunctionData.params.size(), expectedSize);
+            QCOMPARE(multiPos1FunctionData.params.size(), expectedSize);
+            QCOMPARE(multiRot2FunctionData.params.size(), expectedSize);
+            QCOMPARE(multiPos2FunctionData.params.size(), expectedSize);
+
+            QCOMPARE(multiRot1FunctionData.costFunction->parameter_block_sizes().size(), multiRot1FunctionData.params.size());
+            QCOMPARE(multiPos1FunctionData.costFunction->parameter_block_sizes().size(), multiPos1FunctionData.params.size());
+            QCOMPARE(multiRot2FunctionData.costFunction->parameter_block_sizes().size(), multiRot1FunctionData.params.size());
+            QCOMPARE(multiPos2FunctionData.costFunction->parameter_block_sizes().size(), multiPos1FunctionData.params.size());
+
+            bool rot1Ok = multiRot1FunctionData.costFunction->Evaluate(multiRot1FunctionData.params.data(), r_out1.data(), nullptr);
+            bool pos1Ok = multiPos1FunctionData.costFunction->Evaluate(multiPos1FunctionData.params.data(), t_out1.data(), nullptr);
+            bool rot2Ok = multiRot2FunctionData.costFunction->Evaluate(multiRot2FunctionData.params.data(), r_out2.data(), nullptr);
+            bool pos2Ok = multiPos2FunctionData.costFunction->Evaluate(multiPos2FunctionData.params.data(), t_out2.data(), nullptr);
+
+            QVERIFY(rot1Ok);
+            QVERIFY(pos1Ok);
+            QVERIFY(rot2Ok);
+            QVERIFY(pos2Ok);
+
+            for (int i = 0; i < 3; i++) {
+                QCOMPARE(r_out1[i], expectedOut1.r[i]);
+                QCOMPARE(t_out1[i], expectedOut1.t[i]);
+                QCOMPARE(r_out2[i], expectedOut2.r[i]);
+                QCOMPARE(t_out2[i], expectedOut2.t[i]);
+            }
+
+            delete multiRot1FunctionData.costFunction;
+            delete multiPos1FunctionData.costFunction;
+            delete multiRot2FunctionData.costFunction;
+            delete multiPos2FunctionData.costFunction;
+
+        };
+
         //with nothing
-        evaluateMulti({identity, nullptr, nullptr}, {identity, nullptr, nullptr}, pose1, pose2);
+        evaluateDynamicMulti({identity, nullptr, nullptr}, {identity, nullptr, nullptr}, pose1, pose2);
+        evaluateStaticMulti({identity, nullptr, nullptr}, {identity, nullptr, nullptr}, pose1, pose2);
 
         //with fixed transform
-        evaluateMulti({pose3, nullptr, nullptr}, {pose4, nullptr, nullptr}, pose1*pose3, pose2*pose4);
+        evaluateDynamicMulti({pose3, nullptr, nullptr}, {pose4, nullptr, nullptr}, pose1*pose3, pose2*pose4);
+        evaluateStaticMulti({pose3, nullptr, nullptr}, {pose4, nullptr, nullptr}, pose1*pose3, pose2*pose4);
 
         //with lever arm transform
-        evaluateMulti({identity, r_in3.data(), t_in3.data()}, {identity, r_in4.data(), t_in4.data()}, pose1*pose3, pose2*pose4);
+        evaluateDynamicMulti({identity, r_in3.data(), t_in3.data()}, {identity, r_in4.data(), t_in4.data()}, pose1*pose3, pose2*pose4);
+        evaluateStaticMulti({identity, r_in3.data(), t_in3.data()}, {identity, r_in4.data(), t_in4.data()}, pose1*pose3, pose2*pose4);
 
         //with combined transform
-        evaluateMulti({pose4, r_in3.data(), t_in3.data()}, {pose3, r_in4.data(), t_in4.data()}, pose1*pose4*pose3, pose2*pose3*pose4);
+        evaluateDynamicMulti({pose4, r_in3.data(), t_in3.data()}, {pose3, r_in4.data(), t_in4.data()}, pose1*pose4*pose3, pose2*pose3*pose4);
+        evaluateStaticMulti({pose4, r_in3.data(), t_in3.data()}, {pose3, r_in4.data(), t_in4.data()}, pose1*pose4*pose3, pose2*pose3*pose4);
         //with current configuration, we assume the pose is body2world. Initial is node2world, final should be sensor2world,
         // i.e node2world*platform2node*sensor2platform, where node is the node in the factor graph, platform2node is the fixed transform and sensor2platform is the lever arm.
 
