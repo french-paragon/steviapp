@@ -6,9 +6,31 @@ class TestIndexedTimeSequence: public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
+    void testIndexTimePerStep();
     void testGetValueAtTime();
     void testGetValuesInBetweenTimes();
 };
+
+void TestIndexedTimeSequence::testIndexTimePerStep() {
+
+    using TimedElement = StereoVisionApp::IndexedTimeSequence<double>::TimedElement;
+
+    constexpr int nElements = 10;
+    constexpr double dt = 0.4269;
+
+    std::vector<TimedElement> data(nElements);
+
+    for (int i = 0; i < nElements; i++) {
+        data[i].time = i*dt;
+        data[i].val = i;
+    }
+
+    StereoVisionApp::IndexedTimeSequence<double> sequence(data);
+
+    QCOMPARE(sequence.indexTimePerStep(), dt);
+
+
+}
 
 void TestIndexedTimeSequence::testGetValueAtTime() {
 
