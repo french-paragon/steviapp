@@ -14,7 +14,71 @@
 namespace StereoVisionApp {
 
 /*!
- * \brief The Local3DCoalignementCost class measure the alignement between the local positions of a point in two systems
+ * \brief The Global3DCoalignementCost class measure the alignement between the local positions of a point in two systems, measure the error in the global frame
+ */
+class Global3DCoalignementCost
+{
+public:
+    Global3DCoalignementCost(Eigen::Vector3d const& localPos1,
+                             Eigen::Vector3d const& localPos2,
+                             Eigen::Matrix3d const& info);
+
+    template <typename T>
+    bool operator()(const T* const r1,
+                    const T* const t1,
+                    const T* const r2,
+                    const T* const t2,
+                    T* residual) const {
+
+        using VecType = Eigen::Matrix<T,3,1>;
+
+        using PoseType = StereoVision::Geometry::AffineTransform<T>;
+
+        VecType vr1;
+        vr1 << r1[0], r1[1], r1[2];
+
+        PoseType Local1toWorld;
+
+        Local1toWorld.R = StereoVision::Geometry::rodriguezFormula<T>(vr1);
+
+        Local1toWorld.t << t1[0], t1[1], t1[2];
+
+        VecType vr2;
+        vr2 << r2[0], r2[1], r2[2];
+
+        PoseType Local2toWorld;
+
+        Local2toWorld.R = StereoVision::Geometry::rodriguezFormula<T>(vr2);
+
+        VecType vt2;
+        vt2 << t2[0], t2[1], t2[2];
+
+        Local2toWorld.t << vt2;
+
+        VecType closure = _info.cast<T>()*(Local2toWorld*_localPos2.cast<T>() - Local1toWorld*_localPos1.cast<T>());
+
+        residual[0] = closure[0];
+        residual[1] = closure[1];
+        residual[2] = closure[2];
+
+#ifndef NDEBUG
+        if (!ceres::isfinite(residual[0]) or !ceres::isfinite(residual[1]) or !ceres::isfinite(residual[2])) {
+            std::cout << "Error in Local3DCoalignementCost cost computation" << std::endl;
+        }
+#endif
+
+        return true;
+    }
+
+protected:
+
+    Eigen::Vector3d _localPos1;
+    Eigen::Vector3d _localPos2;
+    Eigen::Matrix3d _info;
+};
+
+/*!
+ * \brief The Local3DCoalignementCost class measure the alignement between the local positions of a point in two systems, measure the error in the second local frame
  */
 class Local3DCoalignementCost
 {
