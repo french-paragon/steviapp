@@ -171,7 +171,7 @@ public:
         if (_indicesFromTimeIntervals->size() <= 1) {
             return 1; //by default return something for sequences with just one element.
         }
-        TimeT deltaT = (_finalTime - _initialTime)/_indicesFromTimeIntervals->size();
+        TimeT deltaT = (_finalTime - _initialTime)/(_indicesFromTimeIntervals->size()-1);
         if (deltaT <= 0) {
             return 1;
         }
