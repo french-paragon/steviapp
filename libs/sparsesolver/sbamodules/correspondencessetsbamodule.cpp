@@ -189,6 +189,7 @@ bool CorrespondencesSetSBAModule::setupParameters(ModularSBASolver* solver) {
 
 bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspondences::PRIORID> const& priorId,
                                                  Correspondences::Typed<Correspondences::GEOXYZ> const& geoPos,
+                                                 double const& sigma0,
                                                  StereoVisionApp::ModularSBASolver* solver,
                                                  ceres::Problem & problem,
                                                  ceres::LossFunction* lossFunction,
@@ -238,9 +239,9 @@ bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspo
     if (geoPos.sigmaX.has_value() and
             geoPos.sigmaY.has_value() and
             geoPos.sigmaZ.has_value()) {
-        stiffness(0,0) = 1/(geoPos.sigmaX.value());
-        stiffness(1,1) = 1/(geoPos.sigmaY.value());
-        stiffness(2,2) = 1/(geoPos.sigmaZ.value());
+        stiffness(0,0) = 1/(sigma0*geoPos.sigmaX.value());
+        stiffness(1,1) = 1/(sigma0*geoPos.sigmaY.value());
+        stiffness(2,2) = 1/(sigma0*geoPos.sigmaZ.value());
     }
 
     FixedSizeNormalPrior<3,3>* costFunc =
@@ -264,6 +265,7 @@ bool CorrespondencesSetSBAModule::addGeoPosPrior(Correspondences::Typed<Correspo
 
 bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Correspondences::PRIORID> const& priorId,
                                                   Correspondences::Typed<Correspondences::GEOXY> const& geoPos,
+                                                  double const& sigma0,
                                                   ModularSBASolver* solver,
                                                   ceres::Problem & problem,
                                                   ceres::LossFunction* lossFunction,
@@ -318,8 +320,8 @@ bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Corresp
 
     if (geoPos.sigmaX.has_value() and
             geoPos.sigmaY.has_value()) {
-        stiffness(0,0) = 1/(geoPos.sigmaX.value());
-        stiffness(1,1) = 1/(geoPos.sigmaY.value());
+        stiffness(0,0) = 1/(sigma0*geoPos.sigmaX.value());
+        stiffness(1,1) = 1/(sigma0*geoPos.sigmaY.value());
     }
 
     Eigen::Matrix<double,2,3> A = std::get<Eigen::Matrix<double,2,3>>(projInfos.value());
@@ -359,6 +361,7 @@ bool CorrespondencesSetSBAModule::addGeoProjPrior(Correspondences::Typed<Corresp
 
 bool CorrespondencesSetSBAModule::addXYZMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz1,
                                               Correspondences::Typed<Correspondences::XYZ> const& xyz2,
+                                              double const& sigma0,
                                               StereoVisionApp::ModularSBASolver* solver,
                                               ceres::Problem & problem,
                                               ceres::LossFunction* lossFunction,
@@ -395,29 +398,29 @@ bool CorrespondencesSetSBAModule::addXYZMatch(Correspondences::Typed<Corresponde
     if (xyz1.sigmaX.has_value() and xyz1.sigmaY.has_value() and xyz1.sigmaZ.has_value()) {
 
         if (xyz2.sigmaX.has_value() and xyz2.sigmaY.has_value() and xyz2.sigmaZ.has_value()) {
-            info(0,0) = 1/(xyz1.sigmaX.value() + xyz2.sigmaX.value());
-            info(1,1) = 1/(xyz1.sigmaY.value() + xyz2.sigmaY.value());
-            info(2,2) = 1/(xyz1.sigmaZ.value() + xyz2.sigmaZ.value());
+            info(0,0) = 1/(sigma0*(xyz1.sigmaX.value() + xyz2.sigmaX.value()));
+            info(1,1) = 1/(sigma0*(xyz1.sigmaY.value() + xyz2.sigmaY.value()));
+            info(2,2) = 1/(sigma0*(xyz1.sigmaZ.value() + xyz2.sigmaZ.value()));
         } else {
-            info(0,0) = 1/(xyz1.sigmaX.value());
-            info(1,1) = 1/(xyz1.sigmaY.value());
-            info(2,2) = 1/(xyz1.sigmaZ.value());
+            info(0,0) = 1/(sigma0*xyz1.sigmaX.value());
+            info(1,1) = 1/(sigma0*xyz1.sigmaY.value());
+            info(2,2) = 1/(sigma0*xyz1.sigmaZ.value());
         }
 
     } else if (xyz2.sigmaX.has_value() and xyz2.sigmaY.has_value() and xyz2.sigmaZ.has_value()) {
 
-        info(0,0) = 1/(xyz2.sigmaX.value());
-        info(1,1) = 1/(xyz2.sigmaY.value());
-        info(2,2) = 1/(xyz2.sigmaZ.value());
+        info(0,0) = 1/(sigma0*xyz2.sigmaX.value());
+        info(1,1) = 1/(sigma0*xyz2.sigmaY.value());
+        info(2,2) = 1/(sigma0*xyz2.sigmaZ.value());
 
     } else {
         info = Eigen::Matrix3d::Identity();
     }
 
-    Local3DCoalignementCost* cost =
-            new Local3DCoalignementCost(localPos1, localPos2, info);
+    Global3DCoalignementCost* cost =
+            new Global3DCoalignementCost(localPos1, localPos2, info);
 
-    using CostFuncT = ceres::AutoDiffCostFunction<Local3DCoalignementCost,3,3,3,3,3>;
+    using CostFuncT = ceres::AutoDiffCostFunction<Global3DCoalignementCost,3,3,3,3,3>;
 
     CostFuncT* costFunc = new CostFuncT(cost);
 
@@ -426,7 +429,7 @@ bool CorrespondencesSetSBAModule::addXYZMatch(Correspondences::Typed<Corresponde
     if (!logName.isEmpty()) {
 
         CostFuncT* logFunc =
-            new CostFuncT(new Local3DCoalignementCost(localPos1, localPos2, Eigen::Matrix3d::Identity()));
+            new CostFuncT(new Global3DCoalignementCost(localPos1, localPos2, Eigen::Matrix3d::Identity()));
 
         solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<4,3>(logFunc, {p1->rAxis.data(), p1->t.data(), p2->rAxis.data(), p2->t.data()}, true));
     }
@@ -437,6 +440,7 @@ bool CorrespondencesSetSBAModule::addXYZMatch(Correspondences::Typed<Corresponde
 
 bool CorrespondencesSetSBAModule::addXYZ2LineMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                    Correspondences::Typed<Correspondences::Line3D> const& line,
+                                                   double const& sigma0,
                                                    StereoVisionApp::ModularSBASolver* solver,
                                                    ceres::Problem & problem,
                                                    ceres::LossFunction* lossFunction,
@@ -448,6 +452,7 @@ bool CorrespondencesSetSBAModule::addXYZ2LineMatch(Correspondences::Typed<Corres
 
 bool CorrespondencesSetSBAModule::addXYZ2PlaneMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                     Correspondences::Typed<Correspondences::Plane3D> const& line,
+                                                    const double &sigma0,
                                                     StereoVisionApp::ModularSBASolver* solver,
                                                     ceres::Problem & problem,
                                                     ceres::LossFunction* lossFunction,
@@ -459,6 +464,7 @@ bool CorrespondencesSetSBAModule::addXYZ2PlaneMatch(Correspondences::Typed<Corre
 
 bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                   Correspondences::Typed<Correspondences::GEOXYZ> const& geoMatch,
+                                                  const double &sigma0,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
                                                   ceres::LossFunction* lossFunction,
@@ -497,20 +503,20 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
     if (xyz.sigmaX.has_value() and xyz.sigmaY.has_value() and xyz.sigmaZ.has_value()) {
 
         if (geoMatch.sigmaX.has_value() and geoMatch.sigmaY.has_value() and geoMatch.sigmaZ.has_value()) {
-            stiffness(0,0) = 1/(xyz.sigmaX.value() + geoMatch.sigmaX.value());
-            stiffness(1,1) = 1/(xyz.sigmaY.value() + geoMatch.sigmaY.value());
-            stiffness(2,2) = 1/(xyz.sigmaZ.value() + geoMatch.sigmaZ.value());
+            stiffness(0,0) = 1/(sigma0*(xyz.sigmaX.value() + geoMatch.sigmaX.value()));
+            stiffness(1,1) = 1/(sigma0*(xyz.sigmaY.value() + geoMatch.sigmaY.value()));
+            stiffness(2,2) = 1/(sigma0*(xyz.sigmaZ.value() + geoMatch.sigmaZ.value()));
         } else {
-            stiffness(0,0) = 1/(xyz.sigmaX.value());
-            stiffness(1,1) = 1/(xyz.sigmaY.value());
-            stiffness(2,2) = 1/(xyz.sigmaZ.value());
+            stiffness(0,0) = 1/(sigma0*xyz.sigmaX.value());
+            stiffness(1,1) = 1/(sigma0*xyz.sigmaY.value());
+            stiffness(2,2) = 1/(sigma0*xyz.sigmaZ.value());
         }
 
     } else if (geoMatch.sigmaX.has_value() and geoMatch.sigmaY.has_value() and geoMatch.sigmaZ.has_value()) {
 
-        stiffness(0,0) = 1/(geoMatch.sigmaX.value());
-        stiffness(1,1) = 1/(geoMatch.sigmaY.value());
-        stiffness(2,2) = 1/(geoMatch.sigmaZ.value());
+        stiffness(0,0) = 1/(sigma0*geoMatch.sigmaX.value());
+        stiffness(1,1) = 1/(sigma0*geoMatch.sigmaY.value());
+        stiffness(2,2) = 1/(sigma0*geoMatch.sigmaZ.value());
 
     } else {
         stiffness = Eigen::Matrix3d::Identity();
@@ -539,6 +545,7 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
 
 bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                   Correspondences::Typed<Correspondences::GEOXY> const& geoMatch,
+                                                  double const& sigma0,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
                                                   ceres::LossFunction* lossFunction,
@@ -585,17 +592,17 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
         Eigen::Vector2d projSigma = A*xyz_sigma;
 
         if (geoMatch.sigmaX.has_value() and geoMatch.sigmaY.has_value()) {
-            stiffness(0,0) = 1/(xyz.sigmaX.value() + projSigma.x());
-            stiffness(1,1) = 1/(xyz.sigmaY.value() + projSigma.y());
+            stiffness(0,0) = 1/(sigma0*(xyz.sigmaX.value() + projSigma.x()));
+            stiffness(1,1) = 1/(sigma0*(xyz.sigmaY.value() + projSigma.y()));
         } else {
-            stiffness(0,0) = 1/(projSigma.x());
-            stiffness(1,1) = 1/(projSigma.y());
+            stiffness(0,0) = 1/(sigma0*projSigma.x());
+            stiffness(1,1) = 1/(sigma0*projSigma.y());
         }
 
     } else if (geoMatch.sigmaX.has_value() and geoMatch.sigmaY.has_value()) {
 
-        stiffness(0,0) = 1/(geoMatch.sigmaX.value());
-        stiffness(1,1) = 1/(geoMatch.sigmaY.value());
+        stiffness(0,0) = 1/(sigma0*geoMatch.sigmaX.value());
+        stiffness(1,1) = 1/(sigma0*geoMatch.sigmaY.value());
 
     } else {
         stiffness = Eigen::Matrix2d::Identity();
@@ -623,6 +630,7 @@ bool CorrespondencesSetSBAModule::addXYZ2GeoMatch(Correspondences::Typed<Corresp
 }
 
 bool CorrespondencesSetSBAModule::setupXYZPrior(Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                                                double const& sigma0,
                                                 StereoVisionApp::ModularSBASolver* solver,
                                                 ceres::Problem & problem,
                                                 ceres::LossFunction* lossFunction,
@@ -666,9 +674,9 @@ bool CorrespondencesSetSBAModule::setupXYZPrior(Correspondences::Typed<Correspon
             xyz.sigmaY.has_value() and
             xyz.sigmaZ.has_value()) {
 
-        stiffness(0,0) = 1/(xyz.sigmaX.value());
-        stiffness(1,1) = 1/(xyz.sigmaY.value());
-        stiffness(2,2) = 1/(xyz.sigmaZ.value());
+        stiffness(0,0) = 1/(sigma0*xyz.sigmaX.value());
+        stiffness(1,1) = 1/(sigma0*xyz.sigmaY.value());
+        stiffness(2,2) = 1/(sigma0*xyz.sigmaZ.value());
     }
 
     FixedSizeNormalPrior<3,3>* costFunc =
@@ -690,6 +698,7 @@ bool CorrespondencesSetSBAModule::setupXYZPrior(Correspondences::Typed<Correspon
 
 bool CorrespondencesSetSBAModule::addXYZ2PriorMatch(Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                                     Correspondences::Typed<Correspondences::PRIORID> const& priorId,
+                                                    double const& sigma0,
                                                     StereoVisionApp::ModularSBASolver* solver,
                                                     ceres::Problem & problem,
                                                     ceres::LossFunction* lossFunction,
@@ -739,9 +748,9 @@ bool CorrespondencesSetSBAModule::addXYZ2PriorMatch(Correspondences::Typed<Corre
     if (xyz.sigmaX.has_value() and
             xyz.sigmaY.has_value() and
             xyz.sigmaZ.has_value()) {
-        stiffness(0,0) = 1/(xyz.sigmaX.value());
-        stiffness(1,1) = 1/(xyz.sigmaY.value());
-        stiffness(2,2) = 1/(xyz.sigmaZ.value());
+        stiffness(0,0) = 1/(sigma0*xyz.sigmaX.value());
+        stiffness(1,1) = 1/(sigma0*xyz.sigmaY.value());
+        stiffness(2,2) = 1/(sigma0*xyz.sigmaZ.value());
     }
 
     LocalPointAlignementCost* cost =
@@ -766,6 +775,7 @@ bool CorrespondencesSetSBAModule::addXYZ2PriorMatch(Correspondences::Typed<Corre
 
 bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Correspondences::XYZT> const& xyzt,
                                                    Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                                                   double const& sigma0,
                                                    StereoVisionApp::ModularSBASolver* solver,
                                                    ceres::Problem & problem,
                                                    ceres::LossFunction* lossFunction,
@@ -874,20 +884,20 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Corres
     if (xyzt.sigmaX.has_value() and xyzt.sigmaY.has_value() and xyzt.sigmaZ.has_value()) {
 
         if (xyz.sigmaX.has_value() and xyz.sigmaY.has_value() and xyz.sigmaZ.has_value()) {
-            stiffness(0,0) = 1/(xyzt.sigmaX.value() + xyz.sigmaX.value());
-            stiffness(1,1) = 1/(xyzt.sigmaY.value() + xyz.sigmaY.value());
-            stiffness(2,2) = 1/(xyzt.sigmaZ.value() + xyz.sigmaZ.value());
+            stiffness(0,0) = 1/(sigma0*(xyzt.sigmaX.value() + xyz.sigmaX.value()));
+            stiffness(1,1) = 1/(sigma0*(xyzt.sigmaY.value() + xyz.sigmaY.value()));
+            stiffness(2,2) = 1/(sigma0*(xyzt.sigmaZ.value() + xyz.sigmaZ.value()));
         } else {
-            stiffness(0,0) = 1/(xyzt.sigmaX.value());
-            stiffness(1,1) = 1/(xyzt.sigmaY.value());
-            stiffness(2,2) = 1/(xyzt.sigmaZ.value());
+            stiffness(0,0) = 1/(sigma0*xyzt.sigmaX.value());
+            stiffness(1,1) = 1/(sigma0*xyzt.sigmaY.value());
+            stiffness(2,2) = 1/(sigma0*xyzt.sigmaZ.value());
         }
 
     } else if (xyz.sigmaX.has_value() and xyz.sigmaY.has_value() and xyz.sigmaZ.has_value()) {
 
-        stiffness(0,0) = 1/(xyz.sigmaX.value());
-        stiffness(1,1) = 1/(xyz.sigmaY.value());
-        stiffness(2,2) = 1/(xyz.sigmaZ.value());
+        stiffness(0,0) = 1/(sigma0*xyz.sigmaX.value());
+        stiffness(1,1) = 1/(sigma0*xyz.sigmaY.value());
+        stiffness(2,2) = 1/(sigma0*xyz.sigmaZ.value());
 
     }
 
@@ -899,7 +909,7 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Corres
     constexpr PoseTransformDirection poseTransformDirection = PoseTransformDirection::SourceToInitial;
 
     using CostFuncBuilder = ModifiedPoseCostFunctionBuilderHelper
-        <Local3DCoalignementCost,
+        <Global3DCoalignementCost,
         poseTransformDirection,
         leverArmConfig,
         paramId,
@@ -942,6 +952,7 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Corres
 
 bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Correspondences::XYZT> const& xyzt1,
                                                     Correspondences::Typed<Correspondences::XYZT> const& xyzt2,
+                                                    const double &sigma0,
                                                     StereoVisionApp::ModularSBASolver* solver,
                                                     ceres::Problem & problem,
                                                     ceres::LossFunction* lossFunction,
@@ -1093,20 +1104,20 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Corre
     if (xyzt1.sigmaX.has_value() and xyzt1.sigmaY.has_value() and xyzt1.sigmaZ.has_value()) {
 
         if (xyzt2.sigmaX.has_value() and xyzt2.sigmaY.has_value() and xyzt2.sigmaZ.has_value()) {
-            stiffness(0,0) = 1/(xyzt1.sigmaX.value() + xyzt2.sigmaX.value());
-            stiffness(1,1) = 1/(xyzt1.sigmaY.value() + xyzt2.sigmaY.value());
-            stiffness(2,2) = 1/(xyzt1.sigmaZ.value() + xyzt2.sigmaZ.value());
+            stiffness(0,0) = 1/(sigma0*(xyzt1.sigmaX.value() + xyzt2.sigmaX.value()));
+            stiffness(1,1) = 1/(sigma0*(xyzt1.sigmaY.value() + xyzt2.sigmaY.value()));
+            stiffness(2,2) = 1/(sigma0*(xyzt1.sigmaZ.value() + xyzt2.sigmaZ.value()));
         } else {
-            stiffness(0,0) = 1/(xyzt1.sigmaX.value());
-            stiffness(1,1) = 1/(xyzt1.sigmaY.value());
-            stiffness(2,2) = 1/(xyzt1.sigmaZ.value());
+            stiffness(0,0) = 1/(sigma0*xyzt1.sigmaX.value());
+            stiffness(1,1) = 1/(sigma0*xyzt1.sigmaY.value());
+            stiffness(2,2) = 1/(sigma0*xyzt1.sigmaZ.value());
         }
 
     } else if (xyzt2.sigmaX.has_value() and xyzt2.sigmaY.has_value() and xyzt2.sigmaZ.has_value()) {
 
-        stiffness(0,0) = 1/(xyzt2.sigmaX.value());
-        stiffness(1,1) = 1/(xyzt2.sigmaY.value());
-        stiffness(2,2) = 1/(xyzt2.sigmaZ.value());
+        stiffness(0,0) = 1/(sigma0*xyzt2.sigmaX.value());
+        stiffness(1,1) = 1/(sigma0*xyzt2.sigmaY.value());
+        stiffness(2,2) = 1/(sigma0*xyzt2.sigmaZ.value());
 
     }
 
@@ -1120,7 +1131,7 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Corre
     using PoseIdxs = std::index_sequence<0,2>;
 
     using CostFuncBuilder = ModifiedMultiPoseCostFunctionBuilderHelper
-        <Local3DCoalignementCost,
+        <Global3DCoalignementCost,
          poseTransformDirection,
          leverArmConfig,
          PoseIdxs,
@@ -1161,6 +1172,7 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Corre
 
 bool CorrespondencesSetSBAModule::addUV2UVMatch(const Correspondences::Typed<Correspondences::UV> &uv1,
                                                 const Correspondences::Typed<Correspondences::UV> &uv2,
+                                                double const& sigma0,
                                                 StereoVisionApp::ModularSBASolver* solver,
                                                 ceres::Problem & problem,
                                                 ceres::LossFunction* lossFunction,
@@ -1190,8 +1202,8 @@ bool CorrespondencesSetSBAModule::addUV2UVMatch(const Correspondences::Typed<Cor
     Eigen::Vector2d pos2;
     pos2 << uv2.u, uv2.v;
 
-    Eigen::Matrix2d stiffness1 = Eigen::Matrix2d::Identity();
-    Eigen::Matrix2d stiffness2 = Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d stiffness1 = (1./sigma0)*Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d stiffness2 = (1./sigma0)*Eigen::Matrix2d::Identity();
 
     ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(m1, p1->rAxis.data(), p1->t.data(), pos1, stiffness1,
                                                                       m2, p2->rAxis.data(), p2->t.data(), pos2, stiffness2,
@@ -1205,6 +1217,7 @@ bool CorrespondencesSetSBAModule::addUV2UVMatch(const Correspondences::Typed<Cor
 
 bool CorrespondencesSetSBAModule::addUV2XYZMatch(Correspondences::Typed<Correspondences::UV> const& uv,
                                                  Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                                                 double const& sigma0,
                                                  StereoVisionApp::ModularSBASolver* solver,
                                                  ceres::Problem & problem,
                                                  ceres::LossFunction* lossFunction,
@@ -1242,10 +1255,10 @@ bool CorrespondencesSetSBAModule::addUV2XYZMatch(Correspondences::Typed<Correspo
 
     Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
     if (uv.sigmaU.has_value()) {
-        stiffness(0,0) = 1/ uv.sigmaU.value();
+        stiffness(0,0) = 1/ (sigma0*uv.sigmaU.value());
     }
     if (uv.sigmaV.has_value()) {
-        stiffness(1,1) = 1/ uv.sigmaV.value();
+        stiffness(1,1) = 1/ (sigma0*uv.sigmaV.value());
     }
 
     using Functor = UV2ParametrizedXYZCostDynamic<ModularUVProjection>;
@@ -1308,6 +1321,7 @@ bool CorrespondencesSetSBAModule::addUV2XYZMatch(Correspondences::Typed<Correspo
 
 bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Correspondences::UV> const& uv,
                                                     Correspondences::Typed<Correspondences::GEOXYZ> const& geoMatch,
+                                                    double const& sigma0,
                                                     StereoVisionApp::ModularSBASolver* solver,
                                                     ceres::Problem & problem,
                                                     ceres::LossFunction* lossFunction,
@@ -1345,10 +1359,10 @@ bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Corre
 
     Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
     if (uv.sigmaU.has_value()) {
-        stiffness(0,0) = 1/ uv.sigmaU.value();
+        stiffness(0,0) = 1/ (sigma0*uv.sigmaU.value());
     }
     if (uv.sigmaV.has_value()) {
-        stiffness(1,1) = 1/ uv.sigmaV.value();
+        stiffness(1,1) = 1/ (sigma0*uv.sigmaV.value());
     }
 
     using Functor = UV2XYZCostDynamic<ModularUVProjection>;
@@ -1403,6 +1417,7 @@ bool CorrespondencesSetSBAModule::addUV2GeoXYZMatch(Correspondences::Typed<Corre
 
 bool CorrespondencesSetSBAModule::addUV2XYZTMatch(Correspondences::Typed<Correspondences::UV> const& uv,
                                                   Correspondences::Typed<Correspondences::XYZT> const& xyzt,
+                                                  double const& sigma0,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
                                                   ceres::LossFunction* lossFunction,
@@ -1488,10 +1503,10 @@ bool CorrespondencesSetSBAModule::addUV2XYZTMatch(Correspondences::Typed<Corresp
 
     Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
     if (uv.sigmaU.has_value()) {
-        stiffness(0,0) = 1/ uv.sigmaU.value();
+        stiffness(0,0) = 1/ (sigma0*uv.sigmaU.value());
     }
     if (uv.sigmaV.has_value()) {
-        stiffness(1,1) = 1/ uv.sigmaV.value();
+        stiffness(1,1) = 1/ (sigma0*uv.sigmaV.value());
     }
 
     double* leverArmR = nullptr;
@@ -1573,6 +1588,7 @@ bool CorrespondencesSetSBAModule::addUV2XYZTMatch(Correspondences::Typed<Corresp
 
 bool CorrespondencesSetSBAModule::addUVT2UVMatch(Correspondences::Typed<Correspondences::UVT> const& uvt,
                                                  Correspondences::Typed<Correspondences::UV> const& uv,
+                                                 double const& sigma0,
                                                  StereoVisionApp::ModularSBASolver* solver,
                                                  ceres::Problem & problem,
                                                  ceres::LossFunction* lossFunction,
@@ -1662,8 +1678,8 @@ bool CorrespondencesSetSBAModule::addUVT2UVMatch(Correspondences::Typed<Correspo
     Eigen::Vector2d posF;
     posF << uv.u, uv.v;
 
-    Eigen::Matrix2d stiffnessT = Eigen::Matrix2d::Identity();
-    Eigen::Matrix2d stiffnessF = Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d stiffnessT = (1/sigma0)*Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d stiffnessF = (1/sigma0)*Eigen::Matrix2d::Identity();
 
     const StereoVision::Geometry::RigidBodyTransform<double> Identity(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
 
@@ -1677,6 +1693,7 @@ bool CorrespondencesSetSBAModule::addUVT2UVMatch(Correspondences::Typed<Correspo
 
 bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Correspondences::UVT> const& uvt1,
                                                   Correspondences::Typed<Correspondences::UVT> const& uvt2,
+                                                  double const& sigma0,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
                                                   ceres::LossFunction* lossFunction,
@@ -1829,8 +1846,8 @@ bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Corresp
     Eigen::Vector2d pos2;
     pos2 << uvt2.u, uvt2.v;
 
-    Eigen::Matrix2d stiffness1 = Eigen::Matrix2d::Identity();
-    Eigen::Matrix2d stiffness2 = Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d stiffness1 = (1/sigma0)*Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d stiffness2 = (1/sigma0)*Eigen::Matrix2d::Identity();
 
     ModularSBASolver::ProjectorModule::addCrossProjectionCostFunction(m1, closest1.rAxis.data(), closest1.t.data(), pos1, stiffness1,
                                                                       measure2node1, leverArm1R, leverArm1T,
@@ -1842,6 +1859,7 @@ bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Corresp
 
 bool CorrespondencesSetSBAModule::addUVT2XYZMatch(Correspondences::Typed<Correspondences::UVT> const& uvt,
                                                   Correspondences::Typed<Correspondences::XYZ> const& xyz,
+                                                  double const& sigma0,
                                                   StereoVisionApp::ModularSBASolver* solver,
                                                   ceres::Problem & problem,
                                                   ceres::LossFunction* lossFunction,
@@ -1928,10 +1946,10 @@ bool CorrespondencesSetSBAModule::addUVT2XYZMatch(Correspondences::Typed<Corresp
 
     Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
     if (uvt.sigmaU.has_value()) {
-        stiffness(0,0) = 1/ uvt.sigmaU.value();
+        stiffness(0,0) = 1/ (sigma0*uvt.sigmaU.value());
     }
     if (uvt.sigmaV.has_value()) {
-        stiffness(1,1) = 1/ uvt.sigmaV.value();
+        stiffness(1,1) = 1/ (sigma0*uvt.sigmaV.value());
     }
 
     double* leverArmR = nullptr;
@@ -2015,6 +2033,7 @@ bool CorrespondencesSetSBAModule::addUVT2XYZMatch(Correspondences::Typed<Corresp
 
 bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Correspondences::UVT> const& uvt,
                                                      Correspondences::Typed<Correspondences::GEOXYZ> const& geoMatch,
+                                                     double const& sigma0,
                                                      StereoVisionApp::ModularSBASolver* solver,
                                                      ceres::Problem & problem,
                                                      ceres::LossFunction* lossFunction,
@@ -2101,10 +2120,10 @@ bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Corr
 
     Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
     if (uvt.sigmaU.has_value()) {
-        stiffness(0,0) = 1/ uvt.sigmaU.value();
+        stiffness(0,0) = 1/ (sigma0*uvt.sigmaU.value());
     }
     if (uvt.sigmaV.has_value()) {
-        stiffness(1,1) = 1/ uvt.sigmaV.value();
+        stiffness(1,1) = 1/ (sigma0*uvt.sigmaV.value());
     }
 
     double* leverArmR = nullptr;
@@ -2182,6 +2201,7 @@ bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Corr
 
 bool CorrespondencesSetSBAModule::addUVT2XYZTMatch(Correspondences::Typed<Correspondences::UVT> const& uvt,
                                                    Correspondences::Typed<Correspondences::XYZT> const& xyzt,
+                                                   double const& sigma0,
                                                    StereoVisionApp::ModularSBASolver* solver,
                                                    ceres::Problem & problem,
                                                    ceres::LossFunction* lossFunction,
@@ -2315,10 +2335,10 @@ bool CorrespondencesSetSBAModule::addUVT2XYZTMatch(Correspondences::Typed<Corres
 
     Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
     if (uvt.sigmaU.has_value()) {
-        stiffness(0,0) = 1/ uvt.sigmaU.value();
+        stiffness(0,0) = 1/ (sigma0*uvt.sigmaU.value());
     }
     if (uvt.sigmaV.has_value()) {
-        stiffness(1,1) = 1/ uvt.sigmaV.value();
+        stiffness(1,1) = 1/ (sigma0*uvt.sigmaV.value());
     }
 
     double* leverArmRuv = nullptr;
@@ -2453,6 +2473,7 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
         using GenericPair = Correspondences::GenericPair;
         using GenericMatch = Correspondences::Generic;
 
+        float sigma0 = correspSet->sigma0().value_or(1);
 
         for (int i = 0; i < correspSet->nCorrespondence(); i++) {
 
@@ -2470,55 +2491,55 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
             if (pair.holdsCorrespondancesType<Correspondences::PRIOR,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::PRIOR,Correspondences::XYZ>().value();
-                ok = setupXYZPrior(typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = setupXYZPrior(typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::PRIORID,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::PRIORID,Correspondences::GEOXYZ>().value();
-                ok = addGeoPosPrior(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addGeoPosPrior(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::PRIORID,Correspondences::GEOXY>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::PRIORID,Correspondences::GEOXY>().value();
-                ok = addGeoProjPrior(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addGeoProjPrior(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::XYZ>().value();
-                ok = addXYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addXYZMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::Line3D>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::Line3D>().value();
-                ok = addXYZ2LineMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addXYZ2LineMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::Plane3D>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::Plane3D>().value();
-                ok = addXYZ2PlaneMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addXYZ2PlaneMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::GEOXYZ>().value();
-                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::GEOXY>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::GEOXY>().value();
-                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addXYZ2GeoMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZ,Correspondences::PRIORID>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZ,Correspondences::PRIORID>().value();
-                ok = addXYZ2PriorMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addXYZ2PriorMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             //timed XYZ correspondances
@@ -2526,69 +2547,69 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
             if (pair.holdsCorrespondancesType<Correspondences::XYZT,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZT,Correspondences::XYZ>().value();
-                ok = addXYZT2XYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addXYZT2XYZMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::XYZT,Correspondences::XYZT>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::XYZT,Correspondences::XYZT>().value();
-                ok = addXYZT2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addXYZT2XYZTMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             //image correspondences
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::UV>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::UV>().value();
-                ok = addUV2UVMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUV2UVMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::XYZ>().value();
-                ok = addUV2XYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUV2XYZMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::GEOXYZ>().value();
-                ok = addUV2GeoXYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUV2GeoXYZMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UV,Correspondences::XYZT>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::XYZT>().value();
-                ok = addUV2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUV2XYZTMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             //timed image correspondences
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::UV>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::UV>().value();
-                ok = addUVT2UVMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUVT2UVMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::UVT>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::UVT>().value();
-                ok = addUVT2UVTMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUVT2UVTMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::XYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::XYZ>().value();
-                ok = addUVT2XYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUVT2XYZMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::GEOXYZ>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::GEOXYZ>().value();
-                ok = addUVT2GeoXYZMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUVT2GeoXYZMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::UVT,Correspondences::XYZT>()) {
 
                 auto typedPair = pair.getTypedPair<Correspondences::UVT,Correspondences::XYZT>().value();
-                ok = addUVT2XYZTMatch(typedPair.c1, typedPair.c2, solver, problem, _current_loss, costLogName);
+                ok = addUVT2XYZTMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (!ok) {

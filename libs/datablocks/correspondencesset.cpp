@@ -237,6 +237,10 @@ QJsonObject CorrespondencesSet::encodeJson() const {
         break;
     }
 
+    if (_sigma0.has_value()) {
+        obj.insert("sigma0", _sigma0.value());
+    }
+
     obj.insert("verbose", _verbose);
 
     return obj;
@@ -289,6 +293,12 @@ void CorrespondencesSet::configureFromJson(QJsonObject const& data) {
         }
     }
 
+    if (data.contains("sigma0")) {
+        _sigma0 = data.value("sigma0").toDouble();
+    } else {
+        _sigma0 = std::nullopt;
+    }
+
     if (data.contains("verbose")) {
         _verbose = data.value("verbose").toBool();
     } else {
@@ -313,6 +323,12 @@ void CorrespondencesSet::extendDataModel() {
         &CorrespondencesSet::robustificationLevelChanged);
 
     robustificationProp->setOptions(QStringList{"None", "Huber", "Cauchy", "Arctan"});
+
+    optCat->addCatProperty<std::optional<float>, CorrespondencesSet, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(
+        tr("Sigma0"),
+        &CorrespondencesSet::sigma0,
+        &CorrespondencesSet::setSigma0,
+        &CorrespondencesSet::sigma0Changed);
 
     optCat->addCatProperty<bool, CorrespondencesSet, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(
         tr("Verbose"),

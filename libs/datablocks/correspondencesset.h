@@ -89,6 +89,18 @@ public:
     QString robustificationMethod() const;
     void setRobustificationMethod(QString const& methodName);
 
+    inline std::optional<float> sigma0() const {
+        return _sigma0;
+    }
+    inline void setSigma0(std::optional<float> const& sigma0) {
+        if (_sigma0 == sigma0) {
+            return;
+        }
+        _sigma0 = sigma0;
+        isChanged();
+        Q_EMIT sigma0Changed();
+    }
+
     bool isVerbose() const;
     void setVerbose(bool verbose);
 
@@ -116,6 +128,7 @@ public:
 Q_SIGNALS:
 
     void robustificationLevelChanged();
+    void sigma0Changed();
     void verboseLevelChanged();
 
 protected:
@@ -131,6 +144,8 @@ protected:
     int _robustificationLevel;
 
     bool _verbose;
+
+    std::optional<double> _sigma0;
 
 };
 
