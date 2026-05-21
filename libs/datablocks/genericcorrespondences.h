@@ -175,8 +175,8 @@ template<bool withId, bool withCRS, int nFloats, int nOptFloats>
 
         qint64 blockId;
         QString crsInfos;
-        std::array<float, nFloats> floatsVals;
-        std::array<std::optional<float>, nOptFloats> optFloatsVals;
+        std::array<double, nFloats> floatsVals;
+        std::array<std::optional<double>, nOptFloats> optFloatsVals;
 
         static std::optional<floatListReader> fromString(QString const& str) {
 
@@ -201,14 +201,14 @@ template<bool withId, bool withCRS, int nFloats, int nOptFloats>
                 crsInfos = split[(withId) ? 1 : 0];
             }
 
-            std::array<float, nFloats> floatsVals;
+            std::array<double, nFloats> floatsVals;
 
             for (int i = 0; i < nFloats; i++) {
-                floatsVals[i] = split[i+size_delta].toFloat(&ok);
+                floatsVals[i] = split[i+size_delta].toDouble(&ok);
                 if (!ok) { return std::nullopt; }
             }
 
-            std::array<std::optional<float>, nOptFloats> optFloatsVals;
+            std::array<std::optional<double>, nOptFloats> optFloatsVals;
 
             for (int i = 0; i < nOptFloats; i++) {
                 optFloatsVals[i] = std::nullopt;
@@ -217,7 +217,7 @@ template<bool withId, bool withCRS, int nFloats, int nOptFloats>
             if (split.size() == nFloats+nOptFloats+size_delta) {
 
                 for (int i = 0; i < nOptFloats; i++) {
-                    optFloatsVals[i] = split[i+nFloats+size_delta].toFloat(&ok);
+                    optFloatsVals[i] = split[i+nFloats+size_delta].toDouble(&ok);
                     if (!ok) { return std::nullopt; }
                 }
             }
@@ -239,10 +239,10 @@ struct Typed<Types::UV> {
     static constexpr Types CorrespType = Types::UV;
 
     qint64 blockId;
-    float u;
-    float v;
-    std::optional<float> sigmaU;
-    std::optional<float> sigmaV;
+    double u;
+    double v;
+    std::optional<double> sigmaU;
+    std::optional<double> sigmaV;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -280,11 +280,11 @@ struct Typed<Types::UVT> {
     static constexpr Types CorrespType = Types::UVT;
 
     qint64 blockId;
-    float u;
-    float v;
-    float t;
-    std::optional<float> sigmaU;
-    std::optional<float> sigmaV;
+    double u;
+    double v;
+    double t;
+    std::optional<double> sigmaU;
+    std::optional<double> sigmaV;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -323,10 +323,10 @@ struct Typed<Types::XY> {
     static constexpr Types CorrespType = Types::XY;
 
     qint64 blockId;
-    float x;
-    float y;
-    std::optional<float> sigmaX;
-    std::optional<float> sigmaY;
+    double x;
+    double y;
+    std::optional<double> sigmaX;
+    std::optional<double> sigmaY;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -364,10 +364,10 @@ struct Typed<Types::GEOXY> {
     static constexpr Types CorrespType = Types::GEOXY;
 
     QString crsInfos;
-    float x;
-    float y;
-    std::optional<float> sigmaX;
-    std::optional<float> sigmaY;
+    double x;
+    double y;
+    std::optional<double> sigmaX;
+    std::optional<double> sigmaY;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -405,12 +405,12 @@ struct Typed<Types::XYZ> {
     static constexpr Types CorrespType = Types::XYZ;
 
     qint64 blockId;
-    float x;
-    float y;
-    float z;
-    std::optional<float> sigmaX;
-    std::optional<float> sigmaY;
-    std::optional<float> sigmaZ;
+    double x;
+    double y;
+    double z;
+    std::optional<double> sigmaX;
+    std::optional<double> sigmaY;
+    std::optional<double> sigmaZ;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -452,12 +452,12 @@ struct Typed<Types::GEOXYZ> {
     static constexpr char LocalFrameName[] = "local";
 
     QString crsInfos;
-    float x;
-    float y;
-    float z;
-    std::optional<float> sigmaX;
-    std::optional<float> sigmaY;
-    std::optional<float> sigmaZ;
+    double x;
+    double y;
+    double z;
+    std::optional<double> sigmaX;
+    std::optional<double> sigmaY;
+    std::optional<double> sigmaZ;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -497,8 +497,8 @@ struct Typed<Types::T> {
     static constexpr Types CorrespType = Types::T;
 
     qint64 blockId;
-    float t;
-    std::optional<float> sigmaT;
+    double t;
+    std::optional<double> sigmaT;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -534,12 +534,12 @@ struct Typed<Types::XYT> {
     static constexpr Types CorrespType = Types::XYT;
 
     qint64 blockId;
-    float x;
-    float y;
-    float t;
-    std::optional<float> sigmaX;
-    std::optional<float> sigmaY;
-    std::optional<float> sigmaT;
+    double x;
+    double y;
+    double t;
+    std::optional<double> sigmaX;
+    std::optional<double> sigmaY;
+    std::optional<double> sigmaT;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -579,14 +579,14 @@ struct Typed<Types::XYZT> {
     static constexpr Types CorrespType = Types::XYZT;
 
     qint64 blockId;
-    float x;
-    float y;
-    float z;
-    float t;
-    std::optional<float> sigmaX;
-    std::optional<float> sigmaY;
-    std::optional<float> sigmaZ;
-    std::optional<float> sigmaT;
+    double x;
+    double y;
+    double z;
+    double t;
+    std::optional<double> sigmaX;
+    std::optional<double> sigmaY;
+    std::optional<double> sigmaZ;
+    std::optional<double> sigmaT;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -629,14 +629,14 @@ struct Typed<Types::Line2D> {
     static constexpr Types CorrespType = Types::Line2D;
 
     qint64 blockId;
-    float x1;
-    float y1;
-    float x2;
-    float y2;
-    std::optional<float> sigmaX1;
-    std::optional<float> sigmaY1;
-    std::optional<float> sigmaX2;
-    std::optional<float> sigmaY2;
+    double x1;
+    double y1;
+    double x2;
+    double y2;
+    std::optional<double> sigmaX1;
+    std::optional<double> sigmaY1;
+    std::optional<double> sigmaX2;
+    std::optional<double> sigmaY2;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -679,18 +679,18 @@ struct Typed<Types::Line3D> {
     static constexpr Types CorrespType = Types::Line3D;
 
     qint64 blockId;
-    float x1;
-    float y1;
-    float z1;
-    float x2;
-    float y2;
-    float z2;
-    std::optional<float> sigmaX1;
-    std::optional<float> sigmaY1;
-    std::optional<float> sigmaZ1;
-    std::optional<float> sigmaX2;
-    std::optional<float> sigmaY2;
-    std::optional<float> sigmaZ2;
+    double x1;
+    double y1;
+    double z1;
+    double x2;
+    double y2;
+    double z2;
+    std::optional<double> sigmaX1;
+    std::optional<double> sigmaY1;
+    std::optional<double> sigmaZ1;
+    std::optional<double> sigmaX2;
+    std::optional<double> sigmaY2;
+    std::optional<double> sigmaZ2;
 
     static std::optional<Typed> fromString(QString const& str) {
 
@@ -743,14 +743,14 @@ struct Typed<Types::Plane3D> {
     static constexpr Types CorrespType = Types::Plane3D;
 
     qint64 blockId;
-    float x;
-    float y;
-    float z;
-    float c;
-    std::optional<float> sigmaX;
-    std::optional<float> sigmaY;
-    std::optional<float> sigmaZ;
-    std::optional<float> sigmaC;
+    double x;
+    double y;
+    double z;
+    double c;
+    std::optional<double> sigmaX;
+    std::optional<double> sigmaY;
+    std::optional<double> sigmaZ;
+    std::optional<double> sigmaC;
 
     static std::optional<Typed> fromString(QString const& str) {
 
