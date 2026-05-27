@@ -207,6 +207,18 @@ bool exportCorrespondencesToTxt(Project* project, qint64 correspSetId, QString c
         return false;
     }
 
+    QVector<qint64> referedBlocks = correspSet->listReferedItems();
+
+    QMap<qint64, QString> idxsToNames;
+
+    for (qint64 id : referedBlocks) {
+        DataBlock* block = project->getById(id);
+        if (block == nullptr) {
+            continue;
+        }
+        idxsToNames[id] = block->objectName();
+    }
+
     QString outFile = exportFilePath;
 
     if (outFile.isEmpty()) {
@@ -241,7 +253,7 @@ bool exportCorrespondencesToTxt(Project* project, qint64 correspSetId, QString c
 
         auto corresp = correspSet->getCorrespondence(i);
 
-        outstream << corresp.toString() << "\n";
+        outstream << corresp.toString(idxsToNames) << "\n";
     }
 
     outstream.flush();

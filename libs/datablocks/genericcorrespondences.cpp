@@ -72,8 +72,8 @@ Generic GenericFromString(QString const& str) {
     return Typed<Types::INVALID>();
 
 }
-QString GenericToString(Generic const& corresp) {
-    return std::visit([](auto const& arg){ return arg.toStr(); }, corresp);
+QString GenericToString(Generic const& corresp, QMap<qint64, QString> const& nameMap) {
+    return std::visit([& nameMap](auto const& arg){ return arg.toStr(nameMap); }, corresp);
 }
 
 std::optional<std::tuple<Eigen::Matrix<double,2,3>,Eigen::Vector2d>>

@@ -79,6 +79,8 @@ public:
         return ret;
     }
 
+    QVector<qint64> listReferedItems() const;
+
     void clearOptimized() override;
     bool hasOptimizedParameters() const override;
 

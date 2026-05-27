@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QRegExp>
 #include <QPair>
+#include <QMap>
 
 #include <optional>
 #include <variant>
@@ -164,7 +165,7 @@ struct Typed {
         return Typed();
     }
 
-    QString toStr() const {
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
         return correspTypeToString(C);
     };
 };
@@ -265,8 +266,9 @@ struct Typed<Types::UV> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3").arg(blockId).arg(u, 0,'f',2).arg(v, 0,'f',2);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2 %3").arg(name).arg(u, 0,'f',2).arg(v, 0,'f',2);
         if (sigmaU.has_value() and sigmaV.has_value()) {
             out += QString(" %1 %2").arg(sigmaU.value(), 0,'f',2).arg(sigmaV.value(), 0,'f',2);
         }
@@ -308,8 +310,9 @@ struct Typed<Types::UVT> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3 %4").arg(blockId).arg(u, 0,'f',2).arg(v, 0,'f',2).arg(t, 0,'f',2);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2 %3 %4").arg(name).arg(u, 0,'f',2).arg(v, 0,'f',2).arg(t, 0,'f',2);
         if (sigmaU.has_value() and sigmaV.has_value()) {
             out += QString(" %1 %2").arg(sigmaU.value(), 0,'f',2).arg(sigmaV.value(), 0,'f',2);
         }
@@ -349,8 +352,9 @@ struct Typed<Types::XY> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3").arg(blockId).arg(x, 0,'f',-1).arg(y, 0,'f',-1);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2 %3").arg(name).arg(x, 0,'f',-1).arg(y, 0,'f',-1);
         if (sigmaX.has_value() and sigmaY.has_value()) {
             out += QString(" %1 %2").arg(sigmaX.value(), 0,'f',-1).arg(sigmaY.value(), 0,'f',-1);
         }
@@ -390,7 +394,8 @@ struct Typed<Types::GEOXY> {
         return ret;
     }
 
-    QString toStr() const {
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        Q_UNUSED(idxsToNames)
         QString out = QString(" %1 %2 %3").arg(crsInfos).arg(x, 0,'f',-1).arg(y, 0,'f',-1);
         if (sigmaX.has_value() and sigmaY.has_value()) {
             out += QString(" %1 %2").arg(sigmaX.value(), 0,'f',-1).arg(sigmaY.value(), 0,'f',-1);
@@ -435,8 +440,9 @@ struct Typed<Types::XYZ> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3 %4").arg(blockId).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(z, 0,'f',-1);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2 %3 %4").arg(name).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(z, 0,'f',-1);
         if (sigmaX.has_value() and sigmaY.has_value() and sigmaZ.has_value()) {
             out += QString(" %1 %2 %3").arg(sigmaX.value(), 0,'f',-1).arg(sigmaY.value(), 0,'f',-1).arg(sigmaZ.value(), 0,'f',-1);
         }
@@ -482,7 +488,8 @@ struct Typed<Types::GEOXYZ> {
         return ret;
     }
 
-    QString toStr() const {
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        Q_UNUSED(idxsToNames);
         QString out = QString(" %1 %2 %3 %4").arg(crsInfos).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(z, 0,'f',-1);
         if (sigmaX.has_value() and sigmaY.has_value() and sigmaZ.has_value()) {
             out += QString(" %1 %2 %3").arg(sigmaX.value(), 0,'f',-1).arg(sigmaY.value(), 0,'f',-1).arg(sigmaZ.value(), 0,'f',-1);
@@ -519,8 +526,9 @@ struct Typed<Types::T> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2").arg(blockId).arg(t, 0,'f',-1);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2").arg(name).arg(t, 0,'f',-1);
         if (sigmaT.has_value()) {
             out += QString(" %1").arg(sigmaT.value(), 0,'f',-1);
         }
@@ -564,8 +572,9 @@ struct Typed<Types::XYT> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3 %4").arg(blockId).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(t, 0,'f',-1);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2 %3 %4").arg(name).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(t, 0,'f',-1);
         if (sigmaX.has_value() and sigmaY.has_value() and sigmaT.has_value()) {
             out += QString(" %1 %2 %3").arg(sigmaX.value(), 0,'f',-1).arg(sigmaY.value(), 0,'f',-1).arg(sigmaT.value(), 0,'f',-1);
         }
@@ -613,8 +622,9 @@ struct Typed<Types::XYZT> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3 %4 %5").arg(blockId).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(z, 0,'f',-1).arg(t, 0,'f',-1);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2 %3 %4 %5").arg(name).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(z, 0,'f',-1).arg(t, 0,'f',-1);
         if (sigmaX.has_value() and sigmaY.has_value() and sigmaZ.has_value() and sigmaT.has_value()) {
             out += QString(" %1 %2 %3 %4").arg(sigmaX.value(), 0,'f',-1).arg(sigmaY.value(), 0,'f',-1).arg(sigmaZ.value(), 0,'f',-1).arg(sigmaT.value(), 0,'f',-1);
         }
@@ -663,8 +673,9 @@ struct Typed<Types::Line2D> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3 %4 %5").arg(blockId).arg(x1, 0,'f',-1).arg(y1, 0,'f',-1).arg(x2, 0,'f',-1).arg(y2, 0,'f',-1);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2 %3 %4 %5").arg(name).arg(x1, 0,'f',-1).arg(y1, 0,'f',-1).arg(x2, 0,'f',-1).arg(y2, 0,'f',-1);
         if (sigmaX1.has_value() and sigmaY1.has_value() and sigmaX2.has_value() and sigmaY2.has_value()) {
             out += QString(" %1 %2 %3 %4").arg(sigmaX1.value(), 0,'f',-1).arg(sigmaY1.value(), 0,'f',-1).arg(sigmaX2.value(), 0,'f',-1).arg(sigmaY2.value(), 0,'f',-1);
         }
@@ -721,8 +732,11 @@ struct Typed<Types::Line3D> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3 %4 %5 %6 %7").arg(blockId)
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+
+        QString out = QString(" %1 %2 %3 %4 %5 %6 %7").arg(name)
                 .arg(x1, 0,'f',-1).arg(y1, 0,'f',-1).arg(z1, 0,'f',-1)
                 .arg(x2, 0,'f',-1).arg(y2, 0,'f',-1).arg(z2, 0,'f',-1);
 
@@ -777,8 +791,9 @@ struct Typed<Types::Plane3D> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1 %2 %3 %4 %5").arg(blockId).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(z, 0,'f',-1).arg(c, 0,'f',-1);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1 %2 %3 %4 %5").arg(name).arg(x, 0,'f',-1).arg(y, 0,'f',-1).arg(z, 0,'f',-1).arg(c, 0,'f',-1);
         if (sigmaX.has_value() and sigmaY.has_value() and sigmaZ.has_value() and sigmaC.has_value()) {
             out += QString(" %1 %2 %3 %4").arg(sigmaX.value(), 0,'f',-1).arg(sigmaY.value(), 0,'f',-1).arg(sigmaZ.value(), 0,'f',-1).arg(sigmaC.value(), 0,'f',-1);
         }
@@ -810,8 +825,9 @@ struct Typed<Types::PRIORID> {
         return ret;
     }
 
-    QString toStr() const {
-        QString out = QString(" %1").arg(blockId);
+    QString toStr(QMap<qint64, QString> const& idxsToNames = {}) const {
+        QString name = idxsToNames.value(blockId, QString("%1").arg(blockId));
+        QString out = QString(" %1").arg(name);
         return correspTypeToString(CorrespType) + out;
     };
 };
@@ -833,7 +849,7 @@ Typed<Types::PRIORID>,
 Typed<Types::INVALID>>;
 
 Generic GenericFromString(QString const& str);
-QString GenericToString(Generic const& corresp);
+QString GenericToString(Generic const& corresp, const QMap<qint64, QString> &idxsToNames = {});
 
 /*!
  * \brief getCorrespDatablockId return the id of the datablock the correspondance is attached to
@@ -954,8 +970,8 @@ struct GenericPair {
         return pair;
     }
 
-    inline QString toString() const {
-        return GenericToString(c1) + "," + GenericToString(c2);
+    inline QString toString(QMap<qint64, QString> const& nameMap = {}) const {
+        return GenericToString(c1, nameMap) + "," + GenericToString(c2, nameMap);
     }
 
 };

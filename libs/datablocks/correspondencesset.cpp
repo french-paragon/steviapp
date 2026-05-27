@@ -75,6 +75,18 @@ void CorrespondencesSet::removeCorrespondence(int i) {
 }
 
 
+QVector<qint64> CorrespondencesSet::listReferedItems() const {
+    QSet<qint64> refered;
+
+    for (Correspondences::GenericPair const& pair : _correspondences) {
+        auto idxs = pair.datablocksIds();
+        refered.insert(idxs.first);
+        refered.insert(idxs.second);
+    }
+
+    return refered.values().toVector();
+}
+
 void CorrespondencesSet::clearOptimized() {
     return; //Nothing to optimize
 }
