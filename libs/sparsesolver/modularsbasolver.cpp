@@ -891,6 +891,14 @@ bool ModularSBASolver::opt_step() {
     ceres::Solver::Options options;
     options.linear_solver_type = static_cast<ceres::LinearSolverType>(_solver_type);
 
+    if (options.linear_solver_type == ceres::LinearSolverType::CGNR) {
+        options.preconditioner_type = ceres::PreconditionerType::JACOBI;
+    }
+
+    if (options.linear_solver_type == ceres::LinearSolverType::ITERATIVE_SCHUR) {
+        options.preconditioner_type = ceres::PreconditionerType::SCHUR_JACOBI;
+    }
+
     if (!_silent) {
         std::cout << "Using linear solver type: " << ceresSolverTypeToString(_solver_type) << std::endl;
     }

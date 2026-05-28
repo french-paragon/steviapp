@@ -464,10 +464,10 @@ void solveSparse(Project* p, MainWindow *w, int pnStep) {
     int optimizerType = ceres::SPARSE_SCHUR;
 
     QList<SparseSolverConfigDialog::OptimizerTypeInfos> optimizersTypes = {
-        {"Sparse Schur", "Sparse Schur uses sparse Schur decomposition for efficient solving of large bundle adjustement-like problem, this should be your default option.",
-         ceres::SPARSE_SCHUR},
         {"Sparse Cholesky", "Sparse Cholesky uses sparse Cholesky decomposition for efficient solving of large general problem.",
          ceres::SPARSE_NORMAL_CHOLESKY},
+        {"Sparse Schur", "Sparse Schur uses sparse Schur decomposition for efficient solving of large bundle adjustement-like problem, this should be your default option.",
+         ceres::SPARSE_SCHUR},
         {"Dense QR", "Dense QR is a numerically robust dense solver applicable to small problems.",
          ceres::DENSE_QR},
         {"Dense Cholesky", "Dense Cholesky is a faster dense solver applicable to small problems.",
