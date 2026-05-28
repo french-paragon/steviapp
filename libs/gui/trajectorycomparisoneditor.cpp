@@ -125,7 +125,7 @@ void TrajectoryComparisonEditor::setTrajectory(Trajectory* trj) {
     }
 }
 
-void TrajectoryComparisonEditor::setTrajectories(Trajectory* trj1, Trajectory* trj2, bool compareOptimized) {
+void TrajectoryComparisonEditor::setTrajectories(Trajectory* trj1, Trajectory* trj2, bool compareOptimized1, bool compareOptimized2) {
 
     if (trj1 != _trajectory or trj2 != _trajectory2) {
 
@@ -156,7 +156,8 @@ void TrajectoryComparisonEditor::setTrajectories(Trajectory* trj1, Trajectory* t
         }
     }
 
-    _useOptimizedInMulti = compareOptimized;
+    _useOptimizedInMulti1 = compareOptimized1;
+    _useOptimizedInMulti2 = compareOptimized2;
 
 }
 
@@ -177,42 +178,31 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
 
         if (_trajectory2 != nullptr) {
 
-            if (_useOptimizedInMulti) {
+            StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional;
+            StatusOptionalReturn<Trajectory::TimeTrajectorySequence> CompOptional;
 
-                StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional = _trajectory->optimizedTrajectory(resample);
-
-                if (!trajOptional.isValid()) {
-                    valid_trajectory = false;
-                } else {
-                    traj = std::move(trajOptional.value());
-                }
-
-                StatusOptionalReturn<Trajectory::TimeTrajectorySequence> CompOptional = _trajectory2->optimizedTrajectory(resample);
-
-                if (!CompOptional.isValid()) {
-                    valid_trajectory = false;
-                } else {
-                    compTraj = std::move(CompOptional.value());
-                }
-
+            if (_useOptimizedInMulti1) {
+                trajOptional = _trajectory->optimizedTrajectory(resample);
             } else {
+                trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
+            }
 
-                StatusOptionalReturn<Trajectory::TimeTrajectorySequence> trajOptional = _trajectory->loadTrajectoryProjectLocalFrameSequence();
+            if (_useOptimizedInMulti2) {
+                CompOptional = _trajectory2->optimizedTrajectory(resample);
+            } else {
+                CompOptional = _trajectory2->loadTrajectoryProjectLocalFrameSequence();
+            }
 
-                if (!trajOptional.isValid()) {
-                    valid_trajectory = false;
-                } else {
-                    traj = std::move(trajOptional.value());
-                }
+            if (!trajOptional.isValid()) {
+                valid_trajectory = false;
+            } else {
+                traj = std::move(trajOptional.value());
+            }
 
-                StatusOptionalReturn<Trajectory::TimeTrajectorySequence> CompOptional = _trajectory2->loadTrajectoryProjectLocalFrameSequence();
-
-                if (!CompOptional.isValid()) {
-                    valid_trajectory = false;
-                } else {
-                    compTraj = std::move(CompOptional.value());
-                }
-
+            if (!CompOptional.isValid()) {
+                valid_trajectory = false;
+            } else {
+                compTraj = std::move(CompOptional.value());
             }
 
         } else {

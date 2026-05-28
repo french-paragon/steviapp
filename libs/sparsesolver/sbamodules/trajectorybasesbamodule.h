@@ -782,7 +782,7 @@ protected:
         Eigen::Matrix<double,3,3> weigthMat = Eigen::Matrix<double,3,3>::Identity();
 
         double varAcc = accAccuracy*accAccuracy;
-        double speedUncertainty = sqrt(varAcc/2*dt);
+        double speedUncertainty = sqrt(varAcc*dt);
 
         weigthMat(0,0) = 1/speedUncertainty;
         weigthMat(1,1) = 1/speedUncertainty;

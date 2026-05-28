@@ -21,7 +21,10 @@ public:
 
     void setTrajectory(Trajectory* trj);
 
-    void setTrajectories(Trajectory* trj1, Trajectory* trj2, bool compareOptimized = false);
+    inline void setTrajectories(Trajectory* trj1, Trajectory* trj2, bool compareOptimized = false) {
+        setTrajectories(trj1, trj2, compareOptimized, compareOptimized);
+    }
+    void setTrajectories(Trajectory* trj1, Trajectory* trj2, bool compareOptimized1, bool compareOptimized2);
 
 protected:
 
@@ -29,7 +32,8 @@ protected:
 
     Trajectory* _trajectory;
     Trajectory* _trajectory2;
-    bool _useOptimizedInMulti;
+    bool _useOptimizedInMulti1;
+    bool _useOptimizedInMulti2;
     bool _forwardComparison;
 
     QCustomPlot* _absolutePositionPlot;

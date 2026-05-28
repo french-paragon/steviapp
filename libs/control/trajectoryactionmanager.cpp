@@ -263,23 +263,46 @@ QList<QAction*> TrajectoryActionManager::factorizeMultiItemsContextActions(QObje
                 return;
             }
 
-            bool compareOptimized = false;
+            bool compareOptimized1 = false;
+            bool compareOptimized2 = false;
 
             QStringList options = {tr("Non-optimized"), tr("Optimized")};
+            QList<bool> options_flags = {false, true};
             int current = 0;
             bool ok = true;
             bool editable = false;
-            QString selected = QInputDialog::getItem(mw, tr("Use trajectory"), tr("Use trajectory:"), options, current, editable, &ok);
 
-            if (!ok) {
+            QDialog optionDialog(mw);
+            optionDialog.setWindowTitle(tr("Use trajectory"));
+            QFormLayout layout(&optionDialog);
+
+            QComboBox traj1OptOptions;
+            QComboBox traj2OptOptions;
+
+            for (int i = 0; i < 2; i++) {
+                traj1OptOptions.addItem(options[i], options_flags[i]);
+                traj2OptOptions.addItem(options[i], options_flags[i]);
+            }
+
+            layout.addRow(QString("%1:").arg(trajs[0]->objectName()), &traj1OptOptions);
+            layout.addRow(QString("%1:").arg(trajs[1]->objectName()), &traj2OptOptions);
+
+            QDialogButtonBox box(QDialogButtonBox::Ok|QDialogButtonBox::Cancel, &optionDialog);
+            connect(&box, &QDialogButtonBox::accepted, &optionDialog, &QDialog::accept);
+            connect(&box, &QDialogButtonBox::rejected, &optionDialog, &QDialog::reject);
+
+            layout.addRow(&box);
+
+            int status = optionDialog.exec();
+
+            if (status != QDialog::Accepted) {
                 return;
             }
 
-            if (selected == options[1]) {
-                compareOptimized = true;
-            }
+            compareOptimized1 = traj1OptOptions.currentData().toBool();
+            compareOptimized2 = traj2OptOptions.currentData().toBool();
 
-            toae->setTrajectories(trajs[0], trajs[1], compareOptimized);
+            toae->setTrajectories(trajs[0], trajs[1], compareOptimized1, compareOptimized2);
 
         });
         lst.append(compareTrajectories);
