@@ -57,6 +57,10 @@ public:
 
     Project* activeProject() const;
 
+Q_SIGNALS:
+
+    void scriptRunRequested(QString const& scriptPath);
+
 private:
 
     void displayInfoMessage(QString msg);

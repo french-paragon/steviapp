@@ -89,10 +89,17 @@
     </property>
     <addaction name="actionopen_Sparse_solution_editor"/>
    </widget>
+   <widget class="QMenu" name="menuscripts">
+    <property name="title">
+     <string>scripts</string>
+    </property>
+    <addaction name="actionrun_script"/>
+   </widget>
    <addaction name="menufile"/>
    <addaction name="menuproject"/>
    <addaction name="menusolve"/>
    <addaction name="menueditors"/>
+   <addaction name="menuscripts"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="projectDockWidget">
@@ -236,6 +243,11 @@
   <action name="actioncompute_local_frame">
    <property name="text">
     <string>compute local frame</string>
+   </property>
+  </action>
+  <action name="actionrun_script">
+   <property name="text">
+    <string>run script</string>
    </property>
   </action>
  </widget>

@@ -80,6 +80,18 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actioncompute_local_frame, &QAction::triggered,
             this, [this] () { if (_activeProject != nullptr) {estimateLocalCoordinateSystem(_activeProject); } });
 
+    connect(ui->actionrun_script, &QAction::triggered, this, [this] () {
+        QString dir = "";
+        QString filter = tr("Python script (*.py)");
+        QString scriptPath = QFileDialog::getOpenFileName(this, tr("Open python script"), dir, filter);
+
+        QFileInfo scriptInfos(scriptPath);
+
+        if (scriptInfos.exists()) {
+            Q_EMIT scriptRunRequested(scriptPath);
+        }
+    });
+
 }
 
 MainWindow::~MainWindow()

@@ -75,6 +75,10 @@ StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :
 	} else {
 		_QtApp = new QApplication(argc, argv);
 		_mw = new MainWindow();
+
+        connect(_mw, &MainWindow::scriptRunRequested, this, [this] (QString const& path) {
+            Q_EMIT scriptFileExecututionRequested(path, {});
+        });
 	}
 
 	CurrentApp = this;
