@@ -43,6 +43,15 @@ qint64 addImage(QString filename, Project* p, Camera *cam = nullptr);
 QStringList addImages(QStringList images, Project* p);
 
 /*!
+ * \brief importImagesTimes import timing infos from a file for multiple images at once
+ * \param p the project where the images are located
+ * \param timingFilePath the path to the timing file, if empty and gui is active the user will be queried for a path via a file dialog
+ * \param imagesIds the ids of images that can be treated, if empty all images in the project will be considered
+ * \return a status as a StatusOptionalReturn<void>
+ */
+StatusOptionalReturn<void> importImagesTimes(Project* p, QString timingFilePath = "", QList<qint64> imagesIds = {});
+
+/*!
  * \brief exportRectifiedImages undistort images and export the undistorted version.
  * \param imagesIds The ids of the images to export in the project
  * \param p the project where the images are located

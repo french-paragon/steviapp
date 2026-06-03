@@ -78,7 +78,7 @@ Trajectory* Image::getAssignedTrajectory() const {
 QString Image::getAssignedTrajectoryName() const {
     Trajectory* traj = getAssignedTrajectory();
     if (traj == nullptr) {
-        return tr("Attached trajectory");
+        return "-";
     }
     return traj->objectName();
 }
@@ -106,7 +106,7 @@ Mounting* Image::getAssignedMounting() const {
 QString Image::getAssignedMountingName() const {
     Mounting* mounting = getAssignedMounting();
     if (mounting == nullptr) {
-        return tr("Attached trajectory");
+        return "-";
     }
     return mounting->objectName();
 }
@@ -545,10 +545,12 @@ void Image::extendDataModel() {
                                                                                                                  nullptr,
                                                                                                                  &Image::assignedTrajectoryChanged);
 
-    attachementCat->addCatProperty<std::optional<double>, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Time"),
+    auto* timingProp = attachementCat->addCatProperty<std::optional<double>, Image, true, ItemDataModel::ItemPropertyDescription::PassByValueSignal>(tr("Time"),
                                                                                                                  &Image::getImageTimestamp,
                                                                                                                  &Image::setImageTimeStamp,
                                                                                                                  &Image::imageTimeChanged);
+
+    timingProp->setNumericPrecision(4); // 1/10'000th of second is precise enough
 
     auto* mountingProp = attachementCat->addCatProperty<QString, Image, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Mounting"),
                                                                                                                  &Image::getAssignedMountingName,

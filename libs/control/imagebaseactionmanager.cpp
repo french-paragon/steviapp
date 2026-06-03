@@ -46,21 +46,30 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
 		w = w->window();
 	}
 
-	QString cn = itemClassName();
+    QString cn = itemClassName();
 
-	QAction* add = new QAction(tr("Add Images"), parent);
-	connect(add, &QAction::triggered, [w, p] () {
-		QString filter = "Images(*.jpg *.jpeg *.png *.bmp *.tiff *.tif)";
-		QString folder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-		QStringList images = QFileDialog::getOpenFileNames(w, tr("Open Images"), folder, filter);
+    QAction* add = new QAction(tr("Add Images"), parent);
+    connect(add, &QAction::triggered, [w, p] () {
+        QString filter = "Images(*.jpg *.jpeg *.png *.bmp *.tiff *.tif)";
+        QString folder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+        QStringList images = QFileDialog::getOpenFileNames(w, tr("Open Images"), folder, filter);
 
-		QStringList failedImgs = addImages(images, p);
+        QStringList failedImgs = addImages(images, p);
 
-		if (!failedImgs.isEmpty()) {
-			QString errorList = failedImgs.join("\n");
-			QMessageBox::warning(w, tr("Failed to load some images"), errorList);
-		}
-	});
+        if (!failedImgs.isEmpty()) {
+            QString errorList = failedImgs.join("\n");
+            QMessageBox::warning(w, tr("Failed to load some images"), errorList);
+        }
+    });
+
+    QAction* importTimings = new QAction(tr("Import Images timings"), parent);
+    connect(importTimings, &QAction::triggered, [w, p] () {
+        auto status = importImagesTimes(p);
+
+        if (!status.isValid()) {
+            QMessageBox::warning(w, tr("Error importing images timings"), status.errorMessage());
+        }
+    });
 
 	QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
 	connect(exportRectified, &QAction::triggered, [w, p, cn] () {
@@ -71,6 +80,8 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
 	if (p->getIdsByClass(cn).size() == 0) {
 		exportRectified->setEnabled(false);
 	}
+
+    QList<QAction*> ret = {add, importTimings, exportRectified};
 
     #ifdef STEVIAPP_DEVEL_TOOLS
 
@@ -83,11 +94,13 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
     connect(testMatchCorners, &QAction::triggered, [] () {
         matchCornersInTestImagePair();
     });
-    return {add, exportRectified, testDetectCorners, testMatchCorners};
+
+    ret << testDetectCorners;
+    ret << testMatchCorners;
 
     #endif
 
-	return {add, exportRectified};
+    return ret;
 
 }
 QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* parent, DataBlock* item) const {

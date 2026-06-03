@@ -262,6 +262,106 @@ QStringList addImages(QStringList images, Project* p) {
 
 	return failed;
 }
+StatusOptionalReturn<void> importImagesTimes(Project* p, QString timingFilePath, QList<qint64> imagesIds) {
+
+
+    if (p == nullptr) {
+        return StatusOptionalReturn<void>::error("Requested adding image timings for null project"); //no processing without projects
+    }
+
+    QString inFilePath = timingFilePath;
+
+    if (inFilePath.isEmpty()) {
+        MainWindow* mw = MainWindow::getActiveMainWindow();
+
+        if (mw != nullptr) {
+            QString dir = QString();
+            QString filter = QString();
+            inFilePath = QFileDialog::getOpenFileName(mw, Image::tr("Open timing file"), dir, filter);
+
+            if (inFilePath.isEmpty()) {
+                return StatusOptionalReturn<void>(); //user canceled
+            }
+        }
+
+        if (inFilePath.isEmpty()) {
+            return StatusOptionalReturn<void>::error("Empty timing file!");
+        }
+    }
+
+    QFile inFile(inFilePath);
+    bool ok = inFile.open(QFile::ReadOnly);
+
+    if (!ok) {
+        return StatusOptionalReturn<void>::error("Error opening timing file!");
+    }
+
+    QMap<QString, Image*> imagesMatches;
+
+    QList<qint64> idxs = imagesIds;
+
+    if (idxs.empty()) {
+        idxs = p->getIdsByClass(Image::staticMetaObject.className()).toList();
+    }
+
+    for (qint64 idx : qAsConst(idxs)) {
+        Image* img = p->getDataBlock<Image>(idx);
+
+        if (img == nullptr) {
+            continue;
+        }
+
+        imagesMatches[img->objectName()] = img;
+    }
+
+
+    QTextStream in(&inFile);
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+
+        if (line.isEmpty() or line.startsWith("#") or line.startsWith("//")) {
+            continue; //skip empty lines and comments
+        }
+
+        int commentPos = line.indexOf(QRegExp("#|//"));
+
+        QString usable = line;
+        if (commentPos > 0 and commentPos < line.size()) {
+            usable = line.mid(0, commentPos);
+        }
+
+        QStringList splitted = usable.split(QRegExp("\\s|,|;"), Qt::SkipEmptyParts);
+
+        if (splitted.size() != 2) {
+            continue;
+        }
+
+        int timeId = 1;
+        Image* img = imagesMatches.value(splitted[0], nullptr);
+
+        if (img == nullptr) {
+            timeId = 0;
+            img = imagesMatches.value(splitted[1], nullptr);
+        }
+
+        if (img == nullptr) {
+            continue;
+        }
+
+        bool ok = true;
+        double time = splitted[timeId].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        img->setImageTimeStamp(time);
+
+    }
+
+    return StatusOptionalReturn<void>();
+
+}
 
 int exportRectifiedImages(QList<qint64> imagesIds, Project* p, bool useOptimizedVals, QString outputDirectory, float gamma) {
 
