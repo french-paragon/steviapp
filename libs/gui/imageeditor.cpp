@@ -49,11 +49,11 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	_moveToNextLandmark = new QAction(tr("Next landmark"), this);
 	_moveToPrevLandmark = new QAction(tr("Previous landmark"), this);
 
-	_moveToNextImg->setShortcut(Qt::CTRL + Qt::Key_Tab);
-	_moveToPrevImg->setShortcut(Qt::CTRL + Qt::Key_Shift + Qt::Key_Tab);
+    _moveToNextImg->setShortcut(Qt::CTRL | Qt::Key_Tab);
+    _moveToPrevImg->setShortcut(QKeySequence("Ctrl+Shift+Tab"));
 
-	_moveToNextLandmark->setShortcut(Qt::CTRL + Qt::Key_Right);
-	_moveToPrevLandmark->setShortcut(Qt::CTRL + Qt::Key_Left);
+    _moveToNextLandmark->setShortcut(Qt::CTRL | Qt::Key_Right);
+    _moveToPrevLandmark->setShortcut(Qt::CTRL | Qt::Key_Left);
 
     connect(_img_landmark_overlay, &ImageLandmarksOverlay::newPointClick, this, &ImageEditor::addPoint);
     connect(_img_landmark_overlay, &ImageLandmarksOverlay::menuPointClick, this, &ImageEditor::openPointMenu);
