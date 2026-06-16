@@ -24,6 +24,51 @@ QString DatablockActionManager::TypeDescrName() const {
 	return ProjectFactory::defaultProjectFactory().typeDescr(itemClassName());
 }
 
+QAction* DatablockActionManager::createEnableDisableAllAction(QObject* parent,QList<DataBlock*> const& blocks) {
+    QAction* ret = nullptr;
+
+    if (blocks.size() == 0) {
+        return nullptr;
+    }
+
+    bool allEnabled = true;
+
+    for (int i = 0; i < blocks.size(); i++) {
+        if (!blocks[i]->isEnabled()) {
+            allEnabled = false;
+            break;
+        }
+    }
+
+    if (allEnabled) {
+        if (blocks.size() == 1) {
+            ret = new QAction(tr("disable"), parent);
+        } else {
+            ret = new QAction(tr("disable all"), parent);
+        }
+
+        connect(ret, &QAction::triggered, [blocks] () {
+            for (int i = 0; i < blocks.size(); i++) {
+                blocks[i]->setEnabled(false);
+            }
+        });
+    } else {
+        if (blocks.size() == 1) {
+            ret = new QAction(tr("enable"), parent);
+        } else {
+            ret = new QAction(tr("enable all"), parent);
+        }
+
+        connect(ret, &QAction::triggered, [blocks] () {
+            for (int i = 0; i < blocks.size(); i++) {
+                blocks[i]->setEnabled(true);
+            }
+        });
+    }
+
+    return ret;
+}
+
 QList<QAction*> DatablockActionManager::factorizeClassContextActions(QObject* parent, Project* p) const {
 	QAction* add = new QAction(tr("New %1").arg(TypeDescrName()), parent);
 	QString cName = itemClassName();

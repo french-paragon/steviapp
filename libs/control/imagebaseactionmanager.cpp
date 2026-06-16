@@ -149,6 +149,11 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 		lst << edit;
 	}
 
+    QAction* enableDisable = createEnableDisableAllAction(parent, {im});
+    if (enableDisable != nullptr) {
+        lst << enableDisable;
+    }
+
 	QAction* remove = new QAction(tr("Remove"), parent);
 	connect(remove, &QAction::triggered, [im] () {
 		Project* p = im->getProject();
@@ -319,6 +324,18 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
 	QAction* addToCalibration = createAddToCalibrationAction(parent, p, ims);
 
 	lst.append(addToCalibration);
+
+    QList<DataBlock*> imsLst;
+    imsLst.reserve(ims.size());
+
+    for (Image* img : ims) {
+        imsLst << img;
+    }
+
+    QAction* enableDisable = createEnableDisableAllAction(parent, imsLst);
+    if (enableDisable != nullptr) {
+        lst << enableDisable;
+    }
 
 	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
 	connect(clearOptimized, &QAction::triggered, [ims] () {

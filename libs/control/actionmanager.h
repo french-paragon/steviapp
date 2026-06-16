@@ -35,6 +35,8 @@ protected:
 
 	QString TypeDescrName() const;
 
+    static QAction* createEnableDisableAllAction(QObject* parent,QList<DataBlock*> const& blocks);
+
 private:
 
 };

@@ -100,6 +100,11 @@ QList<QAction*> LandmarkBaseActionManager::factorizeItemContextActions(QObject* 
 
 	lst.append(addToLocalCoordinateSystem);
 
+    QAction* enableDisable = createEnableDisableAllAction(parent, {lm});
+    if (enableDisable != nullptr) {
+        lst << enableDisable;
+    }
+
 	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
 	connect(clearOptimized, &QAction::triggered, [lm] () {
 		lm->clearOptimized();
@@ -165,6 +170,19 @@ QList<QAction*> LandmarkBaseActionManager::factorizeMultiItemsContextActions(QOb
 	});
 
 	lst.append(exportLandmarksToCSVAction);
+
+
+    QList<DataBlock*> lmsLst;
+    lmsLst.reserve(lms.size());
+
+    for (Landmark* lm : lms) {
+        lmsLst << lm;
+    }
+
+    QAction* enableDisable = createEnableDisableAllAction(parent, lmsLst);
+    if (enableDisable != nullptr) {
+        lst << enableDisable;
+    }
 
 	QAction* clearOptimized = new QAction(tr("Clear optimized"), parent);
 	connect(clearOptimized, &QAction::triggered, [lms] () {
