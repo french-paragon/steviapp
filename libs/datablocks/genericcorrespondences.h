@@ -47,8 +47,16 @@ inline Types correspTypeFromString(QString const& str) {
         return Types::XY;
     }
 
+    if (lower == "xyz") {
+        return Types::XYZ;
+    }
+
     if (lower == "geoxy") {
         return Types::GEOXY;
+    }
+
+    if (lower == "geoxyz") {
+        return Types::GEOXYZ;
     }
 
     if (lower == "t") {
