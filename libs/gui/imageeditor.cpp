@@ -4,6 +4,7 @@
 #include <QMenu>
 #include <QInputDialog>
 #include <QAction>
+#include <QSortFilterProxyModel>
 #include <QSettings>
 #include <QDebug>
 
@@ -24,6 +25,8 @@ ImageEditor::ImageEditor(QWidget *parent) :
 	_current_landmark_id(-1)
 {
 	ui->setupUi(this);
+
+    _projectProxy = new QSortFilterProxyModel(this);
 
     _img_display_adapter = new ImageDatablockDisplayAdapter(ui->imageDisplay);
     _img_landmark_overlay = new ImageLandmarksOverlay(ui->imageDisplay);
@@ -105,13 +108,17 @@ void ImageEditor::setImage(Image* img) {
 		setProject(img->getProject());
 	}
 
+    ap = activeProject();
+
 	qint64 id = img->internalId();
 
 	QModelIndex imIndex = ap->indexOfClassInstance(ImageFactory::imageClassName(), id);
 
-	if (imIndex != QModelIndex()) {
-		if (imIndex.row() != ui->imageComboBox->currentIndex()) {
-			ui->imageComboBox->setCurrentIndex(imIndex.row());
+    QModelIndex mapped = _projectProxy->mapFromSource(imIndex);
+
+    if (mapped != QModelIndex()) {
+        if (mapped.row() != ui->imageComboBox->currentIndex()) {
+            ui->imageComboBox->setCurrentIndex(mapped.row());
 		}
 	}
 }
@@ -157,22 +164,28 @@ void ImageEditor::setComboboxIndices() {
 	qint64 currentLmIndex = _current_landmark_id;
 	qint64 currentImIndex = _current_image_id;
 
-	ui->landmarkComboBox->setModel(activeProject());
-	ui->landmarkComboBox->setRootModelIndex(activeProject()->indexOfClass(LandmarkFactory::landmarkClassName()));
+    _projectProxy->setSourceModel(activeProject());
+    _projectProxy->setDynamicSortFilter(true);
+    _projectProxy->sort(0);
+
+    ui->landmarkComboBox->setModel(_projectProxy);
+    QModelIndex landmarksSrcIdx = activeProject()->indexOfClass(LandmarkFactory::landmarkClassName());
+    ui->landmarkComboBox->setRootModelIndex(_projectProxy->mapFromSource(landmarksSrcIdx));
 
 	if (currentLmIndex != -1) {
 		QVector<qint64> ids = activeProject()->getIdsByClass(Landmark::staticMetaObject.className());
-		ui->landmarkComboBox->setCurrentIndex(ids.indexOf(currentLmIndex));
+        ui->landmarkComboBox->setCurrentIndex(_projectProxy->mapFromSource(activeProject()->index(ids.indexOf(currentLmIndex), 0, landmarksSrcIdx)).row());
 	} else {
 		ui->landmarkComboBox->setCurrentIndex(-1);
 	}
 
-	ui->imageComboBox->setModel(activeProject());
-	ui->imageComboBox->setRootModelIndex(activeProject()->indexOfClass(ImageFactory::imageClassName()));
+    ui->imageComboBox->setModel(_projectProxy);
+    QModelIndex imageSrcIdx = activeProject()->indexOfClass(ImageFactory::imageClassName());
+    ui->imageComboBox->setRootModelIndex(_projectProxy->mapFromSource(imageSrcIdx));
 
 	if (currentImIndex != -1) {
 		QVector<qint64> ids = activeProject()->getIdsByClass(Image::staticMetaObject.className());
-		ui->imageComboBox->setCurrentIndex(ids.indexOf(currentImIndex));
+        ui->imageComboBox->setCurrentIndex(_projectProxy->mapFromSource(activeProject()->index(ids.indexOf(currentImIndex), 0, imageSrcIdx)).row());
 	} else {
 		ui->imageComboBox->setCurrentIndex(-1);
 	}
@@ -334,14 +347,14 @@ void ImageEditor::onCurrentImageIndexChanged(int id) {
 	}
 
 	QModelIndex imagesIndex = activeProject()->indexOfClass(ImageFactory::imageClassName());
-	QModelIndex targetId = p->index(id, 0, imagesIndex);
+    QModelIndex targetId = _projectProxy->index(id, 0, _projectProxy->mapFromSource(imagesIndex));
 
 	if (targetId == QModelIndex()) {
 		setImage(nullptr);
 		return;
 	}
 
-	qint64 imageId = p->data(targetId, Project::IdRole).toInt();
+    qint64 imageId = targetId.data(Project::IdRole).toInt();
 
 	Image* nImg = qobject_cast<Image*>(p->getById(imageId));
 
@@ -365,7 +378,7 @@ void ImageEditor::onCurrentLandmarkIndexChanged() {
 	}
 
 	QModelIndex rootLm = p->indexOfClass(Landmark::staticMetaObject.className());
-	QModelIndex itemIndex = p->index(ui->landmarkComboBox->currentIndex(), 0, rootLm);
+    QModelIndex itemIndex = _projectProxy->index(ui->landmarkComboBox->currentIndex(), 0, _projectProxy->mapFromSource(rootLm));
 
 	if (itemIndex == QModelIndex()) {
         _img_landmark_overlay->displaySinglePoint(-1);

@@ -5,6 +5,8 @@
 
 #include "./editor.h"
 
+class QSortFilterProxyModel;
+
 namespace QImageDisplay {
 class ImageWidget;
 }
@@ -68,6 +70,8 @@ private:
 
     ImageDatablockDisplayAdapter* _img_display_adapter;
     ImageLandmarksOverlay* _img_landmark_overlay;
+
+    QSortFilterProxyModel* _projectProxy;
 };
 
 class ImageEditorFactory : public EditorFactory
