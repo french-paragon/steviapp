@@ -318,12 +318,12 @@ public:
         MatType MRi = pose_R1*pose_RDeltaInterp;
 
         VecType vr;
-        vr2 << r2[0], r2[1], r2[2];
+        vr << r[0], r[1], r[2];
 
         MatType MR = StereoVision::Geometry::rodriguezFormula(vr);
 
         VecType vt;
-        vt1 << t2[0], t2[1], t2[2];
+        vt << t[0], t[1], t[2];
 
         PoseType PoseReftoWorld(MR, vt);
         PoseType WorldtoPoseInterp(MRi.transpose(), -MRi.transpose()*vti);
