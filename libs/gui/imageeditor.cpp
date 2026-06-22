@@ -35,6 +35,12 @@ ImageEditor::ImageEditor(QWidget *parent) :
     ui->imageDisplay->addOverlay(_img_landmark_overlay);
     ui->imageDisplay->installEventFilter(_img_landmark_overlay);
 
+    ui->landmarkFilterEdit->setClearButtonEnabled(true);
+    ui->landmarkFilterEdit->setText(_img_landmark_overlay->highlightPointFilter());
+
+    connect(ui->landmarkFilterEdit, &QLineEdit::textChanged,
+            _img_landmark_overlay, &ImageLandmarksOverlay::setHighlightPointFilter);
+
 	QSettings s;
 
 	QString pixUncertaintyKey = "ImageEditor/initialImageLandmarkUncerainty";
@@ -207,7 +213,7 @@ void ImageEditor::addPoint(QPointF const& imageCoordinates) {
 
 	Project* p = activeProject();
 
-	if (p == nullptr) {
+    if (p == nullptr) {
 		return;
 	}
 
@@ -218,7 +224,7 @@ void ImageEditor::addPoint(QPointF const& imageCoordinates) {
 	}
 
 	QModelIndex rootLm = ui->landmarkComboBox->rootModelIndex();
-	QModelIndex itemIndex = p->index(ui->landmarkComboBox->currentIndex(), 0, rootLm);
+    QModelIndex itemIndex = _projectProxy->index(ui->landmarkComboBox->currentIndex(), 0, rootLm);
 
 	qint64 lmId;
 
@@ -243,7 +249,7 @@ void ImageEditor::addPoint(QPointF const& imageCoordinates) {
 
 	} else {
 
-		lmId = p->data(itemIndex, Project::IdRole).toInt();
+        lmId = itemIndex.data(Project::IdRole).toInt();
 	}
 
 	ImageLandmark* lm = im->getImageLandmarkByLandmarkId(lmId);

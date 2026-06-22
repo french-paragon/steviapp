@@ -43,6 +43,7 @@
 #include <QRegularExpression>
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <QInputDialog>
 
 #include <QDebug>
 
@@ -1205,6 +1206,70 @@ int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p) {
 
 	return 0;
 
+}
+
+int listImagesContainingLandmark(qint64 pLmId, Project* p) {
+
+    if (p == nullptr) {
+        qDebug() << "missing project";
+        return 1;
+    }
+
+    Landmark* lm = p->getDataBlock<Landmark>(pLmId);
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (lm == nullptr and mw != nullptr) {
+
+        QLineEdit::EchoMode echoMode = QLineEdit::Normal;
+        QString text = "";
+        bool ok = true;
+
+        QString inLmName = QInputDialog::getText(mw, "Landmark name", "Landmark name", echoMode, text, &ok);
+
+        if (!ok) {
+            return 0;
+        }
+
+        lm = qobject_cast<Landmark*>(p->getByName(inLmName, Landmark::staticMetaObject.className()));
+    }
+
+    if (lm == nullptr) {
+        qDebug() << "missing landmark";
+        return 1;
+    }
+
+    qint64 lmId = lm->internalId();
+
+    QTextStream out(stdout);
+
+    out << "Listing images containing landmark \"" << lm->objectName() << "\":\n";
+
+    QVector<qint64> imgsIdxs = p->getIdsByClass(Image::staticMetaObject.className());
+    QStringList imgsNames;
+    imgsNames.reserve(imgsIdxs.size());
+
+    for (qint64 imgIdx : imgsIdxs) {
+
+        Image* im = p->getDataBlock<Image>(imgIdx);
+
+        if (im == nullptr) {
+            continue;
+        }
+
+        ImageLandmark* imlm = im->getImageLandmarkByLandmarkId(lmId);
+
+        if (imlm == nullptr) {
+            continue;
+        }
+
+        out << "\t" << im->objectName() << "\n";
+    }
+
+    out << "\n";
+    out.flush();
+
+    return 0;
 }
 
 int orientCamerasRelativeToObservedLandmarks(qint64 imgId, Project* p) {

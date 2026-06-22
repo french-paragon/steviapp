@@ -71,17 +71,22 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
         }
     });
 
-	QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
-	connect(exportRectified, &QAction::triggered, [w, p, cn] () {
-		QList<qint64> imageIds = p->getIdsByClass(cn).toList();
-		exportRectifiedImages(imageIds, p, w);
-	});
+    QAction* listWithLm = new QAction(tr("List images with landmark"), parent);
+    connect(listWithLm, &QAction::triggered, [p] () {
+        listImagesContainingLandmark(-1, p);
+    });
+
+    QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
+    connect(exportRectified, &QAction::triggered, [w, p, cn] () {
+        QList<qint64> imageIds = p->getIdsByClass(cn).toList();
+        exportRectifiedImages(imageIds, p, w);
+    });
 
 	if (p->getIdsByClass(cn).size() == 0) {
 		exportRectified->setEnabled(false);
 	}
 
-    QList<QAction*> ret = {add, importTimings, exportRectified};
+    QList<QAction*> ret = {add, listWithLm, importTimings, exportRectified};
 
     #ifdef STEVIAPP_DEVEL_TOOLS
 

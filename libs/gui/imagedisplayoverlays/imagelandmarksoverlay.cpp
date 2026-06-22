@@ -62,6 +62,14 @@ void ImageLandmarksOverlay::setActivePoint(const qint64 &ap)
         requestFullRepainting();
     }
 }
+void ImageLandmarksOverlay::setHighlightPointFilter(QString const& ptFilter) {
+
+    if (ptFilter != _highlightPointFilter) {
+        _highlightPointFilter = ptFilter;
+        requestFullRepainting();
+    }
+
+}
 
 void ImageLandmarksOverlay::registerLandmark(qint64 id) {
     ImageLandmark* imlm = _currentImageDataBlock->getImageLandmark(id);
@@ -187,6 +195,10 @@ void ImageLandmarksOverlay::drawLandmark(QPainter* painter, QPointF const& image
     QColor pColor(106, 193, 74);
     QColor tColor(255, 255, 255);
     QColor black(0, 0, 0);
+
+    if (_highlightPointFilter == ptName) {
+        pColor = QColor(210, 140, 0);
+    }
 
     if (isActive) {
         tColor = pColor;

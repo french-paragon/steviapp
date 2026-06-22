@@ -44,6 +44,12 @@ public:
 
     void setActivePoint(const qint64 &ap);
 
+    inline QString highlightPointFilter() const {
+        return _highlightPointFilter;
+    }
+
+    void setHighlightPointFilter(QString const& ptFilter);
+
     inline void displaySinglePoint(qint64 pointId) {
         if (pointId != _drawOnlyPoint) {
             _drawOnlyPoint = pointId;
@@ -90,6 +96,7 @@ protected:
 
     qint64 _activePoint;
     qint64 _drawOnlyPoint;
+    QString _highlightPointFilter;
 
     Qt::MouseButtons _previously_pressed;
     bool _control_pressed_when_clicked;

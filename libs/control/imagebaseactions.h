@@ -89,6 +89,8 @@ int orientHexagonalTargetsRelativeToCamera(qint64 imgId, Project* p);
 
 int orientCamerasRelativeToObservedLandmarks(qint64 imgId, Project* p);
 
+int listImagesContainingLandmark(qint64 lmId, Project* p);
+
 
 QTextStream& printImagesRelativePositions(QTextStream & stream, QVector<qint64> imagesIds, Project* p);
 
