@@ -545,14 +545,22 @@ protected:
 			return QVariant::fromValue(fp.stddev());
 		}
         bool setSecondValue(QVariant const& d) override {
-			if (!d.canConvert(qMetaTypeId<qreal>())) {
-				return false;
-			}
 
 			D* block = castedBlock();
 			if (block == nullptr) {
 				return false;
 			}
+
+            if (d.isNull()) {
+                floatParameter p = (block->*_getter)();
+                p.clearUncertainty();
+                (block->*_setter)(p);
+                return true;
+            }
+
+            if (!d.canConvert(qMetaTypeId<qreal>())) {
+                return false;
+            }
 
 			pFloatType v = static_cast<pFloatType>(qvariant_cast<qreal>(d));
 			floatParameter p = (block->*_getter)();
