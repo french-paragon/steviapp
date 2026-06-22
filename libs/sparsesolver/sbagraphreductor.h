@@ -54,6 +54,9 @@ public:
      * \return
      */
     bool isIdConstrained(qint64 id) const;
+    inline int currentNItems() const {
+        return _nodes.size();
+    }
 
     bool insertItem(qint64 id, int freedomDegrees);
     bool insertSelfObservation(qint64 id1, int nObs);

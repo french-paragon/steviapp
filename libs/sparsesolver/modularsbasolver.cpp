@@ -736,10 +736,16 @@ bool ModularSBASolver::init() {
     }
 
     if (!_silent) {
-        out << "\n" << "Reducing observation graph" << Qt::endl;
+        int n = _observabilityGraph.currentNItems();
+        out << "\n" << "Reducing observation graph, starts with " << n << " items in graph" << Qt::endl;
     }
 
     _observabilityGraph.reduceGraph();
+
+    if (!_silent) {
+        int n = _observabilityGraph.currentNItems();
+        out << "\n" << "Observation graph reduced, ends with " << n << " items in graph" << Qt::endl;
+    }
 
     for (SBAModule* module : _modules) {
 

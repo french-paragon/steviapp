@@ -133,7 +133,11 @@ void SparseSolverConfigDialog::setLogsDirectory(QString const& directory) {
     QFileInfo infos(directory);
 
     if (!infos.exists() or !infos.isDir()) {
-        return;
+        QDir p(infos.absoluteDir());
+        if (!(!infos.exists() and p.exists())) {
+            return; //dir cannot be created
+        }
+        //else we can go forward
     }
 
     ui->logsDirectoryLineEdit->setText(directory);

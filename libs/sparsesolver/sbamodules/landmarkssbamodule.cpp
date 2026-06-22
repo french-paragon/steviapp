@@ -166,7 +166,11 @@ bool LandmarksSBAModule::init(ModularSBASolver* solver, ceres::Problem & problem
 
         std::optional<Eigen::Vector3d> coordPrior = lm->getOptimizableCoordinates(notOptimized);
 
-        if (coordPrior.has_value()) {
+
+
+        if (lm->isFixed()) {
+            problem.SetParameterBlockConstant(lmNode->pos.data());
+        } else if (coordPrior.has_value()) {
 
             Eigen::Vector3d vecPrior = coordPrior.value();
 
@@ -219,10 +223,6 @@ bool LandmarksSBAModule::writeResults(ModularSBASolver* solver) {
     for (qint64 lmId : lmIdxs) {
 
         Landmark* lm = qobject_cast<Landmark*>(currentProject->getById(lmId));
-
-        if (lm->isFixed()) {
-            continue;
-        }
 
         ModularSBASolver::PositionNode* lm_p = solver->getPositionNode(lmId);
 

@@ -229,13 +229,6 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
             continue;
         }
 
-        //check if a previous module assigned a projection module already to the frame.
-        ModularSBASolver::ProjectorModule* projectionModule = solver->getProjectorForFrame(imId);
-
-        if (projectionModule == nullptr) {
-            continue;
-        }
-
         Image* im = qobject_cast<Image*>(currentProject->getById(imId));
 
         if (im == nullptr) {
@@ -292,6 +285,107 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
 
         }
 
+        //stick to trajectory
+        qint64 trajId = imNode->trajectoryId.value_or(-1);
+        auto trajectoryInfos = solver->getItemTrajectoryInfos(imNode->datablockId);
+        qint64 mountId = trajectoryInfos.ExternalLeverArmId;
+
+        std::optional<double>& imTime = imNode->time;
+
+        ModularSBASolver::TrajectoryNode* tNode = solver->getNodeForTrajectory(trajId, false);
+        ModularSBASolver::PoseNode* lvNode = solver->getNodeForMounting(mountId, false);
+
+        if (tNode != nullptr and lvNode != nullptr and imTime.has_value()) {
+
+            double time = imTime.value();
+            int nodeId = tNode->getNodeForTime(time);
+
+            if (nodeId >= 0 and nodeId < tNode->nodes.size()-1) {
+                ModularSBASolver::TrajectoryPoseNode& previous = tNode->nodes[nodeId];
+                ModularSBASolver::TrajectoryPoseNode& next = tNode->nodes[nodeId+1];
+
+                double pTime = previous.time;
+                double nTime = next.time;
+
+                double wP = (nTime - time)/(nTime-pTime);
+                double wN = (time - pTime)/(nTime-pTime);
+
+                if (_trajectoryAttachementScaleLoss == nullptr) {
+                    constexpr double rigidScale = 1e5;
+                    _trajectoryAttachementScaleLoss = new ceres::ScaledLoss(nullptr, rigidScale, ceres::Ownership::DO_NOT_TAKE_OWNERSHIP);
+                }
+
+                if (std::abs(wP-1) < 1e-3 or !std::isfinite(wP)) {
+
+                    ParametrizedLeverArmCostFunctor* cost =
+                        new ParametrizedLeverArmCostFunctor();
+
+                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
+                    ceresFunc* costFunc = new ceresFunc(cost);
+
+                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
+                                             lvNode->rAxis.data(), lvNode->t.data(),
+                                             previous.rAxis.data(), previous.t.data(),
+                                             imNode->rAxis.data(), imNode->t.data());
+
+                } else if (std::abs(wN-1) < 1e-3) {
+
+                    ParametrizedLeverArmCostFunctor* cost =
+                        new ParametrizedLeverArmCostFunctor();
+
+                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
+                    ceresFunc* costFunc = new ceresFunc(cost);
+
+                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
+                                             lvNode->rAxis.data(), lvNode->t.data(),
+                                             next.rAxis.data(), next.t.data(),
+                                             imNode->rAxis.data(), imNode->t.data());
+
+                } else {
+
+                    ParametrizedInterpolatedLeverArmCostFunctor* cost =
+                        new ParametrizedInterpolatedLeverArmCostFunctor(wP, wN);
+
+                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedInterpolatedLeverArmCostFunctor,6,3,3,3,3,3,3,3,3>;
+                    ceresFunc* costFunc = new ceresFunc(cost);
+
+                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
+                                             lvNode->rAxis.data(), lvNode->t.data(),
+                                             previous.rAxis.data(), previous.t.data(),
+                                             next.rAxis.data(), next.t.data(),
+                                             imNode->rAxis.data(), imNode->t.data());
+                }
+
+                StereoVision::Geometry::RigidBodyTransform<double> img2body(Eigen::Vector3d(lvNode->rAxis[0],lvNode->rAxis[1],lvNode->rAxis[2]),
+                                                                            Eigen::Vector3d(lvNode->t[0],lvNode->t[1],lvNode->t[2]));
+
+                StereoVision::Geometry::RigidBodyTransform<double> body2mapping(Eigen::Vector3d(previous.rAxis[0],previous.rAxis[1],previous.rAxis[2]),
+                                                                                Eigen::Vector3d(previous.t[0],previous.t[1],previous.t[2]));
+
+                StereoVision::Geometry::RigidBodyTransform<double> img2mapping = body2mapping*img2body;
+
+                //setup position from trajectory, no matter what.
+                imNode->t[0] = img2mapping.t[0];
+                imNode->t[1] = img2mapping.t[1];
+                imNode->t[2] = img2mapping.t[2];
+
+                imNode->rAxis[0] = img2mapping.r[0];
+                imNode->rAxis[1] = img2mapping.r[1];
+                imNode->rAxis[2] = img2mapping.r[2];
+
+            } else {
+                solver->logMessage(QString("Failed to attached image %1 to trajectory, improper time or missing trajectory!").arg(im->objectName()));
+            }
+
+        }
+
+        //check if a previous module assigned a projection module already to the frame.
+        ModularSBASolver::ProjectorModule* projectionModule = solver->getProjectorForFrame(imId);
+
+        if (projectionModule == nullptr) {
+            continue;
+        }
+
         //GCPs
         for (qint64 imlmId : im->listTypedSubDataBlocks(ImageLandmark::ImageLandmarkClassName)) {
 
@@ -341,101 +435,6 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
                                                         ptPos,
                                                         info,
                                                         loggingLabel);
-        }
-
-        //stick to trajectory
-        qint64 trajId = imNode->trajectoryId.value_or(-1);
-        auto trajectoryInfos = solver->getItemTrajectoryInfos(imNode->datablockId);
-        qint64 mountId = trajectoryInfos.ExternalLeverArmId;
-
-        std::optional<double>& imTime = imNode->time;
-
-        ModularSBASolver::TrajectoryNode* tNode = solver->getNodeForTrajectory(trajId, false);
-        ModularSBASolver::PoseNode* lvNode = solver->getNodeForMounting(mountId, false);
-
-        if (tNode != nullptr and lvNode != nullptr and imTime.has_value()) {
-
-            double time = imTime.value();
-            int nodeId = tNode->getNodeForTime(time);
-
-            if (nodeId >= 0 and nodeId < tNode->nodes.size()-1) {
-                ModularSBASolver::TrajectoryPoseNode& previous = tNode->nodes[nodeId];
-                ModularSBASolver::TrajectoryPoseNode& next = tNode->nodes[nodeId+1];
-
-                double pTime = previous.time;
-                double nTime = next.time;
-
-                double wP = (nTime - time)/(nTime-pTime);
-                double wN = (time - pTime)/(nTime-pTime);
-
-                if (_trajectoryAttachementScaleLoss == nullptr) {
-                    constexpr double rigidScale = 1e5;
-                    _trajectoryAttachementScaleLoss = new ceres::ScaledLoss(nullptr, rigidScale, ceres::Ownership::DO_NOT_TAKE_OWNERSHIP);
-                }
-
-                if (std::abs(wP-1) < 1e-3 or !std::isfinite(wP)) {
-
-                    ParametrizedLeverArmCostFunctor* cost =
-                            new ParametrizedLeverArmCostFunctor();
-
-                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
-                    ceresFunc* costFunc = new ceresFunc(cost);
-
-                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
-                                             lvNode->rAxis.data(), lvNode->t.data(),
-                                             previous.rAxis.data(), previous.t.data(),
-                                             imNode->rAxis.data(), imNode->t.data());
-
-                } else if (std::abs(wN-1) < 1e-3) {
-
-                    ParametrizedLeverArmCostFunctor* cost =
-                            new ParametrizedLeverArmCostFunctor();
-
-                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
-                    ceresFunc* costFunc = new ceresFunc(cost);
-
-                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
-                                             lvNode->rAxis.data(), lvNode->t.data(),
-                                             next.rAxis.data(), next.t.data(),
-                                             imNode->rAxis.data(), imNode->t.data());
-
-                } else {
-
-                    ParametrizedInterpolatedLeverArmCostFunctor* cost =
-                            new ParametrizedInterpolatedLeverArmCostFunctor(wP, wN);
-
-                    using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedInterpolatedLeverArmCostFunctor,6,3,3,3,3,3,3,3,3>;
-                    ceresFunc* costFunc = new ceresFunc(cost);
-
-                    problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
-                                             lvNode->rAxis.data(), lvNode->t.data(),
-                                             previous.rAxis.data(), previous.t.data(),
-                                             next.rAxis.data(), next.t.data(),
-                                             imNode->rAxis.data(), imNode->t.data());
-                }
-
-                StereoVision::Geometry::RigidBodyTransform<double> img2body(Eigen::Vector3d(lvNode->rAxis[0],lvNode->rAxis[1],lvNode->rAxis[2]),
-                                                                            Eigen::Vector3d(lvNode->t[0],lvNode->t[1],lvNode->t[2]));
-
-                StereoVision::Geometry::RigidBodyTransform<double> body2mapping(Eigen::Vector3d(previous.rAxis[0],previous.rAxis[1],previous.rAxis[2]),
-                                                                            Eigen::Vector3d(previous.t[0],previous.t[1],previous.t[2]));
-
-                StereoVision::Geometry::RigidBodyTransform<double> img2mapping = body2mapping*img2body;
-
-                //setup position from trajectory if it has not been set yet.
-                if (!im->hasOptimizedParameters() and !im->xCoord().isSet() and !im->yCoord().isSet() and !im->zCoord().isSet()) {
-                    imNode->t[0] = img2mapping.t[0];
-                    imNode->t[1] = img2mapping.t[1];
-                    imNode->t[2] = img2mapping.t[2];
-                }
-                if (!im->hasOptimizedParameters() and !im->xRot().isSet() and !im->yRot().isSet() and !im->zRot().isSet()) {
-                    imNode->rAxis[0] = img2mapping.r[0];
-                    imNode->rAxis[1] = img2mapping.r[1];
-                    imNode->rAxis[2] = img2mapping.r[2];
-                }
-
-            }
-
         }
 
     }

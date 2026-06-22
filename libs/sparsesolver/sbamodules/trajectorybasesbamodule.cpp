@@ -411,6 +411,13 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         }
 
+        double duration = maxTime - minTime;
+
+        if (duration <= 0) {
+            solver->logMessage(QString("Duration span empty for trajectory %1 after init (minTime = %2, maxTime = %3), skipping!").arg(traj->objectName()).arg(minTime).arg(maxTime));
+            continue;
+        }
+
         std::optional<double> trajMinTime = traj->processingStartTime();
         std::optional<double> trajMaxTime = traj->processingEndTime();
 
@@ -422,10 +429,10 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             maxTime = std::min(maxTime, trajMaxTime.value());
         }
 
-        double duration = maxTime - minTime;
+        duration = maxTime - minTime;
 
         if (duration <= 0) {
-            solver->logMessage(QString("Duration span empty for trajectory %1, skipping!").arg(traj->objectName()));
+            solver->logMessage(QString("Duration span empty for trajectory %1 after manual configuration (minTime = %2, maxTime = %3), skipping!").arg(traj->objectName()).arg(minTime).arg(maxTime));
             continue;
         }
 
