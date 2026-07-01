@@ -64,6 +64,14 @@ int exportRectifiedImages(QList<qint64> imagesIds, Project* p, QWidget* w);
 
 int exportStereoRigRectifiedImages(QList<qint64> imagesIds, qint64 rigId, Project* p, QWidget* w);
 
+/*!
+ * \brief exportImagesLandmarksPositionsToCSV export all image landmarks to a single csv file
+ * \param p the project
+ * \param idxs the idxs of the images to export, if empty, all images will be considered
+ * \param w the widget to use as parent to show options
+ * \return the number of images successfully treated
+ */
+int exportImagesLandmarksPositionsToCSV(Project* p, QVector<qint64> const& idxs, QWidget* w);
 int exportImageLandmarksPositionsToCSV(qint64 imageId, Project* p, QWidget* w);
 
 int addImagesToCalibration(QList<qint64> imagesIds, qint64 calibId, Project* p);

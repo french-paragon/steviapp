@@ -76,6 +76,11 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
         listImagesContainingLandmark(-1, p);
     });
 
+    QAction* exportLandmarks = new QAction(tr("Export landmarks positions"), parent);
+    connect(exportLandmarks, &QAction::triggered, [w, p] () {
+        exportImagesLandmarksPositionsToCSV(p, {}, w);
+    });
+
     QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
     connect(exportRectified, &QAction::triggered, [w, p, cn] () {
         QList<qint64> imageIds = p->getIdsByClass(cn).toList();
@@ -86,7 +91,7 @@ QList<QAction*> ImageBaseActionManager::factorizeClassContextActions(QObject* pa
 		exportRectified->setEnabled(false);
 	}
 
-    QList<QAction*> ret = {add, listWithLm, importTimings, exportRectified};
+    QList<QAction*> ret = {add, listWithLm, importTimings, exportLandmarks, exportRectified};
 
     #ifdef STEVIAPP_DEVEL_TOOLS
 
@@ -296,6 +301,11 @@ QList<QAction*> ImageBaseActionManager::factorizeMultiItemsContextActions(QObjec
         lst.append(openImagesInCornerMatchingEditor);
     }
 
+    QAction* exportLandmarks = new QAction(tr("Export landmarks positions"), parent);
+    connect(exportLandmarks, &QAction::triggered, [w, p, imIds] () {
+        exportImagesLandmarksPositionsToCSV(p, imIds, w);
+    });
+    lst.append(exportLandmarks);
 
 	QAction* exportRectified = new QAction(tr("Export rectified images"), parent);
 	connect(exportRectified, &QAction::triggered, [w, p, imIds] () {
