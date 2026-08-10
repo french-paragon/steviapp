@@ -1213,7 +1213,105 @@ bool CorrespondencesSetSBAModule::addUV2UVMatch(const Correspondences::Typed<Cor
 
 }
 
+bool CorrespondencesSetSBAModule::addUV2IdMatch(Correspondences::Typed<Correspondences::UV> const& uv,
+                          Correspondences::Typed<Correspondences::PRIORID> const& id,
+                          const double &sigma0,
+                          StereoVisionApp::ModularSBASolver* solver,
+                          ceres::Problem & problem,
+                          ceres::LossFunction* lossFunction,
+                          QString logName) {
 
+    ModularSBASolver::PoseNode* pIm = solver->getPoseNode(uv.blockId);
+
+    if (pIm == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule* mIm = solver->getProjectorForFrame(uv.blockId);
+
+    if (mIm == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::ProjectorModule::ProjectionInfos infosIm = mIm->getProjectionInfos();
+
+    if (infosIm.modularProjector == nullptr) {
+        return false;
+    }
+
+    ModularSBASolver::PositionNode* positionNode = solver->getPositionNode(id.blockId);
+    ModularSBASolver::PoseNode* poseNode = solver->getPoseNode(id.blockId);
+
+    if (positionNode == nullptr and poseNode == nullptr) { //the xyz data is not for a specific data point, but the world
+        return false;
+    }
+
+    Eigen::Vector2d uvPos;
+    uvPos << uv.u, uv.v;
+
+    Eigen::Matrix2d stiffness = Eigen::Matrix2d::Identity();
+    if (uv.sigmaU.has_value()) {
+        stiffness(0,0) = 1/ (sigma0*uv.sigmaU.value());
+    }
+    if (uv.sigmaV.has_value()) {
+        stiffness(1,1) = 1/ (sigma0*uv.sigmaV.value());
+    }
+
+    using Functor = UV2ParametrizedXYZCostDynamic<ModularUVProjection>;
+    constexpr int stride = 4;
+    using CostFunction = ceres::DynamicAutoDiffCostFunction<Functor, stride>;
+
+
+    Functor* functor = new Functor(infosIm.modularProjector, uvPos, stiffness, infosIm.paramsSizeInfos.size());
+    CostFunction* costFunction = new CostFunction(functor);
+
+    int nParams = 3 + infosIm.paramsSizeInfos.size();
+    std::vector<double*> params(nParams);
+
+    params[0] = pIm->rAxis.data();
+    costFunction->AddParameterBlock(3);
+    params[1] = pIm->t.data();
+    costFunction->AddParameterBlock(3);
+    if (positionNode != nullptr) {
+        params[2] = positionNode->pos.data();
+
+    } else {
+        params[2] = poseNode->t.data();
+    }
+    costFunction->AddParameterBlock(3);
+
+    for (size_t i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+        params[3+i] = infosIm.projectionParams[i];
+        costFunction->AddParameterBlock(infosIm.paramsSizeInfos[i]);
+    }
+
+    costFunction->SetNumResiduals(Functor::nResiduals);
+
+    mIm->problem().AddResidualBlock(costFunction, lossFunction,
+                                    params.data(), nParams);
+
+    if (!logName.isEmpty()) {
+
+        constexpr bool manageProjectors = false;
+        Functor* logFunctor = new Functor(infosIm.modularProjector, uvPos, Eigen::Matrix2d::Identity(), infosIm.paramsSizeInfos.size(), manageProjectors);
+        CostFunction* logFunction = new CostFunction(logFunctor);
+
+        logFunction->AddParameterBlock(3);
+        logFunction->AddParameterBlock(3);
+        logFunction->AddParameterBlock(3);
+
+        for (size_t i = 0; i < infosIm.paramsSizeInfos.size(); i++) {
+            logFunction->AddParameterBlock(infosIm.paramsSizeInfos[i]);
+        }
+
+        logFunction->SetNumResiduals(Functor::nResiduals);
+
+        solver->addLogger(logName, new ModularSBASolver::AutoDynamicErrorBlockLogger(logFunction, params, true));
+    }
+
+    return true;
+
+}
 
 bool CorrespondencesSetSBAModule::addUV2XYZMatch(Correspondences::Typed<Correspondences::UV> const& uv,
                                                  Correspondences::Typed<Correspondences::XYZ> const& xyz,
@@ -2498,6 +2596,18 @@ bool CorrespondencesSetSBAModule::init(ModularSBASolver* solver, ceres::Problem 
 
                 auto typedPair = pair.getTypedPair<Correspondences::PRIORID,Correspondences::GEOXYZ>().value();
                 ok = addGeoPosPrior(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::PRIORID,Correspondences::GEOXY>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::PRIORID,Correspondences::GEOXY>().value();
+                ok = addGeoProjPrior(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
+            }
+
+            if (pair.holdsCorrespondancesType<Correspondences::PRIORID,Correspondences::UV>()) {
+
+                auto typedPair = pair.getTypedPair<Correspondences::UV,Correspondences::PRIORID>().value();
+                ok = addUV2IdMatch(typedPair.c1, typedPair.c2, sigma0, solver, problem, _current_loss, costLogName);
             }
 
             if (pair.holdsCorrespondancesType<Correspondences::PRIORID,Correspondences::GEOXY>()) {

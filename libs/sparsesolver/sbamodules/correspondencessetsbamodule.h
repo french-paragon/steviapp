@@ -124,6 +124,14 @@ public:
                               ceres::LossFunction* lossFunction = nullptr,
                               QString logName = "");
 
+    static bool addUV2IdMatch(Correspondences::Typed<Correspondences::UV> const& uv,
+                               Correspondences::Typed<Correspondences::PRIORID> const& id,
+                               const double &sigma0,
+                               StereoVisionApp::ModularSBASolver* solver,
+                               ceres::Problem & problem,
+                               ceres::LossFunction* lossFunction = nullptr,
+                               QString logName = "");
+
     static bool addUV2XYZMatch(Correspondences::Typed<Correspondences::UV> const& uv,
                                Correspondences::Typed<Correspondences::XYZ> const& xyz,
                                const double &sigma0,
