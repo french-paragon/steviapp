@@ -68,6 +68,7 @@ set(LIB_HEADERS
     #graphstereorigsolver.h
     imagepointssolutionmodel.h
     helperfunctions.h
+    stochasticsparsecovarianceestimator.h
 )
 
 set(LIB_HEADERS_EDGES
@@ -132,6 +133,7 @@ add_library(
     ${LIB_HEADERS_COST_FUNCTORS}
     ${LIB_HEADERS_SBA_MODULES}
     costfunctors/stochasticprocessaggregator.h
+    stochasticsparsecovarianceestimator.h
 )
 
 target_link_libraries(${SOLVING_LIB} PRIVATE Qt${QT_VERSION_MAJOR}::Core)

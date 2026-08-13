@@ -6,6 +6,7 @@ option(ADVANCED_LOGGING "Log a lot of information, usefull if you want to invest
 
 include(CheckCXXCompilerFlag)
 project(steviapp LANGUAGES CXX)
+enable_testing()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
