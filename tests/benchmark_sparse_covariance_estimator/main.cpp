@@ -115,7 +115,7 @@ protected:
     VecT const& _secondDiag;
 };
 
-class TestSparseCovEstimator : public QObject
+class BenchmarkSparseCovEstimator : public QObject
 {
     Q_OBJECT
 public:
@@ -158,7 +158,9 @@ private :
 
     enum EstimatorType {
         Bootstrap = 0,
-        Hutchinson = 1
+        RobustBootstrap = 1,
+        Hutchinson = 2,
+        GaussianHutchinson = 3
     };
 
     template <EstimatorType E, typename SparseHType, typename SolverT>
@@ -254,8 +256,12 @@ private :
 
         using SparseCovarianceEstimate =
             typename std::conditional<E == Hutchinson,
-                                        StereoVisionApp::StochasticCovarianceFromHessianHutchinsonEstimator<SolverT>,
-                                      StereoVisionApp::StochasticCovarianceFromJacobianBootstrapEstimator<decltype(eigen_jacobian), SolverT, SparseHType>>::type;
+                                      StereoVisionApp::StochasticCovarianceFromHessianHutchinsonEstimator<SolverT>,
+                                      typename std::conditional<E == GaussianHutchinson,
+                                                                StereoVisionApp::StochasticCovarianceFromHessianGaussianHutchinsonEstimator<SolverT>,
+                                                                typename std::conditional<E == RobustBootstrap,
+                                                                                          StereoVisionApp::StochasticCovarianceFromJacobianRobustBootstrapEstimator<decltype(eigen_jacobian), SolverT, SparseHType>,
+                                                                                          StereoVisionApp::StochasticCovarianceFromJacobianBootstrapEstimator<decltype(eigen_jacobian), SolverT, SparseHType>>::type>::type>::type;
 
         int nIdxs = (offDiagonal) ? n-1 : n;
         std::vector<typename SparseCovarianceEstimate::Idx> idxs(nIdxs);
@@ -273,7 +279,7 @@ private :
         Eigen::VectorXd estimates;
 
 
-        if constexpr (E == Bootstrap) {
+        if constexpr (E == Bootstrap or E == RobustBootstrap) {
 
             SparseCovarianceEstimate estimator(eigen_jacobian, idxs);
             estimator.seed(seed);
@@ -305,7 +311,7 @@ private :
 
         }
 
-        if constexpr (E == Hutchinson) {
+        if constexpr (E == Hutchinson or E == GaussianHutchinson) {
 
             SparseCovarianceEstimate estimator(solver, n, idxs);
             estimator.seed(seed);
@@ -357,7 +363,7 @@ private :
         int countInBound50 = 0;
         int countInBound100 = 0;
 
-        constexpr double minVarThresh = 1e-1;
+        constexpr double minVarThresh = 1e-6;
 
         for (int i = 0; i < nTested; i++) {
             Eigen::VectorXd b = Eigen::VectorXd::Zero(n);
@@ -402,6 +408,65 @@ private :
         qInfo() << countInBound50 << "/" << nTested << " coefficient are within 50% of gt";
         qInfo() << countInBound100 << "/" << nTested << " coefficient are within 100% of gt";
 
+        if (offDiagonal) {
+
+            int countInBound05 = 0;
+            int countInBound10 = 0;
+            int countInBound20 = 0;
+            int countInBound50 = 0;
+            int countInBound100 = 0;
+
+            constexpr double minVarThresh = 1e-6;
+
+            for (int i = 0; i < nTested; i++) {
+                Eigen::VectorXd b = Eigen::VectorXd::Zero(n);
+                auto idx = idxs[diagIdxs[i]];
+                b[idx.j] = 1;
+                Eigen::VectorXd x = solver.solve(b);
+                double gt = x[idx.i];
+                double varj = x[idx.j];
+                b[idx.j] = 0;
+                b[idx.i] = 1;
+                x = solver.solve(b);
+                double vari = x[idx.i];
+                double est = estimates[diagIdxs[i]];
+                double error = std::abs(est - gt);
+
+                double thresh = std::max(std::abs(sqrt(vari*varj)),minVarThresh);
+
+                bool ok05 = error < 0.05*thresh;
+                if (ok05) {
+                    countInBound05++;
+                }
+
+                bool ok10 = error < 0.1*thresh;
+                if (ok10) {
+                    countInBound10++;
+                }
+
+                bool ok20 = error < 0.2*thresh;
+                if (ok20) {
+                    countInBound20++;
+                }
+
+                bool ok50 = error < 0.5*thresh;
+                if (ok50) {
+                    countInBound50++;
+                }
+
+                bool ok100 = error < thresh;
+                if (ok100) {
+                    countInBound100++;
+                }
+            }
+
+            qInfo() << countInBound05 << "/" << nTested << " coefficient are within 5% of Corr100% from gt";
+            qInfo() << countInBound10 << "/" << nTested << " coefficient are within 10% of Corr100% from gt";
+            qInfo() << countInBound20 << "/" << nTested << " coefficient are within 20% of Corr100% from gt";
+            qInfo() << countInBound50 << "/" << nTested << " coefficient are within 50% of Corr100% from gt";
+            qInfo() << countInBound100 << "/" << nTested << " coefficient are within 100% of Corr100% from gt";
+
+        }
     }
 
     template <EstimatorType E, typename SparseHType, typename SolverT>
@@ -517,7 +582,11 @@ private :
         using SparseCovarianceEstimate =
             typename std::conditional<E == Hutchinson,
                                       StereoVisionApp::StochasticCovarianceFromHessianHutchinsonEstimator<SolverT>,
-                                      StereoVisionApp::StochasticCovarianceFromJacobianBootstrapEstimator<decltype(eigen_jacobian), SolverT, SparseHType>>::type;
+                                      typename std::conditional<E == GaussianHutchinson,
+                                                                StereoVisionApp::StochasticCovarianceFromHessianGaussianHutchinsonEstimator<SolverT>,
+                                                                typename std::conditional<E == RobustBootstrap,
+                                                                                          StereoVisionApp::StochasticCovarianceFromJacobianRobustBootstrapEstimator<decltype(eigen_jacobian), SolverT, SparseHType>,
+                                                                                          StereoVisionApp::StochasticCovarianceFromJacobianBootstrapEstimator<decltype(eigen_jacobian), SolverT, SparseHType>>::type>::type>::type;
 
         int nIdxs = (offDiagonal) ? n-1 : n;
         std::vector<typename SparseCovarianceEstimate::Idx> idxs(nIdxs);
@@ -535,7 +604,7 @@ private :
         Eigen::VectorXd estimates;
 
 
-        if constexpr (E == Bootstrap) {
+        if constexpr (E == Bootstrap or E == RobustBootstrap) {
 
             SparseCovarianceEstimate estimator(eigen_jacobian, idxs);
             estimator.seed(seed);
@@ -567,7 +636,7 @@ private :
 
         }
 
-        if constexpr (E == Hutchinson) {
+        if constexpr (E == Hutchinson or E == GaussianHutchinson) {
 
             SparseCovarianceEstimate estimator(solver, n, idxs);
             estimator.seed(seed);
@@ -619,7 +688,7 @@ private :
         int countInBound50 = 0;
         int countInBound100 = 0;
 
-        constexpr double minVarThresh = 1e-1;
+        constexpr double minVarThresh = 1e-3;
 
         for (int i = 0; i < nTested; i++) {
             Eigen::VectorXd b = Eigen::VectorXd::Zero(n);
@@ -669,7 +738,7 @@ private :
 };
 
 
-void TestSparseCovEstimator::initTestCase() {
+void BenchmarkSparseCovEstimator::initTestCase() {
 
     srand(time(nullptr));
 
@@ -689,7 +758,7 @@ void TestSparseCovEstimator::initTestCase() {
 }
 
 
-void TestSparseCovEstimator::tridiagonal_data() {
+void BenchmarkSparseCovEstimator::tridiagonal_data() {
 
     QTest::addColumn<bool>("offDiagonal");
     QTest::addColumn<int>("n");
@@ -722,7 +791,7 @@ void TestSparseCovEstimator::tridiagonal_data() {
     QTest::newRow("size 100k x 100k 1000 samples outter-diagonal") << true << 100000 << 1000 << 0. << 10.;
 
 }
-void TestSparseCovEstimator::tridiagonal() {
+void BenchmarkSparseCovEstimator::tridiagonal() {
 
     QFETCH(bool, offDiagonal);
     QFETCH(int, n);
@@ -848,7 +917,7 @@ void TestSparseCovEstimator::tridiagonal() {
 
 }
 
-void TestSparseCovEstimator::diagPlusLowRank_data() {
+void BenchmarkSparseCovEstimator::diagPlusLowRank_data() {
 
     QTest::addColumn<bool>("offDiagonal");
     QTest::addColumn<bool>("lowRankNormalized");
@@ -900,7 +969,7 @@ void TestSparseCovEstimator::diagPlusLowRank_data() {
     QTest::newRow("size 100k x 100k 1000 samples off-diagonal") << true << false << 100000 << 50 << 1000 << 0.5 << 10. << 0.1;
 
 }
-void TestSparseCovEstimator::diagPlusLowRank() {
+void BenchmarkSparseCovEstimator::diagPlusLowRank() {
 
     QFETCH(bool, offDiagonal);
     QFETCH(bool, lowRankNormalized);
@@ -1042,7 +1111,7 @@ void TestSparseCovEstimator::diagPlusLowRank() {
     qInfo() << countInBound100 << "/" << nTested << " coefficient are within 100% of expected scale from gt";
 }
 
-void TestSparseCovEstimator::simplePnPHessian_data() {
+void BenchmarkSparseCovEstimator::simplePnPHessian_data() {
 
     QTest::addColumn<bool>("offDiagonal");
     QTest::addColumn<int>("estimatorType");
@@ -1057,6 +1126,34 @@ void TestSparseCovEstimator::simplePnPHessian_data() {
     QTest::newRow("size1000 Bootstrap 100 samples diagonal") << false << static_cast<int>(Bootstrap) << 1000 << 100;
     QTest::newRow("size1000 Bootstrap 300 samples diagonal") << false << static_cast<int>(Bootstrap) << 1000 << 300;
 
+    QTest::newRow("size200 Bootstrap 10 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 10;
+    QTest::newRow("size200 Bootstrap 100 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 100;
+    QTest::newRow("size200 Bootstrap 300 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 300;
+    QTest::newRow("size200 Bootstrap 1000 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 1000;
+
+    QTest::newRow("size1000 Bootstrap 10 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 1000 << 10;
+    QTest::newRow("size1000 Bootstrap 100 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 1000 << 100;
+    QTest::newRow("size1000 Bootstrap 300 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 1000 << 300;
+    QTest::newRow("size1000 Bootstrap 1000 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 1000 << 1000;
+
+    QTest::newRow("size200 Robust Bootstrap 10 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 200 << 10;
+    QTest::newRow("size200 Robust Bootstrap 100 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 200 << 100;
+    QTest::newRow("size200 Robust Bootstrap 300 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 200 << 300;
+
+    QTest::newRow("size1000 Robust Bootstrap 10 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 1000 << 10;
+    QTest::newRow("size1000 Robust Bootstrap 100 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 1000 << 100;
+    QTest::newRow("size1000 Robust Bootstrap 300 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 1000 << 300;
+
+    QTest::newRow("size200 Robust Bootstrap 10 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 200 << 10;
+    QTest::newRow("size200 Robust Bootstrap 100 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 200 << 100;
+    QTest::newRow("size200 Robust Bootstrap 300 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 200 << 300;
+    QTest::newRow("size200 Robust Bootstrap 1000 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 200 << 1000;
+
+    QTest::newRow("size1000 Robust Bootstrap 10 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 1000 << 10;
+    QTest::newRow("size1000 Robust Bootstrap 100 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 1000 << 100;
+    QTest::newRow("size1000 Robust Bootstrap 300 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 1000 << 300;
+    QTest::newRow("size1000 Robust Bootstrap 1000 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 1000 << 1000;
+
     QTest::newRow("size200 Hutchinson 10 samples diagonal") << false << static_cast<int>(Hutchinson) << 200 << 10;
     QTest::newRow("size200 Hutchinson 100 samples diagonal") << false << static_cast<int>(Hutchinson) << 200 << 100;
     QTest::newRow("size200 Hutchinson 300 samples diagonal") << false << static_cast<int>(Hutchinson) << 200 << 300;
@@ -1064,16 +1161,6 @@ void TestSparseCovEstimator::simplePnPHessian_data() {
     QTest::newRow("size1000 Hutchinson 10 samples diagonal") << false << static_cast<int>(Hutchinson) << 1000 << 10;
     QTest::newRow("size1000 Hutchinson 100 samples diagonal") << false << static_cast<int>(Hutchinson) << 1000 << 100;
     QTest::newRow("size1000 Hutchinson 300 samples diagonal") << false << static_cast<int>(Hutchinson) << 1000 << 300;
-
-    QTest::newRow("size200 Bootstrap 10 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 10;
-    QTest::newRow("size200 Bootstrap 100 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 100;
-    QTest::newRow("size200 Bootstrap 300 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 300;
-    QTest::newRow("size200 Bootstrap 1000 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 1000;
-    QTest::newRow("size200 Bootstrap 5000 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 200 << 5000;
-
-    QTest::newRow("size1000 Bootstrap 10 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 1000 << 10;
-    QTest::newRow("size1000 Bootstrap 100 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 1000 << 100;
-    QTest::newRow("size1000 Bootstrap 300 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 1000 << 300;
 
     QTest::newRow("size200 Hutchinson 10 samples off-diagonal") << true << static_cast<int>(Hutchinson) << 200 << 10;
     QTest::newRow("size200 Hutchinson 100 samples off-diagonal") << true << static_cast<int>(Hutchinson) << 200 << 100;
@@ -1085,9 +1172,27 @@ void TestSparseCovEstimator::simplePnPHessian_data() {
     QTest::newRow("size1000 Hutchinson 100 samples off-diagonal") << true << static_cast<int>(Hutchinson) << 1000 << 100;
     QTest::newRow("size1000 Hutchinson 300 samples off-diagonal") << true << static_cast<int>(Hutchinson) << 1000 << 300;
 
+    QTest::newRow("size200 Gaussian Hutchinson 10 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 200 << 10;
+    QTest::newRow("size200 Gaussian Hutchinson 100 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 200 << 100;
+    QTest::newRow("size200 Gaussian Hutchinson 300 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 200 << 300;
+
+    QTest::newRow("size1000 Gaussian Hutchinson 10 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 1000 << 10;
+    QTest::newRow("size1000 Gaussian Hutchinson 100 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 1000 << 100;
+    QTest::newRow("size1000 Gaussian Hutchinson 300 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 1000 << 300;
+
+    QTest::newRow("size200 Gaussian Hutchinson 10 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 200 << 10;
+    QTest::newRow("size200 Gaussian Hutchinson 100 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 200 << 100;
+    QTest::newRow("size200 Gaussian Hutchinson 300 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 200 << 300;
+    QTest::newRow("size200 Gaussian Hutchinson 1000 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 200 << 1000;
+    QTest::newRow("size200 Gaussian Hutchinson 5000 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 200 << 5000;
+
+    QTest::newRow("size1000 Gaussian Hutchinson 10 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 1000 << 10;
+    QTest::newRow("size1000 Gaussian Hutchinson 100 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 1000 << 100;
+    QTest::newRow("size1000 Gaussian Hutchinson 300 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 1000 << 300;
+
 
 }
-void TestSparseCovEstimator::simplePnPHessian() {
+void BenchmarkSparseCovEstimator::simplePnPHessian() {
 
     QFETCH(bool, offDiagonal);
     QFETCH(int, estimatorType);
@@ -1104,6 +1209,13 @@ void TestSparseCovEstimator::simplePnPHessian() {
             simplePnPHessianImpl<Bootstrap, SparseHType, Eigen::ConjugateGradient<SparseHType, Eigen::Upper|Eigen::Lower>>(nImages, nSamples, offDiagonal);
         }
         break;
+    case RobustBootstrap:
+        if (nImages < 300) {
+            simplePnPHessianImpl<RobustBootstrap, SparseHType, Eigen::SparseQR<SparseHType, Eigen::COLAMDOrdering<int>>>(nImages, nSamples, offDiagonal);
+        } else { //, Eigen::IncompleteCholesky<SparseHType>
+            simplePnPHessianImpl<RobustBootstrap, SparseHType, Eigen::ConjugateGradient<SparseHType, Eigen::Upper|Eigen::Lower>>(nImages, nSamples, offDiagonal);
+        }
+        break;
     case Hutchinson:
         if (nImages < 300) {
             simplePnPHessianImpl<Hutchinson, SparseHType, Eigen::SparseQR<SparseHType, Eigen::COLAMDOrdering<int>>>(nImages, nSamples, offDiagonal);
@@ -1111,12 +1223,19 @@ void TestSparseCovEstimator::simplePnPHessian() {
             simplePnPHessianImpl<Hutchinson, SparseHType, Eigen::ConjugateGradient<SparseHType, Eigen::Upper|Eigen::Lower>>(nImages, nSamples, offDiagonal);
         }
         break;
+    case GaussianHutchinson:
+        if (nImages < 300) {
+            simplePnPHessianImpl<GaussianHutchinson, SparseHType, Eigen::SparseQR<SparseHType, Eigen::COLAMDOrdering<int>>>(nImages, nSamples, offDiagonal);
+        } else { //, Eigen::IncompleteCholesky<SparseHType>
+            simplePnPHessianImpl<GaussianHutchinson, SparseHType, Eigen::ConjugateGradient<SparseHType, Eigen::Upper|Eigen::Lower>>(nImages, nSamples, offDiagonal);
+        }
+        break;
     }
 
 
 }
 
-void TestSparseCovEstimator::singleTrajectory_data() {
+void BenchmarkSparseCovEstimator::singleTrajectory_data() {
 
     QTest::addColumn<bool>("offDiagonal");
     QTest::addColumn<int>("estimatorType");
@@ -1134,6 +1253,14 @@ void TestSparseCovEstimator::singleTrajectory_data() {
     QTest::newRow("200 nodes Bootstrap 100 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 100 << 100. << 0.5 << 0.1 << 5.;
     QTest::newRow("200 nodes Bootstrap 300 samples off-diagonal") << true << static_cast<int>(Bootstrap) << 300 << 100. << 0.5 << 0.1 << 5.;
 
+    QTest::newRow("200 nodes Robust Bootstrap 10 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 10 << 100. << 0.5 << 0.1 << 5.;
+    QTest::newRow("200 nodes Robust Bootstrap 100 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 100 << 100. << 0.5 << 0.1 << 5.;
+    QTest::newRow("200 nodes Robust Bootstrap 300 samples diagonal") << false << static_cast<int>(RobustBootstrap) << 300 << 100. << 0.5 << 0.1 << 5.;
+
+    QTest::newRow("200 nodes Robust Bootstrap 10 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 10 << 100. << 0.5 << 0.1 << 5.;
+    QTest::newRow("200 nodes Robust Bootstrap 100 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 100 << 100. << 0.5 << 0.1 << 5.;
+    QTest::newRow("200 nodes Robust Bootstrap 300 samples off-diagonal") << true << static_cast<int>(RobustBootstrap) << 300 << 100. << 0.5 << 0.1 << 5.;
+
     QTest::newRow("200 nodes Hutchinson 10 samples diagonal") << false << static_cast<int>(Hutchinson) << 10 << 100. << 0.5 << 0.1 << 5.;
     QTest::newRow("200 nodes Hutchinson 100 samples diagonal") << false << static_cast<int>(Hutchinson) << 100 << 100. << 0.5 << 0.1 << 5.;
     QTest::newRow("200 nodes Hutchinson 300 samples diagonal") << false << static_cast<int>(Hutchinson) << 300 << 100. << 0.5 << 0.1 << 5.;
@@ -1142,8 +1269,16 @@ void TestSparseCovEstimator::singleTrajectory_data() {
     QTest::newRow("200 nodes Hutchinson 100 samples off-diagonal") << true << static_cast<int>(Hutchinson) << 100 << 100. << 0.5 << 0.1 << 5.;
     QTest::newRow("200 nodes Hutchinson 300 samples off-diagonal") << true << static_cast<int>(Hutchinson) << 300 << 100. << 0.5 << 0.1 << 5.;
 
+    QTest::newRow("200 nodes Gaussian Hutchinson 10 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 10 << 100. << 0.5 << 0.1 << 5.;
+    QTest::newRow("200 nodes Gaussian Hutchinson 100 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 100 << 100. << 0.5 << 0.1 << 5.;
+    QTest::newRow("200 nodes Gaussian Hutchinson 300 samples diagonal") << false << static_cast<int>(GaussianHutchinson) << 300 << 100. << 0.5 << 0.1 << 5.;
+
+    QTest::newRow("200 nodes Gaussian Hutchinson 10 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 10 << 100. << 0.5 << 0.1 << 5.;
+    QTest::newRow("200 nodes Gaussian Hutchinson 100 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 100 << 100. << 0.5 << 0.1 << 5.;
+    QTest::newRow("200 nodes Gaussian Hutchinson 300 samples off-diagonal") << true << static_cast<int>(GaussianHutchinson) << 300 << 100. << 0.5 << 0.1 << 5.;
+
 }
-void TestSparseCovEstimator::singleTrajectory() {
+void BenchmarkSparseCovEstimator::singleTrajectory() {
 
     QFETCH(bool, offDiagonal);
     QFETCH(int, estimatorType);
@@ -1167,6 +1302,15 @@ void TestSparseCovEstimator::singleTrajectory() {
                 (nSamples, duration, samplingDt, accDt, gpsDt, offDiagonal);
         }
         break;
+    case RobustBootstrap:
+        if (nNodesEst < 200) {
+            singleTrajectoryImpl<RobustBootstrap, SparseHType, Eigen::SparseQR<SparseHType, Eigen::COLAMDOrdering<int>>>
+                (nSamples, duration, samplingDt, accDt, gpsDt, offDiagonal);
+        } else { //, Eigen::IncompleteCholesky<SparseHType>
+            singleTrajectoryImpl<RobustBootstrap, SparseHType, Eigen::ConjugateGradient<SparseHType, Eigen::Upper|Eigen::Lower>>
+                (nSamples, duration, samplingDt, accDt, gpsDt, offDiagonal);
+        }
+        break;
     case Hutchinson:
         if (nNodesEst < 200) {
             singleTrajectoryImpl<Hutchinson, SparseHType, Eigen::SparseQR<SparseHType, Eigen::COLAMDOrdering<int>>>
@@ -1176,8 +1320,17 @@ void TestSparseCovEstimator::singleTrajectory() {
                 (nSamples, duration, samplingDt, accDt, gpsDt, offDiagonal);
         }
         break;
+    case GaussianHutchinson:
+        if (nNodesEst < 200) {
+            singleTrajectoryImpl<GaussianHutchinson, SparseHType, Eigen::SparseQR<SparseHType, Eigen::COLAMDOrdering<int>>>
+                (nSamples, duration, samplingDt, accDt, gpsDt, offDiagonal);
+        } else { //, Eigen::IncompleteCholesky<SparseHType>
+            singleTrajectoryImpl<GaussianHutchinson, SparseHType, Eigen::ConjugateGradient<SparseHType, Eigen::Upper|Eigen::Lower>>
+                (nSamples, duration, samplingDt, accDt, gpsDt, offDiagonal);
+        }
+        break;
     }
 }
 
-QTEST_MAIN(TestSparseCovEstimator);
+QTEST_MAIN(BenchmarkSparseCovEstimator);
 #include "main.moc"
