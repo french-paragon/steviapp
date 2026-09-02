@@ -22,6 +22,8 @@
 #include "costfunctors/modularuvprojection.h"
 #include "costfunctors/posedecoratorfunctors.h"
 
+#include "./stochasticsparsecovarianceestimator.h"
+
 #include <QDir>
 #include <QFile>
 
@@ -635,44 +637,17 @@ bool ModularSBASolver::itemIsObservable(qint64 itemId) const {
 
 std::optional<Eigen::MatrixXd> ModularSBASolver::getCovarianceBlock(std::pair<const double*, const double*> const& params) {
 
-    if (_covariance == nullptr) {
-        return std::nullopt;
+    if (_computedCovariances.contains(params)) {
+        return _computedCovariances.value(params);
     }
 
-    if (!_problem->HasParameterBlock(params.first)) {
-        return std::nullopt;
+    std::pair<const double*, const double*> inverted(params.second, params.first);
+
+    if (_computedCovariances.contains(inverted)) {
+        return _computedCovariances.value(inverted).transpose();
     }
 
-    if (!_problem->HasParameterBlock(params.second)) {
-        return std::nullopt;
-    }
-
-    int p1s = _problem->ParameterBlockSize(params.first);
-    int p2s = _problem->ParameterBlockSize(params.second);
-
-    int covSize = p1s*p2s;
-
-    std::vector<double> covvec(covSize);
-
-    bool ok = _covariance->GetCovarianceBlock(params.first, params.second, covvec.data());
-
-    if (!ok) {
-        return std::nullopt;
-    }
-
-    Eigen::MatrixXd ret;
-    ret.resize(p1s, p2s);
-
-    int p = 0;
-
-    for (int i = 0; i < p1s; i++) {
-        for (int j = 0; j < p2s; j++) {
-            ret(i,j) = covvec[p];
-            p++;
-        }
-    }
-
-    return ret;
+    return std::nullopt;
 
 }
 
@@ -963,18 +938,26 @@ bool ModularSBASolver::std_step() {
         delete _covariance;
     }
 
-    ceres::Covariance::Options options;
-    options.algorithm_type = ceres::SPARSE_QR;
+    _computedCovariances.clear();
+    struct ParamInfos {
+        int JacIdx;
+        int size;
+    };
 
-    _covariance = new ceres::Covariance(options);
+    QMap<const double*, ParamInfos> paramsInfos;
 
     std::set<std::pair<const double*, const double*>> pairs;
+    std::set<const double*> params;
 
     for (SBAModule* module : _modules) {
         std::vector<std::pair<const double*, const double*>> indices = module->requestUncertainty(this, *_problem);
 
         for (auto const& pair : indices) {
             pairs.insert(pair);
+            params.insert(pair.first);
+            if (pair.second != pair.first) {
+                params.insert(pair.second);
+            }
         }
     }
 
@@ -983,15 +966,156 @@ bool ModularSBASolver::std_step() {
 
         for (auto const& pair : indices) {
             pairs.insert(pair);
+            params.insert(pair.first);
+            if (pair.second != pair.first) {
+                params.insert(pair.second);
+            }
         }
     }
 
-    std::vector<std::pair<const double*, const double*>> vpairs(pairs.begin(), pairs.end());
+    ceres::Problem::EvaluateOptions options;
 
-    bool ok = _covariance->Compute(vpairs, _problem);
+    std::vector<double*> all_parameter_blocks;
+    _problem->GetParameterBlocks(&all_parameter_blocks);
+    std::vector<double*> variable_parameter_blocks;
+    variable_parameter_blocks.reserve(all_parameter_blocks.size());
 
-    if (_verbose and !_silent) {
-        std::cout << "Uncertainty computed!" << std::endl;
+    int i = 0;
+
+    for (double* paramBlock : all_parameter_blocks) {
+        bool isFixed = _problem->IsParameterBlockConstant(paramBlock);
+        int s = _problem->ParameterBlockSize(paramBlock);
+
+        if (isFixed) {
+            continue;
+        }
+
+        variable_parameter_blocks.push_back(paramBlock);
+
+        if (params.count(paramBlock) <= 0) { //params needs to be in jacobian, but variance has not been requested
+            i += s;
+            continue;
+        }
+
+        ParamInfos& infos = paramsInfos[paramBlock];
+        infos.size = s;
+        infos.JacIdx = i;
+
+        i += s;
+    }
+
+    options.parameter_blocks = variable_parameter_blocks;
+
+    ceres::CRSMatrix jacobian;
+    bool evaluateOk = _problem->Evaluate(options, nullptr, nullptr, nullptr, &jacobian);
+
+    if (!evaluateOk) {
+        return false;
+    }
+
+    Eigen::MappedSparseMatrix<double, Eigen::RowMajor> eigen_jacobian(
+        jacobian.num_rows, jacobian.num_cols,
+        jacobian.values.size(),
+        jacobian.rows.data(), jacobian.cols.data(), jacobian.values.data());
+
+    int jRows = eigen_jacobian.rows();
+
+    using SparseCholeskySolver = Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::Lower|Eigen::Upper>;
+    using SparseQRSolver = Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>>;
+    using ConjugateGradientSolver = Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Upper|Eigen::Lower>;
+
+    using SparseCholeskyEstimator = StochasticCovarianceFromJacobianBootstrapEstimator<Eigen::MappedSparseMatrix<double, Eigen::RowMajor>, SparseCholeskySolver>;
+    using SparseQrEstimator = StochasticCovarianceFromJacobianBootstrapEstimator<Eigen::MappedSparseMatrix<double, Eigen::RowMajor>, SparseQRSolver>;
+    using ConjugateGradientEstimator = StochasticCovarianceFromJacobianBootstrapEstimator<Eigen::MappedSparseMatrix<double, Eigen::RowMajor>, ConjugateGradientSolver>;
+
+    using StochasticEstimatorPtr = std::variant<
+        std::nullptr_t,
+        std::unique_ptr<SparseCholeskyEstimator>,
+        std::unique_ptr<SparseQrEstimator>,
+        std::unique_ptr<ConjugateGradientEstimator>
+        >;
+
+    StochasticEstimatorPtr solverPtr;
+    int nSamples = 300;
+
+    using Idx = StochCovEst2DIdx;
+    std::vector<Idx> idxs;
+    idxs.reserve(pairs.size()*9); //we assume on average each parameter will have size 3, most request will be concentrated around the diagonal, we are pretty safe with this reserve.
+    QMap<std::pair<const double*, const double*>, Eigen::MatrixXi> estimatesIdxMap;
+
+    for (std::pair<const double*, const double*> const& pair : pairs) {
+
+        //skip if any params have been excluded
+        if (params.count(pair.first) <= 0) {
+            continue;
+        }
+
+        if (pair.second != pair.first) {
+            if (params.count(pair.second) <= 0) {
+                continue;
+            }
+        }
+
+        ParamInfos const& p1Infos = paramsInfos[pair.first];
+
+        if (pair.second == pair.first) {
+
+            Eigen::MatrixXi covidxs;
+            covidxs.resize(p1Infos.size, p1Infos.size);
+
+            for (int i = 0; i < p1Infos.size; i++) {
+                for (int j = i; j < p1Infos.size; j++) {
+                    int estId = idxs.size();
+                    idxs.push_back(Idx{.i = p1Infos.JacIdx+i, .j = p1Infos.JacIdx+j});
+                    covidxs(i,j) = estId;
+                    covidxs(j,i) = estId;
+                }
+            }
+
+            estimatesIdxMap[pair] = covidxs;
+
+            continue;
+        }
+
+        ParamInfos const& p2Infos = paramsInfos[pair.second];
+
+        Eigen::MatrixXi covidxs;
+        covidxs.resize(p1Infos.size, p2Infos.size);
+
+        for (int i = 0; i < p1Infos.size; i++) {
+            for (int j = 0; j < p2Infos.size; j++) {
+                int estId = idxs.size();
+                idxs.push_back(Idx{.i = p1Infos.JacIdx+i, .j = p2Infos.JacIdx+j});
+                covidxs(i,j) = estId;
+            }
+        }
+
+        estimatesIdxMap[pair] = covidxs;
+
+    }
+
+    if (jRows < 10000) {
+        solverPtr = std::make_unique<SparseCholeskyEstimator>(eigen_jacobian, idxs);
+    } else {
+        solverPtr = std::make_unique<ConjugateGradientEstimator>(eigen_jacobian, idxs);
+    }
+
+    bool ok = true;
+
+    Eigen::VectorXd estimates = std::visit([nSamples] (auto const& solverPtr) -> Eigen::VectorXd {
+        if (solverPtr == nullptr) {
+            return Eigen::VectorXd();
+        }
+        if constexpr (std::is_same_v<std::remove_const_t<std::remove_reference_t<decltype(solverPtr)>>,
+                                     std::nullptr_t>) {
+            return Eigen::VectorXd();
+        } else {
+            return solverPtr->computeEstimates(nSamples);
+        }
+    }, solverPtr);
+
+    if (estimates.size() <= 0) {
+        ok = false;
     }
 
     if (!ok) {
@@ -999,7 +1123,21 @@ bool ModularSBASolver::std_step() {
         return false;
     }
 
-    return true; //TODO: implement the stochastic approach we proposed
+    for (std::pair<const double*, const double*> const& pair : pairs) {
+        Eigen::MatrixXi const& pos = estimatesIdxMap[pair];
+        Eigen::MatrixXd cov;
+        cov.resize(pos.rows(), pos.cols());
+
+        for (int i = 0; i < pos.rows(); i++) {
+            for (int j = 0; j < pos.cols(); j++) {
+                cov(i,j) = estimates[pos(i,j)];
+            }
+        }
+
+        _computedCovariances[pair] = cov;
+    }
+
+    return true;
 
 }
 bool ModularSBASolver::writeResults() {

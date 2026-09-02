@@ -142,6 +142,7 @@ public:
 
     virtual bool init() override;
     virtual bool writeResults() override;
+    virtual std::vector<std::pair<const double*, const double*>> requestUncertainty() override;
     virtual bool writeUncertainty() override;
     virtual void cleanup() override;
 

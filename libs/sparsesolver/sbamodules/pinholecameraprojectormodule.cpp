@@ -573,9 +573,106 @@ bool PinholeCamProjModule::writeResults() {
 
 }
 
+std::vector<std::pair<const double*, const double*>> PinholeCamProjModule::requestUncertainty() {
+    std::vector<std::pair<const double*, const double*>> ret;
+
+    Camera* cam = _associatedCamera;
+
+    if (cam->isFixed()) {
+        return ret;
+    }
+
+    ret.reserve(5);
+
+    ret.push_back({&_fLen, &_fLen});
+    ret.push_back({_principalPoint.data(), _principalPoint.data()});
+
+    if (cam->useRadialDistortionModel()) {
+        ret.push_back({_radialDistortion.data(), _radialDistortion.data()});
+    }
+
+    if (cam->useTangentialDistortionModel()) {
+        ret.push_back({_tangentialDistortion.data(), _tangentialDistortion.data()});
+    }
+
+    if (cam->useSkewDistortionModel()) {
+        ret.push_back({_skewDistortion.data(), _skewDistortion.data()});
+    }
+
+    return ret;
+}
+
 bool PinholeCamProjModule::writeUncertainty() {
 
-    //TODO: get a way to write uncertainty.
+    ModularSBASolver& sol = solver();
+
+    Camera* cam = _associatedCamera;
+
+    if (cam->isFixed()) {
+        return true;
+    }
+
+    std::optional<Eigen::MatrixXd> cov;
+
+    cov = sol.getCovarianceBlock({&_fLen, &_fLen});
+    if (cov.has_value()) {
+        floatParameter fLen = cam->optimizedFLen();
+        fLen.setUncertainty(cov.value()(0,0));
+        cam->setOptimizedFLen(fLen);
+    }
+
+    cov = sol.getCovarianceBlock({_principalPoint.data(), _principalPoint.data()});
+    if (cov.has_value()) {
+        floatParameter ppX = cam->optimizedOpticalCenterX();
+        floatParameter ppY = cam->optimizedOpticalCenterY();
+        ppX.setUncertainty(cov.value()(0,0));
+        ppY.setUncertainty(cov.value()(1,1));
+        cam->setOptimizedOpticalCenterX(ppX);
+        cam->setOptimizedOpticalCenterY(ppY);
+    }
+
+    if (cam->useRadialDistortionModel()) {
+
+        cov = sol.getCovarianceBlock({_radialDistortion.data(), _radialDistortion.data()});
+        if (cov.has_value()) {
+            floatParameter K1 = cam->optimizedK1();
+            floatParameter K2 = cam->optimizedK2();
+            floatParameter K3 = cam->optimizedK3();
+            K1.setUncertainty(cov.value()(0,0));
+            K2.setUncertainty(cov.value()(1,1));
+            K3.setUncertainty(cov.value()(2,2));
+            cam->setOptimizedK1(K1);
+            cam->setOptimizedK2(K2);
+            cam->setOptimizedK3(K3);
+        }
+    }
+
+    if (cam->useTangentialDistortionModel()) {
+
+        cov = sol.getCovarianceBlock({_tangentialDistortion.data(), _tangentialDistortion.data()});
+        if (cov.has_value()) {
+            floatParameter P1 = cam->optimizedP1();
+            floatParameter P2 = cam->optimizedP2();
+            P1.setUncertainty(cov.value()(0,0));
+            P2.setUncertainty(cov.value()(1,1));
+            cam->setOptimizedP1(P1);
+            cam->setOptimizedP2(P2);
+        }
+    }
+
+    if (cam->useSkewDistortionModel()) {
+
+        cov = sol.getCovarianceBlock({_skewDistortion.data(), _skewDistortion.data()});
+        if (cov.has_value()) {
+            floatParameter B1 = cam->optimizedB1();
+            floatParameter B2 = cam->optimizedB2();
+            B1.setUncertainty(cov.value()(0,0));
+            B2.setUncertainty(cov.value()(1,1));
+            cam->setOptimizedB1(B1);
+            cam->setOptimizedB2(B2);
+        }
+    }
+
     return true;
 }
 

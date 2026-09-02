@@ -934,6 +934,8 @@ protected:
     InPlaceVector<LeverArmNode, parametersStorageDebug> _leverArmParameters;
     QMap<QPair<qint64,qint64>, int> _leverArmParametersIndex;
 
+    QMap<std::pair<const double*, const double*>, Eigen::MatrixXd> _computedCovariances;
+
     friend class ModularSBASolverIterationCallback;
 };
 

@@ -8,6 +8,20 @@
 
 namespace StereoVisionApp {
 
+struct StochCovEst2DIdx {
+    int i;
+    int j;
+    inline bool operator<(StochCovEst2DIdx const& other) const {
+        if (i == other.i) {
+            return j < other.j;
+        }
+        return i < other.i;
+    }
+    inline bool operator==(StochCovEst2DIdx const& other) const {
+        return i == other.i and  j == other.j;
+    }
+};
+
 template<typename JacMatT, typename SolverT, typename HMatT = Eigen::SparseMatrix<double>,  typename RandomEngineT = std::default_random_engine, bool Robust = false>
 class StochasticCovarianceFromJacobianBootstrapEstimator {
 
@@ -64,19 +78,7 @@ public:
 
     static_assert(SolverTraits<SolverT>::supported, "unsupported solver type!");
 
-    struct Idx {
-        int i;
-        int j;
-        inline bool operator<(Idx const& other) const {
-            if (i == other.i) {
-                return j < other.j;
-            }
-            return i < other.i;
-        }
-        inline bool operator==(Idx const& other) const {
-            return i == other.i and  j == other.j;
-        }
-    };
+    using Idx = StochCovEst2DIdx;
 
     /*!
      * \brief StochasticCovarianceFromHessianEstimator build the  estimator from a solver
@@ -273,19 +275,7 @@ class StochasticCovarianceFromHessianHutchinsonEstimator {
 
 public:
 
-    struct Idx {
-        int i;
-        int j;
-        inline bool operator<(Idx const& other) const {
-            if (i == other.i) {
-                return j < other.j;
-            }
-            return i < other.i;
-        }
-        inline bool operator==(Idx const& other) const {
-            return i == other.i and  j == other.j;
-        }
-    };
+    using Idx = StochCovEst2DIdx;
 
     /*!
      * \brief StochasticCovarianceFromHessianEstimator build the  estimator from a solver
@@ -414,19 +404,7 @@ class StochasticCovarianceFromHessianGaussianHutchinsonEstimator {
 
 public:
 
-    struct Idx {
-        int i;
-        int j;
-        inline bool operator<(Idx const& other) const {
-            if (i == other.i) {
-                return j < other.j;
-            }
-            return i < other.i;
-        }
-        inline bool operator==(Idx const& other) const {
-            return i == other.i and  j == other.j;
-        }
-    };
+    using Idx = StochCovEst2DIdx;
 
     /*!
      * \brief StochasticCovarianceFromHessianEstimator build the  estimator from a solver

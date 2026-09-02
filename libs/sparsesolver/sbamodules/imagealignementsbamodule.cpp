@@ -489,9 +489,104 @@ bool ImageAlignementSBAModule::writeResults(ModularSBASolver* solver) {
 
 }
 
+std::vector<std::pair<const double*, const double*>> ImageAlignementSBAModule::requestUncertainty(
+    ModularSBASolver* solver,
+    ceres::Problem & problem) {
+
+    std::vector<std::pair<const double*, const double*>> ret;
+
+    Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return ret;
+    }
+
+    QVector<qint64> imIdxs = currentProject->getIdsByClass(Image::staticMetaObject.className());
+
+    ret.reserve(2*imIdxs.size());
+
+    for (qint64 imId : imIdxs) {
+
+        Image* im = qobject_cast<Image*>(currentProject->getById(imId));
+
+        if (im == nullptr) {
+            continue;
+        }
+
+        if (im->isFixed()) {
+            continue;
+        }
+
+        ModularSBASolver::PoseNode* im_p = solver->getPoseNode(imId);
+
+        if (problem.HasParameterBlock(im_p->rAxis.data())) {
+            ret.push_back({im_p->rAxis.data(), im_p->rAxis.data()});
+        }
+
+        if (problem.HasParameterBlock(im_p->t.data())) {
+            ret.push_back({im_p->t.data(), im_p->t.data()});
+        }
+
+    }
+
+    return ret;
+
+
+}
+
 bool ImageAlignementSBAModule::writeUncertainty(ModularSBASolver* solver) {
 
-    //Basic data structures are managed by the modular sba solver directly.
+    Project* currentProject = solver->currentProject();
+
+    if (currentProject == nullptr) {
+        return false;
+    }
+
+    QVector<qint64> imIdxs = currentProject->getIdsByClass(Image::staticMetaObject.className());
+
+    for (qint64 imId : imIdxs) {
+
+        Image* im = qobject_cast<Image*>(currentProject->getById(imId));
+
+        if (im == nullptr) {
+            continue;
+        }
+
+        if (im->isFixed()) {
+            continue;
+        }
+
+        ModularSBASolver::PoseNode* im_p = solver->getPoseNode(imId);
+
+        std::optional<Eigen::MatrixXd> covBlockRaxis = solver->getCovarianceBlock({im_p->rAxis.data(),im_p->rAxis.data()});
+
+        if (covBlockRaxis.has_value()) {
+            floatParameterGroup<3> oR = im->optRot();
+            oR.setUncertain();
+            oR.stddev(0,0) = covBlockRaxis.value()(0,0);
+            oR.stddev(1,1) = covBlockRaxis.value()(1,1);
+            oR.stddev(2,2) = covBlockRaxis.value()(2,2);
+            oR.stddev(0,1) = covBlockRaxis.value()(0,1);
+            oR.stddev(1,2) = covBlockRaxis.value()(1,2);
+            oR.stddev(2,0) = covBlockRaxis.value()(2,0);
+            im->setOptRot(oR);
+        }
+
+        std::optional<Eigen::MatrixXd> covBlockT = solver->getCovarianceBlock({im_p->t.data(),im_p->t.data()});
+
+        if (covBlockT.has_value()) {
+            floatParameterGroup<3> oP = im->optPos();
+            oP.setUncertain();
+            oP.stddev(0,0) = covBlockT.value()(0,0);
+            oP.stddev(1,1) = covBlockT.value()(1,1);
+            oP.stddev(2,2) = covBlockT.value()(2,2);
+            oP.stddev(0,1) = covBlockT.value()(0,1);
+            oP.stddev(1,2) = covBlockT.value()(1,2);
+            oP.stddev(2,0) = covBlockT.value()(2,0);
+            im->setOptPos(oP);
+        }
+    }
+
     return true;
 }
 
