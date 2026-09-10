@@ -1709,7 +1709,7 @@ StatusOptionalReturn<Trajectory::GpsData> Trajectory::loadGpsSequences(std::opti
     }
 
     if (rawData.speedSigma.has_value()) {
-        ret.speedSigma = TimeVarianceSequence(std::move(rawData.speedSigma.value()));
+        ret.velocitySigma = TimeVarianceSequence(std::move(rawData.speedSigma.value()));
     }
 
     return ret;

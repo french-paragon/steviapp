@@ -112,7 +112,7 @@ public:
         std::optional<TimeCartesianSequence> position;
         std::optional<TimeCartesianSequence> velocities;
         std::optional<TimeVarianceSequence> posSigma;
-        std::optional<TimeVarianceSequence> speedSigma;
+        std::optional<TimeVarianceSequence> velocitySigma;
     };
 
     struct InsStochasticProcessDef {

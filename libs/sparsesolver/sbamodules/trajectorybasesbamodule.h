@@ -118,12 +118,26 @@ protected:
         double t1,
         double t2,
         double gpsObs_t,
-        double gpsAccuracy,
+        Eigen::Matrix3d const& gpsInfoMatrix,
         int currentGPSNode,
         StereoVision::Geometry::AffineTransform<double> const& world2local,
         ceres::Problem & problem,
         ModularSBASolver* solver,
         bool addLogger);
+
+    StatusOptionalReturn<void> addGpsVelocityObs(ModularSBASolver::TrajectoryNode* trajNode,
+                                                 Trajectory* traj,
+                                                 Trajectory::TimeCartesianSequence const& gpsVelocitySeq,
+                                                 int i,
+                                                 double t1,
+                                                 double t2,
+                                                 double gpsObs_t,
+                                                 Eigen::Matrix3d const& gpsVelocityInfoMatrix,
+                                                 int currentGPSNode,
+                                                 StereoVision::Geometry::AffineTransform<double> const& world2local,
+                                                 ceres::Problem & problem,
+                                                 ModularSBASolver* solver,
+                                                 bool addLogger);
 
     StatusOptionalReturn<void> addGyroObs(
         ModularSBASolver::TrajectoryNode* trajNode,
@@ -1228,6 +1242,7 @@ protected:
     QMap<int, int> _gyroParametersIndex;
 
     double _defaultGpsAccuracy;
+    double _defaultGpsVelocityAccuracy;
     double _defaultOrientAccuracy;
 
     double _defaultAccAccuracy;

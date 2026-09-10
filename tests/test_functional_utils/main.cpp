@@ -21,6 +21,8 @@ private Q_SLOTS:
 
     void testTupleCaller();
 
+    void testGenericDecorators();
+
     void testPoseDecorators();
 
     void testPoseBuilderHelpers();
@@ -29,12 +31,17 @@ private Q_SLOTS:
 
     void testStochasticProcessAggregator();
 
+protected:
+
+    std::default_random_engine _re;
 
 };
 
 void TestFunctionalUtils::initTestCase() {
 
     srand(time(nullptr));
+    std::random_device rd;
+    _re.seed(rd());
 
 }
 
@@ -131,6 +138,43 @@ void TestFunctionalUtils::testTupleCaller() {
 
 }
 
+
+
+void TestFunctionalUtils::testGenericDecorators() {
+
+    constexpr int argsSize = 3;
+    using FiniteDiffFunctor = StereoVisionApp::FiniteDifference<IdentityArgFunctor<argsSize>,argsSize,0>;
+
+    constexpr int nRedos = 10;
+
+    std::uniform_real_distribution<double> random_dist_base(-1,1);
+
+    for (int i = 0; i < nRedos; i++) {
+
+        double dt = 1e-3;
+
+        std::array<double, argsSize> arg1;
+        std::array<double, argsSize> arg2;
+        std::array<double, argsSize> expected;
+
+        for (int i = 0; i < argsSize; i++) {
+            arg1[i] = random_dist_base(_re);
+            arg2[i] = random_dist_base(_re);
+            expected[i] = (arg1[i] - arg2[i])/dt;
+        }
+
+        std::array<double, argsSize> res;
+
+        FiniteDiffFunctor func(dt);
+
+        func(arg1.data(), arg2.data(), res.data());
+
+        for (int i = 0; i < argsSize; i++) {
+            QCOMPARE(res[i], expected[i]);
+        }
+    }
+
+}
 
 void TestFunctionalUtils::testPoseDecorators() {
 
