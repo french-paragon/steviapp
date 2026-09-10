@@ -3,18 +3,19 @@ define_stereovisionapp_lib(TESTUTILS TestUtils)
 set(LIB_SRC
     standardprojectgenerators.cpp
      datablocks/generatedtrajectory.cpp
+     eceftrajectoryinertialinstrumentssimulator.cpp
 )
 
 set(LIB_HEADERS
     standardprojectgenerators.h
     datablocks/generatedtrajectory.h
+    eceftrajectoryinertialinstrumentssimulator.h
 )
 
 add_library(
     ${TESTUTILS_LIB}
     ${LIB_SRC}
     ${LIB_HEADERS}
-    standardprojectgenerators.h standardprojectgenerators.cpp
 )
 
 target_link_libraries(${TESTUTILS_LIB} PUBLIC Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui)
