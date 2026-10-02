@@ -52,6 +52,7 @@ Trajectory::Trajectory(Project* parent) :
 
     _gpsMounting = -1;
     _insMounting = -1;
+    _stabMounting = -1;
 
     _separators.clear();
     _separators.push_back(",");
@@ -75,6 +76,7 @@ Trajectory::Trajectory(Project* parent) :
     _orientationDefinition.orient_x_col = -1;
     _orientationDefinition.orient_y_col = -1;
     _orientationDefinition.orient_z_col = -1;
+    _orientationDefinition.orient_w_col = -1;
 
     _orientationDefinition.timeDelta = 0;
     _orientationDefinition.timeScale = 1;
@@ -93,6 +95,7 @@ Trajectory::Trajectory(Project* parent) :
     _angularSpeedDefinition.w_x_col = -1;
     _angularSpeedDefinition.w_y_col = -1;
     _angularSpeedDefinition.w_z_col = -1;
+    _angularSpeedDefinition.w_w_col = -1;
 
     _angularSpeedDefinition.timeDelta = 0;
     _angularSpeedDefinition.timeScale = 1;
@@ -129,6 +132,16 @@ Trajectory::Trajectory(Project* parent) :
     _gpsDefinition.cov_speed_xy_col = -1;
     _gpsDefinition.cov_speed_yz_col = -1;
     _gpsDefinition.cov_speed_zx_col = -1;
+
+    _stabilizationAnglesFile = "";
+    _stabilizationAnglesDefinition.orient_t_col = -1;
+    _stabilizationAnglesDefinition.orient_x_col = -1;
+    _stabilizationAnglesDefinition.orient_y_col = -1;
+    _stabilizationAnglesDefinition.orient_z_col = -1;
+    _stabilizationAnglesDefinition.orient_w_col = -1;
+
+    _stabilizationAnglesDefinition.timeDelta = 0;
+    _stabilizationAnglesDefinition.timeScale = 1;
 
     extendDataModel();
 

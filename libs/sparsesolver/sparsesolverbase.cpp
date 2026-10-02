@@ -6,7 +6,8 @@ namespace StereoVisionApp {
 
 SparseSolverBase::SparseSolverBase(Project *p, QObject *parent) :
 	SteppedProcess(parent),
-	_currentProject(p)
+    _currentProject(p),
+    _n_step(1)
 {
 
 }

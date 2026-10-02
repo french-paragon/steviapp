@@ -59,15 +59,15 @@ protected:
 
 ModularSBASolver::ModularSBASolver(Project *p, bool computeUncertainty, int solver_type, bool verbose, QObject *parent) :
     SparseSolverBase(p, parent),
-    _compute_marginals(computeUncertainty),
-    _solver_type(solver_type),
     _silent(false),
     _verbose(verbose),
-    _loggingDir(""),
+    _compute_marginals(computeUncertainty),
+    _funcTolerance(1e-8),
+    _paramsTolerance(1e-10),
+    _solver_type(solver_type),
     _problem(nullptr),
     _covariance(nullptr),
-    _funcTolerance(1e-8),
-    _paramsTolerance(1e-10)
+    _loggingDir("")
 {
 
     setObjectName("ModularSBASolver");

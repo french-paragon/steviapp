@@ -265,6 +265,7 @@ void TestSBASolver::configureStandardTrajectory(StereoVisionApp::Trajectory* tra
     traj->setOrientationSign(StereoVisionApp::Trajectory::Axis::X, 1);
     traj->setOrientationSign(StereoVisionApp::Trajectory::Axis::Y, 1);
     traj->setOrientationSign(StereoVisionApp::Trajectory::Axis::Z, 1);
+    traj->setOrientationSign(StereoVisionApp::Trajectory::Axis::W, 1);
 
     traj->setAccelerometerFile(ins);
     traj->setAccelerometerId(0);
@@ -290,9 +291,11 @@ void TestSBASolver::configureStandardTrajectory(StereoVisionApp::Trajectory* tra
     traj->setGyroColumn(StereoVisionApp::Trajectory::Axis::X,4);
     traj->setGyroColumn(StereoVisionApp::Trajectory::Axis::Y,5);
     traj->setGyroColumn(StereoVisionApp::Trajectory::Axis::Z,6);
+    traj->setGyroColumn(StereoVisionApp::Trajectory::Axis::W,-1);
     traj->setGyroSign(StereoVisionApp::Trajectory::Axis::X, 1);
     traj->setGyroSign(StereoVisionApp::Trajectory::Axis::Y, 1);
     traj->setGyroSign(StereoVisionApp::Trajectory::Axis::Z, 1);
+    traj->setGyroSign(StereoVisionApp::Trajectory::Axis::W, 1);
 
     traj->setPreIntegrationTime(0.1);
     traj->setGpsAccuracy(0.02);
@@ -1633,6 +1636,9 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
     gpsCache.position->reserve(nSamplesGps);
     /*gpsCache.velocities = std::vector<StereoVisionApp::Trajectory::TimeCartesianBlock>();
     gpsCache.velocities->reserve(nSamplesGps);*/
+    gpsCache.velocities = std::nullopt;
+    gpsCache.posSigma = std::nullopt;
+    gpsCache.speedSigma = std::nullopt;
 
     gyroCache.reserve(nSamples);
     accCache.reserve(nSamples);
@@ -1653,10 +1659,10 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
             orientCache.push_back(StereoVisionApp::Trajectory::TimeCartesianBlock{.time=currentT,.val=orient});
 
             Eigen::Vector3d gps = staticTrajSimulator.gps(currentT);
-            Eigen::Vector3d gpsVelocity = staticTrajSimulator.gpsVelocity(currentT);
+            //Eigen::Vector3d gpsVelocity = staticTrajSimulator.gpsVelocity(currentT);
 
             gpsCache.position->push_back(StereoVisionApp::Trajectory::TimeCartesianBlock{.time=currentT,.val=gps});
-            gpsCache.velocities->push_back(StereoVisionApp::Trajectory::TimeCartesianBlock{.time=currentT,.val=gpsVelocity});
+            //gpsCache.velocities->push_back(StereoVisionApp::Trajectory::TimeCartesianBlock{.time=currentT,.val=gpsVelocity});
         }
         Eigen::Vector3d gyro = staticTrajSimulator.gyro(currentT);
         Eigen::Vector3d acc = staticTrajSimulator.acc(currentT);
@@ -1689,6 +1695,7 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
     sbaSolver.setSilent(true);
     sbaSolver.setFuncTolerance(1e-8);
     sbaSolver.setParamsTolerance(1e-10);
+    sbaSolver.setOptimizationSteps(1);
 
     StereoVisionApp::TrajectoryBaseSBAModule* trajSBAModule =
         new StereoVisionApp::TrajectoryBaseSBAModule(traj->getPreIntegrationTime());

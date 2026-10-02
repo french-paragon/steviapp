@@ -158,6 +158,18 @@ std::optional<StereoVision::Geometry::AffineTransform<T>> getLTPC2ECEF(Eigen::Ma
 
     const char* wgs84_ecef = "EPSG:4978";
 
+    if (crs == wgs84_ecef) { //proj_create_crs_to_crs segfault sometimes when they are the same
+
+        StereoVision::Geometry::AffineTransform<T> transform;
+
+        transform.t = inputCoord;
+
+        transform.R = localFrame2ECEFFromECEF(transform.t, topocentricConventions);
+
+        return transform;
+
+    }
+
     PJ_CONTEXT* ctx = proj_context_create();
 
     PJ* toEcef = proj_create_crs_to_crs(ctx, crs.c_str(), wgs84_ecef, nullptr);

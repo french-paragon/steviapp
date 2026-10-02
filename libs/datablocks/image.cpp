@@ -36,7 +36,8 @@ QString Image::ImageMatchBuilder::targetTitle() const {
 Image::Image(Project *parent) :
     RigidBody(parent),
     _assignedCamera(-1),
-    _assignedTrajectory(-1)
+    _assignedTrajectory(-1),
+    _assignedMounting(-1)
 {
 	extendDataModel();
 }
@@ -582,7 +583,9 @@ void Image::extendDataModel() {
 
 }
 
-ImageLandmark::ImageLandmark(Image* parent) : DataBlock(parent)
+ImageLandmark::ImageLandmark(Image* parent) :
+    DataBlock(parent),
+    _attachedLandmarkId(-1)
 {
 	connect(this, &ImageLandmark::xCoordChanged, this, &ImageLandmark::coordsChanged);
 	connect(this, &ImageLandmark::yCoordChanged, this, &ImageLandmark::coordsChanged);

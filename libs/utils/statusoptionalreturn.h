@@ -48,6 +48,10 @@ public:
         return _val.value();
     }
 
+    inline R_T const& value() const {
+        return _val.value();
+    }
+
     inline const char* errorMessage() const {
         return _error_msg.c_str();
     }
