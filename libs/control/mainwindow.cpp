@@ -339,6 +339,14 @@ void MainWindow::configureProjectWindowsMenu() {
 
     ui->menuproject->addAction(setProjectDefaultCRS);
 
+    QAction* setProjectLocalFrame = new QAction(tr("Set project default local frame"), this);
+
+    connect(setProjectLocalFrame, &QAction::triggered, this, [this] () {
+        setLocalCoordinateSystem(_activeProject);
+    });
+
+    ui->menuproject->addAction(setProjectLocalFrame);
+
 	ui->menuproject->setEnabled(true);
 
 }

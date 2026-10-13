@@ -5,6 +5,8 @@
 
 #include "geo/localframes.h"
 
+#include "gui/inputsWidgets/rigidbodytransforminputwidget.h"
+
 #include "mainwindow.h"
 
 #include <QInputDialog>
@@ -109,6 +111,36 @@ bool estimateLocalCoordinateSystem(Project* p) {
     p->setLocalCoordinateFrame(Geo::getLocalCartesianFrameOnSphere<float>(mean, minDist).cast<double>());
 
     return true;
+}
+
+bool setLocalCoordinateSystem(Project* p) {
+
+    if (p == nullptr) {
+        return false;
+    }
+
+    StereoVision::Geometry::AffineTransform<double> transform(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
+
+    if (p->hasLocalCoordinateFrame()) {
+        transform = p->ecef2local();
+    }
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (mw != nullptr) {
+        auto transformOpt = RigidBodyTransformInputDialog::inputAffineTransform(RigidBodyTransformInputDialog::tr("Ecef to Local project frame"), mw, transform);
+
+        if (!transformOpt.has_value()) {
+            return true; //user canceled
+        }
+
+        transform = transformOpt.value();
+    }
+
+    p->setLocalCoordinateFrame(transform);
+
+    return true;
+
 }
 
 } //namespace StereoVisionApp
