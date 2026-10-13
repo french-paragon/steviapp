@@ -694,8 +694,9 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
             }
 
             //gps velocity observations
-            if (i > 0 and optGpsVelocity.has_value()) {
+            if (i > 1 and optGpsVelocity.has_value()) {
 
+                double t0 = trajNode->nodes[i-2].time;
                 double t1 = trajNode->nodes[i-1].time;
                 double t2 = trajNode->nodes[i].time;
 
@@ -723,13 +724,14 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
                     Eigen::Matrix3d weightMatrix = choleskyDecomposition.solve(Eigen::Matrix3d::Identity());
                     auto choleskyDecompositionWeight = weightMatrix.llt();
 
-                    if (gpsVelocityObs_t <= t2) { // GPS observation between  trajectory nodes
+                    if (gpsVelocityObs_t <= (t1+t2)/2) { // GPS observation between  trajectory nodes
 
                         addGpsVelocityObs(
                             trajNode,
                             traj,
                             optGpsVelocity.value(),
                             i,
+                            t0,
                             t1,
                             t2,
                             gpsVelocityObs_t,
@@ -1164,7 +1166,30 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addGpsVelocityObs(
     ModularSBASolver* solver,
     bool addLogger) {
 
-    double dt = t2-t1;
+    double dt01 = t1-t0;
+    double dt12 = t2-t1;
+
+    double scale1 = 1/dt01;
+    double scale2 = 1/dt12;
+
+    double t0_w1 = -scale1;
+    double t1_w1 = scale1;
+    double t1_w2 = -scale2;
+    double t2_w2 = scale2;
+
+    double t05 = (t0+t1)/2;
+    double t15 = (t1+t2)/2;
+
+    double dt = t15-t05;
+
+    double t05_w1 = (gpsVelocityObs_t-t05)/dt;
+    double t15_w2 = (t15-gpsVelocityObs_t)/dt;
+
+    double w0 = t0_w1*t05_w1;
+    double w1 = t1_w1*t05_w1 + t1_w2*t15_w2;
+    double w2 = t2_w2*t15_w2;
+
+    std::array<double, 3> weights{w0,w1,w2};
 
     Eigen::Vector3d vec;
 
@@ -1216,24 +1241,31 @@ StatusOptionalReturn<void> TrajectoryBaseSBAModule::addGpsVelocityObs(
                                  params.size());
 
         if (addLogger) {
-            InterpolatedLeverArmVelocityGPSPrior* velocityError = new InterpolatedLeverArmVelocityGPSPrior(dt, Eigen::Matrix3d::Identity(), vec);
+            InterpolatedLeverArmVelocityGPSPrior* velocityError = new InterpolatedLeverArmVelocityGPSPrior(weights, Eigen::Matrix3d::Identity(), vec);
 
-            ceres::AutoDiffCostFunction<InterpolatedLeverArmVelocityGPSPrior, 3,3,3,3,3,3,3>*  velocityErrorCost =
-                new ceres::AutoDiffCostFunction<InterpolatedLeverArmVelocityGPSPrior, 3,3,3,3,3,3,3>(velocityError);
+            ceres::AutoDiffCostFunction<InterpolatedLeverArmVelocityGPSPrior, 3,3,3,3,3,3,3,3,3>*  velocityErrorCost =
+                new ceres::AutoDiffCostFunction<InterpolatedLeverArmVelocityGPSPrior, 3,3,3,3,3,3,3,3,3>(velocityError);
 
             QString loggerName = QString("GPS velocity \"%1\" time %2").arg(traj->objectName()).arg(gpsVelocityObs_t, 0, 'f', 2);
-            solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<6,3>(velocityErrorCost, params, true));
+            solver->addLogger(loggerName, new ModularSBASolver::AutoErrorBlockLogger<8,3>(velocityErrorCost, params, true));
         }
 
     } else {
 
-        VelocityCostFunctor* velocityPrior = new VelocityCostFunctor(dt, gpsVelocityInfoMatrix, vec);
+        constexpr int argsSize = 3;
+        using InterpolatedLeverArmVelocityGPSPrior =
+            WeightedParamsSum<
+            AddParam<AddParam<VelocityCostFunctor,1>,2>
+            , argsSize, 0, 1, 2>;
 
-        ceres::AutoDiffCostFunction<VelocityCostFunctor, 3,3,3>*  velocityPriorCost =
-            new ceres::AutoDiffCostFunction<VelocityCostFunctor, 3,3,3>(velocityPrior);
+        InterpolatedLeverArmVelocityGPSPrior* velocityPrior = new InterpolatedLeverArmVelocityGPSPrior(weights, gpsVelocityInfoMatrix, vec);
+
+        ceres::AutoDiffCostFunction<InterpolatedLeverArmVelocityGPSPrior, 3,3,3,3>*  velocityPriorCost =
+            new ceres::AutoDiffCostFunction<InterpolatedLeverArmVelocityGPSPrior, 3,3,3,3>(velocityPrior);
 
 
-        ModularSBASolver::AutoErrorBlockLogger<2,3>::ParamsType params = {trajNode->nodes[i-1].t.data(),
+        ModularSBASolver::AutoErrorBlockLogger<3,3>::ParamsType params = {trajNode->nodes[i-2].t.data(),
+                                                                           trajNode->nodes[i-1].t.data(),
                                                                            trajNode->nodes[i].t.data()};
 
         problem.AddResidualBlock(velocityPriorCost, nullptr,

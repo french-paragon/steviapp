@@ -8,7 +8,10 @@ class TestIndexedTimeSequence: public QObject
 private Q_SLOTS:
     void testIndexTimePerStep();
     void testGetValueAtTime();
+    void testGetValuesCoveringTimes();
     void testGetValuesInBetweenTimes();
+    void testGetValuesInBetweenTimesSymmetry();
+    void testGetValuesForIntegration();
 };
 
 void TestIndexedTimeSequence::testIndexTimePerStep() {
@@ -86,6 +89,97 @@ void TestIndexedTimeSequence::testGetValueAtTime() {
 
 }
 
+void TestIndexedTimeSequence::testGetValuesCoveringTimes() {
+
+    using TimedElement = StereoVisionApp::IndexedTimeSequence<double>::TimedElement;
+
+    std::vector<TimedElement> data = {{.time = 0., .val = 0.},
+                                      {.time = 1.3, .val = 0.},
+                                      {.time = 2., .val = 0.},
+                                      {.time = 3., .val = 10.},
+                                      {.time = 4., .val = 10.},
+                                      {.time = 5.5, .val = 15.},
+                                      {.time = 6., .val = 11.},
+                                      {.time = 8., .val = 10.}};
+
+    StereoVisionApp::IndexedTimeSequence<double> sequence(data);
+
+    double t0;
+    double tf;
+
+    //forward direction
+
+    t0 = -2.5;
+    tf = 1.5;
+
+    auto elements = sequence.getValuesCoveringTimes(t0,tf);
+
+    QCOMPARE(elements.size(), 3);
+    for (int i = 0; i < 3; i++) {
+        QCOMPARE(elements[i].time, data[i].time);
+        QCOMPARE(elements[i].val, data[i].val);
+    }
+
+    t0 = 1.7;
+    tf = 4.1;
+
+    elements = sequence.getValuesCoveringTimes(t0,tf);
+
+    QCOMPARE(elements.size(), 5);
+    for (int i = 0; i < 5; i++) {
+        QCOMPARE(elements[i].time, data[i+1].time);
+        QCOMPARE(elements[i].val, data[i+1].val);
+    }
+
+
+    t0 = 5.6;
+    tf = 9;
+
+    elements = sequence.getValuesCoveringTimes(t0,tf);
+
+    QCOMPARE(elements.size(), 3);
+    for (int i = 0; i < 3; i++) {
+        QCOMPARE(elements[i].time, data[i+5].time);
+        QCOMPARE(elements[i].val, data[i+5].val);
+    }
+
+    //backward direction
+
+
+    t0 = 1.5;
+    tf = -2.5;
+
+    elements = sequence.getValuesCoveringTimes(t0,tf);
+
+    QCOMPARE(elements.size(), 3);
+    for (int i = 0; i < 3; i++) {
+        QCOMPARE(elements[i].time, data[2-i].time);
+        QCOMPARE(elements[i].val, data[2-i].val);
+    }
+
+    t0 = 5.3;
+    tf = 1.9;
+
+    elements = sequence.getValuesCoveringTimes(t0,tf);
+
+    QCOMPARE(elements.size(), 5);
+    for (int i = 0; i < 5; i++) {
+        QCOMPARE(elements[i].time, data[5-i].time);
+        QCOMPARE(elements[i].val, data[5-i].val);
+    }
+
+    t0 = 9;
+    tf = 5.6;
+
+    elements = sequence.getValuesCoveringTimes(t0,tf);
+
+    QCOMPARE(elements.size(), 3);
+    for (int i = 0; i < 3; i++) {
+        QCOMPARE(elements[i].time, data[7-i].time);
+        QCOMPARE(elements[i].val, data[7-i].val);
+    }
+
+}
 
 void TestIndexedTimeSequence::testGetValuesInBetweenTimes() {
 
@@ -190,6 +284,103 @@ void TestIndexedTimeSequence::testGetValuesInBetweenTimes() {
 
     QCOMPARE(dt, tf-t0);
 
+}
+
+void TestIndexedTimeSequence::testGetValuesInBetweenTimesSymmetry() {
+
+    using TimedElement = StereoVisionApp::IndexedTimeSequence<double>::TimedElement;
+
+    std::vector<TimedElement> data = {{.time = 0., .val = 0.},
+                                      {.time = 1., .val = 0.},
+                                      {.time = 2., .val = 0.},
+                                      {.time = 3., .val = 10.},
+                                      {.time = 4., .val = 10.}};
+
+    double t0 = 1.00001;
+    double tf = 2.99999;
+    double dt;
+
+    StereoVisionApp::IndexedTimeSequence<double> sequence(data);
+
+    auto elements = sequence.getValuesInBetweenTimes(t0,tf);
+    auto elementsRev = sequence.getValuesInBetweenTimes(tf,t0);
+
+    dt = 0;
+    for (size_t i = 0; i < elements.size(); i++) {
+        dt += elements[i].dt;
+        QVERIFY(dt >= 0);
+    }
+
+    QCOMPARE(dt, tf-t0);
+
+    dt = 0;
+    for (size_t i = 0; i < elementsRev.size(); i++) {
+        dt += elementsRev[i].dt;
+        QVERIFY(dt <= 0);
+    }
+
+    QCOMPARE(-dt, tf-t0);
+
+    double sum = 0;
+    double sumRev = 0;
+
+    for (size_t i = 0; i < elements.size(); i++) {
+        sum += elements[i].val*elements[i].dt;
+    }
+
+    for (size_t i = 0; i < elementsRev.size(); i++) {
+        sumRev += elementsRev[i].val*elementsRev[i].dt;
+    }
+
+    double delta = sum + sumRev; //compute the closure assuming sum should approximately equal -sumRev;
+
+    QVERIFY(std::abs(delta) < 1e-3);
+
+}
+
+void TestIndexedTimeSequence::testGetValuesForIntegration() {
+
+    using TimedElement = StereoVisionApp::IndexedTimeSequence<double>::TimedElement;
+
+    constexpr double val = 42.;
+
+    std::vector<TimedElement> data = {{.time = 0., .val = val},
+                                      {.time = 1., .val = val},
+                                      {.time = 2., .val = val},
+                                      {.time = 3., .val = val},
+                                      {.time = 4., .val = val}};
+
+    StereoVisionApp::IndexedTimeSequence<double> sequence(data);
+
+
+    double t0 = 1.00001;
+    double tf = 2.99999;
+    double dt = tf-t0;
+
+    double sum = 0;
+
+    auto elements = sequence.getValuesInBetweenTimes(t0,tf);
+
+    for (size_t i = 0; i < elements.size(); i++) {
+        sum += elements[i].val*elements[i].dt;
+    }
+
+    QCOMPARE(sum, dt*val);
+
+
+    t0 = 3.2;
+    tf = 0.5;
+    dt = tf-t0;
+
+    sum = 0;
+
+    elements = sequence.getValuesInBetweenTimes(t0,tf);
+
+    for (size_t i = 0; i < elements.size(); i++) {
+        sum += elements[i].val*elements[i].dt;
+    }
+
+    QCOMPARE(sum, dt*val);
 }
 
 QTEST_MAIN(TestIndexedTimeSequence)

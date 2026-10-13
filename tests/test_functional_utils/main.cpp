@@ -145,10 +145,14 @@ void TestFunctionalUtils::testGenericDecorators() {
     constexpr int argsSize = 3;
     using FiniteDiffFunctor = StereoVisionApp::FiniteDifference<IdentityArgFunctor<argsSize>,argsSize,0>;
 
+    constexpr int nWeights = 3;
+    using WeightSumFunctor = StereoVisionApp::WeightedParamsSum<StereoVisionApp::AddParam<StereoVisionApp::AddParam<IdentityArgFunctor<argsSize>,1>,2>,argsSize,0,1,2>;
+
     constexpr int nRedos = 10;
 
     std::uniform_real_distribution<double> random_dist_base(-1,1);
 
+    //finite difference
     for (int i = 0; i < nRedos; i++) {
 
         double dt = 1e-3;
@@ -168,6 +172,38 @@ void TestFunctionalUtils::testGenericDecorators() {
         FiniteDiffFunctor func(dt);
 
         func(arg1.data(), arg2.data(), res.data());
+
+        for (int i = 0; i < argsSize; i++) {
+            QCOMPARE(res[i], expected[i]);
+        }
+    }
+
+    //weighted sum
+    for (int i = 0; i < nRedos; i++) {
+
+        double dt = 1e-3;
+
+        std::array<double, nWeights> weights;
+        std::array<double, argsSize> arg1;
+        std::array<double, argsSize> arg2;
+        std::array<double, argsSize> arg3;
+        std::array<double, argsSize> expected;
+
+        for (int i = 0; i < nWeights; i++) {
+            weights[i] = random_dist_base(_re);
+        }
+        for (int i = 0; i < argsSize; i++) {
+            arg1[i] = random_dist_base(_re);
+            arg2[i] = random_dist_base(_re);
+            arg3[i] = random_dist_base(_re);
+            expected[i] = weights[0]*arg1[i] + weights[1]*arg2[i] + weights[2]*arg3[i];
+        }
+
+        std::array<double, argsSize> res;
+
+        WeightSumFunctor func(weights);
+
+        func(arg1.data(), arg2.data(), arg3.data(), res.data());
 
         for (int i = 0; i < argsSize; i++) {
             QCOMPARE(res[i], expected[i]);

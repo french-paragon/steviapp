@@ -223,6 +223,63 @@ public:
     }
 
     /*!
+     * \brief getValuesCoveringTimes return the nodes whith a timestep in a given internal, plus the node just before and just after.
+     * \param t0 the initial time
+     * \param tf the final time
+     * \return a vector of timed element, sorted from earliest to latest if t0 < tf, latest to earliest if t0 > tf and either if t0 = tf.
+     */
+    std::vector<TimedElement> getValuesCoveringTimes(TimeT t0, TimeT tf) const {
+
+        double t_0 = std::min(t0, tf);
+        double t_f = std::max(t0, tf);
+
+
+        double deltaT = indexTimePerStep();
+        double localT0 = t_0 - _initialTime;
+
+        int initialIndexIdx = static_cast<int>(std::floor(localT0/deltaT));
+
+        if (initialIndexIdx < 0) {
+            initialIndexIdx = 0;
+        }
+
+        int initialSearchIdx = (*_indicesFromTimeIntervals)[initialIndexIdx];
+
+        initialSearchIdx = std::max(0, initialSearchIdx-1);
+
+        int finalIndex = initialSearchIdx;
+
+        while (finalIndex < _sequence->size()-1 and (*_sequence)[finalIndex].time < t_f) {
+            finalIndex++;
+        }
+
+        int initialIndex = finalIndex;
+
+        while (initialIndex > 0 and (*_sequence)[initialIndex].time > t_0) {
+            initialIndex--;
+        }
+
+        //now all the elements we need to return as differentials are within initialIndex and finalIndex
+        if (finalIndex == initialIndex) {
+            return std::vector<TimedElement>{(*_sequence)[initialIndex]}; //only one element to return
+        }
+
+        int n = finalIndex - initialIndex + 1;
+        std::vector<TimedElement> ret(n);
+
+        for (int i = 0; i < n; i++) {
+            ret[i] = (*_sequence)[initialIndex+i];
+        }
+
+        if (t0 > tf) {
+            std::reverse(ret.begin(), ret.end());
+        }
+
+        return ret;
+
+    }
+
+    /*!
      * \brief getValuesInBetweenTimes compute a set of differential objects that can be sumed to integrate the time sequence
      * \param t0 the integral lower bound time
      * \param tf the integral upper bound time
@@ -242,64 +299,43 @@ public:
                 return std::vector<Differential>{Differential{tf - t0, _sequence->front().val}};
             }
 
-            double deltaT = indexTimePerStep();
-            double localTf = tf - _initialTime;
+            std::vector<TimedElement> elements = getValuesCoveringTimes(t0, tf);
 
-            int initialIndexIdx = static_cast<int>(std::floor(localTf/deltaT));
-
-            if (initialIndexIdx < 0) {
-                initialIndexIdx = 0;
+            if (elements.size() <= 1) {
+                return std::vector<Differential>{Differential{tf - t0, elements[0].val}};
             }
 
-            int initialSearchIdx = (*_indicesFromTimeIntervals)[initialIndexIdx];
+            int nElements = elements.size();
 
-            initialSearchIdx = std::max(0, initialSearchIdx-1);
+            std::vector<Differential> ret;
+            ret.reserve(nElements);
 
-            int finalIndex = initialSearchIdx;
+            for (int i = 0; i < elements.size(); i++) {
 
-            while (finalIndex < _sequence->size() and (*_sequence)[finalIndex].time < tf) {
-                finalIndex++;
-            }
+                double ts = (elements[i].time+elements[std::max(0,i-1)].time)/2;
+                double te = (elements[i].time+elements[std::min(nElements-1,i+1)].time)/2;
 
-            int initialIndex = finalIndex;
-
-            while (initialIndex < _sequence->size() and (*_sequence)[initialIndex].time < t0) {
-                initialIndex++;
-            }
-
-            //now all the elements we need to return as differentials are within initialIndex and finalIndex
-            if (finalIndex == initialIndex) {
-                return std::vector<Differential>{Differential{tf - t0, (*_sequence)[initialIndex].val}};
-            }
-
-            int nElements = std::abs(finalIndex - initialIndex) + 1;
-            double t = t0;
-
-            int currentIndex = initialIndex;
-
-            std::vector<Differential> ret(nElements);
-
-            for (int i = 0; i < nElements; i++) {
-
-                if (currentIndex-1 < 0) {
-                    ret[i] = Differential{tf - t, (*_sequence)[currentIndex].val};
-                    break;
+                if (i == 0) {
+                    if (t0 <= te) {
+                        continue;
+                    }
+                    ts = t0;
+                } else {
+                    ts = std::min(ts, t0);
                 }
 
-                if ((*_sequence)[currentIndex-1].time < tf) {
-                    ret[i] = Differential{tf - t, (*_sequence)[currentIndex].val};
-                    break;
+                if (i == elements.size()-1) {
+                    if (tf >= ts) {
+                        continue;
+                    }
+                    te = tf;
+                } else {
+                    te = std::max(te, tf);
                 }
 
-                TimeT dt = tf - t;
-                if (currentIndex > finalIndex) {
-                    dt = (*_sequence)[currentIndex-1].time - t;
-                }
+                double dt_local = te-ts;
 
-                ret[i] = Differential{dt, (*_sequence)[currentIndex].val};
-
-                t = (*_sequence)[currentIndex-1].time;
-                currentIndex--;
+                ret.push_back(Differential{.dt=dt_local, .val=elements[i].val});
             }
 
             return ret;
@@ -313,69 +349,43 @@ public:
             return std::vector<Differential>{Differential{tf - t0, _sequence->front().val}};
         }
 
-        double deltaT = indexTimePerStep();
-        double localT0 = t0 - _initialTime;
+        std::vector<TimedElement> elements = getValuesCoveringTimes(t0, tf);
 
-        int initialIndexIdx = static_cast<int>(std::floor(localT0/deltaT));
-
-        if (initialIndexIdx < 0) {
-            initialIndexIdx = 0;
+        if (elements.size() <= 1) {
+            return std::vector<Differential>{Differential{tf - t0, elements[0].val}};
         }
 
-        int initialSearchIdx = (*_indicesFromTimeIntervals)[initialIndexIdx];
+        int nElements = elements.size();
 
-        initialSearchIdx = std::max(0, initialSearchIdx-1);
+        std::vector<Differential> ret;
+        ret.reserve(nElements);
 
-        int initialIndex = initialSearchIdx;
+        for (int i = 0; i < elements.size(); i++) {
 
-        while (initialIndex < _sequence->size() and (*_sequence)[initialIndex].time < t0) {
-            initialIndex++;
-        }
+            double ts = (elements[i].time+elements[std::max(0,i-1)].time)/2;
+            double te = (elements[i].time+elements[std::min(nElements-1,i+1)].time)/2;
 
-        int finalIndex = initialIndex;
-
-        while (finalIndex < _sequence->size() and (*_sequence)[finalIndex].time < tf) {
-            finalIndex++;
-        }
-
-        if (initialIndex > 0) {
-            initialIndex--;
-            finalIndex--;
-        }
-
-        //now all the elements we need to return as differentials are within initialIndex and finalIndex
-        if (finalIndex == initialIndex) {
-            return std::vector<Differential>{Differential{tf - t0, (*_sequence)[initialIndex].val}};
-        }
-
-        int nElements = finalIndex - initialIndex + 1;
-        double t = t0;
-
-        int currentIndex = initialIndex;
-
-        std::vector<Differential> ret(nElements);
-
-        for (int i = 0; i < nElements; i++) {
-
-            if (currentIndex+1 > _sequence->size()) {
-                ret[i] = Differential{tf - t, (*_sequence)[currentIndex].val};
-                break;
+            if (i == 0) {
+                if (t0 >= te) {
+                    continue;
+                }
+                ts = t0;
+            } else {
+                ts = std::max(ts, t0);
             }
 
-            if ((*_sequence)[currentIndex+1].time > tf) {
-                ret[i] = Differential{tf - t, (*_sequence)[currentIndex].val};
-                break;
+            if (i == elements.size()-1) {
+                if (tf <= ts) {
+                    continue;
+                }
+                te = tf;
+            } else {
+                te = std::min(te, tf);
             }
 
-            TimeT dt = tf - t;
-            if (currentIndex < finalIndex) {
-                dt = (*_sequence)[currentIndex+1].time - t;
-            }
+            double dt_local = te-ts;
 
-            ret[i] = Differential{dt, (*_sequence)[currentIndex].val};
-
-            t = (*_sequence)[currentIndex+1].time;
-            currentIndex++;
+            ret.push_back(Differential{.dt=dt_local, .val=elements[i].val});
         }
 
         return ret;

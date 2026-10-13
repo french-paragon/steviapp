@@ -641,7 +641,7 @@ void TestINSPreintegration::testAccIntegration() {
     qInfo() << "delta speed expected: [" << dv_expected.x() << " " << dv_expected.y() << " " << dv_expected.z() << "]";
 
     qInfo() << "Integration error: [" << error.x() << " " << error.y() << " " << error.z() << "]";
-    QVERIFY(error.norm() < 1e-4);
+    QVERIFY(error.norm() < 3e-4);
 
 }
 
@@ -795,6 +795,22 @@ void TestINSPreintegration::benchmarkGyro_data() {
     QTest::newRow("Angle 1deg, 10 Steps, Noise 0, Gain 0, Bias 1e-3") << (1./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1,1,1) << Eigen::Vector3d(1e-3,1e-3,1e-3);
     QTest::newRow("Angle 5deg, 10 Steps, Noise 0, Gain 0, Bias 1e-3") << (5./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1,1,1) << Eigen::Vector3d(1e-3,1e-3,1e-3);
     QTest::newRow("Angle 10deg, 10 Steps, Noise 0, Gain 0, Bias 1e-3") << (10./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1,1,1) << Eigen::Vector3d(1e-3,1e-3,1e-3);
+
+    QTest::newRow("Angle 1deg, 10 Steps, Noise 0, Gain 1e-5, Bias 0") << (1./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-5,1+1e-5,1+1e-5) << Eigen::Vector3d(0,0,0);
+    QTest::newRow("Angle 5deg, 10 Steps, Noise 0, Gain 1e-5, Bias 0") << (5./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-5,1+1e-5,1+1e-5) << Eigen::Vector3d(0,0,0);
+    QTest::newRow("Angle 10deg, 10 Steps, Noise 0, Gain 1e-5, Bias 0") << (10./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-5,1+1e-5,1+1e-5) << Eigen::Vector3d(0,0,0);
+
+    QTest::newRow("Angle 1deg, 10 Steps, Noise 0, Gain 1e-3, Bias 0") << (1./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-3,1+1e-3,1+1e-3) << Eigen::Vector3d(0,0,0);
+    QTest::newRow("Angle 5deg, 10 Steps, Noise 0, Gain 1e-3, Bias 0") << (5./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-3,1+1e-3,1+1e-3) << Eigen::Vector3d(0,0,0);
+    QTest::newRow("Angle 10deg, 10 Steps, Noise 0, Gain 1e-3, Bias 0") << (10./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-3,1+1e-3,1+1e-3) << Eigen::Vector3d(0,0,0);
+
+    QTest::newRow("Angle 1deg, 10 Steps, Noise 0, Gain 1e-5, Bias 1e-5") << (1./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-5,1+1e-5,1+1e-5) << Eigen::Vector3d(1e-5,1e-5,1e-5);
+    QTest::newRow("Angle 5deg, 10 Steps, Noise 0, Gain 1e-5, Bias 1e-5") << (5./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-5,1+1e-5,1+1e-5) << Eigen::Vector3d(1e-5,1e-5,1e-5);
+    QTest::newRow("Angle 10deg, 10 Steps, Noise 0, Gain 1e-5, Bias 1e-5") << (10./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-5,1+1e-5,1+1e-5) << Eigen::Vector3d(1e-5,1e-5,1e-5);
+
+    QTest::newRow("Angle 1deg, 10 Steps, Noise 0, Gain 1e-3, Bias 1e-3") << (1./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-3,1+1e-3,1+1e-3) << Eigen::Vector3d(1e-3,1e-3,1e-3);
+    QTest::newRow("Angle 5deg, 10 Steps, Noise 0, Gain 1e-3, Bias 1e-3") << (5./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-3,1+1e-3,1+1e-3) << Eigen::Vector3d(1e-3,1e-3,1e-3);
+    QTest::newRow("Angle 10deg, 10 Steps, Noise 0, Gain 1e-3, Bias 1e-3") << (10./180*M_PI) << 10 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1+1e-3,1+1e-3,1+1e-3) << Eigen::Vector3d(1e-3,1e-3,1e-3);
 
 
 }

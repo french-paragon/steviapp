@@ -73,7 +73,60 @@ StereoVision::Geometry::RigidBodyTransform<ceres::Jet<ceres::Jet<double,1>,1>> W
     D2Jet t = t_ext;
 
     std::array<D2Jet,3> pos = WayPointsSimulatedTrajectorySmoother::sampleTrajectory(t, _position_waypoints.samples, _position_waypoints.times, _smoothTime);
-    std::array<D2Jet,3> rot = WayPointsSimulatedTrajectorySmoother::sampleTrajectory(t, _orientation_waypoints.samples, _orientation_waypoints.times, _smoothTime);
+    Eigen::Matrix<InertialTrajectoryFunctor::D2_Jet,3,1> rot;
+    if (_orientation_waypoints.samples.empty()) {
+        for (int i = 0; i < 3; i++) {
+            rot[i] = D2_Jet(0.0);
+        }
+    } else if ((_orientation_waypoints.samples.size() == 1)) {
+        for (int i = 0; i < 3; i++) {
+            rot[i] = _orientation_waypoints.samples[0][i];
+        }
+    } else {
+
+        if (t <= _orientation_waypoints.times[0]) {
+            for (int i = 0; i < 3; i++) {
+                rot[i] = _orientation_waypoints.samples[0][i];
+            }
+        } else if ( t >= _orientation_waypoints.times.back()) {
+            for (int i = 0; i < 3; i++) {
+                rot[i] = _orientation_waypoints.samples.back()[i];
+            }
+        } else {
+            for (size_t i = 0; i < _orientation_waypoints.samples.size()-1; i++) {
+                D2_Jet t0 = _orientation_waypoints.times[i];
+                D2_Jet t1 = _orientation_waypoints.times[i+1];
+                D2_Jet dt = t1-t0;
+                if (t >= t0 and t < t1) {
+                    D2_Jet w0 = (t1-t)/dt;
+                    D2_Jet w1 = (t-t0)/dt;
+
+                    Eigen::Matrix<D2_Jet,3,1> r0;
+                    Eigen::Matrix<D2_Jet,3,1> r1;
+                    Eigen::Matrix<D2_Jet,3,1> zero;
+
+                    for (size_t j = 0; j < 3; j++) {
+                        r0[j] = _orientation_waypoints.samples[i][j];
+                        r1[j] = _orientation_waypoints.samples[i+1][j];
+                        zero[j] = D2_Jet(0);
+                    }
+                    StereoVision::Geometry::RigidBodyTransform<D2_Jet> t0(
+                        r0,
+                        zero);
+                    StereoVision::Geometry::RigidBodyTransform<D2_Jet> t1(
+                        r1,
+                        zero);
+
+                    StereoVision::Geometry::RigidBodyTransform<D2_Jet> interp =
+                        StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(w0,t0,w1,t1);
+
+                    rot = interp.r;
+                    break;
+                }
+            }
+        }
+    }
+    //std::array<D2Jet,3> rot = WayPointsSimulatedTrajectorySmoother::sampleTrajectory(t, _orientation_waypoints.samples, _orientation_waypoints.times, _smoothTime);
 
     return StereoVision::Geometry::RigidBodyTransform<ceres::Jet<ceres::Jet<double,1>,1>>(
         Eigen::Matrix<ceres::Jet<ceres::Jet<double,1>,1>,3,1>(rot[0],rot[1],rot[2]),

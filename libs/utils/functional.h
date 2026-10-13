@@ -539,6 +539,80 @@ protected:
     double _dt;
 };
 
+/*!
+ * \brief The WeightedParamsSum class is a decorator doing a weighted sum of some parameters
+ *
+ * The decorator takes a set of parameters indices (as variadic template arguments), compute their weighted sum
+ * using a set of weights given to the constructor and replace the argument in the first index provided with the weighted sum.
+ */
+template <typename FunctorT, int argsSize, std::size_t ... argsid>
+class WeightedParamsSum : private FunctorT
+{
+public:
+
+    constexpr static int N_Params = sizeof...(argsid);
+    using Weights = std::array<double, N_Params>;
+
+    static_assert(N_Params >= 1, "Cannot take a weighted sum with 0 arguments");
+
+    template <typename ... P>
+    WeightedParamsSum(Weights const& weights, P... args) :
+        FunctorT(args...),
+        _weights(weights)
+    {
+
+    }
+
+    template <typename ... P>
+    bool operator()(P ... params) const {
+
+        constexpr int nParams = sizeof... (params);
+        //check that all argsId are not outside the number of params
+        static_assert (std::is_same_v<std::integer_sequence<bool, (nParams > argsid)..., true>,
+                                     std::integer_sequence<bool,true, (nParams > argsid)...>>, "Wrong number of arguments provided");
+
+        std::tuple<P...> args(params...);
+
+        using T = std::remove_const_t<
+            std::remove_pointer_t<
+                std::remove_reference_t<decltype (std::get<0>(args))>
+                >>;
+
+        // get all arguments.
+
+        constexpr std::array<size_t, N_Params> argsIdxs = {argsid...};
+        constexpr int argId0 = argsIdxs[0];
+        std::array<T const*, N_Params> srcArgs = {std::get<argsid>(args)...};
+
+        std::array<T,argsSize> w_sum;
+        for (int i = 0; i < argsSize; i++) {
+            w_sum[i] = T(0);
+        }
+
+        for (int i = 0; i < N_Params; i++) {
+            T w(_weights[i]);
+            for (int j = 0; j < argsSize; j++) {
+                w_sum[j] += w*srcArgs[i][j];
+            }
+        }
+
+        auto processedArgs =
+            CallFromTuple::insertArgInTuple<argId0, const T*>(
+                CallFromTuple::removeArgFromTuple<argId0>(args), w_sum.data());
+
+        auto variadic_lambda = [this] (auto... params) {
+            (void) this; //remove useless warning.
+            return FunctorT::operator()(params...);
+        };
+
+        return CallFromTuple::call(variadic_lambda, processedArgs);
+    }
+
+protected:
+    Weights _weights;
+};
+
+
 }
 
 #endif // FUNCTIONAL_H

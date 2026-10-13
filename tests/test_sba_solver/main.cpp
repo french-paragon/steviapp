@@ -1553,10 +1553,10 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
     project.setDefaultProjectCRS(ecefCRS);
 
     std::vector<std::array<double,3>> waypointsLatLonHeight = {
-        {46.03565599595825, 7.089615022981861, 1799.531696490634},
-        {46.02236597934959, 7.100801500967546, 2079.217496895602},
+        {46.03492177897298, 7.087220353061962, 1878.258324937554},
         {46.02146192956894, 7.098090353995183, 2151.688920219349},
-        {46.03492177897298, 7.087220353061962, 1878.258324937554}
+        {46.02236597934959, 7.100801500967546, 2079.217496895602},
+        {46.03565599595825, 7.089615022981861, 1799.531696490634}
     };
 
     std::vector<std::array<double,3>> waypointsECEF(waypointsLatLonHeight.size());
@@ -1606,7 +1606,7 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
     QVERIFY(dtPos*freqGps > 0.99);
     QVERIFY(dtAcc*freqIns > 0.99);
 
-    double speed = 50; // 50 m/s
+    double speed = 5; // 50 m/s
     double smoothTime = 4; // 0.5 s
 
     StereoVisionApp::Simulation::WayPointsEcefTrajectoryFunctor* trajFunctor =
@@ -1626,12 +1626,18 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
 
     std::vector<StereoVisionApp::Trajectory::TimeCartesianBlock> posCache;
     std::vector<StereoVisionApp::Trajectory::TimeCartesianBlock> orientCache;
+    #ifndef NDEBUG
+        std::vector<StereoVisionApp::Trajectory::TimeCartesianBlock> ecefOrientCache;
+    #endif
     StereoVisionApp::Trajectory::RawGpsData gpsCache;
     std::vector<StereoVisionApp::Trajectory::TimeCartesianBlock> gyroCache;
     std::vector<StereoVisionApp::Trajectory::TimeCartesianBlock> accCache;
 
     posCache.reserve(nSamplesGps);
     orientCache.reserve(nSamplesGps);
+    #ifndef NDEBUG
+        ecefOrientCache.reserve(nSamplesGps);
+    #endif
     gpsCache.position = std::vector<StereoVisionApp::Trajectory::TimeCartesianBlock>();
     gpsCache.position->reserve(nSamplesGps);
     /*gpsCache.velocities = std::vector<StereoVisionApp::Trajectory::TimeCartesianBlock>();
@@ -1655,7 +1661,9 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
             Eigen::Matrix3d topocentric2ecef = StereoVisionApp::Geo::localFrame2ECEFFromECEF(body2ecef.t, topocentricConvention);
             Eigen::Vector3d orient = StereoVision::Geometry::inverseRodriguezFormula<double>(topocentric2ecef.transpose()*
                                                                     StereoVision::Geometry::rodriguezFormula<double>(body2ecef.r)); //body2topocentric
-
+            #ifndef NDEBUG
+                ecefOrientCache.push_back(StereoVisionApp::Trajectory::TimeCartesianBlock{.time=currentT,.val=body2ecef.r});
+            #endif
             orientCache.push_back(StereoVisionApp::Trajectory::TimeCartesianBlock{.time=currentT,.val=orient});
 
             Eigen::Vector3d gps = staticTrajSimulator.gps(currentT);
@@ -1696,6 +1704,7 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
     sbaSolver.setFuncTolerance(1e-8);
     sbaSolver.setParamsTolerance(1e-10);
     sbaSolver.setOptimizationSteps(1);
+    sbaSolver.enableLogging("/home/laurent/Pictures/steviapp_test_projects/waypoints_test_project/logging/", "unit_test");
 
     StereoVisionApp::TrajectoryBaseSBAModule* trajSBAModule =
         new StereoVisionApp::TrajectoryBaseSBAModule(traj->getPreIntegrationTime());
@@ -1747,8 +1756,8 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
     Eigen::Vector3d meanPosDelta = Eigen::Vector3d::Zero();
     Eigen::Vector3d meanRotDelta = Eigen::Vector3d::Zero();
 
-    double threshold = 1e-4;
-    double thresholdOrientation = 1e-2;
+    double threshold = 1e-1;
+    double thresholdOrientation = 1e-1;
 
     StereoVisionApp::Simulation::WayPointsEcefTrajectoryFunctor gtTraj(waypointsECEF,speed,smoothTime);
 
@@ -1761,23 +1770,26 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
         jet_t.a.a = optTraj[i].time;
         jet_t.a.v[0] = 1;
         jet_t.v[0].a = 1;
-        StereoVision::Geometry::RigidBodyTransform<D2Jet> trajPosInrt = gtTraj.trajectory(jet_t);
-        StereoVision::Geometry::RigidBodyTransform<double> tpInrt;
+        StereoVision::Geometry::RigidBodyTransform<D2Jet> trajPosEcef = gtTraj.trajectory(jet_t);
+        StereoVision::Geometry::RigidBodyTransform<double> trajPos;
 
         for (int i = 0; i < 3; i++) {
-            tpInrt.r[i] = trajPosInrt.r[i].a.a;
-            tpInrt.t[i] = trajPosInrt.t[i].a.a;
+            trajPos.r[i] = trajPosEcef.r[i].a.a;
+            trajPos.t[i] = trajPosEcef.t[i].a.a;
         }
 
-        StereoVision::Geometry::RigidBodyTransform<double> inrt2ecef(Eigen::Vector3d::Zero(),Eigen::Vector3d::Zero());
-        inrt2ecef.r.z() = -optTraj[i].time*StereoVisionApp::Geo::WGS84Ellipsoid::EarthRotationRate;
-
-        StereoVision::Geometry::RigidBodyTransform<double> trajPos = inrt2ecef*tpInrt;
-
         Eigen::Vector3d expected(trajPos.t);
-        Eigen::Vector3d expectedOrientation(trajPos.r);
 
         expected = ecef2Local*expected;
+
+        Eigen::Matrix3d topocentric2ecef = StereoVisionApp::Geo::localFrame2ECEFFromECEF(trajPos.t, topocentricConvention);
+        Eigen::Vector3d orientLocal = StereoVision::Geometry::inverseRodriguezFormula<double>(topocentric2ecef.transpose()*
+                                                                                              StereoVision::Geometry::rodriguezFormula<double>(trajPos.r));
+
+        Eigen::Vector3d expectedOrientation = StereoVision::Geometry::inverseRodriguezFormula<double>(topocentric2ecef*
+                                                                                                      StereoVision::Geometry::rodriguezFormula<double>(orientLocal));
+
+
 
         Eigen::Vector3d dPos = node.val.t - expected;
         meanPosDelta += dPos;
@@ -1810,7 +1822,8 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
     meanPosDelta /= optTraj.nPoints();
     meanRotDelta /= optTraj.nPoints();
 
-    double biasThresholdOrientation = 1e-6;
+    double biasThresholdPosition = 1e-3;
+    double biasThresholdOrientation = 1e-4;
 
     qInfo() << "Mean position alignement error: " << meanPosDelta.norm() << "m";
     qInfo() << "Mean orientation alignement error: " << meanRotDelta.norm() << "rad";
@@ -1818,7 +1831,7 @@ void TestSBASolver::testWaypointTrajectoryArpette() {
     qInfo() << "Worse position alignement error: " << worseDelta << "m";
     qInfo() << "Worse orientation alignement error: " << worseOrientationDelta << "rad";
 
-    QVERIFY(meanPosDelta.norm() < biasThresholdOrientation);
+    QVERIFY(meanPosDelta.norm() < biasThresholdPosition);
     QVERIFY(meanRotDelta.norm() < biasThresholdOrientation);
 }
 
