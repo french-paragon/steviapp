@@ -80,6 +80,16 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
     });
     actions.append(setOrientationData);
 
+    QAction* setStabilizationAnglesData = new QAction(tr("set stabilization angles data"), parent);
+    connect(setStabilizationAnglesData, &QAction::triggered, traj, [traj] () {
+
+        MainWindow* mw = MainWindow::getActiveMainWindow();
+
+        TrajectoryEditOrientationOptionsDialog::ConfigureTrajectoryStabilizationAnglesOptions(traj, mw);
+
+    });
+    actions.append(setStabilizationAnglesData);
+
     QAction* setAccelerometerData = new QAction(tr("set accelerometer data"), parent);
     connect(setAccelerometerData, &QAction::triggered, traj, [traj] () {
 
@@ -143,11 +153,19 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
 
     actions.append(configureInsStochasticProcesses);
 
+    QAction* assignMountingMenuAction = new QAction(tr("assign mounting"), parent);
+    QMenu* assignMountingMenu = new QMenu(tr("assign mounting"));
+    assignMountingMenuAction->setMenu(assignMountingMenu);
+
     QAction* assignGpsMounting = createAssignToMountingAction(parent, traj->getProject(), {traj}, AssignMountMode::GPS);
     QAction* assignInsMounting = createAssignToMountingAction(parent, traj->getProject(), {traj}, AssignMountMode::INS);
+    QAction* assignStabMounting = createAssignToMountingAction(parent, traj->getProject(), {traj}, AssignMountMode::STAB);
 
-    actions.append(assignGpsMounting);
-    actions.append(assignInsMounting);
+    assignMountingMenu->addAction(assignGpsMounting);
+    assignMountingMenu->addAction(assignInsMounting);
+    assignMountingMenu->addAction(assignStabMounting);
+
+    actions.append(assignMountingMenuAction);
 
     QAction* viewTrajectoryAction = new QAction(tr("view trajectory"), parent);
     connect(viewTrajectoryAction, &QAction::triggered, traj, [traj] () {
@@ -221,6 +239,15 @@ QList<QAction*> TrajectoryActionManager::factorizeItemContextActions(QObject* pa
         taae->setTrajectory(traj);
     });
     actions.append(analyzeTrajectoryAlignmentAction);
+
+    if (StereoVisionApplication::hasDevelExtra()) {
+        QAction* analyzeGpsStabAction = new QAction(tr("analyze gps stabilization"), parent);
+        connect(analyzeGpsStabAction, &QAction::triggered, traj, [traj] () {
+
+            exportRectifiedGPSDelta(traj);
+        });
+        actions.append(analyzeGpsStabAction);
+    }
 
     return actions;
 }
@@ -324,7 +351,7 @@ QAction* TrajectoryActionManager::createAssignToMountingAction(QObject* parent,
                                       QVector<Trajectory*> const& trajs,
                                       AssignMountMode mode) const {
 
-    QString actionText = (mode == GPS) ? tr("Assign gps mounting") : tr("Assign ins mounting");
+    QString actionText = (mode == GPS) ? tr("Assign gps mounting") : (mode == INS) ?  tr("Assign ins mounting") : tr("Assign stabilization mounting");
     QAction* assignToMounting = new QAction(actionText, parent);
     QMenu* mountingMenu = new QMenu();
     connect(assignToMounting, &QObject::destroyed, mountingMenu, &QObject::deleteLater);
@@ -343,10 +370,16 @@ QAction* TrajectoryActionManager::createAssignToMountingAction(QObject* parent,
                         traj->assignGpsMounting(mountingId);
                     }
                 });
-            } else {
+            } else if (mode == INS) {
                 connect(toMounting, &QAction::triggered, [mountingId, trajs] () {
                     for (Trajectory* traj : trajs) {
                         traj->assignInsMounting(mountingId);
+                    }
+                });
+            } else {
+                connect(toMounting, &QAction::triggered, [mountingId, trajs] () {
+                    for (Trajectory* traj : trajs) {
+                        traj->assignStabMounting(mountingId);
                     }
                 });
             }
@@ -360,6 +393,12 @@ QAction* TrajectoryActionManager::createAssignToMountingAction(QObject* parent,
         connect(clearMounting, &QAction::triggered, [trajs] () {
             for (Trajectory* traj : trajs) {
                 traj->assignGpsMounting(-1);
+            }
+        });
+    } else if (mode == INS) {
+        connect(clearMounting, &QAction::triggered, [trajs] () {
+            for (Trajectory* traj : trajs) {
+                traj->assignInsMounting(-1);
             }
         });
     } else {

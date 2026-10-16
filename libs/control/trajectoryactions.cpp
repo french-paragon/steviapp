@@ -1,6 +1,7 @@
 #include "trajectoryactions.h"
 
 #include "datablocks/trajectory.h"
+#include "datablocks/mounting.h"
 
 #include "control/mainwindow.h"
 
@@ -15,6 +16,9 @@
 #include "utils/statusoptionalreturn.h"
 
 #include "vision/trajectoryImuPreIntegration.h"
+
+#include "sparsesolver/costfunctors/posedecoratorfunctors.h"
+#include "sparsesolver/costfunctors/fixedsizenormalprior.h"
 
 #include "geo/localframes.h"
 
@@ -1068,6 +1072,178 @@ void editTrajectoryINSStochasticProcesses(Trajectory* traj, TrajectoryInsStochas
         traj->setAccScaleStochasticProcesses(edited);
         break;
     }
+
+}
+
+void exportRectifiedGPSDelta(Trajectory* traj) {
+
+    if (traj == nullptr) {
+        return;
+    }
+
+    MainWindow* mw = MainWindow::getActiveMainWindow();
+
+    if (mw == nullptr) {
+        return;
+    }
+
+    Project* proj = traj->getProject();
+
+    if (proj == nullptr) {
+        QMessageBox::warning(mw, "Impossible to export rectified gps delta!", "Trajectory is not part of a project!");
+        return;
+    }
+
+    QString outFilePath = QFileDialog::getSaveFileName(mw, "save delta to");
+
+    if (outFilePath.isEmpty()) {
+        return;
+    }
+
+    QFile outFile(outFilePath);
+
+    if (!outFile.open(QFile::WriteOnly)) {
+        QMessageBox::warning(mw, "Impossible to export rectified gps delta!", "Could not open output file!");
+        return;
+    }
+
+    QTextStream out(&outFile);
+    out << "time delta_x_ecef delta_y_ecef delta_z_ecef delta_x_body delta_y_body delta_z_body\n";
+
+    qint64 stabMountingId = traj->stabMountingId();
+    qint64 gpsMountingId = traj->gpsMountingId();
+
+    Mounting* stabMounting = proj->getDataBlock<Mounting>(stabMountingId);
+    Mounting* gpsMounting = proj->getDataBlock<Mounting>(gpsMountingId);
+
+    if (stabMounting == nullptr and gpsMounting == nullptr) {
+        QMessageBox::warning(mw, "Impossible to export rectified gps delta!", "No mounting for either the stabilization platform or the GPS!");
+        return;
+    }
+
+    StereoVision::Geometry::RigidBodyTransform<double> stabMountingTransform(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+    StereoVision::Geometry::RigidBodyTransform<double> gpsMountingTransform(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+
+    if (stabMounting != nullptr) {
+        auto optTransform = stabMounting->getRigidTransform();
+        if (optTransform.has_value()) {
+            stabMountingTransform = optTransform.value().cast<double>();
+        }
+    }
+
+    if (gpsMounting != nullptr) {
+        auto optTransform = gpsMounting->getRigidTransform();
+        if (optTransform.has_value()) {
+            gpsMountingTransform = optTransform.value().cast<double>();
+        }
+    }
+
+    StatusOptionalReturn<Trajectory::TimeTrajectorySequence> referenceOpt = traj->loadTrajectorySequence();
+
+    if (!referenceOpt.isValid()) {
+        QMessageBox::warning(mw, "Impossible to export rectified gps delta!", "Impossible to load the reference position sequence from the trajectory!");
+        return;
+    }
+
+    Trajectory::TimeTrajectorySequence & reference = referenceOpt.value();
+
+    StatusOptionalReturn<Trajectory::GpsData> gpsDataOpt = traj->loadGpsSequences();
+
+    if (!gpsDataOpt.isValid()) {
+        QMessageBox::warning(mw, "Impossible to export rectified gps delta!", "Impossible to load the gps data from the trajectory!");
+        return;
+    }
+
+    Trajectory::GpsData & gpsData = gpsDataOpt.value();
+
+    if (!gpsData.position.has_value()) {
+        QMessageBox::warning(mw, "Impossible to export rectified gps delta!", "Impossible to load the gps positions from the trajectory!");
+        return;
+    }
+
+    Trajectory::TimeCartesianSequence & gpsPos = gpsData.position.value();
+
+    StatusOptionalReturn<Trajectory::TimeCartesianSequence> stabilizationAnglesOpt = traj->loadStabilizationAngles();
+
+    if (!stabilizationAnglesOpt.isValid()) {
+        QMessageBox::warning(mw, "Impossible to export rectified gps delta!", "Impossible to load the stabilization angles from the trajectory!");
+        return;
+    }
+
+    Trajectory::TimeCartesianSequence & stabilizationAngles = stabilizationAnglesOpt.value();
+
+    double timeStart = traj->processingStartTime().value_or(gpsPos.sequenceStartTime());
+    double timeEnd = traj->processingEndTime().value_or(gpsPos.sequenceEndTime());
+
+    for (int i = 0; i < gpsPos.nPoints(); i++) {
+        double time = gpsPos[i].time;
+
+        if (time < timeStart) {
+            continue;
+        }
+
+        if (time > timeEnd) {
+            break;
+        }
+
+        Eigen::Vector3d pos = gpsPos[i].val;
+
+        auto interpolableRef = reference.getValueAtTime(time);
+
+        StereoVision::Geometry::RigidBodyTransform<double> ref = //body2ecef
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(interpolableRef.weightLower, interpolableRef.valLower,
+                                                                            interpolableRef.weightUpper, interpolableRef.valUpper);
+
+        auto interpolableAngleCorrect = stabilizationAngles.getValueAtTime(time);
+
+        StereoVision::Geometry::RigidBodyTransform<double> r1(interpolableAngleCorrect.valLower, Eigen::Vector3d::Zero());
+        StereoVision::Geometry::RigidBodyTransform<double> r2(interpolableAngleCorrect.valUpper, Eigen::Vector3d::Zero());
+
+        Eigen::Vector3d angleCorrect =
+            StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(interpolableAngleCorrect.weightLower, r1,
+                                                                             interpolableAngleCorrect.weightUpper, r2).r;
+
+        constexpr int PoseConfig = Body2World | Sensor2Body;
+        using LeverArmGPSPrior = ComputeStabilizedLeverArm<
+            AddParam<
+                ApplyLeverArm<
+                    AddPose<
+                        AddOrientation<
+                            FixedSizeNormalCostFunctor<3,3> //use this as substitute for identity functor
+                            ,0>
+                        , 0>
+                    , 0,2, PoseConfig>
+                ,0>
+            , 1, 0, PoseConfig>;
+
+        std::array<double*, 5> params;
+
+        std::array<double, 3> stabMountingLeverArm = {stabMountingTransform.t[0], stabMountingTransform.t[1], stabMountingTransform.t[2]};
+        std::array<double, 3> gpsMountingBoresight = {gpsMountingTransform.r[0], gpsMountingTransform.r[1], gpsMountingTransform.r[2]};
+        std::array<double, 3> gpsMountingLeverArm = {gpsMountingTransform.t[0], gpsMountingTransform.t[1], gpsMountingTransform.t[2]};
+
+        std::array<double, 3> trajRaxis = {ref.r[0],ref.r[1],ref.r[2]};
+        std::array<double, 3> trajPosRaxis = {ref.t[0],ref.t[1],ref.t[2]};
+
+        params = {stabMountingLeverArm.data(),
+                  gpsMountingBoresight.data(),
+                  gpsMountingLeverArm.data(),
+                  trajRaxis.data(),
+                  trajPosRaxis.data()};
+
+        LeverArmGPSPrior* gpsPriorCost = new LeverArmGPSPrior(angleCorrect, Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
+        std::array<double, 3> pred;
+
+        (*gpsPriorCost)(params[0], params[1], params[2], params[3], params[4], pred.data());
+
+        Eigen::Vector3d deltaEcef(pred[0] - pos[0], pred[1] - pos[1], pred[2] - pos[2]);
+        Eigen::Vector3d deltaBody = StereoVision::Geometry::angleAxisRotate<double>(-ref.r, deltaEcef);
+
+        out << time << " " << deltaEcef[0] << " " <<  deltaEcef[1] << " " <<  deltaEcef[2] << " " << deltaBody[0] << " " <<  deltaBody[1] << " " <<  deltaBody[2] << "\n";
+
+    }
+
+    out.flush();
 
 }
 

@@ -48,6 +48,7 @@ public:
 
 	static StereoVisionApplication* GetAppInstance();
     static const char* appName();
+    static bool hasDevelExtra();
 
 	StereoVisionApplication(int & argc, char** argv);
 	~StereoVisionApplication();

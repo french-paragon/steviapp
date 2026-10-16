@@ -263,6 +263,127 @@ public:
     }
 };
 
+template<typename FunctorT, int leverArmParamGroupPos, int body2RotCenterParamPos, int poseConfig = Sensor2Body | Body2World>
+class ComputeStabilizedLeverArm : private FunctorT {
+public:
+    template <typename ... P>
+    ComputeStabilizedLeverArm(Eigen::Vector3d const& stabilizationPlatformOrientation, P... args) :
+        FunctorT(args...),
+        _stabilizationPlatformOrientation(stabilizationPlatformOrientation)
+    {
+
+    }
+
+
+    template <typename ... P>
+    bool operator()(P ... params) const {
+
+        Eigen::Vector3d const& sro = _stabilizationPlatformOrientation;
+
+        std::tuple<P...> args(params...);
+
+        using T = std::remove_const_t<
+            std::remove_pointer_t<
+                std::remove_reference_t<decltype (std::get<0>(args))>
+                >>;
+
+        static_assert (leverArmParamGroupPos - body2RotCenterParamPos >= 1 or body2RotCenterParamPos - leverArmParamGroupPos >= 2, "leverArmParamGroup and body2RotCenterParamPos overlap");
+        static_assert (sizeof... (params) > std::max(leverArmParamGroupPos, body2RotCenterParamPos-1)+1, "Wrong number of arguments provided");
+        static_assert (((poseConfig & PoseInfoBit) == Body2World) or ((poseConfig & PoseInfoBit) == World2Body), "misconfigured DecoratorPoseConfiguration");
+        static_assert (((poseConfig & BoresightInfoBit) == Sensor2Body) or ((poseConfig & BoresightInfoBit) == Body2Sensor), "misconfigured DecoratorPoseConfiguration");
+
+        const T* const t = std::get<body2RotCenterParamPos+1>(args);
+
+        const T* const boresight = std::get<leverArmParamGroupPos>(args);
+        const T* const leverArm = std::get<leverArmParamGroupPos+1>(args);
+
+        T processed_r[3];
+        T processed_t[3];
+
+        //remove the old arguments and insert new arguments such that processed_r is
+        // at pos leverArmParamGroupPos and processed_t at pos leverArmParamGroupPos+1. replacing the lever arm by the dynamic lever arm
+        auto processedArgs =
+            CallFromTuple::insertArgInTuple<leverArmParamGroupPos, const T*>(
+                CallFromTuple::insertArgInTuple<leverArmParamGroupPos, const T*>(
+                    CallFromTuple::removeArgFromTuple<leverArmParamGroupPos>(
+                        CallFromTuple::removeArgFromTuple<leverArmParamGroupPos>(args)
+                        ), processed_t
+                    ), processed_r
+                );
+
+        StereoVision::Geometry::RigidBodyTransform<T> rotCenter2body;
+
+        rotCenter2body.r << T(sro[0]), T(sro[1]), T(sro[2]);
+        rotCenter2body.t << t[0], t[1], t[2];
+
+        if ((poseConfig & PoseInfoBit) == Body2World) {
+
+            StereoVision::Geometry::RigidBodyTransform<T> sensor2body;
+
+            if ((poseConfig & BoresightInfoBit) == Sensor2Body) {
+
+                StereoVision::Geometry::RigidBodyTransform<T> sensor2rotCenter;
+                sensor2rotCenter.r << boresight[0], boresight[1], boresight[2];
+                sensor2rotCenter.t << leverArm[0], leverArm[1], leverArm[2];
+
+                sensor2body = rotCenter2body*sensor2rotCenter;
+
+            } else if ((poseConfig & BoresightInfoBit) == Body2Sensor) {
+
+                StereoVision::Geometry::RigidBodyTransform<T> rotCenter2sensor;
+                rotCenter2sensor.r << boresight[0], boresight[1], boresight[2];
+                rotCenter2sensor.t << leverArm[0], leverArm[1], leverArm[2];
+
+                sensor2body = rotCenter2body*rotCenter2sensor.inverse();
+            }
+
+            for (int i = 0; i < 3; i++) {
+                processed_r[i] = sensor2body.r[i];
+                processed_t[i] = sensor2body.t[i];
+            }
+
+        } else if ((poseConfig & PoseInfoBit) == World2Body) {
+
+            StereoVision::Geometry::RigidBodyTransform<T> body2rotCenter = rotCenter2body.inverse();
+
+            StereoVision::Geometry::RigidBodyTransform<T> body2sensor;
+
+            if ((poseConfig & BoresightInfoBit) == Sensor2Body) {
+
+                StereoVision::Geometry::RigidBodyTransform<T> sensor2rotCenter;
+                sensor2rotCenter.r << boresight[0], boresight[1], boresight[2];
+                sensor2rotCenter.t << leverArm[0], leverArm[1], leverArm[2];
+
+                body2sensor = sensor2rotCenter.inverse()*body2rotCenter;
+
+            } else if ((poseConfig & BoresightInfoBit) == Body2Sensor) {
+
+                StereoVision::Geometry::RigidBodyTransform<T> rotCenter2sensor;
+                rotCenter2sensor.r << boresight[0], boresight[1], boresight[2];
+                rotCenter2sensor.t << leverArm[0], leverArm[1], leverArm[2];
+
+                body2sensor = rotCenter2sensor*body2rotCenter;
+            }
+
+            for (int i = 0; i < 3; i++) {
+                processed_r[i] = body2sensor.r[i];
+                processed_t[i] = body2sensor.t[i];
+            }
+
+        }
+
+        auto variadic_lambda = [this] (auto... params) {
+            (void) this;
+            return FunctorT::operator()(params...);
+        };
+
+        return CallFromTuple::call(variadic_lambda, processedArgs);
+    }
+protected:
+
+    Eigen::Vector3d _stabilizationPlatformOrientation;
+};
+
 template<typename FunctorT, int boresightParamPos, int positionParamPos, int poseConfig = Sensor2Body | Body2World>
 class ApplyBoresightRotation : private FunctorT {
 public:
@@ -458,6 +579,66 @@ public:
 
         return CallFromTuple::call(variadic_lambda, processedArgs);
     }
+};
+
+/*!
+ * \brief The ApplyFixedRotationToVectorParam class is a decorator rotating a vector parameter by a constant rotation
+ */
+template<typename FunctorT, int vectorParamPos>
+class ApplyFixedRotationToVectorParam : private FunctorT {
+
+public:
+    template <typename ... P>
+    ApplyFixedRotationToVectorParam(Eigen::Vector3d const& axis_angle, P... args) :
+        FunctorT(args...),
+        _axis_angle(axis_angle)
+    {
+
+    }
+
+    template <typename ... P>
+    bool operator()(P ... params) const {
+
+        std::tuple<P...> args(params...);
+
+        using T = std::remove_const_t<
+            std::remove_pointer_t<
+                std::remove_reference_t<decltype (std::get<0>(args))>
+                >>;
+
+        const T* const t = std::get<vectorParamPos>(args);
+
+        T processed_t[3];
+
+        //remove the old arguments and insert new arguments such that processed_r is
+        // at pos poseParamGroupPos and processed_t at pos poseParamGroupPos+1.
+        auto processedArgs =
+            CallFromTuple::insertArgInTuple<vectorParamPos, const T*>(
+                        CallFromTuple::removeArgFromTuple<vectorParamPos>(
+                            args), processed_t
+                );
+
+        Eigen::Matrix<T,3,1> t_vec;
+
+        t_vec << t[0], t[1], t[2];
+
+        Eigen::Matrix<T,3,1> transformed = StereoVision::Geometry::angleAxisRotate(_axis_angle.cast<T>(), t_vec);
+
+        for (int i = 0; i < 3; i++) {
+            processed_t[i] = transformed.t[i];
+        }
+
+        auto variadic_lambda = [this] (auto... params) {
+            (void) this;
+            return FunctorT::operator()(params...);
+        };
+
+        return CallFromTuple::call(variadic_lambda, processedArgs);
+    }
+
+protected:
+
+    Eigen::Vector3d _axis_angle;
 };
 
 /*!

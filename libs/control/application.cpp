@@ -16,6 +16,8 @@
 
 #include "datablocks/project.h"
 
+#include "control/application_config.h"
+
 namespace StereoVisionApp {
 
 StereoVisionApplication* StereoVisionApplication::CurrentApp = nullptr;
@@ -26,6 +28,14 @@ StereoVisionApplication* StereoVisionApplication::GetAppInstance() {
 
 const char* StereoVisionApplication::appName() {
     return "steviapp";
+}
+
+bool StereoVisionApplication::hasDevelExtra() {
+#ifdef STEVIAPP_DEVEL_TOOLS
+    return true;
+#else
+    return false;
+#endif
 }
 
 StereoVisionApplication::StereoVisionApplication(int &argc, char **argv) :

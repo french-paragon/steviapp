@@ -19,13 +19,21 @@ class TrajectoryEditOrientationOptionsDialog : public QDialog
     Q_OBJECT
 public:
     TrajectoryEditOrientationOptionsDialog(QWidget* parent = nullptr);
+    TrajectoryEditOrientationOptionsDialog(bool withTopocentricConventionDef, QWidget* parent = nullptr);
+
 
     /*!
-     * \brief ConfigureTrajectoryPositionOptions configure the options for the positions for a trajectory
+     * \brief ConfigureTrajectoryPositionOptions configure the options for the orientations for a trajectory
      * \param traj the trajectory to configure
      * \param parent the parent for the dialog
      */
     static void ConfigureTrajectoryOrientationOptions(Trajectory* traj, QWidget* parent);
+    /*!
+     * \brief ConfigureTrajectoryPositionOptions configure the options for the stabilization angles for a trajectory
+     * \param traj the trajectory to configure
+     * \param parent the parent for the dialog
+     */
+    static void ConfigureTrajectoryStabilizationAnglesOptions(Trajectory* traj, QWidget* parent);
 
 protected:
 

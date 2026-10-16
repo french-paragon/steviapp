@@ -26,7 +26,8 @@ protected:
 
     enum AssignMountMode {
         GPS,
-        INS
+        INS,
+        STAB
     };
     QAction* createAssignToMountingAction(QObject* parent,
                                  StereoVisionApp::Project* p,

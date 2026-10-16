@@ -232,6 +232,53 @@ void RigidBody::setOptZRot(const floatParameter &rz) {
 	}
 }
 
+std::optional<StereoVision::Geometry::RigidBodyTransform<float>> RigidBody::getRigidTransform() const {
+
+    if (!_x.isSet() or !_y.isSet() or !_z.isSet()) {
+        return std::nullopt;
+    }
+
+    if (!_rx.isSet() or !_ry.isSet() or !_rz.isSet()) {
+        return std::nullopt;
+    }
+
+    Eigen::Vector3f t;
+    t.x() = _x.value();
+    t.y() = _y.value();
+    t.z() = _z.value();
+
+    Eigen::Vector3f r;
+    r.x() = _rx.value();
+    r.y() = _ry.value();
+    r.z() = _rz.value();
+
+    return StereoVision::Geometry::RigidBodyTransform(r, t);
+
+}
+
+std::optional<StereoVision::Geometry::RigidBodyTransform<float>> RigidBody::getOptRigidTransform() const {
+
+    if (!_o_pos.isSet()) {
+        return std::nullopt;
+    }
+
+    if (!_o_rot.isSet()) {
+        return std::nullopt;
+    }
+
+    Eigen::Vector3f t;
+    t.x() = _o_pos.value(0);
+    t.y() = _o_pos.value(1);
+    t.z() = _o_pos.value(2);
+
+    Eigen::Vector3f r;
+    r.x() = _o_rot.value(0);
+    r.y() = _o_rot.value(1);
+    r.z() = _o_rot.value(2);
+
+    return StereoVision::Geometry::RigidBodyTransform(r, t);
+}
+
 std::optional<StereoVision::Geometry::AffineTransform<float> > RigidBody::getTransform() const {
 
     if (!_x.isSet() or !_y.isSet() or !_z.isSet()) {
@@ -278,6 +325,59 @@ std::optional<StereoVision::Geometry::AffineTransform<float> > RigidBody::getOpt
 	Eigen::Matrix3f R = StereoVision::Geometry::rodriguezFormula(r);
 
 	return StereoVision::Geometry::AffineTransform(R, t);
+
+}
+
+void RigidBody::setTransform(const StereoVision::Geometry::RigidBodyTransform<float> &transform) {
+
+    floatParameter x = _x;
+    floatParameter y = _y;
+    floatParameter z = _z;
+
+    x.value() = transform.t.x();
+    y.value() = transform.t.y();
+    z.value() = transform.t.z();
+
+    setXCoord(x);
+    setYCoord(y);
+    setZCoord(z);
+
+    Eigen::Vector3f const& r = transform.r;
+
+    floatParameter rx = _rx;
+    floatParameter ry = _ry;
+    floatParameter rz = _rz;
+
+    rx.value() = r.x();
+    ry.value() = r.y();
+    rz.value() = r.z();
+
+    setXRot(rx);
+    setYRot(ry);
+    setZRot(rz);
+}
+
+void RigidBody::setOptTransform(const StereoVision::Geometry::RigidBodyTransform<float> &transform) {
+
+    floatParameterGroup<3> o_pos = _o_pos;
+
+    o_pos.clearUncertain();
+    o_pos.value(0) = transform.t[0];
+    o_pos.value(1) = transform.t[1];
+    o_pos.value(2) = transform.t[2];
+
+    setOptPos(o_pos);
+
+    Eigen::Vector3f const& r = transform.r;
+
+    floatParameterGroup<3> o_rot = _o_rot;
+
+    o_rot.clearUncertain();
+    o_rot.value(0) = r[0];
+    o_rot.value(1) = r[1];
+    o_rot.value(2) = r[2];
+
+    setOptRot(o_rot);
 
 }
 

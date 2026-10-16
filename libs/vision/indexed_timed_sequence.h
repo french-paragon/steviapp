@@ -35,9 +35,9 @@ public:
      * the IndexedTimeSequence will return a pair of values with weights that the user can combine anyway they like.
      */
     struct TimeInterpolableVals {
-        double weigthLower;
+        double weightLower;
         T valLower;
-        double weigthUpper;
+        double weightUpper;
         T valUpper;
     };
 

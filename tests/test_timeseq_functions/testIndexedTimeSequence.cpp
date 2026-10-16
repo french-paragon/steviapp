@@ -61,7 +61,7 @@ void TestIndexedTimeSequence::testGetValueAtTime() {
 
             auto interpolable = sequence.getValueAtTime(time);
 
-            double val = interpolable.weigthLower*interpolable.valLower + interpolable.weigthUpper*interpolable.valUpper;
+            double val = interpolable.weightLower*interpolable.valLower + interpolable.weightUpper*interpolable.valUpper;
 
             QCOMPARE(val, time);
 
@@ -80,8 +80,8 @@ void TestIndexedTimeSequence::testGetValueAtTime() {
         auto interpolable0 = sequence.getValueAtTime(time0);
         auto interpolableN= sequence.getValueAtTime(timeN);
 
-        double val0 = interpolable0.weigthLower*interpolable0.valLower + interpolable0.weigthUpper*interpolable0.valUpper;
-        double valN = interpolableN.weigthLower*interpolableN.valLower + interpolableN.weigthUpper*interpolableN.valUpper;
+        double val0 = interpolable0.weightLower*interpolable0.valLower + interpolable0.weightUpper*interpolable0.valUpper;
+        double valN = interpolableN.weightLower*interpolableN.valLower + interpolableN.weightUpper*interpolableN.valUpper;
 
         QCOMPARE(val0, 0);
         QCOMPARE(valN, nElements-1);

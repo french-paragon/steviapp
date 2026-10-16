@@ -848,13 +848,13 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZMatch(Correspondences::Typed<Corres
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -1002,13 +1002,13 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Corre
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node1 =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -1068,13 +1068,13 @@ bool CorrespondencesSetSBAModule::addXYZT2XYZTMatch(Correspondences::Typed<Corre
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node2 =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -1580,13 +1580,13 @@ bool CorrespondencesSetSBAModule::addUV2XYZTMatch(Correspondences::Typed<Corresp
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -1734,13 +1734,13 @@ bool CorrespondencesSetSBAModule::addUVT2UVMatch(Correspondences::Typed<Correspo
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -1872,13 +1872,13 @@ bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Corresp
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node1 =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -1892,13 +1892,13 @@ bool CorrespondencesSetSBAModule::addUVT2UVTMatch(Correspondences::Typed<Corresp
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node2 =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -2005,13 +2005,13 @@ bool CorrespondencesSetSBAModule::addUVT2XYZMatch(Correspondences::Typed<Corresp
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -2179,13 +2179,13 @@ bool CorrespondencesSetSBAModule::addUVT2GeoXYZMatch(Correspondences::Typed<Corr
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -2347,13 +2347,13 @@ bool CorrespondencesSetSBAModule::addUVT2XYZTMatch(Correspondences::Typed<Corres
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2nodeUV =
             node2worldInitial.inverse()*measure2worldInitial;
@@ -2412,13 +2412,13 @@ bool CorrespondencesSetSBAModule::addUVT2XYZTMatch(Correspondences::Typed<Corres
 
         StereoVision::Geometry::RigidBodyTransform<double> node2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (nodeInitialPose.weigthLower, nodeInitialPose.valLower,
-             nodeInitialPose.weigthUpper, nodeInitialPose.valUpper);
+            (nodeInitialPose.weightLower, nodeInitialPose.valLower,
+             nodeInitialPose.weightUpper, nodeInitialPose.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> measure2worldInitial =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold
-            (measureInitialPose.weigthLower, measureInitialPose.valLower,
-             measureInitialPose.weigthUpper, measureInitialPose.valUpper);
+            (measureInitialPose.weightLower, measureInitialPose.valLower,
+             measureInitialPose.weightUpper, measureInitialPose.valUpper);
 
         measure2node =
             node2worldInitial.inverse()*measure2worldInitial;

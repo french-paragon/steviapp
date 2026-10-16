@@ -957,9 +957,9 @@ void TestSBASolver::movingBody2MovingBody() {
         auto interpolableBody1ToMapping = trajData.getValueAtTime(times[0]);
         StereoVision::Geometry::RigidBodyTransform<double> body1ToMapping =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
-            interpolableBody1ToMapping.weigthLower,
+            interpolableBody1ToMapping.weightLower,
             interpolableBody1ToMapping.valLower,
-            interpolableBody1ToMapping.weigthUpper,
+            interpolableBody1ToMapping.weightUpper,
             interpolableBody1ToMapping.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> sensor1ToMapping =
@@ -968,9 +968,9 @@ void TestSBASolver::movingBody2MovingBody() {
         auto interpolableBody2ToMapping = trajData.getValueAtTime(times[1]);
         StereoVision::Geometry::RigidBodyTransform<double> body2ToMapping =
             StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
-                interpolableBody2ToMapping.weigthLower,
+                interpolableBody2ToMapping.weightLower,
                 interpolableBody2ToMapping.valLower,
-                interpolableBody2ToMapping.weigthUpper,
+                interpolableBody2ToMapping.weightUpper,
                 interpolableBody2ToMapping.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> sensor2ToMapping =

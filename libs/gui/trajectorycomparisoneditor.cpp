@@ -277,13 +277,13 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
 
         StereoVision::Geometry::RigidBodyTransform<double> initial =
                 StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
-                    interpTraj.weigthLower, interpTraj.valLower, interpTraj.weigthUpper, interpTraj.valUpper);
+                    interpTraj.weightLower, interpTraj.valLower, interpTraj.weightUpper, interpTraj.valUpper);
 
         auto interpOptTraj = compTraj.getValueAtTime(time);
 
         StereoVision::Geometry::RigidBodyTransform<double> opt =
                 StereoVision::Geometry::interpolateRigidBodyTransformOnManifold(
-                    interpOptTraj.weigthLower, interpOptTraj.valLower, interpOptTraj.weigthUpper, interpOptTraj.valUpper);
+                    interpOptTraj.weightLower, interpOptTraj.valLower, interpOptTraj.weightUpper, interpOptTraj.valUpper);
 
         StereoVision::Geometry::RigidBodyTransform<double> delta;
 

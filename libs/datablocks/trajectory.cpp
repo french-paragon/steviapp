@@ -549,7 +549,7 @@ StatusOptionalReturn<Trajectory::RawGpsData> Trajectory::loadGPSData() const {
     PJ_CONTEXT* ctx = proj_context_create();
 
     PJ* toEcef = proj_create_crs_to_crs(ctx,
-                                        _positionDefinition.crs_epsg.toStdString().c_str(),
+                                        _gpsDefinition.crs_epsg.toStdString().c_str(),
                                         wgs84_ecef,
                                         nullptr);
 
@@ -1578,6 +1578,203 @@ StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::lo
 
 }
 
+StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>> Trajectory::loadStabilizationAnglesRawData() const {
+
+    using RType = StatusOptionalReturn<std::vector<Trajectory::TimeCartesianBlock>>;
+
+    QFileInfo stabilizationAnglesFileInfo(_stabilizationAnglesFile);
+
+    QString path = _stabilizationAnglesFile;
+
+    if (stabilizationAnglesFileInfo.isRelative()) {
+        path = getProject()->relativeFilePathToAbsolute(path);
+    }
+
+    QFile trajFile(path);
+
+    if (!trajFile.open(QIODevice::ReadOnly)) {
+        return RType::error("Could not open orientation file!");
+    }
+
+    QString lineData;
+
+    std::vector<Trajectory::TimeCartesianBlock> ret;
+
+    int lineCount = 0;
+
+    QString sepPattern = "";
+
+    for (int i = 0; i < _separators.size(); i++) {
+        sepPattern += QRegularExpression::escape(_separators[i]);
+        if (i != _separators.size()-1) {
+            sepPattern += "|";
+        }
+    }
+
+    QRegularExpression sep(sepPattern);
+
+    //compute the minimum numbers of items in a line
+    int minLineElements = _stabilizationAnglesDefinition.orient_t_col;
+
+    if (_stabilizationAnglesDefinition.orient_x_col > minLineElements) {
+        minLineElements = _stabilizationAnglesDefinition.orient_x_col;
+    }
+    if (_stabilizationAnglesDefinition.orient_y_col > minLineElements) {
+        minLineElements = _stabilizationAnglesDefinition.orient_y_col;
+    }
+    if (_stabilizationAnglesDefinition.orient_z_col > minLineElements) {
+        minLineElements = _stabilizationAnglesDefinition.orient_z_col;
+    }
+    if (_stabilizationAnglesDefinition.orient_w_col > minLineElements and _stabilizationAnglesDefinition.angle_representation == Quaternion) {
+        minLineElements = _stabilizationAnglesDefinition.orient_w_col;
+    }
+
+    minLineElements += 1;
+
+    while (!trajFile.atEnd()) {
+
+        QByteArray line = trajFile.readLine();
+        QString str = QString::fromLocal8Bit(line);
+
+        if (str.startsWith(_commentPattern)) {
+            continue;
+        }
+
+        QStringList splitted = str.split(sep, Qt::SkipEmptyParts);
+
+        if (splitted.size() < minLineElements) {
+            continue;
+        }
+
+        Trajectory::TimeCartesianBlock entry;
+
+        bool ok = true;
+
+        entry.time = splitted[_stabilizationAnglesDefinition.orient_t_col].toDouble(&ok);
+        entry.time = _stabilizationAnglesDefinition.timeScale*entry.time + _stabilizationAnglesDefinition.timeDelta;
+
+        if (!ok) {
+            continue;
+        }
+
+        double x;
+        double y;
+        double z;
+
+        x = splitted[_stabilizationAnglesDefinition.orient_x_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        x *= _stabilizationAnglesDefinition.sign_x;
+
+        y = splitted[_stabilizationAnglesDefinition.orient_y_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        y *= _stabilizationAnglesDefinition.sign_y;
+
+        z = splitted[_stabilizationAnglesDefinition.orient_z_col].toDouble(&ok);
+
+        if (!ok) {
+            continue;
+        }
+
+        z *= _stabilizationAnglesDefinition.sign_z;
+
+        if (_stabilizationAnglesDefinition.angle_representation == Quaternion) {
+
+            double w = splitted[_stabilizationAnglesDefinition.orient_w_col].toDouble(&ok);
+
+            if (!ok) {
+                continue;
+            }
+
+            w *= _stabilizationAnglesDefinition.sign_w;
+
+            Eigen::Quaterniond quat(w, x, y, z);
+            Eigen::Vector3d axis = Eigen::AngleAxisd(quat).axis();
+
+            entry.val.x() = axis.x();
+            entry.val.y() = axis.y();
+            entry.val.z() = axis.z();
+
+        } else if (_stabilizationAnglesDefinition.angle_representation == EulerXYZ or
+                   _stabilizationAnglesDefinition.angle_representation == EulerZYX) {
+
+            double x_rad = x;
+            double y_rad = y;
+            double z_rad = z;
+
+            if (_stabilizationAnglesDefinition.angleUnit == Degree) {
+                x_rad *= M_PI/180;
+                y_rad *= M_PI/180;
+                z_rad *= M_PI/180;
+            }
+
+            if (_stabilizationAnglesDefinition.angleUnit == Gon) {
+                x_rad *= M_PI/200;
+                y_rad *= M_PI/200;
+                z_rad *= M_PI/200;
+            }
+
+            Eigen::Vector3d axis;
+
+            if (_stabilizationAnglesDefinition.angle_representation == EulerZYX) {
+                Eigen::Quaterniond combinedRot =
+                    Eigen::AngleAxisd(z_rad, Eigen::Vector3d::UnitZ())
+                    * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
+                    * Eigen::AngleAxisd(x_rad, Eigen::Vector3d::UnitX());
+
+                Eigen::AngleAxisd axisAngle(combinedRot);
+
+                double angle = axisAngle.angle();
+                axis = axisAngle.axis();
+                axis *= angle;
+            }
+
+            if (_stabilizationAnglesDefinition.angle_representation == EulerXYZ) {
+                Eigen::Quaterniond combinedRot =
+                    Eigen::AngleAxisd(x_rad, Eigen::Vector3d::UnitX())
+                    * Eigen::AngleAxisd(y_rad,  Eigen::Vector3d::UnitY())
+                    * Eigen::AngleAxisd(z_rad, Eigen::Vector3d::UnitZ());
+
+                Eigen::AngleAxisd axisAngle(combinedRot);
+
+                double angle = axisAngle.angle();
+                axis = axisAngle.axis();
+                axis *= angle;
+            }
+
+            entry.val.x() = axis.x();
+            entry.val.y() = axis.y();
+            entry.val.z() = axis.z();
+
+        } else {
+
+            entry.val.x() = x;
+            entry.val.y() = y;
+            entry.val.z() = z;
+
+        }
+
+        if (!entry.val.allFinite()) {
+            continue;
+        }
+
+        ret.push_back(entry);
+
+        lineCount++;
+
+    }
+
+    return ret;
+
+}
+
 StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>> Trajectory::loadTrajectoryData() const {
 
     using RType = StatusOptionalReturn<std::vector<Trajectory::TimeTrajectoryBlock>>;
@@ -2539,6 +2736,73 @@ void Trajectory::setOrientationSign(Axis axis, int sign) {
         break;
     }
 }
+void Trajectory::setStabilizationAnglesFile(QString const& path) {
+    if (_stabilizationAnglesFile != path) {
+        _stabilizationAnglesFile = path;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setStabilizationAnglesRepresentation(AngleRepresentation representation) {
+    _stabilizationAnglesDefinition.angle_representation = representation;
+}
+
+void Trajectory::setStabilizationAnglesUnits(AngleUnits units) {
+    _stabilizationAnglesDefinition.angleUnit = units;
+}
+
+void Trajectory::setStabilizationAnglesTimeScale(double scale) {
+    if (_stabilizationAnglesDefinition.timeScale != scale) {
+        _stabilizationAnglesDefinition.timeScale = scale;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setStabilizationAnglesTimeDelta(double delta) {
+    if (_stabilizationAnglesDefinition.timeDelta != delta) {
+        _stabilizationAnglesDefinition.timeDelta = delta;
+        Q_EMIT trajectoryDataChanged();
+    }
+}
+
+void Trajectory::setStabilizationAnglesColumn(Axis axis, int col) {
+    switch (axis) {
+    case T:
+        _stabilizationAnglesDefinition.orient_t_col = col;
+        break;
+    case X:
+        _stabilizationAnglesDefinition.orient_x_col = col;
+        break;
+    case Y:
+        _stabilizationAnglesDefinition.orient_y_col = col;
+        break;
+    case Z:
+        _stabilizationAnglesDefinition.orient_z_col = col;
+        break;
+    case W:
+        _stabilizationAnglesDefinition.orient_w_col = col;
+        break;
+    }
+}
+void Trajectory::setStabilizationAnglesSign(Axis axis, int sign) {
+    switch (axis) {
+    case T:
+        return;
+    case X:
+        _stabilizationAnglesDefinition.sign_x = sign;
+        break;
+    case Y:
+        _stabilizationAnglesDefinition.sign_y = sign;
+        break;
+    case Z:
+        _stabilizationAnglesDefinition.sign_z = sign;
+        break;
+    case W:
+        _stabilizationAnglesDefinition.sign_w = sign;
+        break;
+    }
+}
+
 
 void Trajectory::setGyroFile(QString const& path) {
     if (_angularSpeedFile != path) {
@@ -2745,8 +3009,6 @@ QJsonObject Trajectory::encodeJson() const {
     QJsonObject gyroMountingObj = affineTransform2json(_gyroMounting);
     angularSpeedDefinition.insert("mounting", gyroMountingObj);
 
-    obj.insert("angularSpeedDefinition", angularSpeedDefinition);
-
     QJsonObject angularSpeedParameters;
 
     angularSpeedParameters.insert("estBias", _angularSpeedParameters._estimates_bias);
@@ -2765,6 +3027,36 @@ QJsonObject Trajectory::encodeJson() const {
         gyroFile = proj->relativePath(gyroFile, onlyIfNested);
     }
     obj.insert("angularSpeedFile", gyroFile);
+
+    obj.insert("angularSpeedDefinition", angularSpeedDefinition);
+
+    QJsonObject stabilizationPlatformDefinition;
+    e = QMetaEnum::fromType<AngleRepresentation>();
+    stabilizationPlatformDefinition.insert("angle_representation", e.valueToKey(_stabilizationAnglesDefinition.angle_representation));
+    e = QMetaEnum::fromType<AngleUnits>();
+    stabilizationPlatformDefinition.insert("angleUnit", e.valueToKey(_stabilizationAnglesDefinition.angleUnit));
+
+    stabilizationPlatformDefinition.insert("time_delta", _stabilizationAnglesDefinition.timeDelta);
+    stabilizationPlatformDefinition.insert("time_scale", _stabilizationAnglesDefinition.timeScale);
+
+    stabilizationPlatformDefinition.insert("orient_t_col", _stabilizationAnglesDefinition.orient_t_col);
+    stabilizationPlatformDefinition.insert("orient_x_col", _stabilizationAnglesDefinition.orient_x_col);
+    stabilizationPlatformDefinition.insert("orient_y_col", _stabilizationAnglesDefinition.orient_y_col);
+    stabilizationPlatformDefinition.insert("orient_z_col", _stabilizationAnglesDefinition.orient_z_col);
+    stabilizationPlatformDefinition.insert("orient_w_col", _stabilizationAnglesDefinition.orient_w_col);
+
+    stabilizationPlatformDefinition.insert("sign_x", _stabilizationAnglesDefinition.sign_x);
+    stabilizationPlatformDefinition.insert("sign_y", _stabilizationAnglesDefinition.sign_y);
+    stabilizationPlatformDefinition.insert("sign_z", _stabilizationAnglesDefinition.sign_z);
+    stabilizationPlatformDefinition.insert("sign_w", _stabilizationAnglesDefinition.sign_w);
+
+    obj.insert("stabilizationPlatformDefinition", stabilizationPlatformDefinition);
+
+    QString stabFile = _stabilizationAnglesFile;
+    if (proj != nullptr) {
+        stabFile = proj->relativePath(stabFile, onlyIfNested);
+    }
+    obj.insert("stabilizationFileFile", stabFile);
 
     QJsonObject positionDefinition;
 
@@ -2865,6 +3157,10 @@ QJsonObject Trajectory::encodeJson() const {
 
     if (_insMounting >= 0) {
         obj.insert("insMountingId", _insMounting);
+    }
+
+    if (_stabMounting >= 0) {
+        obj.insert("stabMountingId", _stabMounting);
     }
 
     obj.insert("seOrientationPrior", _use_start_end_orientation_priors);
@@ -3151,6 +3447,83 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
 
     if (data.contains("angularSpeedFile")) {
         _angularSpeedFile = data.value("angularSpeedFile").toString();
+    }
+
+    if (data.contains("stabilizationPlatformDefinition")) {
+
+        QJsonObject stabilizationPlatformDefinition = data.value("stabilizationPlatformDefinition").toObject();
+
+        if (stabilizationPlatformDefinition.contains("time_delta")) {
+            _stabilizationAnglesDefinition.timeDelta = stabilizationPlatformDefinition.value("time_delta").toDouble(0);
+        } else {
+            _stabilizationAnglesDefinition.timeDelta = 0;
+        }
+
+        if (stabilizationPlatformDefinition.contains("time_scale")) {
+            _stabilizationAnglesDefinition.timeScale = stabilizationPlatformDefinition.value("time_scale").toDouble(1);
+        } else {
+            _stabilizationAnglesDefinition.timeScale = 1;
+        }
+
+        if (stabilizationPlatformDefinition.contains("angle_representation")) {
+
+            QMetaEnum e = QMetaEnum::fromType<AngleRepresentation>();
+            bool ok = true;
+            int val = e.keysToValue(stabilizationPlatformDefinition.value("angle_representation").toString().toLocal8Bit().data(), &ok);
+
+            if (ok) {
+                _stabilizationAnglesDefinition.angle_representation = static_cast<AngleRepresentation>(val);
+            } else {
+                _stabilizationAnglesDefinition.angle_representation = AxisAngle; //default
+            }
+        }
+        if (stabilizationPlatformDefinition.contains("angleUnit")) {
+
+            QMetaEnum e = QMetaEnum::fromType<AngleUnits>();
+            bool ok = true;
+            int val = e.keysToValue(stabilizationPlatformDefinition.value("angleUnit").toString().toLocal8Bit().data(), &ok);
+
+            if (ok) {
+                _stabilizationAnglesDefinition.angleUnit = static_cast<AngleUnits>(val);
+            } else {
+                _stabilizationAnglesDefinition.angleUnit = Degree; //default
+            }
+        }
+
+        if (stabilizationPlatformDefinition.contains("orient_t_col")) {
+            _stabilizationAnglesDefinition.orient_t_col = stabilizationPlatformDefinition.value("orient_t_col").toInt();
+        }
+        if (stabilizationPlatformDefinition.contains("orient_x_col")) {
+            _stabilizationAnglesDefinition.orient_x_col = stabilizationPlatformDefinition.value("orient_x_col").toInt();
+        }
+        if (stabilizationPlatformDefinition.contains("orient_y_col")) {
+            _stabilizationAnglesDefinition.orient_y_col = stabilizationPlatformDefinition.value("orient_y_col").toInt();
+        }
+        if (stabilizationPlatformDefinition.contains("orient_z_col")) {
+            _stabilizationAnglesDefinition.orient_z_col = stabilizationPlatformDefinition.value("orient_z_col").toInt();
+        }
+        if (stabilizationPlatformDefinition.contains("orient_w_col")) {
+            _stabilizationAnglesDefinition.orient_w_col = stabilizationPlatformDefinition.value("orient_w_col").toInt();
+        }
+
+        if (stabilizationPlatformDefinition.contains("sign_x")) {
+            _stabilizationAnglesDefinition.sign_x = stabilizationPlatformDefinition.value("sign_x").toInt();
+        }
+        if (stabilizationPlatformDefinition.contains("sign_y")) {
+            _stabilizationAnglesDefinition.sign_y = stabilizationPlatformDefinition.value("sign_y").toInt();
+        }
+        if (stabilizationPlatformDefinition.contains("sign_z")) {
+            _stabilizationAnglesDefinition.sign_z = stabilizationPlatformDefinition.value("sign_z").toInt();
+        }
+        if (stabilizationPlatformDefinition.contains("sign_w")) {
+            _stabilizationAnglesDefinition.sign_w = stabilizationPlatformDefinition.value("sign_w").toInt();
+        }
+
+    }
+
+
+    if (data.contains("stabilizationFileFile")) {
+        _stabilizationAnglesFile = data.value("stabilizationFileFile").toString();
     }
 
     if (data.contains("gpsDefinition")) {
@@ -3493,6 +3866,12 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
         _insMounting = -1;
     }
 
+    if(data.contains("stabMountingId")) {
+        _stabMounting = data.value("stabMountingId").toInt(-1);
+    } else {
+        _stabMounting = -1;
+    }
+
     if (data.contains("seOrientationPrior")) {
         _use_start_end_orientation_priors = data.value("seOrientationPrior").toBool();
     } else {
@@ -3764,6 +4143,18 @@ void Trajectory::extendDataModel() {
 
     insMountingProp->setTooltipText(tr("Mounting is the ins frame to trajectory frame transform."));
 
+    auto* stabMountingProp = sensorsIdsCat->addCatProperty<QString,
+                                                          Trajectory,
+                                                          false,
+                                                          StereoVisionApp::ItemDataModel::ItemPropertyDescription::NoValueSignal> (
+        tr("Stabilizator Mounting"),
+        &Trajectory::getStabMountingName,
+        nullptr,
+        &Trajectory::stabMountingChanged
+        );
+
+    stabMountingProp->setTooltipText(tr("Mounting is the transform from body frame to stabilization mount frame. Note that its orientation cannot be optimized, so you have to set a prior on it."));
+
 
 
     ItemDataModel::Category* optCat = _dataModel->addCategory(tr("Optimizer properties"));
@@ -4021,6 +4412,33 @@ void Trajectory::assignInsMounting(qint64 mountingId) {
     _insMounting = mountingId;
     if (_insMounting >= 0) addRefered({_insMounting});
     emit insMountingChanged();
+    return;
+}
+
+qint64 Trajectory::stabMountingId() const {
+    return _stabMounting;
+}
+StereoVisionApp::Mounting* Trajectory::getStabMounting() const {
+    return getProject()->getDataBlock<StereoVisionApp::Mounting>(_stabMounting);
+}
+QString Trajectory::getStabMountingName() const {
+    StereoVisionApp::Mounting* mounting = getStabMounting();
+
+    if (mounting == nullptr) {
+        return tr("No mounting");
+    }
+
+    return mounting->objectName();
+}
+void Trajectory::assignStabMounting(qint64 mountingId) {
+    if (mountingId == _stabMounting) {
+        return;
+    }
+
+    if (_stabMounting >= 0) removeRefered({_stabMounting});
+    _stabMounting = mountingId;
+    if (_stabMounting >= 0) addRefered({_stabMounting});
+    Q_EMIT stabMountingChanged();
     return;
 }
 

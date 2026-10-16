@@ -69,6 +69,12 @@ enum class TrajectoryInsStochasticProcessType {
 
 void editTrajectoryINSStochasticProcesses(Trajectory* traj, TrajectoryInsStochasticProcessType type);
 
+/*!
+ * \brief exportRectifiedGPSDelta is a function intended for debug purposes, testing the dynamic lever arm rectification of GPS sensors in presence of a stabilization mount.
+ * \param traj the trajectory to perform the analysis on.
+ */
+void exportRectifiedGPSDelta(Trajectory* traj);
+
 } // namespace StereoVisionApp
 
 #endif // STEREOVISIONAPP_TRAJECTORYACTIONS_H

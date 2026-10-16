@@ -183,6 +183,20 @@ public:
     StatusOptionalReturn<GpsData> loadGpsSequences(std::optional<StereoVision::Geometry::AffineTransform<double>> sequenceTransform = std::nullopt) const;
 
     /*!
+     * \brief loadStabilizationAngles load the stabilization angles (if they are present).
+     * \return the stabilization angles (rotation from platforme frame to aircraft frame)
+     */
+    inline StatusOptionalReturn<TimeCartesianSequence> loadStabilizationAngles() const {
+        auto rawData = loadStabilizationAnglesRawData();
+
+        if (!rawData.isValid()) {
+            return StatusOptionalReturn<TimeCartesianSequence>::error(rawData.errorMessage());
+        }
+
+        return TimeCartesianSequence(rawData.value());
+    }
+
+    /*!
      * \brief loadTrajectorySequence load the trajectory (as sequence of pose from plateform to ECEF if a geodetic conversion is defined)
      * \return optionaly a TimeTrajectorySequence
      *
@@ -531,6 +545,72 @@ public:
     void setOrientationSign(Axis axis, int sign);
 
 
+    inline QString stabilizationAnglesFile() const {
+        return _stabilizationAnglesFile;
+    }
+    void setStabilizationAnglesFile(QString const& path);
+
+    inline AngleRepresentation stabilizationAnglesRepresentation() const {
+        return _stabilizationAnglesDefinition.angle_representation;
+    }
+    void setStabilizationAnglesRepresentation(AngleRepresentation representation);
+    inline void setStabilizationAnglesRepresentation(int representation) {
+        return setStabilizationAnglesRepresentation(static_cast<AngleRepresentation>(representation));
+    }
+
+    inline AngleUnits stabilizationAnglesUnits() const {
+        return _stabilizationAnglesDefinition.angleUnit;
+    }
+    void setStabilizationAnglesUnits(AngleUnits units);
+    inline void setStabilizationAnglesUnits(int units) {
+        return setStabilizationAnglesUnits(static_cast<AngleUnits>(units));
+    }
+
+    inline double stabilizationAnglesTimeScale() {
+        return _stabilizationAnglesDefinition.timeScale;
+    }
+
+    void setStabilizationAnglesTimeScale(double scale);
+
+    inline double stabilizationAnglesTimeDelta() {
+        return _stabilizationAnglesDefinition.timeDelta;
+    }
+
+    void setStabilizationAnglesTimeDelta(double delta);
+
+    inline int stabilizationAnglesColumns(Axis axis) const {
+        switch (axis) {
+        case T:
+            return _stabilizationAnglesDefinition.orient_t_col;
+        case X:
+            return _stabilizationAnglesDefinition.orient_x_col;
+        case Y:
+            return _stabilizationAnglesDefinition.orient_y_col;
+        case Z:
+            return _stabilizationAnglesDefinition.orient_z_col;
+        case W:
+            return _stabilizationAnglesDefinition.orient_w_col;
+        }
+    }
+    void setStabilizationAnglesColumn(Axis axis, int col);
+
+    inline int stabilizationAnglesSign(Axis axis) {
+        switch (axis) {
+        case T:
+            return 1;
+        case X:
+            return (_stabilizationAnglesDefinition.sign_x > 0) ? 1 : -1;
+        case Y:
+            return (_stabilizationAnglesDefinition.sign_y > 0) ? 1 : -1;
+        case Z:
+            return (_stabilizationAnglesDefinition.sign_z > 0) ? 1 : -1;
+        case W:
+            return (_stabilizationAnglesDefinition.sign_w > 0) ? 1 : -1;
+        }
+    }
+    void setStabilizationAnglesSign(Axis axis, int sign);
+
+
     inline QString gyroFile() const {
         return _angularSpeedFile;
     }
@@ -663,6 +743,11 @@ public:
     QString getInsMountingName() const;
     void assignInsMounting(qint64 mountingId);
 
+    qint64 stabMountingId() const;
+    StereoVisionApp::Mounting* getStabMounting() const;
+    QString getStabMountingName() const;
+    void assignStabMounting(qint64 mountingId);
+
     inline void setAccBiasStochasticProcesses(QVector<InsStochasticProcessDef> const& stochasticProcesses) {
         if (_imuBiasStochasticProcesses != stochasticProcesses) {
             _imuBiasStochasticProcesses = stochasticProcesses;
@@ -771,6 +856,7 @@ Q_SIGNALS:
 
     void gpsMountingChanged();
     void insMountingChanged();
+    void stabMountingChanged();
 
 protected:
 
@@ -807,6 +893,12 @@ protected:
      * \return a vector of time orientation blocks (represented as axis angles)
      */
     virtual StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadOrientationRawData() const;
+
+    /*!
+     * \brief loadStabilizationAnglesRawData load the stabilitation angles raw data.
+     * \return a vector of time orientation blocks (represented as axis angles)
+     */
+    virtual StatusOptionalReturn<std::vector<TimeCartesianBlock>> loadStabilizationAnglesRawData() const;
 
     /*!
      * \brief loadPositionData load the trajectory (including geodetic conversion of the position, if defined properly, and conversion of the orientation from local topometric frame)
@@ -875,6 +967,39 @@ protected:
     } _orientationDefinition;
 
     QString _orientationFile;
+
+    struct StabilizationAnglesDefinition {
+
+        AngleRepresentation angle_representation;
+        AngleUnits angleUnit; //unit for the angles, if input euler angles
+
+        double timeDelta;
+        double timeScale;
+
+        int orient_t_col;
+        int orient_x_col;
+        int orient_y_col;
+        int orient_z_col;
+        int orient_w_col;
+
+        BinaryDataType orient_t_col_type;
+        BinaryDataType orient_x_col_type;
+        BinaryDataType orient_y_col_type;
+        BinaryDataType orient_z_col_type;
+        BinaryDataType orient_w_col_type;
+
+        int binary_header_lenght;
+        int binary_line_lenght;
+
+        int8_t sign_x;
+        int8_t sign_y;
+        int8_t sign_z;
+        int8_t sign_w;
+
+
+    } _stabilizationAnglesDefinition;
+
+    QString _stabilizationAnglesFile;
 
     bool _use_start_end_orientation_priors;
 
@@ -1000,6 +1125,7 @@ protected:
 
     qint64 _gpsMounting; //reference to the mounting used by the GPS
     qint64 _insMounting; // reference to the mounting used by the INS
+    qint64 _stabMounting; // reference to the mounting representing the transform from body 2 stabilization mount center
 
     double _gpsAccuracy;
     double _angularAccuracy;

@@ -17,6 +17,11 @@
 namespace StereoVisionApp {
 
 TrajectoryEditOrientationOptionsDialog::TrajectoryEditOrientationOptionsDialog(QWidget *parent) :
+    TrajectoryEditOrientationOptionsDialog(true, parent)
+{
+
+}
+TrajectoryEditOrientationOptionsDialog::TrajectoryEditOrientationOptionsDialog(bool withTopocentricConventionDef, QWidget* parent) :
     QDialog(parent)
 {
 
@@ -27,18 +32,22 @@ TrajectoryEditOrientationOptionsDialog::TrajectoryEditOrientationOptionsDialog(Q
     _orientationFileLine = new QLineEdit(this);
     formLayout->addRow(tr("Orientation file: "), _orientationFileLine);
 
-    _topocentricConventionBox = new QComboBox(this);
-    QMetaEnum topoConv = QMetaEnum::fromType<Trajectory::TopocentricConventionInternal>();
+    if (withTopocentricConventionDef) {
+        _topocentricConventionBox = new QComboBox(this);
+        QMetaEnum topoConv = QMetaEnum::fromType<Trajectory::TopocentricConventionInternal>();
 
-    for (int i = 0; i < topoConv.keyCount(); i++) {
-        const char* key = topoConv.key(i);
-        QString name = key;
-        int val = topoConv.keyToValue(key);
+        for (int i = 0; i < topoConv.keyCount(); i++) {
+            const char* key = topoConv.key(i);
+            QString name = key;
+            int val = topoConv.keyToValue(key);
 
-        _topocentricConventionBox->addItem(name, val);
+            _topocentricConventionBox->addItem(name, val);
+        }
+
+        formLayout->addRow(tr("Topocentric convention: "), _topocentricConventionBox);
+    } else {
+        _topocentricConventionBox = nullptr;
     }
-
-    formLayout->addRow(tr("Topocentric convention: "), _topocentricConventionBox);
 
     _angleRepresentationBox = new QComboBox(this);
     QMetaEnum angleRepConv = QMetaEnum::fromType<Trajectory::AngleRepresentation>();
@@ -211,6 +220,86 @@ void TrajectoryEditOrientationOptionsDialog::ConfigureTrajectoryOrientationOptio
         traj->setOrientationSign(Trajectory::Axis::Y, (dialog._yPositiveBox->isChecked()) ? 1 : -1);
         traj->setOrientationSign(Trajectory::Axis::Z, (dialog._zPositiveBox->isChecked()) ? 1 : -1);
         traj->setOrientationSign(Trajectory::Axis::W, (dialog._wPositiveBox->isChecked()) ? 1 : -1);
+    }
+
+}
+
+void TrajectoryEditOrientationOptionsDialog::ConfigureTrajectoryStabilizationAnglesOptions(Trajectory* traj, QWidget* parent) {
+
+    if (traj == nullptr) {
+        return;
+    }
+
+    TrajectoryEditOrientationOptionsDialog dialog(false, parent);
+
+    dialog._orientationFileLine->setText(traj->stabilizationAnglesFile());
+
+    int idxRep = dialog._angleRepresentationBox->findData(traj->stabilizationAnglesRepresentation());
+    dialog._angleRepresentationBox->setCurrentIndex(idxRep);
+    int idxUnit = dialog._angleUnitBox->findData(traj->stabilizationAnglesUnits());
+    dialog._angleUnitBox->setCurrentIndex(idxUnit);
+
+    dialog._timeScaleSpinBox->setValue(traj->stabilizationAnglesTimeScale());
+    dialog._timeDeltaSpinBox->setValue(traj->stabilizationAnglesTimeDelta());
+
+    dialog._timeColSpinBox->setValue(traj->stabilizationAnglesColumns(Trajectory::Axis::T));
+    dialog._xColSpinBox->setValue(traj->stabilizationAnglesColumns(Trajectory::Axis::X));
+    dialog._yColSpinBox->setValue(traj->stabilizationAnglesColumns(Trajectory::Axis::Y));
+    dialog._zColSpinBox->setValue(traj->stabilizationAnglesColumns(Trajectory::Axis::Z));
+    dialog._wColSpinBox->setValue(traj->stabilizationAnglesColumns(Trajectory::Axis::W));
+
+    dialog._xPositiveBox->setChecked(traj->stabilizationAnglesSign(Trajectory::Axis::X) > 0);
+    dialog._yPositiveBox->setChecked(traj->stabilizationAnglesSign(Trajectory::Axis::Y) > 0);
+    dialog._zPositiveBox->setChecked(traj->stabilizationAnglesSign(Trajectory::Axis::Z) > 0);
+    dialog._wPositiveBox->setChecked(traj->stabilizationAnglesSign(Trajectory::Axis::W) > 0);
+
+
+    int status = dialog.exec();
+
+    if (status == QDialogButtonBox::RejectRole) {
+        return;
+    }
+
+    if (status == QDialogButtonBox::ResetRole) {
+        traj->setStabilizationAnglesFile("");
+
+        traj->setStabilizationAnglesRepresentation(Trajectory::EulerXYZ);
+        traj->setStabilizationAnglesUnits(Trajectory::Degree);
+
+        traj->setStabilizationAnglesTimeScale(1);
+        traj->setStabilizationAnglesTimeDelta(0);
+
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::T, 0);
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::X, 1);
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::Y, 2);
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::Z, 3);
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::W, 4);
+
+        traj->setStabilizationAnglesSign(Trajectory::Axis::X, 1);
+        traj->setStabilizationAnglesSign(Trajectory::Axis::Y, 1);
+        traj->setStabilizationAnglesSign(Trajectory::Axis::Z, 1);
+        traj->setStabilizationAnglesSign(Trajectory::Axis::W, 1);
+    }
+
+    if (status == QDialogButtonBox::ApplyRole) {
+        traj->setStabilizationAnglesFile(dialog._orientationFileLine->text());
+
+        traj->setStabilizationAnglesRepresentation(dialog._angleRepresentationBox->currentData().toInt());
+        traj->setStabilizationAnglesUnits(dialog._angleUnitBox->currentData().toInt());
+
+        traj->setStabilizationAnglesTimeScale(dialog._timeScaleSpinBox->value());
+        traj->setStabilizationAnglesTimeDelta(dialog._timeDeltaSpinBox->value());
+
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::T, dialog._timeColSpinBox->value());
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::X, dialog._xColSpinBox->value());
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::Y, dialog._yColSpinBox->value());
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::Z, dialog._zColSpinBox->value());
+        traj->setStabilizationAnglesColumn(Trajectory::Axis::W, dialog._wColSpinBox->value());
+
+        traj->setStabilizationAnglesSign(Trajectory::Axis::X, (dialog._xPositiveBox->isChecked()) ? 1 : -1);
+        traj->setStabilizationAnglesSign(Trajectory::Axis::Y, (dialog._yPositiveBox->isChecked()) ? 1 : -1);
+        traj->setStabilizationAnglesSign(Trajectory::Axis::Z, (dialog._zPositiveBox->isChecked()) ? 1 : -1);
+        traj->setStabilizationAnglesSign(Trajectory::Axis::W, (dialog._wPositiveBox->isChecked()) ? 1 : -1);
     }
 
 }
