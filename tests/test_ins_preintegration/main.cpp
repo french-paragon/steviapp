@@ -710,6 +710,34 @@ void TestINSPreintegration::benchmarkLinearizeJacobianGyroExp_data() {
     QTest::newRow("5 steps, Incr 1deg, Gain 1, Bias 1e-2") << 6 << (1./180*M_PI) << 1. << 1e-2;
     QTest::newRow("5 steps, Incr 1deg, Gain 1, Bias 1e-1") << 6 << (1./180*M_PI) << 1. << 1e-1;
 
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-6, Bias 0") << 2 << (1./180*M_PI) << 1.000001 << 0.;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-5, Bias 0") << 2 << (1./180*M_PI) << 1.00001 << 0.;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-4, Bias 0") << 2 << (1./180*M_PI) << 1.0001 << 0.;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-3, Bias 0") << 2 << (1./180*M_PI) << 1.001 << 0.;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-2, Bias 0") << 2 << (1./180*M_PI) << 1.01 << 0.;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-1, Bias 0") << 2 << (1./180*M_PI) << 1.1 << 0.;
+
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-6, Bias 0") << 6 << (1./180*M_PI) << 1.000001 << 0.;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-5, Bias 0") << 6 << (1./180*M_PI) << 1.00001 << 0.;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-4, Bias 0") << 6 << (1./180*M_PI) << 1.0001 << 0.;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-3, Bias 0") << 6 << (1./180*M_PI) << 1.001 << 0.;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-2, Bias 0") << 6 << (1./180*M_PI) << 1.01 << 0.;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-1, Bias 0") << 6 << (1./180*M_PI) << 1.1 << 0.;
+
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-6, Bias 1e-6") << 2 << (1./180*M_PI) << 1.000001 << 1e-6;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-5, Bias 1e-5") << 2 << (1./180*M_PI) << 1.00001 << 1e-5;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-4, Bias 1e-4") << 2 << (1./180*M_PI) << 1.0001 << 1e-4;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-3, Bias 1e-3") << 2 << (1./180*M_PI) << 1.001 << 1e-3;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-2, Bias 1e-2") << 2 << (1./180*M_PI) << 1.01 << 1e-2;
+    QTest::newRow("1 steps, Incr 1deg, Gain 1 + 1e-1, Bias 1e-1") << 2 << (1./180*M_PI) << 1.1 << 1e-1;
+
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-6, Bias 1e-6") << 6 << (1./180*M_PI) << 1.000001 << 1e-6;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-5, Bias 1e-5") << 6 << (1./180*M_PI) << 1.00001 << 1e-5;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-4, Bias 1e-4") << 6 << (1./180*M_PI) << 1.0001 << 1e-4;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-3, Bias 1e-3") << 6 << (1./180*M_PI) << 1.001 << 1e-3;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-2, Bias 1e-2") << 6 << (1./180*M_PI) << 1.01 << 1e-2;
+    QTest::newRow("5 steps, Incr 1deg, Gain 1 + 1e-1, Bias 1e-1") << 6 << (1./180*M_PI) << 1.1 << 1e-1;
+
 }
 void TestINSPreintegration::benchmarkLinearizeJacobianGyroExp() {
 
@@ -999,7 +1027,7 @@ void TestINSPreintegration::benchmarkAcc_data() {
         return Eigen::Vector3d(0,0,const_w);
     };
 
-    TrajectoryFunction constantRotationAcc = [const_w, const_r] (double t) {
+    TrajectoryFunction constantRotationAcc = [] (double t) {
         Q_UNUSED(t);
         return Eigen::Vector3d(-const_w*const_w*const_r,0,0);
     };
@@ -1025,25 +1053,135 @@ void TestINSPreintegration::benchmarkAcc_data() {
         return Eigen::Vector3d(0,0,const_w);
     };
 
-    TrajectoryFunction constantSpinAcc = [const_w] (double t) {
+    TrajectoryFunction constantSpinAcc = [] (double t) {
         return Eigen::Vector3d(std::cos(const_w*t),-std::sin(const_w*t),9.81);
     };
 
-    QTest::newRow("Constant spin, 10 steps, gyro gains 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
-                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+    QTest::newRow("Constant spin, 10 steps, gyro gains 1e-6 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-6,1e-6,1e-6) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, gyro bias 1e-6 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-6,1e-6,1e-6) //gyro sigma, gain, bias
                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
 
+    QTest::newRow("Constant spin, 10 steps, acc gains 1e-6 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-6,1e-6,1e-6) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc bias 1e-6 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-6,1e-6,1e-6); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, all bias gains 1e-6") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-6,1e-6,1e-6) << Eigen::Vector3d(1e-6,1e-6,1e-6) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-6,1e-6,1e-6) << Eigen::Vector3d(1e-6,1e-6,1e-6); //acc sigma, gain, bias
+
+
+    QTest::newRow("Constant spin, 10 steps, gyro gains 1e-5 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-5,1e-5,1e-5) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, gyro bias 1e-5 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-5,1e-5,1e-5) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc gains 1e-5 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-5,1e-5,1e-5) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc bias 1e-5 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-5,1e-5,1e-5); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, all bias gains 1e-5") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-5,1e-5,1e-5) << Eigen::Vector3d(1e-5,1e-5,1e-5) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-5,1e-5,1e-5) << Eigen::Vector3d(1e-5,1e-5,1e-5); //acc sigma, gain, bias
+
+
+    QTest::newRow("Constant spin, 10 steps, gyro gains 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
     QTest::newRow("Constant spin, 10 steps, gyro bias 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
-                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) //gyro sigma, gain, bias
-                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
 
     QTest::newRow("Constant spin, 10 steps, acc gains 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
-                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
-                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
 
     QTest::newRow("Constant spin, 10 steps, acc bias 1e-4 only") << constantSpinGyro << constantSpinAcc << 1. << 10
-                                                                << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
-                                                                << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4); //acc sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, all bias gains 1e-4") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(1e-4,1e-4,1e-4) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-4,1e-4,1e-4) << Eigen::Vector3d(1e-4,1e-4,1e-4); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, gyro gains 1e-3 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-3,1e-3,1e-3) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, gyro bias 1e-3 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-3,1e-3,1e-3) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc gains 1e-3 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-3,1e-3,1e-3) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc bias 1e-3 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-3,1e-3,1e-3); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, all bias gains 1e-3") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-3,1e-3,1e-3) << Eigen::Vector3d(1e-3,1e-3,1e-3) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-3,1e-3,1e-3) << Eigen::Vector3d(1e-3,1e-3,1e-3); //acc sigma, gain, bias
+
+
+
+    QTest::newRow("Constant spin, 10 steps, gyro gains 1e-2 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-2,1e-2,1e-2) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, gyro bias 1e-2 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-2,1e-2,1e-2) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc gains 1e-2 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-2,1e-2,1e-2) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc bias 1e-2 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-2,1e-2,1e-2); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, all bias gains 1e-2") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-2,1e-2,1e-2) << Eigen::Vector3d(1e-2,1e-2,1e-2) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-2,1e-2,1e-2) << Eigen::Vector3d(1e-2,1e-2,1e-2); //acc sigma, gain, bias
+
+
+    QTest::newRow("Constant spin, 10 steps, gyro gains 1e-1 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-1,1e-1,1e-1) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                   << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, gyro bias 1e-1 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-1,1e-1,1e-1) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc gains 1e-1 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-1,1e-1,1e-1) << Eigen::Vector3d(0,0,0); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, acc bias 1e-1 only") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) //gyro sigma, gain, bias
+                                                                 << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-1,1e-1,1e-1); //acc sigma, gain, bias
+
+    QTest::newRow("Constant spin, 10 steps, all bias gains 1e-1") << constantSpinGyro << constantSpinAcc << 1. << 10
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-1,1e-1,1e-1) << Eigen::Vector3d(1e-1,1e-1,1e-1) //gyro sigma, gain, bias
+                                                                  << Eigen::Vector3d(0,0,0) << Eigen::Vector3d(1e-1,1e-1,1e-1) << Eigen::Vector3d(1e-1,1e-1,1e-1); //acc sigma, gain, bias
+
 
 }
 void TestINSPreintegration::benchmarkAcc() {
