@@ -127,6 +127,9 @@ void TrajectoryComparisonEditor::setTrajectory(Trajectory* trj) {
 
 void TrajectoryComparisonEditor::setTrajectories(Trajectory* trj1, Trajectory* trj2, bool compareOptimized1, bool compareOptimized2) {
 
+    _useOptimizedInMulti1 = compareOptimized1;
+    _useOptimizedInMulti2 = compareOptimized2;
+
     if (trj1 != _trajectory or trj2 != _trajectory2) {
 
         if (_trajectory != nullptr) {
@@ -156,9 +159,6 @@ void TrajectoryComparisonEditor::setTrajectories(Trajectory* trj1, Trajectory* t
         }
     }
 
-    _useOptimizedInMulti1 = compareOptimized1;
-    _useOptimizedInMulti2 = compareOptimized2;
-
 }
 
 void TrajectoryComparisonEditor::reconfigurePlots() {
@@ -174,7 +174,7 @@ void TrajectoryComparisonEditor::reconfigurePlots() {
         valid_trajectory = false;
     } else {
 
-        constexpr bool resample = true;
+        constexpr bool resample = false;
 
         if (_trajectory2 != nullptr) {
 

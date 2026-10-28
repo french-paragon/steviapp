@@ -105,7 +105,7 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 FetchContent_Declare(
   StereoVision
   GIT_REPOSITORY https://github.com/french-paragon/LibStevi.git
-  GIT_TAG f80d0b3fb2cf8d98ee1f46bc5794748f9d369905
+  GIT_TAG a7c995bdcf63fb58bec434753f4f7617d319a7d2
   FIND_PACKAGE_ARGS
 )
 set(buildGui ON) #ensuire gui is built for stereo vision
@@ -172,6 +172,8 @@ target_link_libraries(pysteviapp PRIVATE StereoVision::stevi MultidimArrays::Mul
 if (BUILD_TESTS)
         add_subdirectory(tests)
 endif (BUILD_TESTS)
+
+add_subdirectory(tools)
 
 #installing
 install(
