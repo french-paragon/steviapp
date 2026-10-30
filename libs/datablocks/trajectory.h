@@ -454,6 +454,12 @@ public:
     void setEstAccelerometerBias(bool estimate);
     void setEstAccelerometerScale(bool estimate);
 
+    floatParameter accelerometerBiasPrior() const;
+    floatParameter accelerometerScalePrior() const;
+
+    void setAccelerometerBiasPrior(floatParameter const& prior);
+    void setAccelerometerScalePrior(floatParameter const& prior);
+
     floatParameter optAccelerometerBiasX() const;
     floatParameter optAccelerometerBiasY() const;
     floatParameter optAccelerometerBiasZ() const;
@@ -691,6 +697,12 @@ public:
     void setEstGyroBias(bool estimate);
     void setEstGyroScale(bool estimate);
 
+    floatParameter gyroBiasPrior() const;
+    floatParameter gyroScalePrior() const;
+
+    void setGyroBiasPrior(floatParameter const& prior);
+    void setGyroScalePrior(floatParameter const& prior);
+
     bool useStartEndOrientationPrior() const;
     void setUseStartEndOrientationPrior(bool use);
 
@@ -832,6 +844,9 @@ Q_SIGNALS:
     void estimateAccelerometerBiasChanged();
     void estimateAccelerometerScaleChanged();
 
+    void accelerometerBiasPriorChanged();
+    void accelerometerScalePriorChanged();
+
 
     void gyroBiasXChanged();
     void gyroBiasYChanged();
@@ -843,6 +858,9 @@ Q_SIGNALS:
 
     void estimateGyroBiasChanged();
     void estimateGyroScaleChanged();
+
+    void gyroBiasPriorChanged();
+    void gyroScalePriorChanged();
 
     void useStartEndOrientationPriorChanged();
 
@@ -1068,6 +1086,9 @@ protected:
         bool _estimates_bias;
         bool _estimates_gain;
 
+        floatParameter _prior_bias;
+        floatParameter _prior_gain;
+
         floatParameter _o_biasX;
         floatParameter _o_biasY;
         floatParameter _o_biasZ;
@@ -1105,6 +1126,9 @@ protected:
 
         bool _estimates_bias;
         bool _estimates_gain;
+
+        floatParameter _prior_bias;
+        floatParameter _prior_gain;
 
         floatParameter _o_biasX;
         floatParameter _o_biasY;

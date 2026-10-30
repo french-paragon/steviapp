@@ -2512,6 +2512,26 @@ void Trajectory::setEstAccelerometerScale(bool estimate) {
     }
 }
 
+floatParameter Trajectory::accelerometerBiasPrior() const {
+    return _accelerometerParameters._prior_bias;
+}
+floatParameter Trajectory::accelerometerScalePrior() const {
+    return _accelerometerParameters._prior_gain;
+}
+
+void Trajectory::setAccelerometerBiasPrior(floatParameter const& prior) {
+    if (_accelerometerParameters._prior_bias != prior) {
+        _accelerometerParameters._prior_bias = prior;
+        Q_EMIT accelerometerBiasPriorChanged();
+    }
+}
+void Trajectory::setAccelerometerScalePrior(floatParameter const& prior) {
+    if (_accelerometerParameters._prior_gain != prior) {
+        _accelerometerParameters._prior_gain = prior;
+        Q_EMIT accelerometerScalePriorChanged();
+    }
+}
+
 floatParameter Trajectory::optAccelerometerBiasX() const {
     return _accelerometerParameters._o_biasX;
 }
@@ -2597,6 +2617,26 @@ void Trajectory::setEstGyroScale(bool estimate) {
     if (_angularSpeedParameters._estimates_gain != estimate) {
         _angularSpeedParameters._estimates_gain = estimate;
         Q_EMIT estimateGyroScaleChanged();
+    }
+}
+
+floatParameter Trajectory::gyroBiasPrior() const {
+    return _angularSpeedParameters._prior_bias;
+}
+floatParameter Trajectory::gyroScalePrior() const {
+    return _angularSpeedParameters._prior_gain;
+}
+
+void Trajectory::setGyroBiasPrior(floatParameter const& prior) {
+    if (_angularSpeedParameters._prior_bias != prior) {
+        _angularSpeedParameters._prior_bias = prior;
+        Q_EMIT gyroBiasPriorChanged();
+    }
+}
+void Trajectory::setGyroScalePrior(floatParameter const& prior) {
+    if (_angularSpeedParameters._prior_gain != prior) {
+        _angularSpeedParameters._prior_gain = prior;
+        Q_EMIT gyroScalePriorChanged();
     }
 }
 
@@ -2970,6 +3010,8 @@ QJsonObject Trajectory::encodeJson() const {
 
     accParameters.insert("estBias", _accelerometerParameters._estimates_bias);
     accParameters.insert("estGain", _accelerometerParameters._estimates_gain);
+    accParameters.insert("bp", floatParameter::toJson(_accelerometerParameters._prior_bias));
+    accParameters.insert("gp", floatParameter::toJson(_accelerometerParameters._prior_gain));
     accParameters.insert("bx", floatParameter::toJson(_accelerometerParameters._o_biasX));
     accParameters.insert("by", floatParameter::toJson(_accelerometerParameters._o_biasY));
     accParameters.insert("bz", floatParameter::toJson(_accelerometerParameters._o_biasZ));
@@ -3013,6 +3055,8 @@ QJsonObject Trajectory::encodeJson() const {
 
     angularSpeedParameters.insert("estBias", _angularSpeedParameters._estimates_bias);
     angularSpeedParameters.insert("estGain", _angularSpeedParameters._estimates_gain);
+    angularSpeedParameters.insert("bp", floatParameter::toJson(_angularSpeedParameters._prior_bias));
+    angularSpeedParameters.insert("gp", floatParameter::toJson(_angularSpeedParameters._prior_gain));
     angularSpeedParameters.insert("bx", floatParameter::toJson(_angularSpeedParameters._o_biasX));
     angularSpeedParameters.insert("by", floatParameter::toJson(_angularSpeedParameters._o_biasY));
     angularSpeedParameters.insert("bz", floatParameter::toJson(_angularSpeedParameters._o_biasZ));
@@ -3272,6 +3316,18 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
             _accelerometerParameters._estimates_gain = false;
         }
 
+        if (accelerationParameters.contains("bp")) {
+            _accelerometerParameters._prior_bias = floatParameter::fromJson(accelerationParameters.value("bp").toObject());
+        } else {
+            _accelerometerParameters._prior_bias.clear();
+        }
+
+        if (accelerationParameters.contains("gp")) {
+            _accelerometerParameters._prior_gain = floatParameter::fromJson(accelerationParameters.value("gp").toObject());
+        } else {
+            _accelerometerParameters._prior_gain.clear();
+        }
+
         if (accelerationParameters.contains("bx")) {
             _accelerometerParameters._o_biasX = floatParameter::fromJson(accelerationParameters.value("bx").toObject());
         } else {
@@ -3406,6 +3462,18 @@ void Trajectory::configureFromJson(QJsonObject const& data) {
             _angularSpeedParameters._estimates_gain = angularSpeedParameters.value("estGain").toBool(false);
         } else {
             _angularSpeedParameters._estimates_gain = false;
+        }
+
+        if (angularSpeedParameters.contains("bp")) {
+            _angularSpeedParameters._prior_bias = floatParameter::fromJson(angularSpeedParameters.value("bp").toObject());
+        } else {
+            _angularSpeedParameters._prior_bias.clear();
+        }
+
+        if (angularSpeedParameters.contains("gp")) {
+            _angularSpeedParameters._prior_gain = floatParameter::fromJson(angularSpeedParameters.value("gp").toObject());
+        } else {
+            _angularSpeedParameters._prior_gain.clear();
         }
 
         if (angularSpeedParameters.contains("bx")) {
@@ -4208,30 +4276,66 @@ void Trajectory::extendDataModel() {
 
     accAccProp->setNumericPrecision(8);
 
+
+
     optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate acc bias"),
-                                                                                                          &Trajectory::estAccelerometerBias,
-                                                                                                          &Trajectory::setEstAccelerometerBias,
-                                                                                                          &Trajectory::estimateAccelerometerBiasChanged);
+                                                                                                           &Trajectory::estAccelerometerBias,
+                                                                                                           &Trajectory::setEstAccelerometerBias,
+                                                                                                           &Trajectory::estimateAccelerometerBiasChanged);
 
     optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate acc scale"),
-                                                                                                          &Trajectory::estAccelerometerScale,
-                                                                                                          &Trajectory::setEstAccelerometerScale,
-                                                                                                          &Trajectory::estimateAccelerometerScaleChanged);
+                                                                                                           &Trajectory::estAccelerometerScale,
+                                                                                                           &Trajectory::setEstAccelerometerScale,
+                                                                                                           &Trajectory::estimateAccelerometerScaleChanged);
 
     optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate gyro bias"),
-                                                                                                          &Trajectory::estGyroBias,
-                                                                                                          &Trajectory::setEstGyroBias,
-                                                                                                          &Trajectory::estimateGyroBiasChanged);
+                                                                                                           &Trajectory::estGyroBias,
+                                                                                                           &Trajectory::setEstGyroBias,
+                                                                                                           &Trajectory::estimateGyroBiasChanged);
 
     optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Estimate gyro scale"),
-                                                                                                          &Trajectory::estGyroScale,
-                                                                                                          &Trajectory::setEstGyroScale,
-                                                                                                          &Trajectory::estimateGyroScaleChanged);
+                                                                                                           &Trajectory::estGyroScale,
+                                                                                                           &Trajectory::setEstGyroScale,
+                                                                                                           &Trajectory::estimateGyroScaleChanged);
+
+
 
     optCat->addCatProperty<bool, Trajectory, false, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Start/end rot prior"),
                                                                                                            &Trajectory::useStartEndOrientationPrior,
                                                                                                            &Trajectory::setUseStartEndOrientationPrior,
                                                                                                            &Trajectory::useStartEndOrientationPriorChanged);
+
+
+    ItemDataModel::Category* inertialPriorCat = _dataModel->addCategory(tr("Initial bias/gains Parameters"));
+
+
+    auto* accBiasPriorProp = inertialPriorCat->addCatProperty<floatParameter, Trajectory, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Acc bias prior"),
+                                                                                                                    &Trajectory::accelerometerBiasPrior,
+                                                                                                                    &Trajectory::setAccelerometerBiasPrior,
+                                                                                                                    &Trajectory::accelerometerBiasPriorChanged);
+
+    accBiasPriorProp->setNumericPrecision(8);
+
+    auto* accGainPriorProp = inertialPriorCat->addCatProperty<floatParameter, Trajectory, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Acc scale prior"),
+                                                                                                                    &Trajectory::accelerometerScalePrior,
+                                                                                                                    &Trajectory::setAccelerometerScalePrior,
+                                                                                                                    &Trajectory::accelerometerScalePriorChanged);
+
+    accGainPriorProp->setNumericPrecision(8);
+
+    auto* gyroBiasPriorProp = inertialPriorCat->addCatProperty<floatParameter, Trajectory, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Gyro bias prior"),
+                                                                                                                    &Trajectory::gyroBiasPrior,
+                                                                                                                    &Trajectory::setGyroBiasPrior,
+                                                                                                                    &Trajectory::gyroBiasPriorChanged);
+
+    gyroBiasPriorProp->setNumericPrecision(8);
+
+    auto* gyroGainPriorProp = inertialPriorCat->addCatProperty<floatParameter, Trajectory, true, ItemDataModel::ItemPropertyDescription::NoValueSignal>(tr("Gyro scale prior"),
+                                                                                                                    &Trajectory::gyroScalePrior,
+                                                                                                                    &Trajectory::setGyroScalePrior,
+                                                                                                                    &Trajectory::gyroScalePriorChanged);
+
+    gyroGainPriorProp->setNumericPrecision(8);
 
 
     ItemDataModel::Category* accelerometerOptIdsCat = _dataModel->addCategory(tr("Accelerometer Optimized Parameters"));
