@@ -285,6 +285,12 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
 
         }
 
+        QString orientationLogName = QString("Image %1 orientation").arg(im->objectName());
+        solver->addLogger(orientationLogName, new ModularSBASolver::ParamsValsLogger<3>(imNode->rAxis.data()));
+
+        QString positionLogName = QString("Image %1 position").arg(im->objectName());
+        solver->addLogger(positionLogName, new ModularSBASolver::ParamsValsLogger<3>(imNode->t.data()));
+
         //stick to trajectory
         qint64 trajId = imNode->trajectoryId.value_or(-1);
         auto trajectoryInfos = solver->getItemTrajectoryInfos(imNode->datablockId);
@@ -315,45 +321,75 @@ bool ImageAlignementSBAModule::init(ModularSBASolver* solver, ceres::Problem & p
                     _trajectoryAttachementScaleLoss = new ceres::ScaledLoss(nullptr, rigidScale, ceres::Ownership::DO_NOT_TAKE_OWNERSHIP);
                 }
 
+                QString logName = QString("Image %1 t = %2 traj = %3 mounting constraint error")
+                                      .arg(im->objectName()).arg(time).arg(trajId);
                 if (std::abs(wP-1) < 1e-3 or !std::isfinite(wP)) {
 
                     ParametrizedLeverArmCostFunctor* cost =
                         new ParametrizedLeverArmCostFunctor();
 
+                    ParametrizedLeverArmCostFunctor* logCost =
+                        new ParametrizedLeverArmCostFunctor();
+
                     using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
                     ceresFunc* costFunc = new ceresFunc(cost);
+                    ceresFunc* logFunc = new ceresFunc(logCost);
 
                     problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
                                              lvNode->rAxis.data(), lvNode->t.data(),
                                              previous.rAxis.data(), previous.t.data(),
                                              imNode->rAxis.data(), imNode->t.data());
+
+                    ModularSBASolver::AutoErrorBlockLogger<6,6>::ParamsType params{lvNode->rAxis.data(), lvNode->t.data(),
+                                                                                    next.rAxis.data(), next.t.data(),
+                                                                                    imNode->rAxis.data(), imNode->t.data()};
+                    solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<6,6>(logFunc, params, true));
 
                 } else if (std::abs(wN-1) < 1e-3) {
 
                     ParametrizedLeverArmCostFunctor* cost =
                         new ParametrizedLeverArmCostFunctor();
 
+                    ParametrizedLeverArmCostFunctor* logCost =
+                        new ParametrizedLeverArmCostFunctor();
+
                     using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedLeverArmCostFunctor,6,3,3,3,3,3,3>;
                     ceresFunc* costFunc = new ceresFunc(cost);
+                    ceresFunc* logFunc = new ceresFunc(logCost);
 
                     problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
                                              lvNode->rAxis.data(), lvNode->t.data(),
                                              next.rAxis.data(), next.t.data(),
                                              imNode->rAxis.data(), imNode->t.data());
+
+                    ModularSBASolver::AutoErrorBlockLogger<6,6>::ParamsType params{lvNode->rAxis.data(), lvNode->t.data(),
+                                                                                    next.rAxis.data(), next.t.data(),
+                                                                                    imNode->rAxis.data(), imNode->t.data()};
+                    solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<6,6>(logFunc, params, true));
 
                 } else {
 
                     ParametrizedInterpolatedLeverArmCostFunctor* cost =
                         new ParametrizedInterpolatedLeverArmCostFunctor(wP, wN);
 
+                    ParametrizedInterpolatedLeverArmCostFunctor* logCost =
+                        new ParametrizedInterpolatedLeverArmCostFunctor(wP, wN);
+
                     using ceresFunc = ceres::AutoDiffCostFunction<ParametrizedInterpolatedLeverArmCostFunctor,6,3,3,3,3,3,3,3,3>;
                     ceresFunc* costFunc = new ceresFunc(cost);
+                    ceresFunc* logFunc = new ceresFunc(logCost);
 
                     problem.AddResidualBlock(costFunc, _trajectoryAttachementScaleLoss,
                                              lvNode->rAxis.data(), lvNode->t.data(),
                                              previous.rAxis.data(), previous.t.data(),
                                              next.rAxis.data(), next.t.data(),
                                              imNode->rAxis.data(), imNode->t.data());
+
+                    ModularSBASolver::AutoErrorBlockLogger<8,6>::ParamsType params{lvNode->rAxis.data(), lvNode->t.data(),
+                                                                                    previous.rAxis.data(), previous.t.data(),
+                                                                                    next.rAxis.data(), next.t.data(),
+                                                                                    imNode->rAxis.data(), imNode->t.data()};
+                    solver->addLogger(logName, new ModularSBASolver::AutoErrorBlockLogger<8,6>(logFunc, params, true));
                 }
 
                 StereoVision::Geometry::RigidBodyTransform<double> img2body(Eigen::Vector3d(lvNode->rAxis[0],lvNode->rAxis[1],lvNode->rAxis[2]),

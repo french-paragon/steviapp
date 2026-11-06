@@ -305,6 +305,10 @@ bool PinholeCamProjModule::init() {
         return false;
     }
 
+    if (_associatedCamera == nullptr) {
+        return false;
+    }
+
     Camera*& c = _associatedCamera;
 
     Eigen::Vector2d extend;
@@ -324,6 +328,9 @@ bool PinholeCamProjModule::init() {
     }
 
     problem().AddParameterBlock(_principalPoint.data(), _principalPoint.size());
+
+    QString ppLogName = QString("Camera %1 principal point").arg(_associatedCamera->objectName());
+    solver().addLogger(ppLogName, new ModularSBASolver::ParamsValsLogger<2>(_principalPoint.data()));
 
     if (c->opticalCenterX().isSet() and
         c->opticalCenterY().isSet() and
@@ -354,6 +361,9 @@ bool PinholeCamProjModule::init() {
     }
 
     problem().AddParameterBlock(&_fLen, 1);
+
+    QString fLenLogName = QString("Camera %1 focal lenght").arg(_associatedCamera->objectName());
+    solver().addLogger(fLenLogName, new ModularSBASolver::ParamsValsLogger<1>(&_fLen));
 
     if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
 
@@ -395,6 +405,9 @@ bool PinholeCamProjModule::init() {
     }
 
     problem().AddParameterBlock(_radialDistortion.data(), _radialDistortion.size());
+
+    QString ksLogName = QString("Camera %1 radial distortion (k1, k2, k3)").arg(_associatedCamera->objectName());
+    solver().addLogger(ksLogName, new ModularSBASolver::ParamsValsLogger<3>(_radialDistortion.data()));
 
     if (!c->useRadialDistortionModel()) {
         _radialDistortion[0] = 0;
@@ -449,6 +462,9 @@ bool PinholeCamProjModule::init() {
 
     problem().AddParameterBlock(_tangentialDistortion.data(), _tangentialDistortion.size());
 
+    QString psLogName = QString("Camera %1 tangential distortion (p1, p2)").arg(_associatedCamera->objectName());
+    solver().addLogger(psLogName, new ModularSBASolver::ParamsValsLogger<2>(_tangentialDistortion.data()));
+
     if (!c->useTangentialDistortionModel()) {
         _tangentialDistortion[0] = 0;
         _tangentialDistortion[1] = 0;
@@ -494,6 +510,9 @@ bool PinholeCamProjModule::init() {
     }
 
     problem().AddParameterBlock(_skewDistortion.data(), _skewDistortion.size());
+
+    QString BsLogName = QString("Camera %1 skew distortion (B1, B2)").arg(_associatedCamera->objectName());
+    solver().addLogger(BsLogName, new ModularSBASolver::ParamsValsLogger<2>(_skewDistortion.data()));
 
     if (!c->useSkewDistortionModel()) {
 

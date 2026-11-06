@@ -325,14 +325,14 @@ public:
         VecType vt;
         vt << t[0], t[1], t[2];
 
-        PoseType PoseReftoWorld(MR, vt);
-        PoseType WorldtoPoseInterp(MRi.transpose(), -MRi.transpose()*vti);
+        PoseType WorldToPoseRef(MR.transpose(), -MR.transpose()*vt);
+        PoseType PoseInterpToWorld(MRi, vti);
 
-        PoseType pose2pose = WorldtoPoseInterp*PoseReftoWorld;
+        PoseType poseInterp2poseRef = WorldToPoseRef*PoseInterpToWorld;
 
         PoseType prior(MRp, vtp);
 
-        PoseType closure = pose2pose*prior;
+        PoseType closure = poseInterp2poseRef*prior;
 
         VecType Rclosure = StereoVision::Geometry::inverseRodriguezFormula(closure.R);
         VecType& tclosure = closure.t;

@@ -275,6 +275,11 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
     _gyrosScalesStochasticProcesses.resize(trajectoriesIdxs.size());
 
 
+    QSet<int> accBiasSetUp;
+    QSet<int> gyroBiasSetUp;
+    accBiasSetUp.reserve(trajectoriesIdxs.size());
+    gyroBiasSetUp.reserve(trajectoriesIdxs.size());
+
     for (int i = 0; i < trajectoriesIdxs.size(); i++) {
 
         int trajIdx = i;
@@ -304,19 +309,55 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
         bool gyroBias = traj->estGyroBias();
         bool gyroScale = traj->estGyroScale();
 
-        if (accelerometerBias) {
+        if (accelerometerBias and !accBiasSetUp.contains(accId)) {
             problem.AddParameterBlock(_accelerometersBiases[accId].data(), _accelerometersBiases[accId].size());
+
+            floatParameter biasPrior = traj->accelerometerBiasPrior();
+
+            if (biasPrior.isUncertain()) {
+
+                Eigen::Matrix3d At = Eigen::Matrix3d::Identity();
+
+                At(0,0) = 1./std::abs(biasPrior.stddev());
+                At(1,1) = 1./std::abs(biasPrior.stddev());
+                At(2,2) = 1./std::abs(biasPrior.stddev());
+
+                Eigen::Vector3d bt = Eigen::Vector3d::Zero();
+
+                FixedSizeNormalPrior<3,3>* prior = new FixedSizeNormalPrior<3,3>(At, bt);
+                problem.AddResidualBlock(prior, nullptr, _accelerometersBiases[accId].data());
+            }
+
             constexpr int nParams = std::tuple_size_v<IndexableInfos<decltype (_accelerometersBiases)>::ScalarT>;
             ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(_accelerometersBiases[accId].data());
             solver->addLogger(QString("Accelerometer bias trajectory %1").arg(traj->objectName()), logger);
         }
 
-        if (accelerometerScale) {
+        if (accelerometerScale and !accBiasSetUp.contains(accId)) {
             problem.AddParameterBlock(_accelerometersScales[accId].data(), _accelerometersScales[accId].size());
+
+            floatParameter scalePrior = traj->accelerometerScalePrior();
+
+            if (scalePrior.isUncertain()) {
+
+                Eigen::Matrix3d At = Eigen::Matrix3d::Identity();
+
+                At(0,0) = 1./std::abs(scalePrior.stddev());
+                At(1,1) = 1./std::abs(scalePrior.stddev());
+                At(2,2) = 1./std::abs(scalePrior.stddev());
+
+                Eigen::Vector3d bt = Eigen::Vector3d::Zero();
+
+                FixedSizeNormalPrior<3,3>* prior = new FixedSizeNormalPrior<3,3>(At, bt);
+                problem.AddResidualBlock(prior, nullptr, _accelerometersScales[accId].data());
+            }
+
             constexpr int nParams = std::tuple_size_v<IndexableInfos<decltype (_accelerometersScales)>::ScalarT>;
             ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(_accelerometersScales[accId].data());
             solver->addLogger(QString("Accelerometer scales trajectory %1").arg(traj->objectName()), logger);
         }
+
+        accBiasSetUp.insert(accId);
 
         int gyroId = traj->gyroId();
 
@@ -326,19 +367,55 @@ bool TrajectoryBaseSBAModule::init(ModularSBASolver* solver, ceres::Problem & pr
 
         gyroId = _gyroParametersIndex[gyroId];
 
-        if (gyroBias) {
+        if (gyroBias and !gyroBiasSetUp.contains(accId)) {
             problem.AddParameterBlock(_gyrosBiases[gyroId].data(), _gyrosBiases[gyroId].size());
+
+            floatParameter biasPrior = traj->gyroBiasPrior();
+
+            if (biasPrior.isUncertain()) {
+
+                Eigen::Matrix3d At = Eigen::Matrix3d::Identity();
+
+                At(0,0) = 1./std::abs(biasPrior.stddev());
+                At(1,1) = 1./std::abs(biasPrior.stddev());
+                At(2,2) = 1./std::abs(biasPrior.stddev());
+
+                Eigen::Vector3d bt = Eigen::Vector3d::Zero();
+
+                FixedSizeNormalPrior<3,3>* prior = new FixedSizeNormalPrior<3,3>(At, bt);
+                problem.AddResidualBlock(prior, nullptr, _gyrosBiases[gyroId].data());
+            }
+
             constexpr int nParams = std::tuple_size_v<IndexableInfos<decltype (_gyrosBiases)>::ScalarT>;
             ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(_gyrosBiases[gyroId].data());
             solver->addLogger(QString("Gyro bias trajectory %1").arg(traj->objectName()), logger);
         }
 
-        if ( gyroScale) {
+        if ( gyroScale and !gyroBiasSetUp.contains(accId)) {
             problem.AddParameterBlock(_gyrosScales[gyroId].data(), _gyrosScales[gyroId].size());
+
+            floatParameter scalePrior = traj->gyroScalePrior();
+
+            if (scalePrior.isUncertain()) {
+
+                Eigen::Matrix3d At = Eigen::Matrix3d::Identity();
+
+                At(0,0) = 1./std::abs(scalePrior.stddev());
+                At(1,1) = 1./std::abs(scalePrior.stddev());
+                At(2,2) = 1./std::abs(scalePrior.stddev());
+
+                Eigen::Vector3d bt = Eigen::Vector3d::Zero();
+
+                FixedSizeNormalPrior<3,3>* prior = new FixedSizeNormalPrior<3,3>(At, bt);
+                problem.AddResidualBlock(prior, nullptr, _gyrosScales[gyroId].data());
+            }
+
             constexpr int nParams = std::tuple_size_v<IndexableInfos<decltype (_gyrosScales)>::ScalarT>;
             ModularSBASolver::ValueBlockLogger* logger = new ModularSBASolver::ParamsValsLogger<nParams>(_gyrosScales[gyroId].data());
             solver->addLogger(QString("Gyro scales trajectory %1").arg(traj->objectName()), logger);
         }
+
+        gyroBiasSetUp.insert(gyroId);
 
         //loading the trajectory data is really slow, so we setup the nodes at the same time we add them to the problem.
         //this just force the trajectory module to be run first.

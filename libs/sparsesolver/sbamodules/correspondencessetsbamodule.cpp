@@ -1258,25 +1258,28 @@ bool CorrespondencesSetSBAModule::addUV2IdMatch(Correspondences::Typed<Correspon
     }
 
     using Functor = UV2ParametrizedXYZCostDynamic<ModularUVProjection>;
+    using DecoratedFunctor = InvertPoseDynamic<Functor>;
     constexpr int stride = 4;
-    using CostFunction = ceres::DynamicAutoDiffCostFunction<Functor, stride>;
+    using CostFunction = ceres::DynamicAutoDiffCostFunction<DecoratedFunctor, stride>;
 
 
-    Functor* functor = new Functor(infosIm.modularProjector, uvPos, stiffness, infosIm.paramsSizeInfos.size());
+    DecoratedFunctor* functor = new DecoratedFunctor(infosIm.modularProjector, uvPos, stiffness, infosIm.paramsSizeInfos.size());
     CostFunction* costFunction = new CostFunction(functor);
 
     int nParams = 3 + infosIm.paramsSizeInfos.size();
     std::vector<double*> params(nParams);
 
-    params[0] = pIm->rAxis.data();
+    functor->setNParams(nParams);
+
+    params[0] = pIm->rAxis.data(); //sensor2world
     costFunction->AddParameterBlock(3);
-    params[1] = pIm->t.data();
+    params[1] = pIm->t.data(); //sensor2world
     costFunction->AddParameterBlock(3);
     if (positionNode != nullptr) {
-        params[2] = positionNode->pos.data();
+        params[2] = positionNode->pos.data(); //world pos of point
 
     } else {
-        params[2] = poseNode->t.data();
+        params[2] = poseNode->t.data(); //world pos of point
     }
     costFunction->AddParameterBlock(3);
 
@@ -1293,8 +1296,10 @@ bool CorrespondencesSetSBAModule::addUV2IdMatch(Correspondences::Typed<Correspon
     if (!logName.isEmpty()) {
 
         constexpr bool manageProjectors = false;
-        Functor* logFunctor = new Functor(infosIm.modularProjector, uvPos, Eigen::Matrix2d::Identity(), infosIm.paramsSizeInfos.size(), manageProjectors);
+        DecoratedFunctor* logFunctor = new DecoratedFunctor(infosIm.modularProjector, uvPos, Eigen::Matrix2d::Identity(), infosIm.paramsSizeInfos.size(), manageProjectors);
         CostFunction* logFunction = new CostFunction(logFunctor);
+
+        logFunctor->setNParams(nParams);
 
         logFunction->AddParameterBlock(3);
         logFunction->AddParameterBlock(3);
