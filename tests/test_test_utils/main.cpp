@@ -23,6 +23,7 @@ private Q_SLOTS:
     void testEcefTrajectoryInstrumentsSimulator();
     void testWayPointsEcefTrajectoryInterpolation();
     void testWayPointsEcefTrajectoryFunctor();
+    void testWayPointsEcefTrajectoryFunctorInertialMeasurements();
     void testGeneratedTrajectory();
 
 protected:
@@ -537,8 +538,8 @@ void TestTestUtils::testWayPointsEcefTrajectoryFunctor() {
         waypointsECEF[i] = StereoVisionApp::Geo::WGS84Ellipsoid::LatLonHeight2ECEF(waypointsLatLonHeight[i]);
     }
 
-    double speed = 10; // 10 m/s
-    double smoothTime = 3; // 3 s
+    double speed = 10; // m/s
+    double smoothTime = 3; // s
 
     StereoVisionApp::Simulation::WayPointsEcefTrajectoryFunctor trajFunctor =
         StereoVisionApp::Simulation::WayPointsEcefTrajectoryFunctor::fromWGS84WayPoints(waypointsLatLonHeight,
@@ -620,6 +621,65 @@ void TestTestUtils::testWayPointsEcefTrajectoryFunctor() {
             QVERIFY(std::isfinite(d2_pos[j]));
             QVERIFY(std::isfinite(d2_orient[j]));
         }
+    }
+}
+
+
+void TestTestUtils::testWayPointsEcefTrajectoryFunctorInertialMeasurements() {
+    std::vector<std::array<double,3>> waypointsLatLonHeightFixed = {
+        {0., 0., 0.}
+    };
+
+    std::vector<std::array<double,3>> waypointsECEFFixed(waypointsLatLonHeightFixed.size());
+
+    for (size_t i = 0; i < waypointsLatLonHeightFixed.size(); i++) {
+        waypointsECEFFixed[i] = StereoVisionApp::Geo::WGS84Ellipsoid::LatLonHeight2ECEF(waypointsLatLonHeightFixed[i]);
+    }
+
+    double speed = 10; // m/s
+    double smoothTime = 3; // s
+
+    StereoVisionApp::Simulation::WayPointsEcefTrajectoryFunctor* trajFunctor = new
+        StereoVisionApp::Simulation::WayPointsEcefTrajectoryFunctor(waypointsECEFFixed, speed, smoothTime);
+
+    StereoVisionApp::Simulation::EcefTrajectoryInertialInstrumentsSimulator simulator(trajFunctor);
+
+    double t0 = 0;
+    double t1 = 1;
+
+    StereoVision::Geometry::RigidBodyTransform<double> pose0 = simulator.body2ecef(t0);
+    Eigen::Vector3d gps0 = simulator.gps(t0);
+    Eigen::Vector3d gpsv0 = simulator.gpsVelocity(t0);
+    Eigen::Vector3d gyro0 = simulator.gyro(t0);
+    Eigen::Vector3d acc0 = simulator.acc(t0);
+
+    StereoVision::Geometry::RigidBodyTransform<double> pose1 = simulator.body2ecef(t1);
+    Eigen::Vector3d gps1 = simulator.gps(t1);
+    Eigen::Vector3d gpsv1 = simulator.gpsVelocity(t1);
+    Eigen::Vector3d gyro1 = simulator.gyro(t1);
+    Eigen::Vector3d acc1 = simulator.acc(t1);
+
+    Eigen::Vector3d gyroGt(0, 0, StereoVisionApp::Geo::WGS84Ellipsoid::EarthRotationRate);
+    auto gTmp = StereoVisionApp::Geo::WGS84Ellipsoid::gravityEcefModel(waypointsECEFFixed[0]);
+    Eigen::Vector3d g;
+    for (int i = 0; i < 3; i++) {
+        g[i] = gTmp[i];
+    }
+
+    for (int i = 0; i < 3; i++) {
+        QCOMPARE(pose0.t[i], waypointsECEFFixed[0][i]);
+        QCOMPARE(pose0.r[i], 0);
+        QCOMPARE(gps0[i], waypointsECEFFixed[0][i]);
+        QCOMPARE(gpsv0[i], 0);
+        QCOMPARE(gyro0[i], gyroGt[i]);
+        QCOMPARE(acc0[i], g[i]);
+
+        QCOMPARE(pose1.t[i], waypointsECEFFixed[0][i]);
+        QCOMPARE(pose1.r[i], 0);
+        QCOMPARE(gps1[i], waypointsECEFFixed[0][i]);
+        QCOMPARE(gpsv1[i], 0);
+        QCOMPARE(gyro1[i], gyroGt[i]);
+        QCOMPARE(acc1[i], g[i]);
     }
 }
 
