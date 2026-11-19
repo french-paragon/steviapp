@@ -888,6 +888,9 @@ bool PinholePushBroomCamProjectorModule::init() {
 
     problem().AddParameterBlock(&_principalPoint, 1);
 
+    QString ppLogName = QString("Camera %1 principal point").arg(_associatedCamera->objectName());
+    solver().addLogger(ppLogName, new ModularSBASolver::ParamsValsLogger<1>(&_principalPoint));
+
     if (c->optimizedFLen().isSet()) {
         _fLen = c->optimizedFLen().value();
     } else {
@@ -895,6 +898,9 @@ bool PinholePushBroomCamProjectorModule::init() {
     }
 
     problem().AddParameterBlock(&_fLen, 1);
+
+    QString fLenLogName = QString("Camera %1 focal lenght").arg(_associatedCamera->objectName());
+    solver().addLogger(fLenLogName, new ModularSBASolver::ParamsValsLogger<1>(&_fLen));
 
     if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
         problem().SetParameterBlockConstant(&_fLen);
@@ -980,6 +986,14 @@ bool PinholePushBroomCamProjectorModule::init() {
 
     problem().AddParameterBlock(_horizontalDistortion.data(), _horizontalDistortion.size());
     problem().AddParameterBlock(_verticalDistortion.data(), _verticalDistortion.size());
+
+    constexpr int horzSize = std::size(decltype(_horizontalDistortion)());
+    QString horzLogName = QString("Camera %1 horizontal distortion parameters").arg(_associatedCamera->objectName());
+    solver().addLogger(horzLogName, new ModularSBASolver::ParamsValsLogger<horzSize>(_horizontalDistortion.data()));
+
+    constexpr int vertSize = std::size(decltype(_verticalDistortion)());
+    QString vertLogName = QString("Camera %1 vertical distortion parameters").arg(_associatedCamera->objectName());
+    solver().addLogger(vertLogName, new ModularSBASolver::ParamsValsLogger<vertSize>(_verticalDistortion.data()));
 
     if (c->isFixed() or solver().getFixedParametersFlag()&FixedParameter::CameraInternal) {
         problem().SetParameterBlockConstant(_horizontalDistortion.data());
