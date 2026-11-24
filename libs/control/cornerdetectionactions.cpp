@@ -208,8 +208,8 @@ void matchCornersInTestImagePair() {
         return;
     }
 
-    cmte->addImageData("simulatedImage1", img_data1, nullptr);
-    cmte->addImageData("simulatedImage2", img_data2, nullptr);
+    cmte->addImageData("simulatedImage1", img_data1, nullptr, 0, 255);
+    cmte->addImageData("simulatedImage2", img_data2, nullptr, 0, 255);
 }
 
 void matchCornersInImagePair(Project* proj, qint64 imgId1, qint64 imgId2) {
@@ -271,8 +271,8 @@ void matchCornersInImagePair(Project* proj, qint64 imgId1, qint64 imgId2) {
         return;
     }
 
-    cmte->addImageData(img_block1->objectName(), img_data1, new Image::ImageMatchBuilder(img_block1));
-    cmte->addImageData(img_block2->objectName(), img_data2, new Image::ImageMatchBuilder(img_block2));
+    cmte->addImageData(img_block1->objectName(), img_data1, new Image::ImageMatchBuilder(img_block1), 0, 255);
+    cmte->addImageData(img_block2->objectName(), img_data2, new Image::ImageMatchBuilder(img_block2), 0, 255);
 
 }
 
@@ -446,7 +446,7 @@ void addImages2MatchCornersEditor(Project* proj, QVector<qint64> const& imgs) {
             continue;
         }
 
-        cmte->addImageData(img_block->objectName(), img_data, new Image::ImageMatchBuilder(img_block));
+        cmte->addImageData(img_block->objectName(), img_data, new Image::ImageMatchBuilder(img_block), 0, 255);
 
     }
 

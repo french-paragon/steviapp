@@ -391,18 +391,25 @@ void CornerMatchingEditor::commitImageSelection() {
         return;
     }
 
-    setImageData(_availableImgsData[leftIdx]->imgData, _availableImgsData[rightIdx]->imgData);
-    setMatchBuilders(_availableImgsData[leftIdx]->matchBuilder, _availableImgsData[rightIdx]->matchBuilder);
+    auto& leftImgData = _availableImgsData[leftIdx];
+    auto& rightImgData = _availableImgsData[rightIdx];
+
+    setImageData(leftImgData->imgData, leftImgData->blackLevel, leftImgData->whiteLevel,
+                 rightImgData->imgData, rightImgData->blackLevel, rightImgData->whiteLevel);
+    setMatchBuilders(leftImgData->matchBuilder, rightImgData->matchBuilder);
 
 }
 
-void CornerMatchingEditor::setImageData(Multidim::Array<float, 3> const& imgData1,
-                                            Multidim::Array<float, 3> const& imgData2) {
+void CornerMatchingEditor::setImageData(Multidim::Array<float, 3> const& imgData1, float bL1, float wL1,
+                                            Multidim::Array<float, 3> const& imgData2, float bL2, float wL2) {
     _imgData1 = imgData1;
     _imgData2 = imgData2;
 
     _pointsOverlay1->setPointSet({});
     _pointsOverlay2->setPointSet({});
+
+    _imageViewAdapter1->setBWLevel(bL1, wL1);
+    _imageViewAdapter2->setBWLevel(bL2, wL2);
 
     _imageViewAdapter1->imageDataUpdated();
     _imageViewAdapter2->imageDataUpdated();
@@ -411,13 +418,16 @@ void CornerMatchingEditor::setImageData(Multidim::Array<float, 3> const& imgData
     _imageDisplay2->update();
 }
 
-void CornerMatchingEditor::setImageData(Multidim::Array<float, 3> && imgData1,
-                                            Multidim::Array<float, 3> && imgData2) {
+void CornerMatchingEditor::setImageData(Multidim::Array<float, 3> && imgData1, float bL1, float wL1,
+                                            Multidim::Array<float, 3> && imgData2, float bL2, float wL2) {
     _imgData1 = imgData1;
     _imgData2 = imgData2;
 
     _pointsOverlay1->setPointSet({});
     _pointsOverlay2->setPointSet({});
+
+    _imageViewAdapter1->setBWLevel(bL1, wL1);
+    _imageViewAdapter2->setBWLevel(bL2, wL2);
 
     _imageViewAdapter1->imageDataUpdated();
     _imageViewAdapter2->imageDataUpdated();
@@ -501,7 +511,7 @@ void CornerMatchingEditor::setupMatchingPipeline() {
     float threshold = 0.1;
 
     GenericConfigurableCornerDetectionModule* baseCornerDetectionModule = new ConfigurableHarrisCornerDetectorModule(lpRadius, nomMaxSupprRadius, nItems);
-    HungarianCornerMatchModule<float>* basePointsMatchingModule = new HungarianCornerMatchModule<float>(patchRadius, nSamples);
+    BestNCornerMatchModule<float>* basePointsMatchingModule = new BestNCornerMatchModule<float>(patchRadius, nSamples);
     ConfigurableRansacEpipolarSelectionModule* baseInlierModule = new ConfigurableRansacEpipolarSelectionModule(nRansacIteration, threshold);
 
     _matchingPipeline = new MatchingPipeline(baseCornerDetectionModule, basePointsMatchingModule, nullptr, baseInlierModule);
@@ -511,10 +521,6 @@ void CornerMatchingEditor::setupMatchingPipeline() {
 
     connect(_featurePatchRadius, qOverload<int>(&QSpinBox::valueChanged), this, [basePointsMatchingModule] (int val) {
         basePointsMatchingModule->setPatchRadius(val);
-    });
-
-    connect(_nFeatures, qOverload<int>(&QSpinBox::valueChanged), this, [basePointsMatchingModule] (int val) {
-        basePointsMatchingModule->setNSamples(val);
     });
 
     reconfigureCornerDetectorOptions();

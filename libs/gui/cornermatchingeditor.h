@@ -113,13 +113,17 @@ public:
     template<typename T>
     void addImageData(QString const& name,
                       T && imgData,
-                      MatchBuilder* matchBuilder) {
+                      MatchBuilder* matchBuilder,
+                      float blackLevel,
+                      float whiteLevel) {
         static_assert(std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,Multidim::Array<float, 3>>, "Image data must be a raster array");
 
         ImageDataHolder* dataHolder = new ImageDataHolder();
         dataHolder->name = name;
         dataHolder->imgData = std::forward<T>(imgData); //perfect forwarding
         dataHolder->matchBuilder = matchBuilder;
+        dataHolder->blackLevel = blackLevel;
+        dataHolder->whiteLevel = whiteLevel;
 
         _availableImgsData.push_back(dataHolder);
 
@@ -141,11 +145,11 @@ protected:
 
     void commitImageSelection();
 
-    void setImageData(Multidim::Array<float, 3> const& imgData1,
-                      Multidim::Array<float, 3> const& imgData2);
+    void setImageData(Multidim::Array<float, 3> const& imgData1, float bL1, float wL1,
+                      Multidim::Array<float, 3> const& imgData2, float bL2, float wL2);
     //Move variant, that might be usefull
-    void setImageData(Multidim::Array<float, 3> && imgData1,
-                      Multidim::Array<float, 3> && imgData2);
+    void setImageData(Multidim::Array<float, 3> && imgData1, float bL1, float wL1,
+                      Multidim::Array<float, 3> && imgData2, float bL2, float wL2);
 
     void onPointClicked(int id);
 
@@ -163,6 +167,8 @@ protected:
         QString name;
         Multidim::Array<float, 3> imgData;
         MatchBuilder* matchBuilder;
+        float blackLevel;
+        float whiteLevel;
     };
 
     void setupMatchingPipeline();

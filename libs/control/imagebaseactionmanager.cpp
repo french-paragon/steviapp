@@ -226,6 +226,12 @@ QList<QAction*> ImageBaseActionManager::factorizeItemContextActions(QObject* par
 
 	lst.append(addToCalibration);
 
+    QAction* openImagesInCornerMatchingEditor = createOpenInCornerMatchingEditor(parent, p, {im->internalId()});
+
+    if (openImagesInCornerMatchingEditor != nullptr) {
+        lst.append(openImagesInCornerMatchingEditor);
+    }
+
 
     #ifdef STEVIAPP_DEVEL_TOOLS
 
